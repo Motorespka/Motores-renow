@@ -4,6 +4,6 @@ sqlite3
 python-dotenv
 easyocr
 opencv-python-headless
-torch
-torchvision
+torch --index-url https://download.pytorch.org/whl/cpu
+torchvision --index-url https://download.pytorch.org/whl/cpu
 sqlalchemy
