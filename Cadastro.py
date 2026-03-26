@@ -14,9 +14,11 @@ def show():
     
 senha_correta = st.secrets["APP_PASSWORD"]
 if senha_digita == senha_correta:
-        st.sucess("Acesso liberado")
+    st.sucess("Acesso liberado")
 else: 
-        st.warning("senha incorreta")
+     if senha_digita != "":   
+    st.warning("senha incorreta")
+st.stop()
     
 
     # --- Upload e OCR ---
