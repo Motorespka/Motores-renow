@@ -9,9 +9,9 @@ def show():
     st.markdown("### 🔐 Área Restrita: Cadastro Técnico")
 
     # Autenticação Simples
-    senha_digitada = st.text_input("Insira a chave de acesso:", type="password")
+    senha_digitada = st.text_input("Insira a chave de acesso", type="password")
     # Use um valor padrão para evitar erro de None no os.getenv
-    SENHA_CORRETA = st.secrets["APP_PASSWORD"]
+    senha_correta = st.secrets["APP_PASSWORD"]
 
     if not senha_digitada:
         st.info("Por favor, insira a chave para liberar o formulário.")
