@@ -1,6 +1,6 @@
 import streamlit as st
 import os
-from db import inserir_motor
+from db import salvar_motor
 
 
 def show():
