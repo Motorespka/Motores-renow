@@ -1,39 +1,23 @@
-import streamlit as st # Corrigido o erro de digitação
-from dotenv import load_dotenv
-load_dotenv()
+import streamlit as st
+import easyocr
+import numpy as np
+from PIL import Image
 
-st.set_page_config(page_title="Rebobinagem Pro", layout="wide")
+# Isso evita que o app carregue a IA toda vez que você clica em um botão
+@st.cache_resource
+def carregar_leitor():
+    # 'gpu=False' é obrigatório no Streamlit Cloud (não há GPU gratuita)
+    return easyocr.Reader(['pt', 'en'], gpu=False)
 
-# CSS para estilização (corrigido as chaves e fechamento)
-st.markdown("""
-    <style>
-    .stButton>button {
-        width: 100%;
-        border-radius: 5px;
-        background-color: #004a99;
-        color: white;
-    }
-    </style>
-""", unsafe_allow_html=True)
+def extrair_dados_da_placa(imagem):
+    reader = carregar_leitor()
+    # Converte imagem do Streamlit para o formato que a IA aceita
+    img_array = np.array(Image.open(imagem))
+    resultado = reader.readtext(img_array, detail=0)
+    return " ".join(resultado)
 
-st.title("Moto-Renow: Sistema Técnico de Rebobinagem")
-st.subheader("Gestão de cálculos e Motores Elétricos")
-
-# Corrigido: Aspas e vírgulas nas abas
-aba1, aba2, aba3 = st.tabs([
-    "Cadastrar Novo Cálculo", 
-    "Consultar Cálculos", 
-    "Calcular"
-])
-
-# Importante: Verifique se seus arquivos estão na pasta 'pages' 
-# ou no mesmo diretório. Ajuste os imports conforme necessário.
-with aba1:
-    import Cadastro
-    Cadastro.show()
-with aba2:
-    import Consulta
-    Consulta.show()
-with aba3:
-    import Calculadora
-    Calculadora.show()
+# Exemplo de uso na aba de calcular
+# foto = st.file_uploader("Tire foto da placa do motor", type=['jpg', 'png'])
+# if foto:
+#     dados = extrair_dados_da_placa(foto)
+#     st.write(f"Dados detectados: {dados}")
