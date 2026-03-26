@@ -2,14 +2,14 @@ import streamlit as st
 import os
 import numpy as np
 from PIL import Image
-from db import salvar_motor # Verifique se no seu db.py está minúsculo 'salvar_motor'
+from db import salvar_motor 
 from ocr_motor import ler_placa_motor
 
 def show():
     st.markdown("### 🔐 Área Restrita: Cadastro Técnico")
 
     # ===== LOGIN =====
-    # Usando uma chave única para o widget de senha
+    # Usando uma chave única para o widget de senha para evitar conflitos
     senha_digitada = st.text_input(
         "Insira a chave de acesso",
         type="password",
@@ -19,8 +19,8 @@ def show():
     # Tratamento de erro caso st.secrets não esteja configurado
     try:
         senha_correta = st.secrets["APP_PASSWORD"]
-    except:
-        st.error("Erro: APP_PASSWORD não configurada nos Secrets.")
+    except Exception:
+        st.error("Erro: APP_PASSWORD não configurada nos Secrets do Streamlit.")
         st.stop()
 
     if senha_digitada != senha_correta:
@@ -30,11 +30,15 @@ def show():
 
     st.success("Acesso liberado")
 
-    # ===== INICIALIZAÇÃO DO ESTADO (Para o OCR preencher o formulário) =====
+    # ===== INICIALIZAÇÃO DO ESTADO (Memória para o OCR preencher o formulário) =====
     if "dados_ocr" not in st.session_state:
         st.session_state.dados_ocr = {
-            "Marca": "", "Tensão (V)": 0.0, "Potência (kW/HP)": 0.0, 
-            "Rotação (RPM)": 0, "Frequência (Hz)": "", "Corrente (A)": 0.0
+            "Marca": "", 
+            "Tensão (V)": "0.0", 
+            "Potência (kW/HP)": "0.0", 
+            "Rotação (RPM)": "0", 
+            "Frequência (Hz)": "", 
+            "Corrente (A)": "0.0"
         }
 
     # ===== UPLOAD E OCR =====
@@ -51,7 +55,7 @@ def show():
 
         if st.button("Executar OCR", use_container_width=True):
             with st.spinner("🤖 IA Analisando imagem..."):
-                # 1. Garante que a pasta temp existe
+                # 1. Garante que a pasta temp existe (evita erro 'file exists')
                 os.makedirs("temp", exist_ok=True)
                 caminho_temp = os.path.join("temp", arquivo.name)
 
@@ -60,12 +64,14 @@ def show():
                     f.write(arquivo.getbuffer())
 
                 # 3. Chama a função do seu arquivo ocr_motor.py
-                # Passamos o caminho ou a imagem aberta
-                resultados = ler_placa_motor(caminho_temp)
-                
-                # 4. Salva no session_state para o formulário ler
-                st.session_state.dados_ocr = resultados
-                st.success("Dados extraídos com sucesso! Verifique o formulário abaixo.")
+                try:
+                    resultados = ler_placa_motor(caminho_temp)
+                    
+                    # 4. Salva no session_state para o formulário ler
+                    st.session_state.dados_ocr = resultados
+                    st.success("Dados extraídos com sucesso! Verifique o formulário abaixo.")
+                except Exception as e:
+                    st.error(f"Erro ao processar imagem: {e}")
 
     # ===== FORMULÁRIO DE CADASTRO =====
     st.title("Cadastro de Motor")
@@ -77,25 +83,26 @@ def show():
         col1, col2 = st.columns(2)
 
         with col1:
-            # O valor default (value) agora tenta pegar o que o OCR encontrou
+            # O valor default (value) tenta pegar o que o OCR encontrou
             marca = st.text_input("Marca", value=d.get("Marca", ""))
             modelo = st.text_input("Modelo")
             carcaca = st.text_input("Carcaça")
             peso = st.number_input("Peso (kg)", 0.0)
             
-            # Tentativa de converter potência do OCR para número
+            # Tentativa de converter potência do OCR para número (Float)
             try:
-                pot_valor = float(str(d.get("Potência (kW/HP)", "0.0")).replace(",", "."))
+                pot_str = str(d.get("Potência (kW/HP)", "0.0")).replace(",", ".")
+                pot_valor = float(pot_str)
             except:
                 pot_valor = 0.0
             potencia = st.number_input("Potência", value=pot_valor)
             
             unidade = st.selectbox("Unidade", ["cv", "kW"])
             
-            # Tensão do OCR
+            # Tensão do OCR (Trata casos como "220/380")
             try:
-                # Se vier algo como "220 / 380", pegamos o primeiro
-                tensao_ocr = float(str(d.get("Tensão (V)", "0.0")).split("/")[0].strip())
+                tensao_raw = str(d.get("Tensão (V)", "0.0")).split("/")[0].strip()
+                tensao_ocr = float(tensao_raw.replace(",", "."))
             except:
                 tensao_ocr = 0.0
             tensao = st.number_input("Tensão (V)", value=tensao_ocr)
@@ -106,9 +113,9 @@ def show():
             polos = st.selectbox("Polos", [2, 4, 6, 8], index=1) # Default 4 polos
             fp = st.number_input("Fator de potência", 0.0, 1.0, 0.85)
             
-            # RPM do OCR
+            # RPM do OCR (Converte para Inteiro)
             try:
-                rpm_ocr = int(d.get("Rotação (RPM)", 0))
+                rpm_ocr = int(float(str(d.get("Rotação (RPM)", "0")).replace(",", ".")))
             except:
                 rpm_ocr = 0
             rpm = st.number_input("RPM", value=rpm_ocr)
@@ -135,14 +142,18 @@ def show():
                     isolamento, fs, refrigeracao, ligacao, desenho
                 )
 
-                # Chamada da função (ajustado para minúsculo como no seu import)
                 try:
+                    # Executa a função de salvar do seu db.py
                     salvar_motor(dados_para_salvar)
                     st.balloons()
                     st.success(f"Motor {modelo} da marca {marca} salvo com sucesso!")
-                    # Limpa o OCR após salvar
-                    st.session_state.dados_ocr = {}
+                    
+                    # Limpa os dados do OCR da memória após salvar para o próximo cadastro
+                    st.session_state.dados_ocr = {
+                        "Marca": "", "Tensão (V)": 0.0, "Potência (kW/HP)": 0.0, 
+                        "Rotação (RPM)": 0, "Frequência (Hz)": "", "Corrente (A)": 0.0
+                    }
                 except Exception as e:
                     st.error(f"Erro ao salvar no banco de dados: {e}")
             else:
-                st.warning("Marca e Modelo são obrigatórios para o cadastro.")
+                st.warning("Marca e Modelo são obrigatórios para concluir o cadastro.")
