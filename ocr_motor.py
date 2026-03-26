@@ -1,130 +1,71 @@
+import easyocr
+import cv2
+import re
+import numpy as np
 import streamlit as st
 import os
-from db import salvar_motor
-from ocr_motor import ler_placa_motor
+from PIL import Image
 
-def show():
+# --- FUNÇÕES DE PROCESSAMENTO (A LÓGICA) ---
 
-    st.markdown("### 🔐 Área Restrita: Cadastro Técnico")
+@st.cache_resource
+def carregar_modelo():
+    return easyocr.Reader(['pt', 'en'], gpu=False)
 
-    # ===== LOGIN =====
-    senha_digitada = st.text_input(
-        "Insira a chave de acesso",
-        type="password"
-    )
+def preprocessar_imagem(imagem_array):
+    gray = cv2.cvtColor(imagem_array, cv2.COLOR_RGB2GRAY)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    res = clahe.apply(gray)
+    _, thresh = cv2.threshold(res, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    return thresh
 
-    senha_correta = st.secrets["APP_PASSWORD"]
+def extrair_dados_especificos(texto):
+    dados = {
+        "Marca": "Não detectada",
+        "Tensão (V)": "Não detectada",
+        "Potência (kW/HP)": "Não detectada",
+        "Rotação (RPM)": "Não detectada",
+        "Frequência (Hz)": "Não detectada",
+        "Corrente (A)": "Não detectada"
+    }
+    if "WEG" in texto.upper(): dados["Marca"] = "WEG"
+    elif "SIEMENS" in texto.upper(): dados["Marca"] = "SIEMENS"
+    elif "VOGES" in texto.upper(): dados["Marca"] = "VOGES"
 
-    if senha_digitada != senha_correta:
-        if senha_digitada != "":
-            st.warning("Senha incorreta")
-        st.stop()
+    tensoes = re.findall(r'\b(220|380|440|760)\b', texto)
+    if tensoes: dados["Tensão (V)"] = " / ".join(list(set(tensoes)))
 
-    st.success("Acesso liberado")
+    rpm = re.search(r'(\d{3,4})\s?(?:RPM|min-1|min)', texto, re.IGNORECASE)
+    if rpm: dados["Rotação (RPM)"] = rpm.group(1)
 
-    # ===== INICIALIZAÇÃO DO ESTADO (Para o formulário receber o OCR) =====
-    if "dados_ocr" not in st.session_state:
-        st.session_state.dados_ocr = {}
+    freq = re.search(r'(50|60)\s?Hz', texto, re.IGNORECASE)
+    if freq: dados["Frequência (Hz)"] = freq.group(1)
 
-    # ===== UPLOAD =====
-    st.subheader("📸 Captura de Dados via Placa")
+    pot = re.search(r'(\d+[.,]\d+)\s?(?:kW|HP|cv)', texto, re.IGNORECASE)
+    if pot: dados["Potência (kW/HP)"] = pot.group(1)
 
-    arquivo = st.file_uploader(
-        "Envie foto da placa/cálculo do motor",
-        type=["jpg", "png", "jpeg"]
-    )
+    return dados
+
+def ler_placa_motor(imagem_input):
+    reader = carregar_modelo()
+    if isinstance(imagem_input, str):
+        imagem_input = cv2.imread(imagem_input)
+    resultado = reader.readtext(imagem_input)
+    texto_total = " ".join([res[1] for res in resultado])
+    return extrair_dados_especificos(texto_total)
+
+# --- INTERFACE (SÓ RODA SE VOCÊ EXECUTAR ESTE ARQUIVO DIRETO) ---
+if __name__ == "__main__":
+    st.set_page_config(page_title="OCR Motor Expert", layout="centered")
+    st.title("🔌 Extrator de Dados de Placa de Motor")
+    arquivo = st.file_uploader("Selecione a imagem", type=['jpg', 'jpeg', 'png'])
 
     if arquivo:
-        st.image(arquivo, caption="Imagem Carregada", width=300)
-
-        if st.button("Executar OCR"):
-            with st.spinner("Extraindo dados..."):
-                os.makedirs("temp", exist_ok=True)
-                caminho_temp = os.path.join("temp", arquivo.name)
-
-                with open(caminho_temp, "wb") as f:
-                    f.write(arquivo.getbuffer())
-
-                # INTEGRAÇÃO REAL: Chama o seu arquivo ocr_motor.py
-                resultado = ler_placa_motor(caminho_temp)
-                st.session_state.dados_ocr = resultado
-                st.success("Dados extraídos com sucesso!")
-
-    # ===== FORMULÁRIO =====
-    st.title("Cadastro de Motor")
-
-    # Pegamos os dados extraídos pelo OCR (se houver) para preencher os campos
-    d = st.session_state.dados_ocr
-
-    with st.form("form_cadastro_motor"):
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            marca = st.text_input("Marca", value=d.get("Marca", ""))
-            modelo = st.text_input("Modelo")
-            carcaca = st.text_input("Carcaça")
-            peso = st.number_input("Peso (kg)", 0.0)
-            
-            # Tratamento de número para a potência
-            try:
-                pot_val = float(str(d.get("Potência (kW/HP)", "0.0")).replace(",", "."))
-            except:
-                pot_val = 0.0
-            potencia = st.number_input("Potência", value=pot_val)
-            
-            unidade = st.selectbox("Unidade", ["cv", "kW"])
-            
-            # Tratamento para Tensão
-            try:
-                tensao_val = float(str(d.get("Tensão (V)", "0.0")).split("/")[0].strip())
-            except:
-                tensao_val = 0.0
-            tensao = st.number_input("Tensão (V)", value=tensao_val)
-            
-            amperagem = st.number_input("Amperagem (A)", 0.0)
-
-        with col2:
-            polos = st.selectbox("Polos", [2, 4, 6, 8])
-            fp = st.number_input("Fator de potência", 0.0, 1.0)
-            
-            # Tratamento para RPM
-            try:
-                rpm_val = int(d.get("Rotação (RPM)", 0))
-            except:
-                rpm_val = 0
-            rpm = st.number_input("RPM", value=rpm_val)
-            
-            ip = st.text_input("Grau de Proteção (IP)")
-            isolamento = st.text_input("Classe de Isolamento")
-            fs = st.number_input("Fator de Serviço", 0.0)
-            refrigeracao = st.text_input("Refrigeração")
-            ligacao = st.text_input("Ligação")
-
-        desenho = st.text_input("Caminho da imagem/desenho")
-
-        submit = st.form_submit_button(
-            "salvar Motor",
-            use_container_width=True
-        )
-
-        if submit:
-
-            if marca and modelo:
-
-                dados = (
-                    marca, modelo, carcaca, peso, potencia, unidade,
-                    tensao, amperagem, polos, fp, rpm, ip,
-                    isolamento, fs, refrigeracao, ligacao, desenho
-                )
-
-                # CORREÇÃO: salvar_motor (minúsculo) para bater com seu import e db.py
-                salvar_motor(dados)
-
-                st.balloons()
-                st.success(f"Motor {modelo} salvo!")
-                # Limpa os dados do OCR após salvar
-                st.session_state.dados_ocr = {}
-
-            else:
-                st.warning("Marca e Modelo são obrigatórios.")
+        if not os.path.exists("temp"):
+            os.makedirs("temp", exist_ok=True)
+        img_pil = Image.open(arquivo)
+        img_array = np.array(img_pil)
+        reader = carregar_modelo()
+        with st.spinner('Processando...'):
+            dados_finais = ler_placa_motor(img_array)
+            st.write(dados_finais)
