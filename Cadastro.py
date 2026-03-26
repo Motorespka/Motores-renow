@@ -6,6 +6,41 @@ from db import salvar_motor
 from ocr_motor import ler_placa_motor
 
 def show():
+if arquivo:
+        st.image(arquivo, caption="Imagem Carregada", width=300)
+
+        if st.button("Executar OCR", use_container_width=True):
+            with st.spinner("🤖 IA Analisando imagem..."):
+                try:
+                    # 1. Define o caminho ABSOLUTO para a pasta temp
+                    # Isso evita erros de 'diretório não encontrado' em diferentes servidores
+                    base_dir = os.path.dirname(os.path.abspath(__file__))
+                    temp_dir = os.path.join(base_dir, "temp")
+                    
+                    # 2. Garante que a pasta temp existe
+                    os.makedirs(temp_dir, exist_ok=True)
+                    
+                    # 3. Define o caminho do arquivo limpando caracteres especiais do nome
+                    nome_arquivo = arquivo.name.replace(" ", "_")
+                    caminho_temp = os.path.join(temp_dir, nome_arquivo)
+
+                    # 4. Salva o arquivo fisicamente para o EasyOCR ler
+                    with open(caminho_temp, "wb") as f:
+                        f.write(arquivo.getbuffer())
+
+                    # 5. Chama a função do seu arquivo ocr_motor.py passando o caminho fixo
+                    resultados = ler_placa_motor(caminho_temp)
+                    
+                    # 6. Atualiza o estado para preencher o formulário
+                    st.session_state.dados_ocr = resultados
+                    st.success("Dados extraídos com sucesso! Verifique o formulário abaixo.")
+                    
+                    # Opcional: Remove o arquivo após a leitura para não encher o servidor
+                    if os.path.exists(caminho_temp):
+                        os.remove(caminho_temp)
+                        
+                except Exception as e:
+                    st.error(f"Erro técnico no processamento da pasta temp: {e}"
     # Esta linha deve ter exatamente 4 espaços de recuo (ou 1 tab)
     st.markdown("### 🔐 Área Restrita: Cadastro Técnico")
 
