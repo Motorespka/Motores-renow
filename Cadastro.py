@@ -30,16 +30,12 @@ def show():
 
     # 2. INICIALIZAÇÃO DO ESTADO
     if "dados_ocr" not in st.session_state:
-        st.session_state.dados_ocr = {
-            "Marca": "", "Tensão (V)": "0.0", "Potência (kW/HP)": "0.0", 
-            "Rotação (RPM)": "0", "Frequência (Hz)": "", "Corrente (A)": "0.0"
-        }
+        st.session_state.dados_ocr = {}
     
-    # --- ACRÉSCIMO: Controle de versão para forçar atualização do formulário ---
     if "form_version" not in st.session_state:
         st.session_state.form_version = 0
 
-    # 3. UPLOAD E OCR (A LÓGICA DA PASTA TEMP ESTÁ AQUI)
+    # 3. UPLOAD E OCR
     st.subheader("📸 Captura de Dados via Placa")
 
     arquivo = st.file_uploader(
@@ -54,7 +50,6 @@ def show():
         if st.button("Executar OCR", use_container_width=True):
             with st.spinner("🤖 IA Analisando imagem..."):
                 try:
-                    # Caminho absoluto para evitar erro de pasta
                     base_dir = os.path.dirname(os.path.abspath(__file__))
                     temp_dir = os.path.join(base_dir, "temp")
                     os.makedirs(temp_dir, exist_ok=True)
@@ -68,16 +63,14 @@ def show():
                     # Chama o motor de OCR
                     resultados = ler_placa_motor(caminho_temp)
                     
+                    # Atualiza os dados e incrementa a versão para forçar o formulário a atualizar
                     st.session_state.dados_ocr = resultados
+                    st.session_state.form_version += 1
                     
-                    # Limpa o arquivo temporário
                     if os.path.exists(caminho_temp):
                         os.remove(caminho_temp)
                     
-                    # --- ACRÉSCIMO: Muda a versão para o formulário resetar com os dados novos ---
-                    st.session_state.form_version += 1
                     st.rerun() 
-                    # -------------------------------------------------------------------------
                         
                 except Exception as e:
                     st.error(f"Erro técnico no processamento da pasta temp: {e}")
@@ -86,40 +79,57 @@ def show():
     st.title("Cadastro de Motor")
     d = st.session_state.dados_ocr
 
-    # --- ACRÉSCIMO: Key dinâmica baseada na versão ---
+    # Função auxiliar para buscar dados ignorando maiúsculas/minúsculas
+    def buscar(termo):
+        for k, v in d.items():
+            if termo.lower() in k.lower():
+                return str(v)
+        return ""
+
+    # O formulário "renasce" a cada nova leitura de OCR devido à key dinâmica
     with st.form(key=f"form_motor_v_{st.session_state.form_version}"):
         col1, col2 = st.columns(2)
 
         with col1:
-            marca = st.text_input("Marca", value=d.get("Marca", ""))
+            marca = st.text_input("Marca", value=buscar("Marca"))
             modelo = st.text_input("Modelo")
             carcaca = st.text_input("Carcaça")
             peso = st.number_input("Peso (kg)", 0.0)
             
+            # Tratamento de Potência
             try:
-                pot_str = str(d.get("Potência (kW/HP)", "0.0")).replace(",", ".")
-                pot_valor = float(pot_str)
+                pot_raw = buscar("Potência").replace(",", ".")
+                pot_valor = float(pot_raw) if pot_raw else 0.0
             except:
                 pot_valor = 0.0
             potencia = st.number_input("Potência", value=pot_valor)
             
             unidade = st.selectbox("Unidade", ["cv", "kW"])
             
+            # Tratamento de Tensão
             try:
-                tensao_raw = str(d.get("Tensão (V)", "0.0")).split("/")[0].strip()
-                tensao_ocr = float(tensao_raw.replace(",", "."))
+                tensao_raw = buscar("Tensão").split("/")[0].strip().replace(",", ".")
+                tensao_ocr = float(tensao_raw) if tensao_raw else 0.0
             except:
                 tensao_ocr = 0.0
             tensao = st.number_input("Tensão (V)", value=tensao_ocr)
             
-            amperagem = st.number_input("Amperagem (A)", 0.0)
+            # Tratamento de Amperagem/Corrente
+            try:
+                amp_raw = buscar("Corrente").replace(",", ".")
+                amp_valor = float(amp_raw) if amp_raw else 0.0
+            except:
+                amp_valor = 0.0
+            amperagem = st.number_input("Amperagem (A)", value=amp_valor)
 
         with col2:
             polos = st.selectbox("Polos", [2, 4, 6, 8], index=1)
             fp = st.number_input("Fator de potência", 0.0, 1.0, 0.85)
             
+            # Tratamento de RPM
             try:
-                rpm_ocr = int(float(str(d.get("Rotação (RPM)", "0")).replace(",", ".")))
+                rpm_raw = buscar("Rotação").replace(",", ".")
+                rpm_ocr = int(float(rpm_raw)) if rpm_raw else 0
             except:
                 rpm_ocr = 0
             rpm = st.number_input("RPM", value=rpm_ocr)
@@ -146,11 +156,8 @@ def show():
                     salvar_motor(dados_para_salvar)
                     st.balloons()
                     st.success(f"Motor {modelo} salvo!")
-                    st.session_state.dados_ocr = {
-                        "Marca": "", "Tensão (V)": 0.0, "Potência (kW/HP)": 0.0, 
-                        "Rotação (RPM)": 0, "Frequência (Hz)": "", "Corrente (A)": 0.0
-                    }
-                    # Força limpeza e reset de versão para o próximo cadastro
+                    # Limpa os dados para o próximo cadastro
+                    st.session_state.dados_ocr = {}
                     st.session_state.form_version += 1
                     st.rerun()
                 except Exception as e:
