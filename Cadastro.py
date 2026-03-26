@@ -1,6 +1,6 @@
 import streamlit as st
 import os
-from db.py import inserir_motor
+from db import inserir_motor
 # Certifique-se de que ler_placa_motor está importado corretamente
 # from ocr_module import ler_placa_motor 
 
