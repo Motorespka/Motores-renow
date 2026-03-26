@@ -12,7 +12,11 @@ def show():
     senha_digitada = st.text_input("Insira a chave de acesso", type="password")
     # Use um valor padrão para evitar erro de None no os.getenv
     senha_correta = st.secrets["APP_PASSWORD"]
-
+if senha_digita == senha_correta:
+        st.sucess("Acesso liberado")
+else: 
+        st.warning("senha incorreta")
+    
     if not senha_digitada:
         st.info("Por favor, insira a chave para liberar o formulário.")
         return
