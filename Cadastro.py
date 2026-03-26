@@ -34,6 +34,10 @@ def show():
             "Marca": "", "Tensão (V)": "0.0", "Potência (kW/HP)": "0.0", 
             "Rotação (RPM)": "0", "Frequência (Hz)": "", "Corrente (A)": "0.0"
         }
+    
+    # --- ACRÉSCIMO: Controle de versão para forçar atualização do formulário ---
+    if "form_version" not in st.session_state:
+        st.session_state.form_version = 0
 
     # 3. UPLOAD E OCR (A LÓGICA DA PASTA TEMP ESTÁ AQUI)
     st.subheader("📸 Captura de Dados via Placa")
@@ -70,10 +74,10 @@ def show():
                     if os.path.exists(caminho_temp):
                         os.remove(caminho_temp)
                     
-                    # --- ACRÉSCIMO AQUI ---
-                    # Força o recarregamento da página para os dados aparecerem nos campos abaixo
+                    # --- ACRÉSCIMO: Muda a versão para o formulário resetar com os dados novos ---
+                    st.session_state.form_version += 1
                     st.rerun() 
-                    # ----------------------
+                    # -------------------------------------------------------------------------
                         
                 except Exception as e:
                     st.error(f"Erro técnico no processamento da pasta temp: {e}")
@@ -82,7 +86,8 @@ def show():
     st.title("Cadastro de Motor")
     d = st.session_state.dados_ocr
 
-    with st.form("form_cadastro_motor"):
+    # --- ACRÉSCIMO: Key dinâmica baseada na versão ---
+    with st.form(key=f"form_motor_v_{st.session_state.form_version}"):
         col1, col2 = st.columns(2)
 
         with col1:
@@ -145,7 +150,8 @@ def show():
                         "Marca": "", "Tensão (V)": 0.0, "Potência (kW/HP)": 0.0, 
                         "Rotação (RPM)": 0, "Frequência (Hz)": "", "Corrente (A)": 0.0
                     }
-                    # Força limpeza visual após salvar
+                    # Força limpeza e reset de versão para o próximo cadastro
+                    st.session_state.form_version += 1
                     st.rerun()
                 except Exception as e:
                     st.error(f"Erro ao salvar: {e}")
