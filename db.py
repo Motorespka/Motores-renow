@@ -31,7 +31,7 @@ def criar_tabela():
 # Chama a criação da tabela automaticamente
 criar_tabela()
 
-def inserir_motor(dados):
+def salvar_motor(dados):
     conn = conectar()
     cursor = conn.cursor()
     cursor.execute("""
