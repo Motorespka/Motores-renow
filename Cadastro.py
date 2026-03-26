@@ -6,8 +6,7 @@ from db import salvar_motor
 from ocr_motor import ler_placa_motor
 
 def show():
-
-if arquivo:
+        if arquivo:
         st.image(arquivo, caption="Imagem Carregada", width=300)
 
         if st.button("Executar OCR", use_container_width=True):
