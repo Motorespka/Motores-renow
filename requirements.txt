@@ -5,3 +5,4 @@ sqlalchemy
 opencv-python-headless
 pytesseract
 easyocr
+torch
