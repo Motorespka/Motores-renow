@@ -1,4 +1,5 @@
 import streamlit as st
+import sys
 import os
 from db import inserir_motor
 # Certifique-se de que ler_placa_motor está importado corretamente
