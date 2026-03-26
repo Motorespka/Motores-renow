@@ -1,111 +1,94 @@
-import easyocr
-import cv2
-import re
-import numpy as np
-import streamlit as st
-import os  # Adicionado para manipular pastas
-from PIL import Image
+import sqlite3
+import os
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="OCR Motor Expert", layout="centered")
+FOLDER = "database"
+# Usamos abspath para garantir que o SQLite sempre encontre o arquivo, independente de onde o Streamlit é chamado
+DB_PATH = os.path.abspath(os.path.join(FOLDER, "motores.db"))
 
-# --- FUNÇÕES DE PROCESSAMENTO ---
+# Garante que a pasta 'database' existe
+if not os.path.exists(FOLDER):
+    os.makedirs(FOLDER, exist_ok=True) # Adicionado exist_ok por segurança
 
-@st.cache_resource
-def carregar_modelo():
-    """Carrega o modelo EasyOCR apenas uma vez (Cache)"""
-    return easyocr.Reader(['pt', 'en'], gpu=False)
+def conectar():
+    # check_same_thread=False é fundamental para evitar erros de concorrência no Streamlit
+    return sqlite3.connect(DB_PATH, check_same_thread=False)
 
-def preprocessar_imagem(imagem_array):
-    """Melhora o contraste para o OCR ler melhor"""
-    gray = cv2.cvtColor(imagem_array, cv2.COLOR_RGB2GRAY)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGrid_size=(8,8))
-    res = clahe.apply(gray)
-    _, thresh = cv2.threshold(res, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    return thresh
+def criar_tabela():
+    conn = conectar()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS motores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            marca TEXT, 
+            modelo TEXT, 
+            carcaca TEXT, 
+            peso REAL,
+            potencia REAL, 
+            unidade_potencia TEXT, 
+            tensao REAL,
+            amperagem REAL, 
+            polos INTEGER, 
+            fator_potencia REAL,
+            rpm INTEGER, 
+            ip TEXT, 
+            isolamento TEXT, 
+            fs REAL,
+            refrigeracao TEXT, 
+            ligacao TEXT, 
+            desenho TEXT
+        )
+        """)
+        conn.commit()
+    finally:
+        conn.close()
 
-def extrair_dados_especificos(texto):
-    """Usa Expressões Regulares (Regex) para encontrar padrões técnicos"""
-    dados = {
-        "Marca": "Não detectada",
-        "Tensão (V)": "Não detectada",
-        "Potência (kW/HP)": "Não detectada",
-        "Rotação (RPM)": "Não detectada",
-        "Frequência (Hz)": "Não detectada",
-        "Corrente (A)": "Não detectada"
-    }
+# Chama a criação da tabela automaticamente ao importar o arquivo
+criar_tabela()
 
-    if "WEG" in texto.upper(): dados["Marca"] = "WEG"
-    elif "SIEMENS" in texto.upper(): dados["Marca"] = "SIEMENS"
-    elif "VOGES" in texto.upper(): dados["Marca"] = "VOGES"
+def salvar_motor(dados):
+    conn = conectar()
+    try:
+        cursor = conn.cursor()
+        # Adicionado tratamento de erro caso a tupla 'dados' venha com tamanho errado
+        cursor.execute("""
+        INSERT INTO motores (
+            marca, modelo, carcaca, peso, potencia, unidade_potencia, 
+            tensao, amperagem, polos, fator_potencia, rpm, ip, 
+            isolamento, fs, refrigeracao, ligacao, desenho
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, dados)
+        conn.commit()
+    except Exception as e:
+        print(f"Erro ao salvar motor: {e}")
+        raise e # Repassa o erro para o Streamlit exibir o alerta
+    finally:
+        conn.close()
 
-    tensoes = re.findall(r'\b(220|380|440|760)\b', texto)
-    if tensoes: dados["Tensão (V)"] = " / ".join(list(set(tensoes)))
+def buscar_motor(busca):
+    conn = conectar()
+    try:
+        cursor = conn.cursor()
+        # Busca insensível a maiúsculas/minúsculas
+        cursor.execute("""
+        SELECT * FROM motores
+        WHERE marca LIKE ? OR modelo LIKE ?
+        """, (f"%{busca}%", f"%{busca}%"))
+        resultados = cursor.fetchall()
+        return resultados
+    finally:
+        conn.close()
 
-    rpm = re.search(r'(\d{3,4})\s?(?:RPM|min-1|min)', texto, re.IGNORECASE)
-    if rpm: dados["Rotação (RPM)"] = rpm.group(1)
-
-    freq = re.search(r'(50|60)\s?Hz', texto, re.IGNORECASE)
-    if freq: dados["Frequência (Hz)"] = freq.group(1)
-
-    pot = re.search(r'(\d+[.,]\d+)\s?(?:kW|HP|cv)', texto, re.IGNORECASE)
-    if pot: dados["Potência (kW/HP)"] = pot.group(1)
-
-    return dados
-
-# --- FUNÇÃO PARA COMPATIBILIDADE DE IMPORTAÇÃO ---
-def ler_placa_motor(imagem_input):
-    """Função ponte para chamadas externas via import"""
-    reader = carregar_modelo()
-    if isinstance(imagem_input, str):
-        imagem_input = cv2.imread(imagem_input)
-    
-    resultado = reader.readtext(imagem_input)
-    texto_total = " ".join([res[1] for res in resultado])
-    return extrair_dados_especificos(texto_total)
-
-# --- INTERFACE STREAMLIT ---
-
-st.title("🔌 Extrator de Dados de Placa de Motor")
-st.write("Faça upload da foto da placa para converter em dados estruturados.")
-
-arquivo = st.file_uploader("Selecione a imagem", type=['jpg', 'jpeg', 'png'])
-
-if arquivo:
-    # --- CORREÇÃO DO ERRO 'TEMP' ---
-    # Garante que a pasta temp existe sem causar erro se ela já estiver lá
-    if not os.path.exists("temp"):
-        os.makedirs("temp", exist_ok=True)
-
-    # 1. Carregar imagem
-    img_pil = Image.open(arquivo)
-    img_array = np.array(img_pil)
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.image(img_pil, caption="Imagem Original", use_container_width=True)
-    
-    # 2. Processar OCR
-    reader = carregar_modelo()
-    
-    with st.spinner('🤖 Inteligência Artificial processando a imagem...'):
-        # Leitura OCR
-        resultado = reader.readtext(img_array)
-        texto_completo = " ".join([res[1] for res in resultado])
-        
-        # Extração inteligente
-        dados_finais = extrair_dados_especificos(texto_completo)
-
-    with col2:
-        st.success("Dados Extraídos!")
-        for chave, valor in dados_finais.items():
-            st.markdown(f"**{chave}:** `{valor}`")
-
-    with st.expander("Ver texto bruto detectado"):
-        st.write(texto_completo)
-        
-    csv = f"Campo,Valor\n" + "\n".join([f"{k},{v}" for k, v in dados_finais.items()])
-    st.download_button("Baixar Dados (CSV)", csv, "dados_motor.csv", "text/csv")
-
-else:
-    st.info("Aguardando imagem para iniciar a análise.")
+def motor_existe(marca, modelo, potencia, tensao):
+    conn = conectar()
+    try:
+        c = conn.cursor()
+        c.execute("""
+        SELECT 1 FROM motores
+        WHERE marca=? AND modelo=? AND potencia=? AND tensao=?
+        LIMIT 1
+        """, (marca, modelo, potencia, tensao))
+        resultado = c.fetchone()
+        return resultado is not None
+    finally:
+        conn.close()
