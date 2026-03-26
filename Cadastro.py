@@ -3,6 +3,18 @@ import os
 from db import salvar_motor
 from ocr_motor import ler_placa_motor
 
+def safe_float(valor):
+    try:
+        return float(str(valor).replace(",", "."))
+    except:
+        return 0.0
+
+def safe_int(valor):
+    try:
+        return int(float(str(valor).replace(",", ".")))
+    except:
+        return 0
+
 def show():
     st.markdown("### 🔐 Área Restrita: Cadastro Técnico")
 
@@ -19,9 +31,6 @@ def show():
         st.stop()
     st.success("Acesso liberado")
 
-    # -------------------
-    # Session State
-    # -------------------
     campos = ["marca","modelo","carcaca","peso","potencia","tensao","amperagem","rpm"]
     for c in campos:
         if c not in st.session_state:
@@ -34,9 +43,6 @@ def show():
     if "debug" not in st.session_state:
         st.session_state.debug = False
 
-    # -------------------
-    # Upload e OCR
-    # -------------------
     st.subheader("📸 Captura de Dados via Placa")
     arquivo = st.file_uploader("Envie foto da placa do motor", type=["jpg","png","jpeg"], key="uploader_cadastro")
     if arquivo:
@@ -53,12 +59,12 @@ def show():
                     resultado = ler_placa_motor(caminho_temp)
                     st.session_state.dados_ocr = resultado
 
-                    # Preencher campos automaticamente
+                    # Preencher campos de forma segura
                     st.session_state.marca = resultado.get("Marca","")
-                    st.session_state.potencia = float(resultado.get("Potência","0").replace(",","."))
-                    st.session_state.tensao = float(resultado.get("Tensão","0").split("/")[0])
-                    st.session_state.amperagem = float(resultado.get("Corrente","0").replace(",","."))
-                    st.session_state.rpm = int(resultado.get("Rotação","0"))
+                    st.session_state.potencia = safe_float(resultado.get("Potência","0"))
+                    st.session_state.tensao = safe_float(resultado.get("Tensão","0").split("/")[0])
+                    st.session_state.amperagem = safe_float(resultado.get("Corrente","0"))
+                    st.session_state.rpm = safe_int(resultado.get("Rotação","0"))
 
                     st.success("OCR aplicado e campos preenchidos!")
                     if os.path.exists(caminho_temp):
@@ -68,16 +74,10 @@ def show():
                 except Exception as e:
                     st.error(f"Erro no OCR: {e}")
 
-    # -------------------
-    # Debug OCR
-    # -------------------
     st.checkbox("🔍 Mostrar dados brutos do OCR", key="debug")
     if st.session_state.debug:
         st.json(st.session_state.dados_ocr)
 
-    # -------------------
-    # Formulário de cadastro
-    # -------------------
     st.title("Cadastro de Motor")
     with st.form(key=f"form_motor_v_{st.session_state.form_version}"):
         col1, col2 = st.columns(2)
@@ -102,9 +102,6 @@ def show():
         desenho = st.text_input("Caminho da imagem/desenho")
         submit = st.form_submit_button("Salvar Motor", use_container_width=True)
 
-        # -------------------
-        # Salvar
-        # -------------------
         if submit:
             if not marca or not modelo:
                 st.warning("Marca e Modelo são obrigatórios!")
