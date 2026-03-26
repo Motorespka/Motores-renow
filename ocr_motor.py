@@ -1,33 +1,107 @@
 import easyocr
+import cv2
+import re
+import numpy as np
+import streamlit as st
+from PIL import Image
 
-# inicia leitor (português + inglês)
-reader = easyocr.Reader(['pt','en'])
+# --- CONFIGURAÇÃO DA PÁGINA ---
+st.set_page_config(page_title="OCR Motor Expert", layout="centered")
 
-def ler_placa_motor(caminho_imagem):
+# --- FUNÇÕES DE PROCESSAMENTO ---
 
-    resultado = reader.readtext(caminho_imagem)
+@st.cache_resource
+def carregar_modelo():
+    """Carrega o modelo EasyOCR apenas uma vez (Cache)"""
+    return easyocr.Reader(['pt', 'en'], gpu=False)
 
-    texto_total = " ".join([r[1] for r in resultado])
+def preprocessar_imagem(imagem_array):
+    """Melhora o contraste para o OCR ler melhor"""
+    # Converter para escala de cinza
+    gray = cv2.cvtColor(imagem_array, cv2.COLOR_RGB2GRAY)
+    # Aumentar o contraste (CLAHE)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    res = clahe.apply(gray)
+    # Binarização (Preto e Branco puro)
+    _, thresh = cv2.threshold(res, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    return thresh
 
-    dados = {}
+def extrair_dados_especificos(texto):
+    """Usa Expressões Regulares (Regex) para encontrar padrões técnicos"""
+    dados = {
+        "Marca": "Não detectada",
+        "Tensão (V)": "Não detectada",
+        "Potência (kW/HP)": "Não detectada",
+        "Rotação (RPM)": "Não detectada",
+        "Frequência (Hz)": "Não detectada",
+        "Corrente (A)": "Não detectada"
+    }
 
-    # EXTRAÇÕES SIMPLES (vamos melhorar depois)
-    if "WEG" in texto_total.upper():
-        dados["marca"] = "WEG"
+    # Lógica de extração
+    if "WEG" in texto.upper(): dados["Marca"] = "WEG"
+    elif "SIEMENS" in texto.upper(): dados["Marca"] = "SIEMENS"
+    elif "VOGES" in texto.upper(): dados["Marca"] = "VOGES"
 
-    if "220" in texto_total:
-        dados["tensao"] = 220
+    # Regex para Tensões (ex: 220, 380, 440)
+    tensoes = re.findall(r'\b(220|380|440|760)\b', texto)
+    if tensoes: dados["Tensão (V)"] = " / ".join(list(set(tensoes)))
 
-    if "380" in texto_total:
-        dados["tensao"] = 380
+    # Regex para RPM (números de 3 ou 4 dígitos seguidos de RPM ou perto de 'min-1')
+    rpm = re.search(r'(\d{3,4})\s?(?:RPM|min-1|min)', texto, re.IGNORECASE)
+    if rpm: dados["Rotação (RPM)"] = rpm.group(1)
 
-    if "4" in texto_total:
-        dados["polos"] = 4
+    # Regex para Frequência (normalmente 50 ou 60 Hz)
+    freq = re.search(r'(50|60)\s?Hz', texto, re.IGNORECASE)
+    if freq: dados["Frequência (Hz)"] = freq.group(1)
 
-    dados["texto_detectado"] = texto_total
+    # Regex para Potência (ex: 1.5kW, 2HP, 0.75 kW)
+    pot = re.search(r'(\d+[.,]\d+)\s?(?:kW|HP|cv)', texto, re.IGNORECASE)
+    if pot: dados["Potência (kW/HP)"] = pot.group(1)
 
     return dados
 
-dados_ocr = ler_placa_motor(caminho_imagem)
-st.sucess("Dados encontrados!")
-st.write(dados_ocr)
+# --- INTERFACE STREAMLIT ---
+
+st.title("🔌 Extrator de Dados de Placa de Motor")
+st.write("Faça upload da foto da placa para converter em dados estruturados.")
+
+arquivo = st.file_uploader("Selecione a imagem", type=['jpg', 'jpeg', 'png'])
+
+if arquivo:
+    # 1. Carregar imagem
+    img_pil = Image.open(arquivo)
+    img_array = np.array(img_pil)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.image(img_pil, caption="Imagem Original", use_container_width=True)
+    
+    # 2. Processar OCR
+    reader = carregar_modelo()
+    
+    with st.spinner('🤖 Inteligência Artificial processando a imagem...'):
+        # Aplicar pré-processamento para melhorar a leitura
+        img_processada = preprocessar_imagem(img_array)
+        
+        # Leitura OCR
+        resultado = reader.readtext(img_array) # O EasyOCR as vezes prefere a original colorida
+        texto_completo = " ".join([res[1] for res in resultado])
+        
+        # Extração inteligente
+        dados_finais = extrair_dados_especificos(texto_completo)
+
+    with col2:
+        st.success("Dados Extraídos!")
+        for chave, valor in dados_finais.items():
+            st.markdown(f"**{chave}:** `{valor}`")
+
+    # Exibir texto bruto para conferência
+    with st.expander("Ver texto bruto detectado"):
+        st.write(texto_completo)
+        
+    # Botão para baixar resultados
+    csv = f"Campo,Valor\n" + "\n".join([f"{k},{v}" for k, v in dados_finais.items()])
+    st.download_button("Baixar Dados (CSV)", csv, "dados_motor.csv", "text/csv")
+
+else:
+    st.info("Aguardando imagem para iniciar a análise.")
