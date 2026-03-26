@@ -1,7 +1,7 @@
 streamlit
 pandas
-sqlite3
 python-dotenv
-easyocr
-opencv-python-headless
 sqlalchemy
+opencv-python-headless
+pytesseract
+sqlite3
