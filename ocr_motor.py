@@ -60,6 +60,19 @@ def extrair_dados_especificos(texto):
 
     return dados
 
+# --- FUNÇÃO PARA COMPATIBILIDADE DE IMPORTAÇÃO ---
+# Esta função permite que você faça: from ocr_motor import ler_placa_motor
+def ler_placa_motor(imagem_input):
+    """Função ponte para chamadas externas via import"""
+    reader = carregar_modelo()
+    # Se for caminho de arquivo (string), carregar. Se for array, usar direto.
+    if isinstance(imagem_input, str):
+        imagem_input = cv2.imread(imagem_input)
+    
+    resultado = reader.readtext(imagem_input)
+    texto_total = " ".join([res[1] for res in resultado])
+    return extrair_dados_especificos(texto_total)
+
 # --- INTERFACE STREAMLIT ---
 
 st.title("🔌 Extrator de Dados de Placa de Motor")
