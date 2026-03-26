@@ -4,8 +4,7 @@ from db import salvar_motor
 from ocr_motor import ler_placa_motor
 
 def show():
-
-    st.markdown("### 🔐 Área Restrita: Cadastro Técnico")
+  st.markdown("### 🔐 Área Restrita: Cadastro Técnico")
 
     # ===== LOGIN =====
     senha_digitada = st.text_input(
