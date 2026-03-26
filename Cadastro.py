@@ -88,7 +88,7 @@ def show():
                     isolamento, fs, refrigeracao, ligacao, desenho
                 )
 
-                inserir_motor(dados)
+                Salvar_motor(dados)
 
                 st.balloons()
                 st.success(f"Motor {modelo} salvo!")
