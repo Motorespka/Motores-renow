@@ -74,7 +74,7 @@ def show():
         desenho = st.text_input("Caminho da imagem/desenho")
 
         submit = st.form_submit_button(
-            "Salvar Motor",
+            "salvar Motor",
             use_container_width=True
         )
 
