@@ -11,7 +11,8 @@ def show():
     # Autenticação Simples
     senha_digitada = st.text_input("Insira a chave de acesso", type="password")
     # Use um valor padrão para evitar erro de None no os.getenv
-    senha_correta = st.secrets["APP_PASSWORD"]
+    
+senha_correta = st.secrets["APP_PASSWORD"]
 if senha_digita == senha_correta:
         st.sucess("Acesso liberado")
 else: 
