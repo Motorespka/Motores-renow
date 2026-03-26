@@ -97,7 +97,7 @@ def show():
             else:
                 st.warning("Marca e Modelo são obrigatórios.")
 
-dados_ocr = ler_placa_motor(caminho_temp)
+dados_ocr = ler_placa_motor(ocr_motor)
 st.sucess("Dados encontrados!")
 st.write(dados_ocr)
 
