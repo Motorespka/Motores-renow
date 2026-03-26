@@ -1,20 +1,20 @@
 import sqlite3
 import os
 
-# 1. Corrigido para 'database' (um 's' apenas) 
 FOLDER = "database"
 DB_PATH = os.path.join(FOLDER, "motores.db")
 
+# Garante que a pasta 'database' existe
 if not os.path.exists(FOLDER):
     os.makedirs(FOLDER)
 
 def conectar():
-    return sqlite3.connect(DB_PATH)
+    # check_same_thread=False é importante para o Streamlit
+    return sqlite3.connect(DB_PATH, check_same_thread=False)
 
 def criar_tabela():
     conn = conectar()
     cursor = conn.cursor()
-    # Criação da tabela conforme os campos do cadastro 
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS motores (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,8 +28,10 @@ def criar_tabela():
     conn.commit()
     conn.close()
 
+# Chama a criação da tabela automaticamente
+criar_tabela()
+
 def inserir_motor(dados):
-    """ 'dados' deve ser uma tupla com 17 elementos  """
     conn = conectar()
     cursor = conn.cursor()
     cursor.execute("""
@@ -45,7 +47,6 @@ def inserir_motor(dados):
 def buscar_motor(busca):
     conn = conectar()
     cursor = conn.cursor()
-    # Busca por marca ou modelo usando LIKE 
     cursor.execute("""
     SELECT * FROM motores
     WHERE marca LIKE ? OR modelo LIKE ?
@@ -55,7 +56,6 @@ def buscar_motor(busca):
     return resultados
 
 def motor_existe(marca, modelo, potencia, tensao):
-    """ Corrigido: Agora recebe argumentos individuais em vez de dict/tupla  """
     conn = conectar()
     c = conn.cursor()
     c.execute("""
@@ -64,4 +64,4 @@ def motor_existe(marca, modelo, potencia, tensao):
     """, (marca, modelo, potencia, tensao))
     resultado = c.fetchone()
     conn.close()
-    return resultado is not None
+    return resultado is not None # <--- CORRIGIDO AQUI
