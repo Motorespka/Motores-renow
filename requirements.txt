@@ -1,5 +1,9 @@
 streamlit
 pandas
+sqlite3
 python-dotenv
-sqlalchemy
+easyocr
 opencv-python-headless
+torch
+torchvision
+sqlalchemy
