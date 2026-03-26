@@ -27,3 +27,7 @@ def ler_placa_motor(caminho_imagem):
     dados["texto_detectado"] = texto_total
 
     return dados
+
+dados_ocr = ler_placa_motor(caminho_imagem)
+st.sucess("Dados encontrados!")
+st.write(dados_ocr)
