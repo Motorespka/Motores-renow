@@ -7,18 +7,19 @@ from db import salvar_motor
 
 def show():
     st.markdown("### 🔐 Área Restrita: Cadastro Técnico")
+senha_digitada = st.text_input(
+    "Insira a chave de acesso",
+    type="password"
+)
 
-    # Autenticação Simples
-    senha_digitada = st.text_input("Insira a chave de acesso", type="password")
-    # Use um valor padrão para evitar erro de None no os.getenv
-    
 senha_correta = st.secrets["APP_PASSWORD"]
-if senha_digita == senha_correta:
-    st.sucess("Acesso liberado")
-else: 
-     if senha_digita != "":   
-    st.warning("senha incorreta")
+
+if senha_digitada != senha_correta:
+    if senha_digitada != "":
+        st.warning("Senha incorreta")
     st.stop()
+
+st.success("Acesso liberado")
     
 
     # --- Upload e OCR ---
