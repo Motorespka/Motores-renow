@@ -5,8 +5,11 @@ from PIL import Image
 from db import salvar_motor 
 from ocr_motor import ler_placa_motor
 
+
 def show():
-    # 1. TÍTULO E LOGIN
+    # =========================
+    # 🔐 1. LOGIN
+    # =========================
     st.markdown("### 🔐 Área Restrita: Cadastro Técnico")
 
     senha_digitada = st.text_input(
@@ -28,18 +31,59 @@ def show():
 
     st.success("Acesso liberado")
 
-    # 2. INICIALIZAÇÃO DO ESTADO
+    # =========================
+    # 📦 2. SESSION STATE
+    # =========================
     if "dados_ocr" not in st.session_state:
         st.session_state.dados_ocr = {}
-    
+
     if "form_version" not in st.session_state:
         st.session_state.form_version = 0
 
-    # 3. UPLOAD E OCR
+    if "debug" not in st.session_state:
+        st.session_state.debug = False
+
+    # =========================
+    # 🔍 3. FUNÇÕES AUXILIARES
+    # =========================
+
+    def buscar_inteligente(campo):
+        """
+        Busca valores no OCR mesmo com nomes diferentes
+        """
+        mapa = {
+            "marca": ["marca"],
+            "potencia": ["potência", "kw", "cv", "hp"],
+            "tensao": ["tensão", "v"],
+            "corrente": ["corrente", "a"],
+            "rotacao": ["rpm", "rotação"],
+        }
+
+        for k, v in st.session_state.dados_ocr.items():
+            for termo in mapa.get(campo, []):
+                if termo in k.lower():
+                    return str(v)
+        return ""
+
+    def to_float(valor):
+        try:
+            return float(str(valor).replace(",", "."))
+        except:
+            return 0.0
+
+    def to_int(valor):
+        try:
+            return int(float(str(valor).replace(",", ".")))
+        except:
+            return 0
+
+    # =========================
+    # 📸 4. OCR
+    # =========================
     st.subheader("📸 Captura de Dados via Placa")
 
     arquivo = st.file_uploader(
-        "Envie foto da placa/cálculo do motor",
+        "Envie foto da placa do motor",
         type=["jpg", "png", "jpeg"],
         key="uploader_cadastro"
     )
@@ -48,92 +92,86 @@ def show():
         st.image(arquivo, caption="Imagem Carregada", width=300)
 
         if st.button("Executar OCR", use_container_width=True):
-            with st.spinner("🤖 IA Analisando imagem..."):
+            with st.spinner("🤖 IA analisando imagem..."):
                 try:
                     base_dir = os.path.dirname(os.path.abspath(__file__))
                     temp_dir = os.path.join(base_dir, "temp")
                     os.makedirs(temp_dir, exist_ok=True)
-                    
-                    nome_arquivo = arquivo.name.replace(" ", "_")
-                    caminho_temp = os.path.join(temp_dir, nome_arquivo)
+
+                    caminho_temp = os.path.join(temp_dir, arquivo.name)
 
                     with open(caminho_temp, "wb") as f:
                         f.write(arquivo.getbuffer())
 
-                    # Chama o motor de OCR
-                    resultados = ler_placa_motor(caminho_temp)
-                    
-                    # Atualiza os dados e incrementa a versão para forçar o formulário a atualizar
-                    st.session_state.dados_ocr = resultados
+                    resultado = ler_placa_motor(caminho_temp)
+
+                    st.session_state.dados_ocr = resultado
                     st.session_state.form_version += 1
-                    
-                    if os.path.exists(caminho_temp):
-                        os.remove(caminho_temp)
-                    
-                    st.rerun() 
-                        
+
+                    os.remove(caminho_temp)
+
+                    st.success("OCR concluído!")
+                    st.rerun()
+
                 except Exception as e:
-                    st.error(f"Erro técnico no processamento da pasta temp: {e}")
+                    st.error(f"Erro no OCR: {e}")
 
-    # 4. FORMULÁRIO DE CADASTRO
+    # =========================
+    # 🧠 DEBUG OCR
+    # =========================
+    st.checkbox("🔍 Mostrar dados brutos do OCR", key="debug")
+
+    if st.session_state.debug:
+        st.write("Dados OCR:")
+        st.json(st.session_state.dados_ocr)
+
+    # =========================
+    # 📝 5. FORMULÁRIO
+    # =========================
     st.title("Cadastro de Motor")
-    d = st.session_state.dados_ocr
 
-    # Função auxiliar para buscar dados ignorando maiúsculas/minúsculas
-    def buscar(termo):
-        for k, v in d.items():
-            if termo.lower() in k.lower():
-                return str(v)
-        return ""
-
-    # O formulário "renasce" a cada nova leitura de OCR devido à key dinâmica
     with st.form(key=f"form_motor_v_{st.session_state.form_version}"):
+
         col1, col2 = st.columns(2)
 
         with col1:
-            marca = st.text_input("Marca", value=buscar("Marca"))
+            marca = st.text_input("Marca", value=buscar_inteligente("marca"))
             modelo = st.text_input("Modelo")
             carcaca = st.text_input("Carcaça")
             peso = st.number_input("Peso (kg)", 0.0)
-            
-            # Tratamento de Potência
-            try:
-                pot_raw = buscar("Potência").replace(",", ".")
-                pot_valor = float(pot_raw) if pot_raw else 0.0
-            except:
-                pot_valor = 0.0
-            potencia = st.number_input("Potência", value=pot_valor)
-            
+
+            potencia = st.number_input(
+                "Potência",
+                value=to_float(buscar_inteligente("potencia"))
+            )
+
             unidade = st.selectbox("Unidade", ["cv", "kW"])
-            
-            # Tratamento de Tensão
-            try:
-                tensao_raw = buscar("Tensão").split("/")[0].strip().replace(",", ".")
-                tensao_ocr = float(tensao_raw) if tensao_raw else 0.0
-            except:
-                tensao_ocr = 0.0
-            tensao = st.number_input("Tensão (V)", value=tensao_ocr)
-            
-            # Tratamento de Amperagem/Corrente
-            try:
-                amp_raw = buscar("Corrente").replace(",", ".")
-                amp_valor = float(amp_raw) if amp_raw else 0.0
-            except:
-                amp_valor = 0.0
-            amperagem = st.number_input("Amperagem (A)", value=amp_valor)
+
+            tensao = st.number_input(
+                "Tensão (V)",
+                value=to_float(buscar_inteligente("tensao"))
+            )
+
+            amperagem = st.number_input(
+                "Amperagem (A)",
+                value=to_float(buscar_inteligente("corrente"))
+            )
 
         with col2:
             polos = st.selectbox("Polos", [2, 4, 6, 8], index=1)
-            fp = st.number_input("Fator de potência", 0.0, 1.0, 0.85)
-            
-            # Tratamento de RPM
-            try:
-                rpm_raw = buscar("Rotação").replace(",", ".")
-                rpm_ocr = int(float(rpm_raw)) if rpm_raw else 0
-            except:
-                rpm_ocr = 0
-            rpm = st.number_input("RPM", value=rpm_ocr)
-            
+
+            fp = st.number_input(
+                "Fator de potência",
+                min_value=0.0,
+                max_value=1.0,
+                value=0.85
+            )
+
+            rpm = st.number_input(
+                "RPM",
+                value=to_int(buscar_inteligente("rotacao"))
+            )
+
             ip = st.text_input("Grau de Proteção (IP)", value="IP55")
             isolamento = st.text_input("Classe de Isolamento", value="F")
             fs = st.number_input("Fator de Serviço", 0.0, value=1.0)
@@ -144,23 +182,31 @@ def show():
 
         submit = st.form_submit_button("Salvar Motor", use_container_width=True)
 
+        # =========================
+        # 💾 6. SALVAR
+        # =========================
         if submit:
-            if marca and modelo:
-                dados_para_salvar = (
-                    marca, modelo, carcaca, peso, potencia, unidade,
-                    tensao, amperagem, polos, fp, rpm, ip,
-                    isolamento, fs, refrigeracao, ligacao, desenho
-                )
-
-                try:
-                    salvar_motor(dados_para_salvar)
-                    st.balloons()
-                    st.success(f"Motor {modelo} salvo!")
-                    # Limpa os dados para o próximo cadastro
-                    st.session_state.dados_ocr = {}
-                    st.session_state.form_version += 1
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Erro ao salvar: {e}")
-            else:
+            if not marca or not modelo:
                 st.warning("Marca e Modelo são obrigatórios!")
+                st.stop()
+
+            dados_para_salvar = (
+                marca, modelo, carcaca, peso, potencia, unidade,
+                tensao, amperagem, polos, fp, rpm, ip,
+                isolamento, fs, refrigeracao, ligacao, desenho
+            )
+
+            try:
+                salvar_motor(dados_para_salvar)
+
+                st.success(f"Motor {modelo} salvo com sucesso!")
+                st.balloons()
+
+                # Reset inteligente
+                st.session_state.dados_ocr = {}
+                st.session_state.form_version += 1
+
+                st.rerun()
+
+            except Exception as e:
+                st.error(f"Erro ao salvar: {e}")
