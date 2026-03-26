@@ -4,3 +4,4 @@ python-dotenv
 sqlalchemy
 opencv-python-headless
 pytesseract
+easyocr
