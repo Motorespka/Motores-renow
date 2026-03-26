@@ -18,7 +18,7 @@ if senha_digita == senha_correta:
 else: 
      if senha_digita != "":   
     st.warning("senha incorreta")
-st.stop()
+    st.stop()
     
 
     # --- Upload e OCR ---
