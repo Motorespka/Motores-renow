@@ -46,13 +46,16 @@ def show():
         st.session_state.debug = False
 
     # -------------------
-    # Upload e OCR
+    # Upload e OCR automático
     # -------------------
     st.subheader("📸 Captura de Dados via Placa")
     arquivo = st.file_uploader("Envie foto da placa do motor", type=["jpg","png","jpeg"], key="uploader_cadastro")
     if arquivo:
         st.image(arquivo, width=300)
-        if st.button("Executar OCR", use_container_width=True):
+
+        # Executa OCR automaticamente ao subir a imagem
+        if arquivo.name not in st.session_state or st.session_state.get("last_uploaded") != arquivo.name:
+            st.session_state.last_uploaded = arquivo.name
             with st.spinner("🤖 Analisando imagem..."):
                 try:
                     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -61,6 +64,7 @@ def show():
                     caminho_temp = os.path.join(temp_dir, arquivo.name)
                     with open(caminho_temp,"wb") as f:
                         f.write(arquivo.getbuffer())
+
                     resultado = ler_placa_motor(caminho_temp)
                     st.session_state.dados_ocr = resultado
 
@@ -72,11 +76,8 @@ def show():
                     st.session_state.amperagem = safe_float(resultado.get("Corrente","0"))
                     st.session_state.rpm = safe_int(resultado.get("Rotação","0"))
 
-                    st.success("OCR aplicado e campos preenchidos!")
                     if os.path.exists(caminho_temp):
                         os.remove(caminho_temp)
-                    st.session_state.form_version += 1
-                    st.experimental_rerun()  # força o formulário a atualizar
 
                 except Exception as e:
                     st.error(f"Erro no OCR: {e}")
@@ -92,7 +93,8 @@ def show():
     # Formulário de cadastro
     # -------------------
     st.title("Cadastro de Motor")
-    with st.form(key=f"form_motor_v_{st.session_state.form_version}"):
+    form_key = f"form_motor_v_{st.session_state.form_version}"
+    with st.form(key=form_key):
         col1, col2 = st.columns(2)
         with col1:
             marca = st.text_input("Marca", key="marca")
@@ -143,11 +145,10 @@ def show():
                 salvar_motor(dados_para_salvar)
                 st.success(f"Motor {st.session_state.modelo} salvo com sucesso!")
                 st.balloons()
-                # Reset
+                # Reset campos
                 for c in campos:
                     st.session_state[c] = "" if c in ["marca","modelo","carcaca"] else 0.0
                 st.session_state.dados_ocr = {}
                 st.session_state.form_version += 1
-                st.experimental_rerun()
             except Exception as e:
                 st.error(f"Erro ao salvar: {e}")
