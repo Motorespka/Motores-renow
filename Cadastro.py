@@ -89,9 +89,6 @@ def show():
                     isolamento, fs, refrigeracao, ligacao, desenho
                 )
 
-dados_ocr = ler_placa-motor(caminho_temp)
-st.sucess("Dados encontrados!")
-st.write(dados_ocr)
                 Salvar_motor(dados)
 
                 st.balloons()
@@ -99,3 +96,6 @@ st.write(dados_ocr)
 
             else:
                 st.warning("Marca e Modelo são obrigatórios.")
+dados_ocr = ler_placa-motor(caminho_temp)
+st.sucess("Dados encontrados!")
+st.write(dados_ocr)
