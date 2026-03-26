@@ -4,7 +4,4 @@ sqlite3
 python-dotenv
 easyocr
 opencv-python-headless
---find-links https://download.pytorch.org/whl/cpu/torch_stable.html
-torch==2.2.1+cpu
-torchvision==0.17.1+cpu
 sqlalchemy
