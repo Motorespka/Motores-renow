@@ -1,12 +1,14 @@
 import streamlit as st
 import os
+import numpy as np
+from PIL import Image
 from db import salvar_motor 
 from ocr_motor import ler_placa_motor
 
 
 def show():
     # =========================
-    # 🔐 LOGIN
+    # 🔐 1. LOGIN
     # =========================
     st.markdown("### 🔐 Área Restrita: Cadastro Técnico")
 
@@ -19,7 +21,7 @@ def show():
     try:
         senha_correta = st.secrets["APP_PASSWORD"]
     except Exception:
-        st.error("Erro: APP_PASSWORD não configurada.")
+        st.error("Erro: APP_PASSWORD não configurada nos Secrets.")
         st.stop()
 
     if senha_digitada != senha_correta:
@@ -30,26 +32,8 @@ def show():
     st.success("Acesso liberado")
 
     # =========================
-    # 📦 SESSION STATE
+    # 📦 2. SESSION STATE
     # =========================
-    def inicializar_campos():
-        campos = {
-            "marca": "",
-            "modelo": "",
-            "carcaca": "",
-            "peso": 0.0,
-            "potencia": 0.0,
-            "tensao": 0.0,
-            "amperagem": 0.0,
-            "rpm": 0
-        }
-
-        for k, v in campos.items():
-            if k not in st.session_state:
-                st.session_state[k] = v
-
-    inicializar_campos()
-
     if "dados_ocr" not in st.session_state:
         st.session_state.dados_ocr = {}
 
@@ -59,23 +43,24 @@ def show():
     if "debug" not in st.session_state:
         st.session_state.debug = False
 
-    # =========================
-    # 🔧 FUNÇÕES AUXILIARES
-    # =========================
-    def safe_float(x):
-        try:
-            return float(str(x).replace(",", ".").split("/")[0])
-        except:
-            return 0.0
+    # campos do formulário (IMPORTANTE)
+    campos_padrao = {
+        "marca": "",
+        "modelo": "",
+        "carcaca": "",
+        "peso": 0.0,
+        "potencia": 0.0,
+        "tensao": 0.0,
+        "amperagem": 0.0,
+        "rpm": 0
+    }
 
-    def safe_int(x):
-        try:
-            return int(float(str(x)))
-        except:
-            return 0
+    for k, v in campos_padrao.items():
+        if k not in st.session_state:
+            st.session_state[k] = v
 
     # =========================
-    # 📸 OCR
+    # 📸 3. OCR
     # =========================
     st.subheader("📸 Captura de Dados via Placa")
 
@@ -102,36 +87,55 @@ def show():
 
                     resultado = ler_placa_motor(caminho_temp)
 
-                    # salva bruto
+                    # salva dados OCR (debug)
                     st.session_state.dados_ocr = resultado
 
-                    # 🔥 PREENCHE CAMPOS AUTOMATICAMENTE
-                    st.session_state.marca = resultado.get("Marca", "")
-                    st.session_state.potencia = safe_float(resultado.get("Potência", ""))
-                    st.session_state.tensao = safe_float(resultado.get("Tensão", ""))
-                    st.session_state.amperagem = safe_float(resultado.get("Corrente", ""))
-                    st.session_state.rpm = safe_int(resultado.get("Rotação", ""))
+                    # =========================
+                    # 🔥 PREENCHIMENTO AUTOMÁTICO
+                    # =========================
+                    def safe_float(x):
+                        try:
+                            return float(str(x).replace(",", ".").split("/")[0])
+                        except:
+                            return 0.0
+
+                    def safe_int(x):
+                        try:
+                            return int(float(str(x)))
+                        except:
+                            return 0
+
+                    if resultado:
+                        st.session_state.marca = resultado.get("Marca", "")
+                        st.session_state.potencia = safe_float(resultado.get("Potência", ""))
+                        st.session_state.tensao = safe_float(resultado.get("Tensão", ""))
+                        st.session_state.amperagem = safe_float(resultado.get("Corrente", ""))
+                        st.session_state.rpm = safe_int(resultado.get("Rotação", ""))
+
+                        st.success("OCR aplicado e campos preenchidos!")
+                    else:
+                        st.warning("OCR não encontrou dados.")
+
+                    if os.path.exists(caminho_temp):
+                        os.remove(caminho_temp)
 
                     st.session_state.form_version += 1
-
-                    os.remove(caminho_temp)
-
-                    st.success("OCR concluído!")
                     st.rerun()
 
                 except Exception as e:
                     st.error(f"Erro no OCR: {e}")
 
     # =========================
-    # 🧠 DEBUG
+    # 🧠 DEBUG OCR
     # =========================
     st.checkbox("🔍 Mostrar dados brutos do OCR", key="debug")
 
     if st.session_state.debug:
-        st.write(st.session_state.dados_ocr)
+        st.write("Dados OCR:")
+        st.json(st.session_state.dados_ocr)
 
     # =========================
-    # 📝 FORMULÁRIO
+    # 📝 4. FORMULÁRIO
     # =========================
     st.title("Cadastro de Motor")
 
@@ -174,7 +178,7 @@ def show():
         submit = st.form_submit_button("Salvar Motor", use_container_width=True)
 
         # =========================
-        # 💾 SALVAR
+        # 💾 5. SALVAR
         # =========================
         if submit:
             if not marca or not modelo:
@@ -193,7 +197,7 @@ def show():
                 st.success(f"Motor {modelo} salvo com sucesso!")
                 st.balloons()
 
-                # 🔄 LIMPA CAMPOS
+                # limpa campos
                 for campo in ["marca", "modelo", "carcaca"]:
                     st.session_state[campo] = ""
 
@@ -201,10 +205,9 @@ def show():
                     st.session_state[campo] = 0.0
 
                 st.session_state["rpm"] = 0
-
                 st.session_state.dados_ocr = {}
-                st.session_state.form_version += 1
 
+                st.session_state.form_version += 1
                 st.rerun()
 
             except Exception as e:
