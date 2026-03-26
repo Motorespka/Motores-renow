@@ -17,16 +17,6 @@ if senha_digita == senha_correta:
 else: 
         st.warning("senha incorreta")
     
-    if not senha_digitada:
-        st.info("Por favor, insira a chave para liberar o formulário.")
-        return
-
-    if senha_digitada != SENHA_CORRETA:
-        st.error("Chave incorreta. Acesso negado.")
-        return
-
-    st.success("Acesso Autorizado")
-    st.divider()
 
     # --- Upload e OCR ---
     st.subheader("📸 Captura de Dados via Placa")
