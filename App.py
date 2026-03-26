@@ -4,21 +4,30 @@ import cv2
 import numpy as np
 from PIL import Image
 
-# Isso evita que o app carregue a IA toda vez que você clica em um botão
-@st.cache_resource
-def carregar_leitor():
-    # 'gpu=False' é obrigatório no Streamlit Cloud (não há GPU gratuita)
-    return easyocr.Reader(['pt', 'en'], gpu=False)
+st.set_page_config(page_title="Moto-Renow", layout="wide")
 
-def ler_placa_motor(upload_imagem):
-    imagem = Image.open(upload_imagem)
-    # Converte para escala de cinza para melhorar a leitura da placa
-    imagem_cv = cv2.cvtColor(np.array(imagem), cv2.COLOR_RGB2GRAY)
-    texto = pytesseract.image_to_string(imagem_cv, lang='por')
-    return texto
+st.title("Moto-Renow: Sistema de Rebobinagem")
 
-# Exemplo de uso na aba de calcular
-# foto = st.file_uploader("Tire foto da placa do motor", type=['jpg', 'png'])
-# if foto:
-#     dados = extrair_dados_da_placa(foto)
-#     st.write(f"Dados detectados: {dados}")
+# Criando as abas
+aba1, aba2, aba3 = st.tabs(["Cadastro", "Consulta", "Calculadora"])
+
+with aba1:
+    try:
+        import Cadastro
+        Cadastro.show()
+    except Exception as e:
+        st.error(f"Erro ao carregar Cadastro: {e}")
+
+with aba2:
+    try:
+        import Consulta
+        Consulta.show()
+    except Exception as e:
+        st.error(f"Erro ao carregar Consulta: {e}")
+
+with aba3:
+    try:
+        import Calculadora
+        Calculadora.show()
+    except Exception as e:
+        st.error(f"Erro ao carregar Calculadora: {e}")
