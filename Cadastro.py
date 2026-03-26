@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 from db import salvar_motor
+from ocr_motor import ler_placa_motor
 
 
 def show():
