@@ -3,5 +3,3 @@ pandas
 python-dotenv
 sqlalchemy
 opencv-python-headless
-pytesseract
-sqlite3
