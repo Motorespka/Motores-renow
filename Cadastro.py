@@ -6,6 +6,7 @@ from db import salvar_motor
 from ocr_motor import ler_placa_motor
 
 def show():
+    # Esta linha deve ter exatamente 4 espaços de recuo (ou 1 tab)
     st.markdown("### 🔐 Área Restrita: Cadastro Técnico")
 
     # ===== LOGIN =====
