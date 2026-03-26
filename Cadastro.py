@@ -65,11 +65,15 @@ def show():
                     resultados = ler_placa_motor(caminho_temp)
                     
                     st.session_state.dados_ocr = resultados
-                    st.success("Dados extraídos com sucesso! Verifique o formulário abaixo.")
                     
                     # Limpa o arquivo temporário
                     if os.path.exists(caminho_temp):
                         os.remove(caminho_temp)
+                    
+                    # --- ACRÉSCIMO AQUI ---
+                    # Força o recarregamento da página para os dados aparecerem nos campos abaixo
+                    st.rerun() 
+                    # ----------------------
                         
                 except Exception as e:
                     st.error(f"Erro técnico no processamento da pasta temp: {e}")
@@ -141,7 +145,9 @@ def show():
                         "Marca": "", "Tensão (V)": 0.0, "Potência (kW/HP)": 0.0, 
                         "Rotação (RPM)": 0, "Frequência (Hz)": "", "Corrente (A)": 0.0
                     }
+                    # Força limpeza visual após salvar
+                    st.rerun()
                 except Exception as e:
                     st.error(f"Erro ao salvar: {e}")
             else:
-                st.warning("Marca e Modelo são obrigatórios.")
+                st.warning("Marca e Modelo são obrigatórios!")
