@@ -3,100 +3,195 @@ import cv2
 import re
 import numpy as np
 import streamlit as st
-import os
-from PIL import Image
 
+
+# =========================
+# 🚀 CARREGA MODELO (CACHE)
+# =========================
 @st.cache_resource
 def carregar_modelo():
-    """Carrega o modelo EasyOCR apenas uma vez"""
     return easyocr.Reader(['pt', 'en'], gpu=False)
 
-def extrair_dados_especificos(texto):
+
+# =========================
+# 🧹 PRÉ-PROCESSAMENTO
+# =========================
+def preprocessar_imagem(img):
     """
-    Usa Regex flexível para encontrar os dados. 
-    Mesmo que o texto venha 'sujo', tentamos extrair apenas os números.
+    Melhora a qualidade da imagem para OCR
     """
-    # Transformamos tudo em uma string única para facilitar a busca
-    texto_limpo = " ".join(texto) if isinstance(texto, list) else texto
-    
-    dados = {
-        "Marca": "",
-        "Tensão (V)": "",
-        "Potência (kW/HP)": "",
-        "Rotação (RPM)": "",
-        "Frequência (Hz)": "",
-        "Corrente (A)": ""
+    if len(img.shape) == 3:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    # Aumenta contraste
+    img = cv2.equalizeHist(img)
+
+    # Remove ruído
+    img = cv2.GaussianBlur(img, (3, 3), 0)
+
+    # Threshold (binarização)
+    _, img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+    return img
+
+
+# =========================
+# 🧠 NORMALIZA TEXTO
+# =========================
+def normalizar_texto(texto):
+    texto = texto.upper()
+
+    # Corrige erros comuns do OCR
+    substituicoes = {
+        "O": "0",
+        "I": "1",
+        "L": "1",
+        "S": "5",
+        "B": "8"
     }
 
-    # 1. MARCA (Busca simples por palavras-chave)
-    if "WEG" in texto_limpo.upper(): dados["Marca"] = "WEG"
-    elif "SIEMENS" in texto_limpo.upper(): dados["Marca"] = "SIEMENS"
-    elif "VOGES" in texto_limpo.upper(): dados["Marca"] = "VOGES"
+    for k, v in substituicoes.items():
+        texto = texto.replace(k, v)
 
-    # 2. TENSÃO (Busca números de 3 dígitos comuns em placas)
-    tensoes = re.findall(r'\b(110|127|220|380|440|460|760)\b', texto_limpo)
+    return texto
+
+
+# =========================
+# 🔍 EXTRAÇÃO INTELIGENTE
+# =========================
+def extrair_dados_especificos(texto):
+    texto = normalizar_texto(texto)
+
+    dados = {
+        "Marca": "",
+        "Tensão": "",
+        "Potência": "",
+        "Rotação": "",
+        "Frequência": "",
+        "Corrente": ""
+    }
+
+    # =========================
+    # 🏭 MARCA
+    # =========================
+    if "WEG" in texto:
+        dados["Marca"] = "WEG"
+    elif "SIEMENS" in texto:
+        dados["Marca"] = "SIEMENS"
+    elif "VOGES" in texto:
+        dados["Marca"] = "VOGES"
+
+    # =========================
+    # ⚡ TENSÃO
+    # =========================
+    tensoes = re.findall(r'\b(110|127|220|380|440|460|480|760)\b', texto)
     if tensoes:
-        dados["Tensão (V)"] = " / ".join(sorted(list(set(tensoes))))
+        dados["Tensão"] = " / ".join(sorted(set(tensoes)))
 
-    # 3. ROTAÇÃO (Busca números entre 700 e 3650 que costumam ser RPM)
-    # Filtramos números de 3 ou 4 dígitos perto da palavra RPM ou min
-    rpm = re.search(r'(\d{3,4})\s?(?:RPM|min|RPM|MIN)', texto_limpo, re.IGNORECASE)
+    # =========================
+    # 🔄 ROTAÇÃO (RPM)
+    # =========================
+    rpm = re.search(r'(\d{3,4})\s?(RPM|MIN)', texto)
     if rpm:
-        dados["Rotação (RPM)"] = rpm.group(1)
+        dados["Rotação"] = rpm.group(1)
     else:
-        # Busca genérica por valores comuns de RPM se a palavra RPM não aparecer
-        rpms_comuns = re.findall(r'\b(8[0-9]{2}|11[0-9]{2}|17[0-9]{2}|34[0-9]{2}|35[0-9]{2})\b', texto_limpo)
-        if rpms_comuns: dados["Rotação (RPM)"] = rpms_comuns[0]
+        candidatos = re.findall(r'\b(8\d{2}|11\d{2}|17\d{2}|34\d{2}|35\d{2})\b', texto)
+        if candidatos:
+            dados["Rotação"] = candidatos[0]
 
-    # 4. FREQUÊNCIA
-    freq = re.search(r'(50|60)\s?Hz', texto_limpo, re.IGNORECASE)
-    if freq: dados["Frequência (Hz)"] = freq.group(1)
+    # =========================
+    # 🔌 FREQUÊNCIA
+    # =========================
+    freq = re.search(r'(50|60)\s?HZ', texto)
+    if freq:
+        dados["Frequência"] = freq.group(1)
 
-    # 5. POTÊNCIA (Busca números seguidos de KW, HP ou CV)
-    # Ex: 1.5kW, 10 CV, 0,75HP
-    pot = re.search(r'(\d+[\.,]\d+|\d+)\s?(?:kW|HP|cv|CV)', texto_limpo, re.IGNORECASE)
+    # =========================
+    # ⚙️ POTÊNCIA
+    # =========================
+    pot = re.search(r'(\d+[\.,]?\d*)\s?(KW|CV|HP)', texto)
     if pot:
-        dados["Potência (kW/HP)"] = pot.group(1).replace(",", ".")
+        dados["Potência"] = pot.group(1).replace(",", ".")
 
-    # 6. CORRENTE (A)
-    # Busca um número antes da letra A isolada (Ex: 4.5 A ou 10A)
-    corrente = re.search(r'(\d+[\.,]\d+|\d+)\s?A\b', texto_limpo)
+    # =========================
+    # 🔋 CORRENTE
+    # =========================
+    corrente = re.search(r'(\d+[\.,]?\d*)\s?A\b', texto)
     if corrente:
-        dados["Corrente (A)"] = corrente.group(1).replace(",", ".")
+        dados["Corrente"] = corrente.group(1).replace(",", ".")
 
     return dados
 
-def ler_placa_motor(imagem_input):
-    """Lê a imagem e retorna o dicionário com os dados encontrados"""
+
+# =========================
+# 📸 FUNÇÃO PRINCIPAL OCR
+# =========================
+def ler_placa_motor(imagem_input, debug=False):
     reader = carregar_modelo()
-    
-    # Se receber caminho (string) ou objeto PIL, converte para array que o EasyOCR entende
+
+    # =========================
+    # 📥 ENTRADA FLEXÍVEL
+    # =========================
     if isinstance(imagem_input, str):
-        imagem_input = cv2.imread(imagem_input)
-    elif not isinstance(imagem_input, np.ndarray):
-        imagem_input = np.array(imagem_input)
-    
-    # Converte para tons de cinza para melhorar a detecção
-    if len(imagem_input.shape) == 3:
-        gray = cv2.cvtColor(imagem_input, cv2.COLOR_BGR2GRAY)
+        img = cv2.imread(imagem_input)
+    elif isinstance(imagem_input, np.ndarray):
+        img = imagem_input
     else:
-        gray = imagem_input
+        img = np.array(imagem_input)
 
-    # Executa a leitura
-    resultado = reader.readtext(gray)
-    
-    # Junta todas as frases detectadas em um texto só
-    texto_total = " ".join([res[1] for res in resultado])
-    
-    # Retorna o dicionário processado
-    return extrair_dados_especificos(texto_total)
+    # =========================
+    # 🔧 PRÉ-PROCESSAMENTO
+    # =========================
+    img_proc = preprocessar_imagem(img)
 
+    # =========================
+    # 🤖 OCR
+    # =========================
+    resultado = reader.readtext(img_proc)
+
+    textos = [res[1] for res in resultado]
+    texto_total = " ".join(textos)
+
+    # =========================
+    # 🧠 EXTRAÇÃO
+    # =========================
+    dados = extrair_dados_especificos(texto_total)
+
+    # =========================
+    # 🐞 DEBUG
+    # =========================
+    if debug:
+        return {
+            "texto_detectado": textos,
+            "texto_total": texto_total,
+            "dados_extraidos": dados
+        }
+
+    return dados
+
+
+# =========================
+# 🧪 TESTE LOCAL
+# =========================
 if __name__ == "__main__":
-    # Mantém sua interface original para testes rápidos
-    st.title("Teste de OCR Local")
-    arquivo = st.file_uploader("Suba uma placa", type=['jpg', 'png'])
+    st.title("Teste OCR Motor (PRO)")
+
+    arquivo = st.file_uploader("Envie imagem", type=["jpg", "png", "jpeg"])
+
     if arquivo:
+        from PIL import Image
+
         img = Image.open(arquivo)
         st.image(img)
-        res = ler_placa_motor(img)
-        st.write(res)
+
+        if st.button("Rodar OCR"):
+            resultado = ler_placa_motor(img, debug=True)
+
+            st.subheader("🧾 Texto Detectado")
+            st.write(resultado["texto_detectado"])
+
+            st.subheader("🧠 Texto Completo")
+            st.write(resultado["texto_total"])
+
+            st.subheader("📊 Dados Extraídos")
+            st.json(resultado["dados_extraidos"])
