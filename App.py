@@ -1,13 +1,19 @@
 import streamlit as st
 
-# ---------------- CONFIGURAÇÃO ----------------
+# ================= CONFIGURAÇÃO =================
 
 st.set_page_config(
     page_title="Moto-Renow",
     layout="wide"
 )
 
-# ---------------- LOGIN ----------------
+# ================= IMPORTS DAS PÁGINAS =================
+
+from page.cadastro import show as cadastro_page
+from page.consulta import show as consulta_page
+from page.calculadora import show as calculadora_page
+
+# ================= LOGIN =================
 
 if "logado" not in st.session_state:
     st.session_state.logado = False
@@ -30,29 +36,22 @@ if not st.session_state.logado:
 
     st.stop()
 
-# ---------------- SISTEMA ----------------
+# ================= SISTEMA =================
 
 st.title("⚙️ Moto-Renow")
 
-menu = st.sidebar.selectbox(
+menu = st.sidebar.radio(
     "Menu",
-    [
-        "Cadastro",
-        "Consulta",
-        "Calculadora"
-    ]
+    ["Cadastro", "Consulta", "Calculadora"]
 )
 
-# ---------------- PÁGINAS ----------------
+# ================= NAVEGAÇÃO =================
 
 if menu == "Cadastro":
-    from page.cadastro import show
-    show()
+    cadastro_page()
 
 elif menu == "Consulta":
-    from page.consulta import show
-    show()
+    consulta_page()
 
 elif menu == "Calculadora":
-    from page.calculadora import show
-    show()
+    calculadora_page()
