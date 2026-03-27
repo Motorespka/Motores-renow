@@ -1,40 +1,32 @@
 import streamlit as st
 
-# ---------------- CONFIG ----------------
 st.set_page_config(
     page_title="Moto-Renow",
     layout="wide"
 )
 
-# ---------------- LOGIN ----------------
-def check_login():
+# ---------------- LOGIN SIMPLES ----------------
 
-    if "logado" not in st.session_state:
-        st.session_state.logado = False
+if "logado" not in st.session_state:
+    st.session_state.logado = False
 
-    if not st.session_state.logado:
+if not st.session_state.logado:
 
-        st.title("🔐 Login Moto-Renow")
+    st.title("🔐 Acesso Técnico")
 
-        usuario = st.text_input("Usuário")
-        senha = st.text_input("Senha", type="password")
+    senha = st.text_input(
+        "Digite a chave técnica",
+        type="password"
+    )
 
-        if st.button("Entrar"):
+    if senha == st.secrets["APP_PASSWORD"]:
+        st.session_state.logado = True
+        st.rerun()
 
-            if (
-                usuario == st.secrets["login"]["usuario"]
-                and senha == st.secrets["login"]["senha"]
-            ):
-                st.session_state.logado = True
-                st.rerun()
-            else:
-                st.error("Usuário ou senha incorretos")
+    st.stop()
 
-        st.stop()
+# ---------------- SISTEMA ----------------
 
-check_login()
-
-# ---------------- APP ----------------
 st.title("Moto-Renow")
 
 menu = st.sidebar.selectbox(
