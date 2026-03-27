@@ -1,4 +1,5 @@
 import streamlit as st
+import importlib
 
 # =====================================
 # CONFIGURAÇÃO
@@ -63,10 +64,15 @@ menu = st.sidebar.radio(
 # =====================================
 
 def carregar_pagina(modulo, nome):
-
     try:
-        page = __import__(modulo, fromlist=["show"])
-        page.show()
+        # importa o módulo da página
+        page = importlib.import_module(modulo)
+
+        # verifica se existe a função show()
+        if hasattr(page, "show") and callable(page.show):
+            page.show()
+        else:
+            st.error(f"A página '{nome}' não possui a função show() definida.")
 
     except Exception as e:
         st.error(f"Erro ao carregar {nome}")
