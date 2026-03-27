@@ -1,156 +1,119 @@
 import streamlit as st
-from services.ocr_motor import ler_placa_motor
+from ocr.ocr_motor import ler_placa_motor
 
+st.title("Cadastro de Motor")
 
-# ===============================
-# INICIAR CAMPOS
-# ===============================
-def iniciar_campos():
+# =============================
+# Inicializa campos
+# =============================
 
-    campos = [
-        "marca","modelo","carcaca","serie","ano",
-        "potencia","unidade","tensao","corrente",
-        "frequencia","fp","fs","polos","rpm",
-        "ip","isolamento","refrigeracao",
-        "ligacao","peso","rendimento"
-    ]
+campos = [
+    "marca","modelo","potencia","tensao","corrente",
+    "rpm","frequencia","fp","carcaca","ip",
+    "isolacao","regime","rolamento_dianteiro",
+    "rolamento_traseiro","peso","diametro_eixo",
+    "comprimento_pacote","numero_ranhuras",
+    "ligacao","fabricacao"
+]
 
-    for c in campos:
-        if c not in st.session_state:
-            st.session_state[c] = ""
+for campo in campos:
+    if campo not in st.session_state:
+        st.session_state[campo] = ""
 
+# =============================
+# OCR
+# =============================
 
-# ===============================
-# PREENCHER OCR
-# ===============================
-def preencher_ocr(dados):
+st.subheader("Escanear placa")
 
-    mapa = {
-        "Marca":"marca",
-        "Modelo":"modelo",
-        "Carcaça":"carcaca",
-        "Potência":"potencia",
-        "Unidade":"unidade",
-        "Tensão":"tensao",
-        "Corrente":"corrente",
-        "Frequência":"frequencia",
-        "Fator de potência":"fp",
-        "Fator de Serviço":"fs",
-        "Polos":"polos",
-        "Rotação":"rpm",
-        "IP":"ip",
-        "Isolamento":"isolamento",
-        "Refrigeração":"refrigeracao",
-        "Ligação":"ligacao",
-        "Peso":"peso",
-        "Rendimento":"rendimento",
-        "Ano":"ano",
-        "Série":"serie"
-    }
+imagem = st.file_uploader(
+    "Envie foto da placa do motor",
+    type=["png","jpg","jpeg"]
+)
 
-    for k,v in mapa.items():
-        valor = dados.get(k)
+if imagem:
+    if st.button("Ler placa"):
+        dados = ler_placa_motor(imagem)
 
-        # ✅ só preenche se encontrou algo
-        if valor:
-            st.session_state[v] = valor
+        # 🔥 PREENCHE AUTOMATICAMENTE
+        for chave, valor in dados.items():
+            if chave in st.session_state:
+                st.session_state[chave] = valor
 
+        st.success("Dados preenchidos automaticamente!")
 
-# ===============================
-# PEGAR DADOS DO FORM
-# ===============================
-def coletar_dados():
+# =============================
+# FORMULÁRIO
+# =============================
 
-    campos = [
-        "marca","modelo","carcaca","serie","ano",
-        "potencia","unidade","tensao","corrente",
-        "frequencia","fp","fs","polos","rpm",
-        "ip","isolamento","refrigeracao",
-        "ligacao","peso","rendimento"
-    ]
+st.subheader("Dados do Motor")
 
-    return {c: st.session_state[c] for c in campos}
+st.session_state.marca = st.text_input(
+    "Marca", value=st.session_state.marca)
 
+st.session_state.modelo = st.text_input(
+    "Modelo", value=st.session_state.modelo)
 
-# ===============================
-# TELA PRINCIPAL
-# ===============================
-def show():
+st.session_state.potencia = st.text_input(
+    "Potência", value=st.session_state.potencia)
 
-    iniciar_campos()
+st.session_state.tensao = st.text_input(
+    "Tensão", value=st.session_state.tensao)
 
-    st.header("📸 Leitura automática da placa")
+st.session_state.corrente = st.text_input(
+    "Corrente", value=st.session_state.corrente)
 
-    imagem = st.file_uploader(
-        "Enviar foto da placa do motor",
-        type=["jpg","jpeg","png"]
-    )
+st.session_state.rpm = st.text_input(
+    "RPM", value=st.session_state.rpm)
 
-    # ✅ botão para rodar OCR
-    if imagem:
+st.session_state.frequencia = st.text_input(
+    "Frequência", value=st.session_state.frequencia)
 
-        st.image(imagem, width=300)
+st.session_state.fp = st.text_input(
+    "Fator de Potência", value=st.session_state.fp)
 
-        if st.button("🤖 Escanear Placa"):
+st.session_state.carcaca = st.text_input(
+    "Carcaça", value=st.session_state.carcaca)
 
-            with st.spinner("Lendo placa..."):
-                dados = ler_placa_motor(imagem)
+st.session_state.ip = st.text_input(
+    "Grau IP", value=st.session_state.ip)
 
-            preencher_ocr(dados)
+st.session_state.isolacao = st.text_input(
+    "Classe de Isolação", value=st.session_state.isolacao)
 
-            st.success("Dados detectados!")
+st.session_state.regime = st.text_input(
+    "Regime", value=st.session_state.regime)
 
-            with st.expander("🔎 Dados OCR"):
-                st.json(dados)
+st.session_state.rolamento_dianteiro = st.text_input(
+    "Rolamento Dianteiro", value=st.session_state.rolamento_dianteiro)
 
-            st.rerun()
+st.session_state.rolamento_traseiro = st.text_input(
+    "Rolamento Traseiro", value=st.session_state.rolamento_traseiro)
 
-    # ============================
-    # FORMULÁRIO
-    # ============================
+st.session_state.peso = st.text_input(
+    "Peso", value=st.session_state.peso)
 
-    st.header("Cadastro do Motor")
+st.session_state.diametro_eixo = st.text_input(
+    "Diâmetro do Eixo", value=st.session_state.diametro_eixo)
 
-    col1, col2 = st.columns(2)
+st.session_state.comprimento_pacote = st.text_input(
+    "Comprimento do Pacote", value=st.session_state.comprimento_pacote)
 
-    with col1:
+st.session_state.numero_ranhuras = st.text_input(
+    "Número de Ranhuras", value=st.session_state.numero_ranhuras)
 
-        st.text_input("Marca", key="marca")
-        st.text_input("Modelo", key="modelo")
-        st.text_input("Carcaça", key="carcaca")
-        st.text_input("Nº Série", key="serie")
-        st.text_input("Ano", key="ano")
+st.session_state.ligacao = st.text_input(
+    "Ligação", value=st.session_state.ligacao)
 
-        st.text_input("Potência", key="potencia")
-        st.selectbox("Unidade", ["cv","kW","hp"], key="unidade")
+st.session_state.fabricacao = st.text_input(
+    "Ano de Fabricação", value=st.session_state.fabricacao)
 
-        st.text_input("Tensão", key="tensao")
-        st.text_input("Corrente", key="corrente")
-        st.text_input("Frequência", key="frequencia")
+# =============================
+# SALVAR
+# =============================
 
-    with col2:
+if st.button("Salvar Motor"):
+    motor = {campo: st.session_state[campo] for campo in campos}
 
-        st.text_input("Fator de Potência", key="fp")
-        st.text_input("Fator de Serviço", key="fs")
-        st.text_input("Polos", key="polos")
-        st.text_input("RPM", key="rpm")
-
-        st.text_input("IP", key="ip")
-        st.text_input("Isolamento", key="isolamento")
-        st.text_input("Refrigeração", key="refrigeracao")
-        st.text_input("Ligação", key="ligacao")
-
-        st.text_input("Peso", key="peso")
-        st.text_input("Rendimento", key="rendimento")
-
-    # ============================
-    # SALVAR
-    # ============================
-
-    if st.button("💾 Salvar Motor", use_container_width=True):
-
-        dados_salvos = coletar_dados()
-
-        st.success("Motor cadastrado!")
-
-        st.json(dados_salvos)
+    st.success("Motor salvo!")
+    st.json(motor)
