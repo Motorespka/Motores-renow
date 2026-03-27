@@ -1,1 +1,43 @@
 
+import easyocr
+import cv2
+import numpy as np
+import re
+from PIL import Image
+import streamlit as st
+
+@st.cache_resource
+def carregar_modelo():
+    return easyocr.Reader(['pt','en'], gpu=False)
+
+def ler_placa_motor(imagem):
+
+    reader = carregar_modelo()
+
+    imagem = Image.open(imagem)
+    imagem = np.array(imagem)
+
+    gray = cv2.cvtColor(imagem, cv2.COLOR_BGR2GRAY)
+
+    resultado = reader.readtext(gray)
+
+    texto = " ".join([r[1] for r in resultado])
+
+    dados = {
+        "Marca":"",
+        "Tensão":"",
+        "Potência":""
+    }
+
+    if "WEG" in texto.upper():
+        dados["Marca"]="WEG"
+
+    tensao = re.findall(r'\b(110|220|380|440)\b', texto)
+    if tensao:
+        dados["Tensão"]="/".join(tensao)
+
+    pot = re.search(r'(\d+[\.,]?\d*)\s?(?:kW|CV|HP)', texto)
+    if pot:
+        dados["Potência"]=pot.group(1)
+
+    return dados
