@@ -2,134 +2,117 @@ import streamlit as st
 from services.ocr_motor import ler_placa_motor
 
 
+def iniciar_campos():
+
+    campos = [
+        "marca","modelo","carcaca","serie","ano",
+        "potencia","unidade","tensao","corrente",
+        "frequencia","fp","fs","polos","rpm",
+        "ip","isolamento","refrigeracao",
+        "ligacao","peso","rendimento"
+    ]
+
+    for c in campos:
+        if c not in st.session_state:
+            st.session_state[c] = ""
+
+
+def preencher_ocr(dados):
+
+    mapa = {
+        "Marca":"marca",
+        "Modelo":"modelo",
+        "Carcaça":"carcaca",
+        "Potência":"potencia",
+        "Unidade":"unidade",
+        "Tensão":"tensao",
+        "Corrente":"corrente",
+        "Frequência":"frequencia",
+        "Fator de potência":"fp",
+        "Fator de Serviço":"fs",
+        "Polos":"polos",
+        "Rotação":"rpm",
+        "IP":"ip",
+        "Isolamento":"isolamento",
+        "Refrigeração":"refrigeracao",
+        "Ligação":"ligacao",
+        "Peso":"peso",
+        "Rendimento":"rendimento",
+        "Ano":"ano",
+        "Série":"serie"
+    }
+
+    for k,v in mapa.items():
+        if k in dados:
+            st.session_state[v] = dados[k]
+
+
 def show():
 
-    st.header("📋 Cadastro de Motor")
+    iniciar_campos()
 
-    # ---------------- OCR ----------------
-
-    st.subheader("📸 Ler placa do motor (OCR)")
+    st.header("📸 Leitura automática da placa")
 
     imagem = st.file_uploader(
-        "Envie foto da placa do motor",
-        type=["jpg", "jpeg", "png"]
+        "Enviar foto da placa do motor",
+        type=["jpg","jpeg","png"]
     )
 
-    dados_ocr = {}
-
     if imagem:
+
+        st.image(imagem, width=300)
+
         with st.spinner("Lendo placa..."):
-            dados_ocr = ler_placa_motor(imagem)
+            dados = ler_placa_motor(imagem)
 
-        st.success("Placa lida com sucesso!")
+        preencher_ocr(dados)
 
-    # ---------------- FORMULÁRIO ----------------
+        st.success("Dados detectados!")
 
-    st.subheader("🧾 Dados do Motor")
+        with st.expander("🔎 Dados OCR"):
+            st.json(dados)
+
+    # ============================
+    # FORMULÁRIO COMPLETO
+    # ============================
+
+    st.header("Cadastro do Motor")
 
     col1, col2 = st.columns(2)
 
     with col1:
 
-        marca = st.text_input(
-            "Marca",
-            value=dados_ocr.get("Marca", "")
-        )
+        st.text_input("Marca", key="marca")
+        st.text_input("Modelo", key="modelo")
+        st.text_input("Carcaça", key="carcaca")
+        st.text_input("Nº Série", key="serie")
+        st.text_input("Ano", key="ano")
 
-        modelo = st.text_input(
-            "Modelo",
-            value=dados_ocr.get("Modelo", "")
-        )
+        st.text_input("Potência", key="potencia")
+        st.selectbox("Unidade", ["cv","kW","hp"], key="unidade")
 
-        potencia = st.text_input(
-            "Potência",
-            value=dados_ocr.get("Potência", "")
-        )
-
-        tensao = st.text_input(
-            "Tensão",
-            value=dados_ocr.get("Tensão", "")
-        )
-
-        corrente = st.text_input(
-            "Corrente (A)",
-            value=dados_ocr.get("Corrente", "")
-        )
+        st.text_input("Tensão", key="tensao")
+        st.text_input("Corrente", key="corrente")
+        st.text_input("Frequência", key="frequencia")
 
     with col2:
 
-        rpm = st.text_input(
-            "RPM",
-            value=dados_ocr.get("RPM", "")
-        )
+        st.text_input("Fator de Potência", key="fp")
+        st.text_input("Fator de Serviço", key="fs")
+        st.text_input("Polos", key="polos")
+        st.text_input("RPM", key="rpm")
 
-        frequencia = st.text_input(
-            "Frequência (Hz)",
-            value=dados_ocr.get("Frequência", "")
-        )
+        st.text_input("IP", key="ip")
+        st.text_input("Isolamento", key="isolamento")
+        st.text_input("Refrigeração", key="refrigeracao")
+        st.text_input("Ligação", key="ligacao")
 
-        rendimento = st.text_input(
-            "Rendimento (%)",
-            value=dados_ocr.get("Rendimento", "")
-        )
+        st.text_input("Peso", key="peso")
+        st.text_input("Rendimento", key="rendimento")
 
-        fp = st.text_input(
-            "Fator de Potência",
-            value=dados_ocr.get("FP", "")
-        )
+    if st.button("💾 Salvar Motor", use_container_width=True):
 
-        carcaca = st.text_input(
-            "Carcaça",
-            value=dados_ocr.get("Carcaça", "")
-        )
+        dados_salvos = dict(st.session_state)
 
-    # ---------------- DADOS DE REBOBINAGEM ----------------
-
-    st.subheader("🔧 Dados de Rebobinagem")
-
-    col3, col4 = st.columns(2)
-
-    with col3:
-
-        ranhuras = st.number_input("Número de Ranhuras", 0)
-        polos = st.number_input("Número de Polos", 0)
-        passo = st.text_input("Passo da Bobina")
-
-    with col4:
-
-        fio = st.text_input("Bitola do Fio")
-        espiras = st.number_input("Espiras por Bobina", 0)
-        ligacao = st.selectbox(
-            "Ligação",
-            ["Estrela", "Triângulo", "Série", "Paralelo"]
-        )
-
-    observacoes = st.text_area("Observações")
-
-    # ---------------- SALVAR ----------------
-
-    if st.button("💾 Salvar Motor"):
-
-        dados_motor = {
-            "Marca": marca,
-            "Modelo": modelo,
-            "Potência": potencia,
-            "Tensão": tensao,
-            "Corrente": corrente,
-            "RPM": rpm,
-            "Frequência": frequencia,
-            "Rendimento": rendimento,
-            "FP": fp,
-            "Carcaça": carcaca,
-            "Ranhuras": ranhuras,
-            "Polos": polos,
-            "Passo": passo,
-            "Fio": fio,
-            "Espiras": espiras,
-            "Ligação": ligacao,
-            "Observações": observacoes
-        }
-
-        # depois vamos conectar com banco
-        st.success("Motor cadastrado (simulação)")
-        st.json(dados_motor)
+        st.success("Motor cadastrado!")
+        st.json(dados_salvos)
