@@ -1,57 +1,83 @@
 import streamlit as st
 
-# ================= CONFIGURAÇÃO =================
+# =====================================
+# CONFIGURAÇÃO
+# =====================================
 
 st.set_page_config(
     page_title="Moto-Renow",
+    page_icon="⚙️",
     layout="wide"
 )
 
-# ================= IMPORTS DAS PÁGINAS =================
+# =====================================
+# LOGIN SIMPLES
+# =====================================
 
-from page.cadastro import show as cadastro_page
-from page.consulta import show as consulta_page
-from page.calculadora import show as calculadora_page
+def login():
 
-# ================= LOGIN =================
+    if "logado" not in st.session_state:
+        st.session_state.logado = False
 
-if "logado" not in st.session_state:
-    st.session_state.logado = False
+    if not st.session_state.logado:
 
-if not st.session_state.logado:
+        st.title("🔐 Moto-Renow - Acesso Técnico")
 
-    st.title("🔐 Moto-Renow - Acesso Técnico")
+        senha = st.text_input(
+            "Digite a chave técnica",
+            type="password"
+        )
 
-    senha = st.text_input(
-        "Digite a chave técnica",
-        type="password"
-    )
+        if senha:
+            try:
+                if senha == st.secrets["APP_PASSWORD"]:
+                    st.session_state.logado = True
+                    st.rerun()
+                else:
+                    st.error("Senha incorreta")
+            except Exception:
+                st.error("Senha não configurada no Secrets")
 
-    if senha:
-        if senha == st.secrets["APP_PASSWORD"]:
-            st.session_state.logado = True
-            st.rerun()
-        else:
-            st.error("Senha incorreta")
+        st.stop()
 
-    st.stop()
 
-# ================= SISTEMA =================
+login()
+
+# =====================================
+# MENU PRINCIPAL
+# =====================================
 
 st.title("⚙️ Moto-Renow")
 
 menu = st.sidebar.radio(
     "Menu",
-    ["Cadastro", "Consulta", "Calculadora"]
+    [
+        "Cadastro",
+        "Consulta",
+        "Calculadora"
+    ]
 )
 
-# ================= NAVEGAÇÃO =================
+# =====================================
+# CARREGAMENTO SEGURO DAS PÁGINAS
+# =====================================
+
+def carregar_pagina(modulo, nome):
+
+    try:
+        page = __import__(modulo, fromlist=["show"])
+        page.show()
+
+    except Exception as e:
+        st.error(f"Erro ao carregar {nome}")
+        st.exception(e)
+
 
 if menu == "Cadastro":
-    cadastro_page()
+    carregar_pagina("page.cadastro", "Cadastro")
 
 elif menu == "Consulta":
-    consulta_page()
+    carregar_pagina("page.consulta", "Consulta")
 
 elif menu == "Calculadora":
-    calculadora_page()
+    carregar_pagina("page.calculadora", "Calculadora")
