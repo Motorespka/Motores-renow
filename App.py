@@ -50,15 +50,6 @@ login()
 
 st.title("⚙️ Moto-Renow")
 
-menu = st.sidebar.radio(
-    "Menu",
-    [
-        "Cadastro",
-        "Consulta",
-        "Calculadora"
-    ]
-)
-
 # =====================================
 # CARREGAMENTO SEGURO DAS PÁGINAS
 # =====================================
