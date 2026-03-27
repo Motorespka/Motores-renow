@@ -1,6 +1,7 @@
 import streamlit as st
 from services.ocr_motor import ler_placa_motor
 
+def show():
 st.title("Cadastro de Motor")
 
 # =============================
