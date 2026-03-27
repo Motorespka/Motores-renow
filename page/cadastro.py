@@ -4,7 +4,7 @@ from services.ocr_motor import ler_placa_motor
 st.title("Cadastro de Motor")
 
 # =============================
-# Inicializa campos
+# CAMPOS DO MOTOR
 # =============================
 
 campos = [
@@ -16,6 +16,7 @@ campos = [
     "ligacao","fabricacao"
 ]
 
+# Inicializa session_state
 for campo in campos:
     if campo not in st.session_state:
         st.session_state[campo] = ""
@@ -24,7 +25,7 @@ for campo in campos:
 # OCR
 # =============================
 
-st.subheader("Escanear placa")
+st.subheader("📸 Escanear placa")
 
 imagem = st.file_uploader(
     "Envie foto da placa do motor",
@@ -32,88 +33,62 @@ imagem = st.file_uploader(
 )
 
 if imagem:
-    if st.button("Ler placa"):
-        dados = ler_placa_motor(imagem)
+    st.image(imagem, width=300)
 
-        # 🔥 PREENCHE AUTOMATICAMENTE
+    if st.button("🔎 Ler placa"):
+
+        with st.spinner("Lendo placa..."):
+            dados = ler_placa_motor(imagem)
+
+        # Preenchimento automático
         for chave, valor in dados.items():
             if chave in st.session_state:
                 st.session_state[chave] = valor
 
-        st.success("Dados preenchidos automaticamente!")
+        st.success("✅ Dados preenchidos automaticamente!")
+
+        # força atualização visual
+        st.rerun()
 
 # =============================
 # FORMULÁRIO
 # =============================
 
-st.subheader("Dados do Motor")
+st.subheader("⚙️ Dados do Motor")
 
-st.session_state.marca = st.text_input(
-    "Marca", value=st.session_state.marca)
+col1, col2 = st.columns(2)
 
-st.session_state.modelo = st.text_input(
-    "Modelo", value=st.session_state.modelo)
+with col1:
+    st.text_input("Marca", key="marca")
+    st.text_input("Modelo", key="modelo")
+    st.text_input("Potência", key="potencia")
+    st.text_input("Tensão", key="tensao")
+    st.text_input("Corrente", key="corrente")
+    st.text_input("RPM", key="rpm")
+    st.text_input("Frequência", key="frequencia")
+    st.text_input("Fator de Potência", key="fp")
+    st.text_input("Carcaça", key="carcaca")
+    st.text_input("Grau IP", key="ip")
 
-st.session_state.potencia = st.text_input(
-    "Potência", value=st.session_state.potencia)
-
-st.session_state.tensao = st.text_input(
-    "Tensão", value=st.session_state.tensao)
-
-st.session_state.corrente = st.text_input(
-    "Corrente", value=st.session_state.corrente)
-
-st.session_state.rpm = st.text_input(
-    "RPM", value=st.session_state.rpm)
-
-st.session_state.frequencia = st.text_input(
-    "Frequência", value=st.session_state.frequencia)
-
-st.session_state.fp = st.text_input(
-    "Fator de Potência", value=st.session_state.fp)
-
-st.session_state.carcaca = st.text_input(
-    "Carcaça", value=st.session_state.carcaca)
-
-st.session_state.ip = st.text_input(
-    "Grau IP", value=st.session_state.ip)
-
-st.session_state.isolacao = st.text_input(
-    "Classe de Isolação", value=st.session_state.isolacao)
-
-st.session_state.regime = st.text_input(
-    "Regime", value=st.session_state.regime)
-
-st.session_state.rolamento_dianteiro = st.text_input(
-    "Rolamento Dianteiro", value=st.session_state.rolamento_dianteiro)
-
-st.session_state.rolamento_traseiro = st.text_input(
-    "Rolamento Traseiro", value=st.session_state.rolamento_traseiro)
-
-st.session_state.peso = st.text_input(
-    "Peso", value=st.session_state.peso)
-
-st.session_state.diametro_eixo = st.text_input(
-    "Diâmetro do Eixo", value=st.session_state.diametro_eixo)
-
-st.session_state.comprimento_pacote = st.text_input(
-    "Comprimento do Pacote", value=st.session_state.comprimento_pacote)
-
-st.session_state.numero_ranhuras = st.text_input(
-    "Número de Ranhuras", value=st.session_state.numero_ranhuras)
-
-st.session_state.ligacao = st.text_input(
-    "Ligação", value=st.session_state.ligacao)
-
-st.session_state.fabricacao = st.text_input(
-    "Ano de Fabricação", value=st.session_state.fabricacao)
+with col2:
+    st.text_input("Classe de Isolação", key="isolacao")
+    st.text_input("Regime", key="regime")
+    st.text_input("Rolamento Dianteiro", key="rolamento_dianteiro")
+    st.text_input("Rolamento Traseiro", key="rolamento_traseiro")
+    st.text_input("Peso", key="peso")
+    st.text_input("Diâmetro do Eixo", key="diametro_eixo")
+    st.text_input("Comprimento do Pacote", key="comprimento_pacote")
+    st.text_input("Número de Ranhuras", key="numero_ranhuras")
+    st.text_input("Ligação", key="ligacao")
+    st.text_input("Ano de Fabricação", key="fabricacao")
 
 # =============================
 # SALVAR
 # =============================
 
-if st.button("Salvar Motor"):
+if st.button("💾 Salvar Motor", use_container_width=True):
+
     motor = {campo: st.session_state[campo] for campo in campos}
 
-    st.success("Motor salvo!")
+    st.success("Motor salvo com sucesso!")
     st.json(motor)
