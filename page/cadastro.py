@@ -2,6 +2,9 @@ import streamlit as st
 from services.ocr_motor import ler_placa_motor
 
 
+# ===============================
+# INICIAR CAMPOS
+# ===============================
 def iniciar_campos():
 
     campos = [
@@ -17,6 +20,9 @@ def iniciar_campos():
             st.session_state[c] = ""
 
 
+# ===============================
+# PREENCHER OCR
+# ===============================
 def preencher_ocr(dados):
 
     mapa = {
@@ -43,10 +49,32 @@ def preencher_ocr(dados):
     }
 
     for k,v in mapa.items():
-        if k in dados:
-            st.session_state[v] = dados[k]
+        valor = dados.get(k)
+
+        # ✅ só preenche se encontrou algo
+        if valor:
+            st.session_state[v] = valor
 
 
+# ===============================
+# PEGAR DADOS DO FORM
+# ===============================
+def coletar_dados():
+
+    campos = [
+        "marca","modelo","carcaca","serie","ano",
+        "potencia","unidade","tensao","corrente",
+        "frequencia","fp","fs","polos","rpm",
+        "ip","isolamento","refrigeracao",
+        "ligacao","peso","rendimento"
+    ]
+
+    return {c: st.session_state[c] for c in campos}
+
+
+# ===============================
+# TELA PRINCIPAL
+# ===============================
 def show():
 
     iniciar_campos()
@@ -58,22 +86,27 @@ def show():
         type=["jpg","jpeg","png"]
     )
 
+    # ✅ botão para rodar OCR
     if imagem:
 
         st.image(imagem, width=300)
 
-        with st.spinner("Lendo placa..."):
-            dados = ler_placa_motor(imagem)
+        if st.button("🤖 Escanear Placa"):
 
-        preencher_ocr(dados)
+            with st.spinner("Lendo placa..."):
+                dados = ler_placa_motor(imagem)
 
-        st.success("Dados detectados!")
+            preencher_ocr(dados)
 
-        with st.expander("🔎 Dados OCR"):
-            st.json(dados)
+            st.success("Dados detectados!")
+
+            with st.expander("🔎 Dados OCR"):
+                st.json(dados)
+
+            st.rerun()
 
     # ============================
-    # FORMULÁRIO COMPLETO
+    # FORMULÁRIO
     # ============================
 
     st.header("Cadastro do Motor")
@@ -110,9 +143,14 @@ def show():
         st.text_input("Peso", key="peso")
         st.text_input("Rendimento", key="rendimento")
 
+    # ============================
+    # SALVAR
+    # ============================
+
     if st.button("💾 Salvar Motor", use_container_width=True):
 
-        dados_salvos = dict(st.session_state)
+        dados_salvos = coletar_dados()
 
         st.success("Motor cadastrado!")
+
         st.json(dados_salvos)
