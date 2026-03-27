@@ -113,18 +113,42 @@ def show():
     )
 
 # =============================
-# SALVAR MOTOR (sempre embaixo de tudo)
+# OCR
 # =============================
-from services.database import salvar_motor  # já deve estar importado no topo
+imagem = st.file_uploader("Envie foto da placa do motor", type=["png","jpg","jpeg"])
+if imagem:
+    st.image(imagem, width=300)
+    if st.button("🔎 Ler placa"):
+        with st.spinner("Lendo placa..."):
+            dados_ocr = ler_placa_motor(imagem)
+        st.write("📝 Dados OCR:", dados_ocr)
+        for chave_ocr, valor in dados_ocr.items():
+            chave_form = mapa_campos.get(chave_ocr)
+            if chave_form:
+                st.session_state[chave_form] = valor
+        st.success("✅ Dados preenchidos automaticamente!")
+        # NÃO usar st.rerun() aqui!
+
+# =============================
+# FORMULÁRIO / EDIÇÃO MANUAL
+# =============================
+# ... aqui vai todo o seu formulário, colunas, inputs ...
+
+# =============================
+# VERIFICAÇÃO MANUAL / ORIGINALIDADE
+# =============================
+# ... seu st.radio para 'original' ...
+
+# =============================
+# SALVAR MOTOR (sempre no final, permanente)
+# =============================
+from services.database import salvar_motor
 
 st.subheader("💾 Salvar Motor no Banco de Dados")
 
 if st.button("Salvar Motor", use_container_width=True):
     motor = {campo: st.session_state[campo] for campo in campos}
     motor["original"] = st.session_state["original"]
-
-    # Salva no banco de dados
     salvar_motor(motor)
-
     st.success("Motor salvo com sucesso!")
     st.json(motor)
