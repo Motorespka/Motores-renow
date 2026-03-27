@@ -113,18 +113,18 @@ def show():
     )
 
 # =============================
-# SALVAR
+# SALVAR MOTOR (sempre embaixo de tudo)
 # =============================
-from services.database import salvar_motor  # certifique-se de importar no topo do arquivo
+from services.database import salvar_motor  # já deve estar importado no topo
 
-if st.button("💾 Salvar Motor", use_container_width=True):
-    # Cria um dicionário com todos os campos do motor
+st.subheader("💾 Salvar Motor no Banco de Dados")
+
+if st.button("Salvar Motor", use_container_width=True):
     motor = {campo: st.session_state[campo] for campo in campos}
     motor["original"] = st.session_state["original"]
 
     # Salva no banco de dados
     salvar_motor(motor)
 
-    # Feedback para o usuário
     st.success("Motor salvo com sucesso!")
     st.json(motor)
