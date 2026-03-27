@@ -80,7 +80,7 @@ def carregar_pagina(modulo, nome):
 
 
 if menu == "Cadastro":
-    carregar_pagina("page.cadastro", "Cadastro")
+    carregar_pagina("page.cadastro", "Cadastro")  
 
 elif menu == "Consulta":
     carregar_pagina("page.consulta", "Consulta")
