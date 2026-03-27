@@ -1,14 +1,12 @@
 import streamlit as st
 from services.ocr_motor import ler_placa_motor
 
-
 def show():
     st.title("Cadastro de Motor")
 
     # =============================
     # CAMPOS DO MOTOR
     # =============================
-
     campos = [
         "marca","modelo","potencia","tensao","corrente",
         "rpm","frequencia","fp","carcaca","ip",
@@ -18,6 +16,30 @@ def show():
         "ligacao","fabricacao"
     ]
 
+    # Mapa de correspondência OCR -> session_state
+    mapa_campos = {
+        "Marca": "marca",
+        "Modelo": "modelo",
+        "Potência": "potencia",
+        "Tensão": "tensao",
+        "Corrente": "corrente",
+        "Rotação": "rpm",
+        "Frequência": "frequencia",
+        "Fator de potência": "fp",
+        "Carcaça": "carcaca",
+        "IP": "ip",
+        "Isolamento": "isolacao",
+        "Regime": "regime",
+        "Rolamento dianteiro": "rolamento_dianteiro",
+        "Rolamento traseiro": "rolamento_traseiro",
+        "Peso": "peso",
+        "Diâmetro do Eixo": "diametro_eixo",
+        "Comprimento do Pacote": "comprimento_pacote",
+        "Número de Ranhuras": "numero_ranhuras",
+        "Ligação": "ligacao",
+        "Ano de Fabricação": "fabricacao"
+    }
+
     # Inicializa session_state
     for campo in campos:
         if campo not in st.session_state:
@@ -26,13 +48,8 @@ def show():
     # =============================
     # OCR
     # =============================
-
     st.subheader("📸 Escanear placa")
-
-    imagem = st.file_uploader(
-        "Envie foto da placa do motor",
-        type=["png","jpg","jpeg"]
-    )
+    imagem = st.file_uploader("Envie foto da placa do motor", type=["png","jpg","jpeg"])
 
     if imagem:
         st.image(imagem, width=300)
@@ -40,22 +57,23 @@ def show():
         if st.button("🔎 Ler placa"):
 
             with st.spinner("Lendo placa..."):
-                dados = ler_placa_motor(imagem)
+                dados_ocr = ler_placa_motor(imagem)
+
+            # Mostra o resultado do OCR para depuração
+            st.write("📝 Dados OCR:", dados_ocr)
 
             # Preenchimento automático
-            for chave, valor in dados.items():
-                if chave in st.session_state:
-                    st.session_state[chave] = valor
+            for chave_ocr, valor in dados_ocr.items():
+                chave_form = mapa_campos.get(chave_ocr)
+                if chave_form:
+                    st.session_state[chave_form] = valor
 
             st.success("✅ Dados preenchidos automaticamente!")
-
-            # força atualização visual
-            st.rerun()
+            st.rerun()  # força atualização visual
 
     # =============================
     # FORMULÁRIO
     # =============================
-
     st.subheader("⚙️ Dados do Motor")
 
     col1, col2 = st.columns(2)
@@ -87,10 +105,7 @@ def show():
     # =============================
     # SALVAR
     # =============================
-
     if st.button("💾 Salvar Motor", use_container_width=True):
-
         motor = {campo: st.session_state[campo] for campo in campos}
-
         st.success("Motor salvo com sucesso!")
         st.json(motor)
