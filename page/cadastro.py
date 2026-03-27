@@ -1,5 +1,5 @@
 import streamlit as st
-from ocr.ocr_motor import ler_placa_motor
+from ocr_motor import ler_placa_motor
 
 st.title("Cadastro de Motor")
 
