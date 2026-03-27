@@ -1,6 +1,5 @@
 import streamlit as st
 from services.ocr_motor import ler_placa_motor
-from services.db_motor import salvar_motor
 
 def show():
     st.title("Cadastro de Motor")
@@ -17,7 +16,7 @@ def show():
         "ligacao","fabricacao"
     ]
 
-    # Mapa de correspondência OCR -> session_state
+    # Mapa OCR -> session_state
     mapa_campos = {
         "Marca": "marca",
         "Modelo": "modelo",
@@ -63,10 +62,8 @@ def show():
             with st.spinner("Lendo placa..."):
                 dados_ocr = ler_placa_motor(imagem)
 
-            # Mostra o resultado do OCR
             st.write("📝 Dados OCR:", dados_ocr)
 
-            # Preenchimento automático
             for chave_ocr, valor in dados_ocr.items():
                 chave_form = mapa_campos.get(chave_ocr)
                 if chave_form:
@@ -116,11 +113,10 @@ def show():
     )
 
     # =============================
-    # SALVAR NO BANCO
+    # SALVAR
     # =============================
     if st.button("💾 Salvar Motor", use_container_width=True):
         motor = {campo: st.session_state[campo] for campo in campos}
         motor["original"] = st.session_state["original"]
-        salvar_motor(motor)  # Salva no data/motores.db
-        st.success("Motor salvo com sucesso no banco de dados!")
+        st.success("Motor salvo com sucesso!")
         st.json(motor)
