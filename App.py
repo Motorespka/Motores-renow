@@ -35,13 +35,13 @@ menu = st.sidebar.selectbox(
 )
 
 if menu == "Cadastro":
-    from Page.cadastro import show
+    from Page.Cadastro import show
     show()
 
 elif menu == "Consulta":
-    from Page.consulta import show
+    from Page.Consulta import show
     show()
 
 elif menu == "Calculadora":
-    from Page.calculadora import show
+    from Page.Calculadora import show
     show()
