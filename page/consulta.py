@@ -10,28 +10,23 @@ def show():
         st.info("Nenhum motor cadastrado.")
         return
 
-    for idx, m in enumerate(motores, start=1):
-        st.subheader(f"Motor {idx}")
-        st.write({
-            "Marca": m.get("marca", ""),
-            "Modelo": m.get("modelo", ""),
-            "Potência": m.get("potencia", ""),
-            "Tensão": m.get("tensao", ""),
-            "Corrente": m.get("corrente", ""),
-            "RPM": m.get("rpm", ""),
-            "Frequência": m.get("frequencia", ""),
-            "Fator de Potência": m.get("fp", ""),
-            "Carcaça": m.get("carcaca", ""),
-            "Grau IP": m.get("ip", ""),
-            "Classe de Isolação": m.get("isolacao", ""),
-            "Regime": m.get("regime", ""),
-            "Rolamento Dianteiro": m.get("rolamento_dianteiro", ""),
-            "Rolamento Traseiro": m.get("rolamento_traseiro", ""),
-            "Peso": m.get("peso", ""),
-            "Diâmetro do Eixo": m.get("diametro_eixo", ""),
-            "Comprimento do Pacote": m.get("comprimento_pacote", ""),
-            "Número de Ranhuras": m.get("numero_ranhuras", ""),
-            "Ligação": m.get("ligacao", ""),
-            "Ano de Fabricação": m.get("fabricacao", ""),
-            "Original": m.get("original", "")
-        })
+    # Defina os campos mais importantes (sempre visíveis) e os secundários (escondidos)
+    campos_principais = ["marca", "modelo", "potencia", "tensao", "corrente", "rpm"]
+    campos_secundarios = [
+        "frequencia", "fp", "carcaca", "ip", "isolacao", "regime",
+        "rolamento_dianteiro", "rolamento_traseiro", "peso",
+        "diametro_eixo", "comprimento_pacote", "numero_ranhuras",
+        "ligacao", "fabricacao", "original"
+    ]
+
+    for i, motor in enumerate(motores, start=1):
+        with st.expander(f"Motor {i} - {motor.get('marca','')} {motor.get('modelo','')}"):
+            # Mostra os campos principais sempre
+            st.subheader("⚡ Informações Principais")
+            for campo in campos_principais:
+                st.write(f"**{campo.capitalize()}**: {motor.get(campo, '')}")
+
+            # Mostra os campos secundários dentro de outro expander
+            with st.expander("🔽 Mais informações"):
+                for campo in campos_secundarios:
+                    st.write(f"**{campo.capitalize()}**: {motor.get(campo, '')}")
