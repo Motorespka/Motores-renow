@@ -1,41 +1,68 @@
-
 import sqlite3
+from pathlib import Path
 
-DB = "data/motores.db"
+DB_PATH = Path("data/motores.db")
+DB_PATH.parent.mkdir(exist_ok=True)  # garante que a pasta data exista
 
-def conectar():
-    return sqlite3.connect(DB)
-
-def salvar_motor(marca, tensao, potencia):
-
-    conn = conectar()
+# =============================
+# CRIAR TABELA SE NÃO EXISTIR
+# =============================
+def criar_tabela():
+    conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-
     cur.execute("""
-    CREATE TABLE IF NOT EXISTS motores(
-        id INTEGER PRIMARY KEY,
-        marca TEXT,
-        tensao TEXT,
-        potencia TEXT
-    )
+        CREATE TABLE IF NOT EXISTS motores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            marca TEXT,
+            modelo TEXT,
+            potencia TEXT,
+            tensao TEXT,
+            corrente TEXT,
+            rpm TEXT,
+            frequencia TEXT,
+            fp TEXT,
+            carcaca TEXT,
+            ip TEXT,
+            isolacao TEXT,
+            regime TEXT,
+            rolamento_dianteiro TEXT,
+            rolamento_traseiro TEXT,
+            peso TEXT,
+            diametro_eixo TEXT,
+            comprimento_pacote TEXT,
+            numero_ranhuras TEXT,
+            ligacao TEXT,
+            fabricacao TEXT,
+            original TEXT
+        )
     """)
-
-    cur.execute(
-        "INSERT INTO motores (marca,tensao,potencia) VALUES (?,?,?)",
-        (marca,tensao,potencia)
-    )
-
     conn.commit()
     conn.close()
 
-def listar_motores():
-    conn = conectar()
+# Chama a função automaticamente para garantir que a tabela exista
+criar_tabela()
+
+# =============================
+# INSERIR MOTOR
+# =============================
+def salvar_motor(motor: dict):
+    conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-
-    cur.execute("SELECT * FROM motores")
-
-    dados = cur.fetchall()
-
+    campos = ", ".join(motor.keys())
+    placeholders = ", ".join("?" for _ in motor)
+    valores = list(motor.values())
+    cur.execute(f"INSERT INTO motores ({campos}) VALUES ({placeholders})", valores)
+    conn.commit()
     conn.close()
 
-    return dados
+# =============================
+# LISTAR MOTORES
+# =============================
+def listar_motores():
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM motores")
+    colunas = [desc[0] for desc in cur.description]
+    resultados = [dict(zip(colunas, row)) for row in cur.fetchall()]
+    conn.close()
+    return resultados
