@@ -65,6 +65,10 @@ def show():
         if st.button("🔎 Ler placa"):
             with st.spinner("Lendo placa..."):
                 dados_ocr = ler_placa_motor(imagem)
+                # =============================
+                # NORMALIZAÇÃO DAS CHAVES OCR
+                # =============================
+                dados_ocr = {k.strip().title(): v for k, v in dados_ocr.items()}  # <- linha adicionada
             st.write("📝 Dados OCR:", dados_ocr)
             for chave_ocr, valor in dados_ocr.items():
                 chave_form = mapa_campos.get(chave_ocr)
