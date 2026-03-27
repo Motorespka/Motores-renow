@@ -49,7 +49,14 @@ login()
 # =====================================
 
 st.title("⚙️ Moto-Renow")
-
+menu = st.selectbox(
+    "Menu",
+    [
+        "Cadastro",
+        "Consulta",
+        "Calculadora"
+    ]
+)
 # =====================================
 # CARREGAMENTO SEGURO DAS PÁGINAS
 # =====================================
