@@ -16,7 +16,7 @@ def show():
         "ligacao","fabricacao"
     ]
 
-    # Mapa de correspondência OCR -> session_state
+    # Mapa OCR -> session_state
     mapa_campos = {
         "Marca": "marca",
         "Modelo": "modelo",
@@ -40,7 +40,9 @@ def show():
         "Ano de Fabricação": "fabricacao"
     }
 
+    # =============================
     # Inicializa session_state
+    # =============================
     for campo in campos:
         if campo not in st.session_state:
             st.session_state[campo] = ""
@@ -52,26 +54,30 @@ def show():
     # =============================
     st.subheader("📸 Escanear placa")
     imagem = st.file_uploader("Envie foto da placa do motor", type=["png","jpg","jpeg"])
+
     if imagem:
         st.image(imagem, width=300)
+
         if st.button("🔎 Ler placa"):
             with st.spinner("Lendo placa..."):
                 dados_ocr = ler_placa_motor(imagem)
-            # Mostra o resultado do OCR para depuração
+
             st.write("📝 Dados OCR:", dados_ocr)
-            # Preenchimento automático
+
             for chave_ocr, valor in dados_ocr.items():
                 chave_form = mapa_campos.get(chave_ocr)
                 if chave_form:
                     st.session_state[chave_form] = valor
+
             st.success("✅ Dados preenchidos automaticamente!")
-            st.rerun()  # força atualização visual
+            st.rerun()
 
     # =============================
     # FORMULÁRIO / EDIÇÃO MANUAL
     # =============================
     st.subheader("⚙️ Dados do Motor (Edição Manual)")
     col1, col2 = st.columns(2)
+
     with col1:
         st.session_state["marca"] = st.text_input("Marca", value=st.session_state["marca"])
         st.session_state["modelo"] = st.text_input("Modelo", value=st.session_state["modelo"])
@@ -83,6 +89,7 @@ def show():
         st.session_state["fp"] = st.text_input("Fator de Potência", value=st.session_state["fp"])
         st.session_state["carcaca"] = st.text_input("Carcaça", value=st.session_state["carcaca"])
         st.session_state["ip"] = st.text_input("Grau IP", value=st.session_state["ip"])
+
     with col2:
         st.session_state["isolacao"] = st.text_input("Classe de Isolação", value=st.session_state["isolacao"])
         st.session_state["regime"] = st.text_input("Regime", value=st.session_state["regime"])
