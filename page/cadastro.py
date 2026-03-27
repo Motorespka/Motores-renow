@@ -138,7 +138,27 @@ if imagem:
 # VERIFICAÇÃO MANUAL / ORIGINALIDADE
 # =============================
 # ... seu st.radio para 'original' ...
+# =============================
+# OCR
+# =============================
+imagem = st.file_uploader(
+    "Envie foto da placa do motor", 
+    type=["png","jpg","jpeg"],
+    key="file_uploader_motor"  # <- chave única
+)
 
+if imagem:
+    st.image(imagem, width=300)
+    if st.button("🔎 Ler placa"):
+        with st.spinner("Lendo placa..."):
+            dados_ocr = ler_placa_motor(imagem)
+        st.write("📝 Dados OCR:", dados_ocr)
+        for chave_ocr, valor in dados_ocr.items():
+            chave_form = mapa_campos.get(chave_ocr)
+            if chave_form:
+                st.session_state[chave_form] = valor
+        st.success("✅ Dados preenchidos automaticamente!")
+        # NÃO usar st.rerun() aqui!
 # =============================
 # SALVAR MOTOR (sempre no final, permanente)
 # =============================
