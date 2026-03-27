@@ -1,29 +1,28 @@
 import streamlit as st
+from auth.login import check_login
 
-st.set_page_config(page_title="Moto-Renow", layout="wide")
+st.set_page_config(
+    page_title="Moto-Renow",
+    layout="wide"
+)
 
-st.title("Moto-Renow: Sistema de Rebobinagem")
+check_login()
 
-aba1, aba2, aba3 = st.tabs(["Cadastro", "Consulta", "Calculadora"])
+st.title("Moto-Renow")
 
-with aba1:
-    try:
-        import Cadastro
-        Cadastro.show()
-    except Exception as e:
-        st.error(f"Erro ao carregar Cadastro: {e}")
+menu = st.sidebar.selectbox(
+    "Menu",
+    ["Cadastro", "Consulta", "Calculadora"]
+)
 
-with aba2:
-    try:
-        import Consulta
-        Consulta.show()
-    except Exception as e:
-        st.error(f"Erro ao carregar Consulta: {e}")
+if menu == "Cadastro":
+    from pages.cadastro import show
+    show()
 
-with aba3:
-    try:
-        import Calculadora
-        Calculadora.show()
-    except Exception as e:
-        st.error(f"Erro ao carregar Calculadora: {e}")
-        
+elif menu == "Consulta":
+    from pages.consulta import show
+    show()
+
+elif menu == "Calculadora":
+    from pages.calculadora import show
+    show()
