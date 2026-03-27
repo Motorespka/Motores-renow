@@ -1,4 +1,3 @@
-
 import easyocr
 import cv2
 import numpy as np
@@ -20,6 +19,10 @@ def carregar_modelo():
 def limpar_texto(texto):
     texto = texto.upper()
     texto = texto.replace(",", ".")
+    texto = texto.replace("KW.", "KW")
+    texto = texto.replace("CV.", "CV")
+    # Correções comuns OCR
+    texto = texto.replace("O", "0").replace("I", "1").replace("L", "1")
     return texto
 
 
@@ -30,10 +33,8 @@ def calcular_polos(rpm, freq):
     try:
         rpm = float(rpm)
         freq = float(freq)
-
         polos = round((120 * freq) / rpm)
-
-        if polos in [2,4,6,8,10,12]:
+        if polos in [2, 4, 6, 8, 10, 12]:
             return polos
     except:
         pass
@@ -44,7 +45,6 @@ def calcular_polos(rpm, freq):
 # ESTIMATIVA DO INDUZIDO
 # =============================
 def estimar_induzido(potencia, carcaca):
-
     try:
         potencia = float(potencia)
     except:
@@ -77,16 +77,33 @@ def estimar_induzido(potencia, carcaca):
 
 
 # =============================
+# FUNÇÃO AUXILIAR: CORRIGE NÚMEROS E VALORES
+# =============================
+def corrigir_numero(valor, minimo=None, maximo=None):
+    if not valor:
+        return "N/A"
+    # mantém apenas números
+    numero = re.sub(r"[^\d\.]", "", str(valor))
+    try:
+        numero = float(numero)
+        if minimo is not None and numero < minimo:
+            return "N/A"
+        if maximo is not None and numero > maximo:
+            return "N/A"
+        return str(int(numero)) if numero.is_integer() else str(numero)
+    except:
+        return "N/A"
+
+
+# =============================
 # EXTRAIR DADOS DA PLACA
 # =============================
 def extrair_dados(texto):
-
     dados = {}
-
     texto = limpar_texto(texto)
 
     # ---------- MARCA ----------
-    for marca in ["WEG","SIEMENS","ABB","SEW","VOGES","SCHNEIDER"]:
+    for marca in ["WEG", "SIEMENS", "ABB", "SEW", "VOGES", "SCHNEIDER"]:
         if marca in texto:
             dados["Marca"] = marca
 
@@ -117,7 +134,7 @@ def extrair_dados(texto):
         dados["Frequência"] = freq.group(1)
 
     # ---------- RPM ----------
-    rpm = re.search(r'(\d{3,4})\s?RPM', texto)
+    rpm = re.search(r'(\d{3,5})\s?RPM', texto)
     if rpm:
         dados["Rotação"] = rpm.group(1)
 
@@ -171,6 +188,13 @@ def extrair_dados(texto):
         dados.get("Carcaça","")
     )
 
+    # ---------- VALIDAR NUMÉRICOS ----------
+    dados["Rotação"] = corrigir_numero(dados.get("Rotação"), 800, 3800)
+    dados["Frequência"] = corrigir_numero(dados.get("Frequência"), 50, 60)
+    dados["Tensão"] = corrigir_numero(dados.get("Tensão"), 110, 1000)
+    dados["Corrente"] = corrigir_numero(dados.get("Corrente"), 0.1, 500)
+    dados["Peso"] = corrigir_numero(dados.get("Peso"), 0.1, 10000)
+
     return dados
 
 
@@ -178,9 +202,9 @@ def extrair_dados(texto):
 # FUNÇÃO PRINCIPAL OCR
 # =============================
 def ler_placa_motor(imagem_input):
-
     reader = carregar_modelo()
 
+    # Ler imagem do arquivo ou do uploader
     if isinstance(imagem_input, str):
         imagem = cv2.imread(imagem_input)
     else:
@@ -188,10 +212,11 @@ def ler_placa_motor(imagem_input):
 
     gray = cv2.cvtColor(imagem, cv2.COLOR_BGR2GRAY)
 
+    # OCR
     resultado = reader.readtext(gray)
-
     texto_total = " ".join([r[1] for r in resultado])
 
+    # Extrair dados da placa
     dados = extrair_dados(texto_total)
 
     return dados
