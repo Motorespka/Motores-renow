@@ -20,13 +20,35 @@ def limpar_texto(texto):
     texto = texto.upper()
     texto = unicodedata.normalize('NFKD', texto)
     texto = texto.encode('ASCII', 'ignore').decode('ASCII')
-    texto = texto.replace(",", ".")  # corrige vírgulas
     return texto
+
+# =============================
+# PRÉ-PROCESSAMENTO DE IMAGEM
+# =============================
+def preprocess_imagem(imagem):
+    # converte para cinza
+    gray = cv2.cvtColor(imagem, cv2.COLOR_BGR2GRAY)
+    
+    # equaliza contraste
+    gray = cv2.equalizeHist(gray)
+    
+    # binarização adaptativa
+    gray = cv2.adaptiveThreshold(
+        gray, 255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY,
+        11, 2
+    )
+    
+    # blur leve para reduzir ruído
+    gray = cv2.GaussianBlur(gray, (3, 3), 0)
+    
+    return gray
 
 # =============================
 # FUNÇÃO PRINCIPAL OCR
 # =============================
-def ler_placa_motor(imagem_input, debug=False):
+def ler_placa_motor(imagem_input):
     reader = carregar_modelo()
 
     # Ler imagem
@@ -35,15 +57,13 @@ def ler_placa_motor(imagem_input, debug=False):
     else:
         imagem = np.array(Image.open(imagem_input))
 
-    # Use original ou grayscale
-    gray = cv2.cvtColor(imagem, cv2.COLOR_BGR2GRAY)
+    # pré-processamento
+    gray = preprocess_imagem(imagem)
 
+    # OCR
     resultado = reader.readtext(gray)
     texto_total = " ".join([r[1] for r in resultado])
     texto_total = limpar_texto(texto_total)
-
-    if debug:
-        st.write("📝 Texto detectado pelo OCR:", texto_total)
 
     # =============================
     # MAPEAMENTO PARA CADASTRO.PY
@@ -71,117 +91,60 @@ def ler_placa_motor(imagem_input, debug=False):
         "fabricacao": ""
     }
 
-    # =============================
+    # Debug: mostrar tudo que o OCR conseguiu ler
+    st.write("📋 OCR Detected:", resultado)
+
     # MARCA
-    # =============================
-    for marca in ["WEG", "SIEMENS", "ABB", "SEW", "VOGES", "SCHNEIDER"]:
+    for marca in ["WEG","SIEMENS","ABB","SEW","VOGES","SCHNEIDER"]:
         if marca in texto_total:
             dados["marca"] = marca
 
-    # =============================
-    # MODELO
-    # =============================
-    match = re.search(r"MODELO[:\s]*([A-Z0-9\-]+)", texto_total)
-    if match:
-        dados["modelo"] = match.group(1)
-
-    # =============================
     # CARCAÇA
-    # =============================
-    match = re.search(r'\b(63|71|80|90|100|112|132|160|180|200|225)\b', texto_total)
-    if match:
-        dados["carcaca"] = match.group(1)
+    carcaca = re.search(r'\b(63|71|80|90|100|112|132|160|180|200|225)\b', texto_total)
+    if carcaca:
+        dados["carcaca"] = carcaca.group(1)
 
-    # =============================
     # POTÊNCIA
-    # =============================
-    match = re.search(r'(\d+\.?\d*)\s*(KW|CV|HP)', texto_total)
-    if match:
-        dados["potencia"] = match.group(1)
+    pot = re.search(r'(\d+\.?\d*)\s?(KW|CV|HP)', texto_total)
+    if pot:
+        dados["potencia"] = pot.group(1)
 
-    # =============================
     # TENSÃO
-    # =============================
     tensoes = re.findall(r'\b(110|127|220|254|380|440|460|660|760)\b', texto_total)
     if tensoes:
         dados["tensao"] = " / ".join(sorted(set(tensoes)))
 
-    # =============================
     # CORRENTE
-    # =============================
-    match = re.search(r'(\d+\.?\d*)\s?(A|AMP|AMPS)?\b', texto_total)
-    if match:
-        dados["corrente"] = match.group(1)
+    corrente = re.search(r'(\d+\.?\d*)\s?A\b', texto_total)
+    if corrente:
+        dados["corrente"] = corrente.group(1)
 
-    # =============================
     # FREQUÊNCIA
-    # =============================
-    match = re.search(r'(\d{2})\s*HZ', texto_total)
-    if match:
-        dados["frequencia"] = match.group(1)
+    freq = re.search(r'(50|60)\s?HZ', texto_total)
+    if freq:
+        dados["frequencia"] = freq.group(1)
 
-    # =============================
     # RPM
-    # =============================
-    match = re.search(r'(\d{3,5})\s?RPM', texto_total)
-    if match:
-        dados["rpm"] = match.group(1)
+    rpm = re.search(r'(\d{3,5})\s?RPM', texto_total)
+    if rpm:
+        dados["rpm"] = rpm.group(1)
 
-    # =============================
     # FATOR DE POTÊNCIA
-    # =============================
-    match = re.search(r'0\.\d{1,2}\s?COS', texto_total)
-    if match:
-        dados["fp"] = match.group(0).split()[0]
+    fp = re.search(r'(0\.\d{2})\s?COS', texto_total)
+    if fp:
+        dados["fp"] = fp.group(1)
 
-    # =============================
     # IP
-    # =============================
-    match = re.search(r'IP\s?(\d{2})', texto_total)
-    if match:
-        dados["ip"] = "IP" + match.group(1)
+    ip = re.search(r'IP\s?(\d{2})', texto_total)
+    if ip:
+        dados["ip"] = "IP"+ip.group(1)
 
-    # =============================
     # ISOLAMENTO
-    # =============================
-    match = re.search(r'CLASS\s?([A-F-H])', texto_total)
-    if match:
-        dados["isolacao"] = match.group(1)
+    iso = re.search(r'CLASS\s?([A-F-H])', texto_total)
+    if iso:
+        dados["isolacao"] = iso.group(1)
 
-    # =============================
-    # REGIME
-    # =============================
-    match = re.search(r'S\d', texto_total)
-    if match:
-        dados["regime"] = match.group(0)
-
-    # =============================
-    # ROLAMENTOS
-    # =============================
-    match = re.findall(r'(\d+\.?\d*)\s?MM', texto_total)
-    if match:
-        if len(match) >= 1:
-            dados["diametro_eixo"] = match[0]
-        if len(match) >= 2:
-            dados["comprimento_pacote"] = match[1]
-
-    # =============================
-    # PESO
-    # =============================
-    match = re.search(r'(\d+\.?\d*)\s?KG', texto_total)
-    if match:
-        dados["peso"] = match.group(1)
-
-    # =============================
-    # NÚMERO DE RANHURAS
-    # =============================
-    match = re.search(r'(\d+)\s*RANHURAS', texto_total)
-    if match:
-        dados["numero_ranhuras"] = match.group(1)
-
-    # =============================
     # LIGAÇÃO
-    # =============================
     if "DELTA" in texto_total or "Δ" in texto_total:
         dados["ligacao"] = "Δ"
     if "Y" in texto_total or "STAR" in texto_total:
@@ -190,11 +153,9 @@ def ler_placa_motor(imagem_input, debug=False):
         else:
             dados["ligacao"] = "Y"
 
-    # =============================
-    # FABRICAÇÃO
-    # =============================
-    match = re.search(r'\b(19\d{2}|20\d{2})\b', texto_total)
-    if match:
-        dados["fabricacao"] = match.group(0)
+    # PESO
+    peso = re.search(r'(\d+\.?\d*)\s?KG', texto_total)
+    if peso:
+        dados["peso"] = peso.group(1)
 
     return dados
