@@ -15,9 +15,11 @@ def limpar_texto(texto):
     return texto
 
 # =============================
-# FUNÇÃO PRINCIPAL OCR (pytesseract)
+# FUNÇÃO PRINCIPAL OCR (EasyOCR)
 # =============================
 def ler_placa_motor(imagem_input):
+    reader = carregar_modelo()  # Já cria o leitor com cache
+
     # Lê imagem
     if isinstance(imagem_input, str):
         imagem = cv2.imread(imagem_input)
@@ -27,16 +29,54 @@ def ler_placa_motor(imagem_input):
     # Converte para grayscale
     gray = cv2.cvtColor(imagem, cv2.COLOR_BGR2GRAY)
 
-    # Aplica threshold para melhor leitura
+    # Aplica threshold para melhorar contraste (opcional)
     _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-    # OCR com pytesseract
-    config = "--psm 6"  # Assume um bloco uniforme de texto
-    texto_total = pytesseract.image_to_string(thresh, lang='por+eng', config=config)
+    # OCR com EasyOCR
+    resultado = reader.readtext(thresh)  # retorna lista de tuplas (bbox, texto, confianca)
+    texto_total = " ".join([r[1] for r in resultado])  # junta todos os textos detectados
 
     # Limpeza
     texto_total = limpar_texto(texto_total)
 
+    # Normalização para facilitar regex/mapeamento
+    texto_total = texto_total.strip().upper()
+
+    # =============================
+    # Mapeamento para cadastro.py
+    # =============================
+    dados = {
+        "marca": "",
+        "modelo": "",
+        "potencia": "",
+        "tensao": "",
+        "corrente": "",
+        "rpm": "",
+        "frequencia": "",
+        "fp": "",
+        "carcaca": "",
+        "ip": "",
+        "isolacao": "",
+        "regime": "",
+        "rolamento_dianteiro": "",
+        "rolamento_traseiro": "",
+        "peso": "",
+        "diametro_eixo": "",
+        "comprimento_pacote": "",
+        "numero_ranhuras": "",
+        "ligacao": "",
+        "fabricacao": ""
+    }
+
+    # Exemplo de extração (marca)
+    for marca in ["WEG","SIEMENS","ABB","SEW","VOGES","SCHNEIDER"]:
+        if marca in texto_total:
+            dados["marca"] = marca
+
+    # Você pode continuar adicionando regex e mapeamentos aqui como antes
+    # ...
+
+    return dados
     # =============================
     # MAPEAMENTO PARA CADASTRO.PY
     # =============================
