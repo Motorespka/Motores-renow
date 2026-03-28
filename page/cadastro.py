@@ -28,31 +28,20 @@ def show():
         st.session_state["original"] = "Sim"
 
     # =============================
-    # UPLOAD / FOTO DO TELEFONE (sem salvar)
+    # CAPTURA DE IMAGEM (SEM UPLOAD)
     # =============================
-    st.subheader("📸 Tire a foto ou envie da galeria")
-    imagem_input = st.file_uploader(
-        "Escolha uma imagem ou use a câmera do dispositivo",
-        type=["png","jpg","jpeg"]
-    )
+    st.subheader("📸 Tire a foto da placa do motor")
+    imagem_input = st.camera_input("Clique para tirar a foto do motor")
 
     if imagem_input:
-        # Abre a imagem direto na memória
-        imagem = Image.open(imagem_input)
-
-        # Reduz resolução se for muito grande
-        max_size = (1024, 1024)
-        imagem.thumbnail(max_size)
-
-        # Converte para NumPy/OpenCV
-        imagem_cv = cv2.cvtColor(np.array(imagem), cv2.COLOR_RGB2BGR)
-
-        st.image(imagem, caption="Imagem carregada", width=300)
+        # Converte direto para numpy array e BGR para OCR
+        imagem_cv = cv2.cvtColor(np.array(Image.open(imagem_input)), cv2.COLOR_RGB2BGR)
 
         if st.button("🔎 Ler placa"):
             with st.spinner("Lendo placa..."):
                 dados_ocr = ler_placa_motor(imagem_cv)
 
+            # Mostra resultado OCR
             st.write("📝 Dados OCR:", dados_ocr)
 
             # Preenche automaticamente os campos
