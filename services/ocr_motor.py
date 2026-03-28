@@ -1,11 +1,10 @@
+import easyocr
 import cv2
 import numpy as np
 from PIL import Image
-import pytesseract
 import streamlit as st
 import re
 import unicodedata
-
 # =============================
 # LIMPAR TEXTO
 # =============================
