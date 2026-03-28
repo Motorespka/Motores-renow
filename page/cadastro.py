@@ -28,23 +28,28 @@ def show():
         st.session_state["original"] = "Sim"
 
     # =============================
-    # UPLOAD DE IMAGEM
+    # UPLOAD DE IMAGEM (GALERIA / ARQUIVO)
     # =============================
-    st.subheader("📸 Faça upload da foto da placa do motor")
-    imagem_input = st.file_uploader("Escolha a foto do motor (jpg, png)", type=["jpg", "jpeg", "png"])
+    st.subheader("📸 Escolha a foto da placa do motor")
+    st.info("📌 Dica: tire uma foto do motor com seu celular ou use uma imagem salva. Depois faça upload aqui.")
+
+    imagem_input = st.file_uploader(
+        "Selecione a imagem da placa",
+        type=["jpg","jpeg","png"],
+        key="upload_motor"
+    )
 
     if imagem_input:
         st.image(imagem_input, caption="Imagem carregada", width=300)
 
         if st.button("🔎 Ler placa"):
             with st.spinner("Lendo placa..."):
-                # Converte para PIL e depois para numpy array
-                imagem = Image.open(imagem_input)
+                # Converte para numpy array e BGR
+                imagem = Image.open(imagem_input).convert("RGB")
                 imagem_cv = np.array(imagem)
-                if imagem_cv.shape[2] == 3:
-                    imagem_cv = cv2.cvtColor(imagem_cv, cv2.COLOR_RGB2BGR)
+                imagem_cv = cv2.cvtColor(imagem_cv, cv2.COLOR_RGB2BGR)
 
-                # Chama o OCR
+                # Chama OCR
                 dados_ocr = ler_placa_motor(imagem_cv)
 
             # Mostra resultado OCR
