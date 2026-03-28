@@ -28,19 +28,19 @@ def show():
         st.session_state["original"] = "Sim"
 
     # =============================
-    # UPLOAD DE IMAGEM (galeria ou câmera)
+    # UPLOAD / FOTO DO TELEFONE (sem salvar)
     # =============================
-    st.subheader("📸 Envie a foto da placa do motor")
+    st.subheader("📸 Tire a foto ou envie da galeria")
     imagem_input = st.file_uploader(
         "Escolha uma imagem ou use a câmera do dispositivo",
         type=["png","jpg","jpeg"]
     )
 
     if imagem_input:
-        # Abre a imagem diretamente da memória (sem salvar)
+        # Abre a imagem direto na memória
         imagem = Image.open(imagem_input)
 
-        # Reduz resolução para evitar estouro de memória
+        # Reduz resolução se for muito grande
         max_size = (1024, 1024)
         imagem.thumbnail(max_size)
 
