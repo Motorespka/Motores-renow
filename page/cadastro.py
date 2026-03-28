@@ -28,34 +28,34 @@ def show():
         st.session_state["original"] = "Sim"
 
     # =============================
-    # UPLOAD DE IMAGEM (GALERIA / ARQUIVO)
+    # UPLOAD DE IMAGEM (galeria ou câmera)
     # =============================
-    st.subheader("📸 Escolha a foto da placa do motor")
-    st.info("📌 Dica: tire uma foto do motor com seu celular ou use uma imagem salva. Depois faça upload aqui.")
-
+    st.subheader("📸 Envie a foto da placa do motor")
     imagem_input = st.file_uploader(
-        "Selecione a imagem da placa",
-        type=["jpg","jpeg","png"],
-        key="upload_motor"
+        "Escolha uma imagem ou use a câmera do dispositivo",
+        type=["png","jpg","jpeg"]
     )
 
     if imagem_input:
-        st.image(imagem_input, caption="Imagem carregada", width=300)
+        # Abre a imagem diretamente da memória (sem salvar)
+        imagem = Image.open(imagem_input)
+
+        # Reduz resolução para evitar estouro de memória
+        max_size = (1024, 1024)
+        imagem.thumbnail(max_size)
+
+        # Converte para NumPy/OpenCV
+        imagem_cv = cv2.cvtColor(np.array(imagem), cv2.COLOR_RGB2BGR)
+
+        st.image(imagem, caption="Imagem carregada", width=300)
 
         if st.button("🔎 Ler placa"):
             with st.spinner("Lendo placa..."):
-                # Converte para numpy array e BGR
-                imagem = Image.open(imagem_input).convert("RGB")
-                imagem_cv = np.array(imagem)
-                imagem_cv = cv2.cvtColor(imagem_cv, cv2.COLOR_RGB2BGR)
-
-                # Chama OCR
                 dados_ocr = ler_placa_motor(imagem_cv)
 
-            # Mostra resultado OCR
             st.write("📝 Dados OCR:", dados_ocr)
 
-            # Preenche campos automaticamente
+            # Preenche automaticamente os campos
             for chave, valor in dados_ocr.items():
                 if chave in st.session_state:
                     st.session_state[chave] = valor
