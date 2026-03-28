@@ -143,5 +143,3 @@ carregar_pagina("page.consulta", "Consulta")
 elif menu == "Calculadora":
 
 carregar_pagina("page.calculadora", "Calculadora")
-
-Nao remova nada, so acrescente isso
