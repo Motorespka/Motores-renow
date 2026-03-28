@@ -1,10 +1,9 @@
-streamlit
+streamlit>=1.29
 pandas
 python-dotenv
 sqlalchemy
-torch==2.2.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
-easyocr
-opencv-python-headless
-pytesseract
+opencv-python-headless>=4.8
+easyocr>=1.7
+torch>=2.2
 pillow
 numpy
