@@ -7,3 +7,4 @@ easyocr>=1.7
 torch>=2.2
 pillow
 numpy
+pytesserac
