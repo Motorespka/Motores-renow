@@ -1,17 +1,10 @@
-import easyocr
-import cv2
-import numpy as np
+# services/ocr_motor.py
+import requests
 from PIL import Image
-import streamlit as st
+import io
 import re
 import unicodedata
-
-# =============================
-# CARREGAR EASYOCR UMA VEZ
-# =============================
-@st.cache_resource
-def carregar_modelo():
-    return easyocr.Reader(['pt', 'en'], gpu=False)
+import streamlit as st
 
 # =============================
 # LIMPAR TEXTO
@@ -23,50 +16,53 @@ def limpar_texto(texto):
     return texto
 
 # =============================
-# PRÉ-PROCESSAMENTO DE IMAGEM
-# =============================
-def preprocess_imagem(imagem):
-    # converte para cinza
-    gray = cv2.cvtColor(imagem, cv2.COLOR_BGR2GRAY)
-    
-    # equaliza contraste
-    gray = cv2.equalizeHist(gray)
-    
-    # binarização adaptativa
-    gray = cv2.adaptiveThreshold(
-        gray, 255,
-        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv2.THRESH_BINARY,
-        11, 2
-    )
-    
-    # blur leve para reduzir ruído
-    gray = cv2.GaussianBlur(gray, (3, 3), 0)
-    
-    return gray
-
-# =============================
-# FUNÇÃO PRINCIPAL OCR
+# FUNÇÃO PRINCIPAL OCR ONLINE
 # =============================
 def ler_placa_motor(imagem_input):
-    reader = carregar_modelo()
+    """
+    Recebe o arquivo de imagem do Streamlit e retorna um dicionário com os campos do motor.
+    """
 
-    # Ler imagem
+    # =============================
+    # PREPARA A IMAGEM PARA ENVIO
+    # =============================
     if isinstance(imagem_input, str):
-        imagem = cv2.imread(imagem_input)
+        # caminho local
+        with open(imagem_input, "rb") as f:
+            img_bytes = f.read()
     else:
-        imagem = np.array(Image.open(imagem_input))
+        # arquivo do uploader
+        img_bytes = imagem_input.read()
 
-    # pré-processamento
-    gray = preprocess_imagem(imagem)
+    # =============================
+    # CHAMADA API OCR.Space
+    # =============================
+    api_key = "helloworld"  # chave gratuita de teste
+    url = "https://api.ocr.space/parse/image"
 
-    # OCR
-    resultado = reader.readtext(gray)
-    texto_total = " ".join([r[1] for r in resultado])
+    payload = {
+        'isOverlayRequired': False,
+        'apikey': api_key,
+        'language': 'por',
+    }
+    files = {'filename': img_bytes}
+
+    try:
+        response = requests.post(url, data=payload, files=files)
+        result = response.json()
+        if result['OCRExitCode'] != 1:
+            st.warning("⚠️ OCR não conseguiu ler a imagem")
+            texto_total = ""
+        else:
+            texto_total = result['ParsedResults'][0]['ParsedText']
+    except Exception as e:
+        st.error(f"Erro OCR: {e}")
+        texto_total = ""
+
     texto_total = limpar_texto(texto_total)
 
     # =============================
-    # MAPEAMENTO PARA CADASTRO.PY
+    # DICIONÁRIO PADRÃO
     # =============================
     dados = {
         "marca": "",
@@ -91,35 +87,36 @@ def ler_placa_motor(imagem_input):
         "fabricacao": ""
     }
 
-    # Debug: mostrar tudo que o OCR conseguiu ler
-    st.write("📋 OCR Detected:", resultado)
+    # =============================
+    # EXTRAÇÃO COM REGEX
+    # =============================
 
-    # MARCA
+    # Marca
     for marca in ["WEG","SIEMENS","ABB","SEW","VOGES","SCHNEIDER"]:
         if marca in texto_total:
             dados["marca"] = marca
 
-    # CARCAÇA
+    # Carcaça
     carcaca = re.search(r'\b(63|71|80|90|100|112|132|160|180|200|225)\b', texto_total)
     if carcaca:
         dados["carcaca"] = carcaca.group(1)
 
-    # POTÊNCIA
+    # Potência
     pot = re.search(r'(\d+\.?\d*)\s?(KW|CV|HP)', texto_total)
     if pot:
         dados["potencia"] = pot.group(1)
 
-    # TENSÃO
+    # Tensão
     tensoes = re.findall(r'\b(110|127|220|254|380|440|460|660|760)\b', texto_total)
     if tensoes:
         dados["tensao"] = " / ".join(sorted(set(tensoes)))
 
-    # CORRENTE
+    # Corrente
     corrente = re.search(r'(\d+\.?\d*)\s?A\b', texto_total)
     if corrente:
         dados["corrente"] = corrente.group(1)
 
-    # FREQUÊNCIA
+    # Frequência
     freq = re.search(r'(50|60)\s?HZ', texto_total)
     if freq:
         dados["frequencia"] = freq.group(1)
@@ -129,7 +126,7 @@ def ler_placa_motor(imagem_input):
     if rpm:
         dados["rpm"] = rpm.group(1)
 
-    # FATOR DE POTÊNCIA
+    # Fator de potência
     fp = re.search(r'(0\.\d{2})\s?COS', texto_total)
     if fp:
         dados["fp"] = fp.group(1)
@@ -139,12 +136,12 @@ def ler_placa_motor(imagem_input):
     if ip:
         dados["ip"] = "IP"+ip.group(1)
 
-    # ISOLAMENTO
+    # Isolamento
     iso = re.search(r'CLASS\s?([A-F-H])', texto_total)
     if iso:
         dados["isolacao"] = iso.group(1)
 
-    # LIGAÇÃO
+    # Ligação
     if "DELTA" in texto_total or "Δ" in texto_total:
         dados["ligacao"] = "Δ"
     if "Y" in texto_total or "STAR" in texto_total:
@@ -153,7 +150,7 @@ def ler_placa_motor(imagem_input):
         else:
             dados["ligacao"] = "Y"
 
-    # PESO
+    # Peso
     peso = re.search(r'(\d+\.?\d*)\s?KG', texto_total)
     if peso:
         dados["peso"] = peso.group(1)
