@@ -1,10 +1,10 @@
-# services/ocr_motor.py
-import requests
+import cv2
+import numpy as np
 from PIL import Image
-import io
+import pytesseract
+import streamlit as st
 import re
 import unicodedata
-import streamlit as st
 
 # =============================
 # LIMPAR TEXTO
@@ -16,53 +16,30 @@ def limpar_texto(texto):
     return texto
 
 # =============================
-# FUNÇÃO PRINCIPAL OCR ONLINE
+# FUNÇÃO PRINCIPAL OCR (pytesseract)
 # =============================
 def ler_placa_motor(imagem_input):
-    """
-    Recebe o arquivo de imagem do Streamlit e retorna um dicionário com os campos do motor.
-    """
-
-    # =============================
-    # PREPARA A IMAGEM PARA ENVIO
-    # =============================
+    # Lê imagem
     if isinstance(imagem_input, str):
-        # caminho local
-        with open(imagem_input, "rb") as f:
-            img_bytes = f.read()
+        imagem = cv2.imread(imagem_input)
     else:
-        # arquivo do uploader
-        img_bytes = imagem_input.read()
+        imagem = np.array(Image.open(imagem_input))
 
-    # =============================
-    # CHAMADA API OCR.Space
-    # =============================
-    api_key = "helloworld"  # chave gratuita de teste
-    url = "https://api.ocr.space/parse/image"
+    # Converte para grayscale
+    gray = cv2.cvtColor(imagem, cv2.COLOR_BGR2GRAY)
 
-    payload = {
-        'isOverlayRequired': False,
-        'apikey': api_key,
-        'language': 'por',
-    }
-    files = {'filename': img_bytes}
+    # Aplica threshold para melhor leitura
+    _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-    try:
-        response = requests.post(url, data=payload, files=files)
-        result = response.json()
-        if result['OCRExitCode'] != 1:
-            st.warning("⚠️ OCR não conseguiu ler a imagem")
-            texto_total = ""
-        else:
-            texto_total = result['ParsedResults'][0]['ParsedText']
-    except Exception as e:
-        st.error(f"Erro OCR: {e}")
-        texto_total = ""
+    # OCR com pytesseract
+    config = "--psm 6"  # Assume um bloco uniforme de texto
+    texto_total = pytesseract.image_to_string(thresh, lang='por+eng', config=config)
 
+    # Limpeza
     texto_total = limpar_texto(texto_total)
 
     # =============================
-    # DICIONÁRIO PADRÃO
+    # MAPEAMENTO PARA CADASTRO.PY
     # =============================
     dados = {
         "marca": "",
@@ -88,9 +65,8 @@ def ler_placa_motor(imagem_input):
     }
 
     # =============================
-    # EXTRAÇÃO COM REGEX
+    # BUSCAS SIMPLES COM REGEX
     # =============================
-
     # Marca
     for marca in ["WEG","SIEMENS","ABB","SEW","VOGES","SCHNEIDER"]:
         if marca in texto_total:
@@ -127,7 +103,7 @@ def ler_placa_motor(imagem_input):
         dados["rpm"] = rpm.group(1)
 
     # Fator de potência
-    fp = re.search(r'(0\.\d{2})\s?COS', texto_total)
+    fp = re.search(r'(0\.\d{1,2})\s?COS', texto_total)
     if fp:
         dados["fp"] = fp.group(1)
 
