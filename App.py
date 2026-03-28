@@ -1,5 +1,29 @@
 import streamlit as st
 import importlib
+from PIL import Image
+import numpy as np
+import cv2
+
+# =============================
+# AUMENTAR LIMITE DE UPLOAD
+# =============================
+# Valor em MB (ex: 1024 MB = 1 GB)
+st.set_option('server.maxUploadSize', 1024)
+
+# =============================
+# FUNÇÃO PARA REDIMENSIONAR IMAGEM GRANDE
+# =============================
+def processar_imagem(imagem_input, max_largura=1024):
+    """
+    Redimensiona imagem grande mantendo proporção e converte para BGR (OpenCV)
+    """
+    img = Image.open(imagem_input)
+    if img.width > max_largura:
+        proporcao = max_largura / img.width
+        nova_altura = int(img.height * proporcao)
+        img = img.resize((max_largura, nova_altura))
+    imagem_cv = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+    return imagem_cv
 
 # =====================================
 # CONFIGURAÇÃO
