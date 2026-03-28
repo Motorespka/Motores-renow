@@ -28,22 +28,23 @@ def show():
         st.session_state["original"] = "Sim"
 
     # =============================
-    # CAPTURA DE IMAGEM
+    # UPLOAD DE IMAGEM
     # =============================
-    st.subheader("📸 Tire a foto da placa do motor")
-    imagem_input = st.camera_input("Clique para tirar a foto do motor")
+    st.subheader("📸 Faça upload da foto da placa do motor")
+    imagem_input = st.file_uploader("Escolha a foto do motor (jpg, png)", type=["jpg", "jpeg", "png"])
 
     if imagem_input:
-        # Converte o UploadedFile do Streamlit em PIL
-        imagem = Image.open(imagem_input)
-        # Converte PIL -> numpy array BGR
-        imagem_cv = cv2.cvtColor(np.array(imagem), cv2.COLOR_RGB2BGR)
-
-        st.image(imagem, caption="Imagem capturada", width=300)
+        st.image(imagem_input, caption="Imagem carregada", width=300)
 
         if st.button("🔎 Ler placa"):
             with st.spinner("Lendo placa..."):
-                # Chama o OCR com a imagem BGR correta
+                # Converte para PIL e depois para numpy array
+                imagem = Image.open(imagem_input)
+                imagem_cv = np.array(imagem)
+                if imagem_cv.shape[2] == 3:
+                    imagem_cv = cv2.cvtColor(imagem_cv, cv2.COLOR_RGB2BGR)
+
+                # Chama o OCR
                 dados_ocr = ler_placa_motor(imagem_cv)
 
             # Mostra resultado OCR
