@@ -1,6 +1,9 @@
 import streamlit as st
+from PIL import Image
+import numpy as np
+import cv2
 from services.ocr_motor import ler_placa_motor
-from services.database import salvar_motor  # <- import necessário
+from services.database import salvar_motor
 
 def show():
     st.title("Cadastro de Motor")
@@ -17,33 +20,7 @@ def show():
         "ligacao","fabricacao"
     ]
 
-    # Mapa OCR -> session_state
-    mapa_campos = {
-        "Marca": "marca",
-        "Modelo": "modelo",
-        "Potência": "potencia",
-        "Tensão": "tensao",
-        "Corrente": "corrente",
-        "Rotação": "rpm",
-        "Frequência": "frequencia",
-        "Fator de potência": "fp",
-        "Carcaça": "carcaca",
-        "IP": "ip",
-        "Isolamento": "isolacao",
-        "Regime": "regime",
-        "Rolamento dianteiro": "rolamento_dianteiro",
-        "Rolamento traseiro": "rolamento_traseiro",
-        "Peso": "peso",
-        "Diâmetro do Eixo": "diametro_eixo",
-        "Comprimento do Pacote": "comprimento_pacote",
-        "Número de Ranhuras": "numero_ranhuras",
-        "Ligação": "ligacao",
-        "Ano de Fabricação": "fabricacao"
-    }
-
-    # =============================
     # Inicializa session_state
-    # =============================
     for campo in campos:
         if campo not in st.session_state:
             st.session_state[campo] = ""
@@ -51,31 +28,32 @@ def show():
         st.session_state["original"] = "Sim"
 
     # =============================
-    # OCR
+    # CAPTURA DE IMAGEM
     # =============================
-    st.subheader("📸 Escanear placa")
-    imagem = st.file_uploader(
-        "Envie foto da placa do motor", 
-        type=["png","jpg","jpeg"],
-        key="file_uploader_motor"  # <- chave única
-    )
+    st.subheader("📸 Tire a foto da placa do motor")
+    imagem_input = st.camera_input("Clique para tirar a foto do motor")
 
-    if imagem:
-        st.image(imagem, width=300)
+    if imagem_input:
+        st.image(imagem_input, caption="Imagem capturada", width=300)
+
         if st.button("🔎 Ler placa"):
             with st.spinner("Lendo placa..."):
-                dados_ocr = ler_placa_motor(imagem)
-                # =============================
-                # NORMALIZAÇÃO DAS CHAVES OCR
-                # =============================
-                dados_ocr = {k.strip().title(): v for k, v in dados_ocr.items()}  # <- linha adicionada
+                # Converte para PIL e depois para numpy array
+                imagem = Image.open(imagem_input)
+                imagem_cv = np.array(imagem)
+                imagem_cv = cv2.cvtColor(imagem_cv, cv2.COLOR_RGB2BGR)
+
+                dados_ocr = ler_placa_motor(imagem_cv)
+
+            # Mostra para verificação
             st.write("📝 Dados OCR:", dados_ocr)
-            for chave_ocr, valor in dados_ocr.items():
-                chave_form = mapa_campos.get(chave_ocr)
-                if chave_form:
-                    st.session_state[chave_form] = valor
+
+            # Preenche os campos automaticamente
+            for chave, valor in dados_ocr.items():
+                if chave in st.session_state:
+                    st.session_state[chave] = valor
+
             st.success("✅ Dados preenchidos automaticamente!")
-            # NÃO usar st.rerun() aqui!
 
     # =============================
     # FORMULÁRIO / EDIÇÃO MANUAL
@@ -118,7 +96,7 @@ def show():
     )
 
     # =============================
-    # SALVAR MOTOR (sempre no final, permanente)
+    # SALVAR MOTOR
     # =============================
     st.subheader("💾 Salvar Motor no Banco de Dados")
     if st.button("Salvar Motor", use_container_width=True):
