@@ -43,12 +43,13 @@ def show():
                 imagem_cv = np.array(imagem)
                 imagem_cv = cv2.cvtColor(imagem_cv, cv2.COLOR_RGB2BGR)
 
+                # Chama o OCR
                 dados_ocr = ler_placa_motor(imagem_cv)
 
-            # Mostra para verificação
+            # Mostra resultado OCR
             st.write("📝 Dados OCR:", dados_ocr)
 
-            # Preenche os campos automaticamente
+            # Preenche campos automaticamente
             for chave, valor in dados_ocr.items():
                 if chave in st.session_state:
                     st.session_state[chave] = valor
