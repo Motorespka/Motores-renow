@@ -42,6 +42,11 @@ def ler_placa_motor(imagem_input):
     texto_total = limpar_texto(texto_total)
 
     # =============================
+    # NORMALIZAÇÃO (linha adicionada)
+    # =============================
+    texto_total = texto_total.strip().title()
+
+    # =============================
     # MAPEAMENTO PARA CADASTRO.PY
     # =============================
     dados = {
