@@ -1,7 +1,7 @@
 import streamlit as st
 import io
 
-from ocr.ocr_motor import ler_placa_motor
+from services.ocr_motor import ler_placa_motor
 from services.database import salvar_motor
 
 
