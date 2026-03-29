@@ -1,54 +1,82 @@
 import streamlit as st
+
 from services.ocr_motor import ler_placa_motor
+from services.fabrica_motor import analise_fabrica
+from services.weg_engine import analise_weg
 
-st.title("⚙️ Cadastro de Motor")
+st.title("⚙️ Moto-Renow — Cadastro Inteligente")
 
-imagem = st.camera_input("📸 Fotografar placa ou ficha do motor")
+modo = st.radio(
+    "Modo de análise",
+    ["🔧 Simplificado", "🏭 Engenharia Industrial", "🔵 Modo WEG"]
+)
+
+imagem = st.camera_input("Fotografar placa ou ficha")
 
 dados = {}
 engenharia = {}
 
 if imagem:
 
-    with st.spinner("Lendo motor..."):
-        dados, engenharia, texto = ler_placa_motor(imagem)
+    dados, engenharia, texto = ler_placa_motor(imagem)
 
-    st.success("Leitura concluída")
+    st.success("OCR concluído")
 
-    with st.expander("Texto reconhecido"):
+    with st.expander("Texto lido"):
         st.write(texto)
 
 
-# ==========================
+# ===================
 # FORMULÁRIO
-# ==========================
-st.subheader("Dados do Motor")
+# ===================
+marca = st.text_input("Marca", dados.get("marca",""))
+rpm = st.text_input("RPM", dados.get("rpm",""))
+tensao = st.text_input("Tensão", dados.get("tensao",""))
+corrente = st.text_input("Corrente", dados.get("corrente",""))
 
-marca = st.text_input("Marca", dados.get("marca", ""))
-modelo = st.text_input("Modelo", dados.get("modelo", ""))
-rpm = st.text_input("RPM", dados.get("rpm", ""))
-tensao = st.text_input("Tensão", dados.get("tensao", ""))
-corrente = st.text_input("Corrente", dados.get("corrente", ""))
-isolacao = st.text_input("Isolação", dados.get("isolacao", ""))
-regime = st.text_input("Regime", dados.get("regime", ""))
-polos = st.text_input("Polos", dados.get("polos", ""))
+# ===================
+# SIMPLIFICADO
+# ===================
+if modo == "🔧 Simplificado" and engenharia:
+
+    st.subheader("Resumo Técnico")
+
+    st.write("Tipo:", engenharia.get("tipo_motor"))
+    st.write("Espiras:", engenharia.get("espiras_originais"))
+    st.write("Fio:", engenharia.get("fio_original"))
 
 
-# ==========================
-# PAINEL ENGENHEIRO
-# ==========================
-if engenharia:
+# ===================
+# ENGENHARIA
+# ===================
+if modo == "🏭 Engenharia Industrial":
 
-    st.subheader("🧠 Análise Técnica")
+    fabrica = analise_fabrica(dados)
 
-    st.write("Tipo de Motor:", engenharia.get("tipo_motor", ""))
-    st.write("Passos:", engenharia.get("passos", ""))
-    st.write("Espiras Originais:", engenharia.get("espiras_originais", ""))
-    st.write("Média Espiras:", engenharia.get("media_espiras", ""))
-    st.write("Espiras +10%:", engenharia.get("espiras_mais_10", ""))
-    st.write("Espiras -10%:", engenharia.get("espiras_menos_10", ""))
-    st.write("Fio Original:", engenharia.get("fio_original", ""))
+    st.subheader("Engenharia")
+
+    st.write("Potência estimada:", fabrica.get("potencia_kw"), "kW")
+
+    bitola = fabrica.get("bitola")
+
+    if bitola:
+        st.write("Área fio:", bitola["area"], "mm²")
+        st.write("Diâmetro fio:", bitola["diametro"], "mm")
+
+
+# ===================
+# MODO WEG
+# ===================
+if modo == "🔵 Modo WEG":
+
+    fabrica = analise_fabrica(dados)
+    weg = analise_weg(dados, fabrica)
+
+    st.subheader("Diagnóstico WEG")
+
+    st.write("Polos estimados:", weg["polos_estimados"])
+    st.write("Diagnóstico:", weg["diagnostico"])
 
 
 if st.button("Salvar Motor"):
-    st.success("Motor cadastrado com sucesso!")
+    st.success("Motor salvo!")
