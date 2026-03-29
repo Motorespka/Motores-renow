@@ -1,30 +1,13 @@
 import streamlit as st
+import io
 
-from services.gemini_motor import (
-    ler_placa_gemini,
-    calcular_motor_gemini,
-    obter_chave_gemini,
-)
+from ocr.ocr_motor import ler_placa_motor
 from services.database import salvar_motor
 
 
-def _mime_de_upload(name: str) -> str:
-    n = (name or "").lower()
-    if n.endswith(".png"):
-        return "image/png"
-    if n.endswith(".webp"):
-        return "image/webp"
-    return "image/jpeg"
-
-
 def show():
-    st.title("Cadastro de Motor")
 
-    if not obter_chave_gemini():
-        st.warning(
-            "Configure **GEMINI_API_KEY** (variável de ambiente ou "
-            "`.streamlit/secrets.toml`) para leitura da placa e cálculos com Gemini."
-        )
+    st.title("Cadastro de Motor")
 
     # =============================
     # CAMPOS DO MOTOR
@@ -41,54 +24,58 @@ def show():
     for campo in campos:
         if campo not in st.session_state:
             st.session_state[campo] = ""
+
     if "original" not in st.session_state:
         st.session_state["original"] = "Sim"
-    if "resultado_calculo_gemini" not in st.session_state:
-        st.session_state["resultado_calculo_gemini"] = None
 
     # =============================
-    # FOTO DA PLACA (CÂMERA OU UPLOAD) + GEMINI
+    # FOTO DA PLACA (EASYOCR)
     # =============================
-    st.subheader("📸 Foto da placa do motor (Gemini)")
-    col_cam, col_up = st.columns(2)
-    with col_cam:
-        imagem_camera = st.camera_input("Tirar foto da placa", key="cam_placa")
-    with col_up:
-        arquivo = st.file_uploader(
-            "Ou enviar imagem da placa",
-            type=["jpg", "jpeg", "png", "webp"],
-            key="up_placa",
+    st.subheader("📸 Foto da placa do motor")
+
+    imagem = st.file_uploader(
+        "Enviar foto ou screenshot da placa",
+        type=["jpg", "jpeg", "png", "webp"]
+    )
+
+    if imagem and st.button("🔎 Ler placa (OCR)", type="primary"):
+
+        with st.spinner("Lendo placa do motor..."):
+
+            dados = ler_placa_motor(
+                io.BytesIO(imagem.getvalue())
+            )
+
+            texto = dados.get("texto_detectado", "")
+
+            # salva texto bruto
+            st.session_state["texto_ocr"] = texto
+
+            # autopreenche simples
+            texto_upper = texto.upper()
+
+            if "WEG" in texto_upper:
+                st.session_state["marca"] = "WEG"
+            elif "SIEMENS" in texto_upper:
+                st.session_state["marca"] = "SIEMENS"
+            elif "ABB" in texto_upper:
+                st.session_state["marca"] = "ABB"
+
+            st.success("OCR concluído ✅")
+
+    # MOSTRAR TEXTO DETECTADO
+    if "texto_ocr" in st.session_state:
+        st.text_area(
+            "Texto encontrado na placa",
+            st.session_state["texto_ocr"],
+            height=150
         )
 
-    imagem_para_ia = None
-    mime_ia = "image/jpeg"
-    if arquivo is not None:
-        imagem_para_ia = arquivo.getvalue()
-        mime_ia = _mime_de_upload(arquivo.name)
-    elif imagem_camera is not None:
-        imagem_para_ia = imagem_camera.getvalue()
-        mime_ia = _mime_de_upload(getattr(imagem_camera, "name", "") or "foto.jpg")
-
-    if imagem_para_ia and st.button("🔎 Ler placa com Gemini", type="primary"):
-        if not obter_chave_gemini():
-            st.error("Configure GEMINI_API_KEY para usar a leitura por IA.")
-        else:
-            with st.spinner("Analisando placa com Gemini..."):
-                try:
-                    dados = ler_placa_gemini(imagem_para_ia, mime_type=mime_ia)
-                    for chave, valor in dados.items():
-                        if chave in st.session_state:
-                            st.session_state[chave] = valor
-                    st.session_state["resultado_calculo_gemini"] = None
-                    st.success("Dados da placa extraídos. Revise e ajuste se necessário.")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Falha na leitura com Gemini: {e}")
-
     # =============================
-    # FORMULÁRIO / EDIÇÃO MANUAL
+    # FORMULÁRIO
     # =============================
-    st.subheader("⚙️ Dados do Motor (Edição Manual)")
+    st.subheader("⚙️ Dados do Motor")
+
     col1, col2 = st.columns(2)
 
     with col1:
@@ -116,28 +103,10 @@ def show():
         st.session_state["fabricacao"] = st.text_input("Ano de Fabricação", value=st.session_state["fabricacao"])
 
     # =============================
-    # CÁLCULOS COM GEMINI (COM BASE NOS CAMPOS)
+    # ORIGINALIDADE
     # =============================
-    st.subheader("📐 Cálculos e observações (Gemini)")
-    motor_snapshot = {c: st.session_state[c] for c in campos}
-    if st.button("Calcular / interpretar com Gemini"):
-        if not obter_chave_gemini():
-            st.error("Configure GEMINI_API_KEY para usar os cálculos com IA.")
-        else:
-            with st.spinner("Gerando análise..."):
-                try:
-                    st.session_state["resultado_calculo_gemini"] = calcular_motor_gemini(motor_snapshot)
-                except Exception as e:
-                    st.error(f"Falha nos cálculos com Gemini: {e}")
+    st.subheader("🔧 Verificação Manual")
 
-    res = st.session_state.get("resultado_calculo_gemini")
-    if isinstance(res, dict) and res:
-        st.json(res)
-
-    # =============================
-    # VERIFICAÇÃO MANUAL / ORIGINALIDADE
-    # =============================
-    st.subheader("🔧 Verificação Manual / Cálculo Não Original")
     st.session_state["original"] = st.radio(
         "Motor Original?",
         ["Sim", "Não"],
@@ -145,12 +114,16 @@ def show():
     )
 
     # =============================
-    # SALVAR MOTOR
+    # SALVAR
     # =============================
-    st.subheader("💾 Salvar Motor no Banco de Dados")
+    st.subheader("💾 Salvar Motor")
+
     if st.button("Salvar Motor", use_container_width=True):
+
         motor = {campo: st.session_state[campo] for campo in campos}
         motor["original"] = st.session_state["original"]
+
         salvar_motor(motor)
+
         st.success("Motor salvo com sucesso!")
         st.json(motor)
