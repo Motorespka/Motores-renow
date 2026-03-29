@@ -1,27 +1,41 @@
 import streamlit as st
 
+# ===== V4 IMPORTS =====
 from services.ocr_motor import ler_placa_motor
 from services.fabrica_motor import analise_fabrica
 from services.weg_engine import analise_weg
-from services.aprendizado_motor import salvar_motor, sugestao_inteligente
+from services.aprendizado_motor import (
+    salvar_motor,
+    sugestao_inteligente
+)
 from services.diagnostico_ia import diagnostico_motor
+
+# ===== V6 AUTO MODULES =====
+from services.auto_modules import executar_modulos
+
 
 st.title("⚙️ Moto-Renow — Sistema Inteligente")
 
 modo = st.radio(
-    "Modo",
+    "Modo de operação",
     [
         "🔧 Simplificado",
         "🏭 Engenharia Industrial",
         "🔵 Modo WEG",
         "⚡ Diagnóstico IA",
+        "🧬 Auto Sistema (V6)"
     ],
 )
 
-imagem = st.camera_input("Fotografar placa ou ficha")
+imagem = st.camera_input("Fotografar placa do motor")
 
 dados = {}
 engenharia = {}
+fabrica = {}
+
+# =====================================================
+# CORE DO SISTEMA (V4)
+# =====================================================
 
 if imagem:
 
@@ -29,41 +43,47 @@ if imagem:
 
     st.success("OCR concluído")
 
-    with st.expander("Texto lido"):
+    with st.expander("Texto detectado"):
         st.write(texto)
 
+    # ---------- APRENDIZADO V4 ----------
     sugestao = sugestao_inteligente(dados)
 
     if sugestao:
         st.info(
-            f"🧠 Baseado em {sugestao['baseado_em']} motores semelhantes\n"
+            f"Baseado em {sugestao['baseado_em']} motores\n"
             f"Espiras sugeridas: {sugestao['espiras_sugeridas']}"
         )
 
-# ======================
+    # ---------- FÁBRICA V5 ----------
+    fabrica = analise_fabrica(dados)
+
+# =====================================================
 # FORMULÁRIO
-# ======================
+# =====================================================
+
 marca = st.text_input("Marca", dados.get("marca",""))
 rpm = st.text_input("RPM", dados.get("rpm",""))
 tensao = st.text_input("Tensão", dados.get("tensao",""))
 corrente = st.text_input("Corrente", dados.get("corrente",""))
 
-# ======================
-# SIMPLES
-# ======================
+# =====================================================
+# MODO SIMPLES (V4)
+# =====================================================
+
 if modo == "🔧 Simplificado" and engenharia:
 
     st.subheader("Resumo Técnico")
+
     st.write("Tipo:", engenharia.get("tipo_motor"))
     st.write("Espiras:", engenharia.get("espiras_originais"))
     st.write("Fio:", engenharia.get("fio_original"))
 
-# ======================
-# ENGENHARIA
-# ======================
-if modo == "🏭 Engenharia Industrial":
+# =====================================================
+# ENGENHARIA INDUSTRIAL (V5)
+# =====================================================
 
-    fabrica = analise_fabrica(dados)
+if modo == "🏭 Engenharia Industrial":
 
     st.subheader("Engenharia")
 
@@ -75,12 +95,12 @@ if modo == "🏭 Engenharia Industrial":
         st.write("Área fio:", bitola["area"], "mm²")
         st.write("Diâmetro fio:", bitola["diametro"], "mm")
 
-# ======================
-# WEG
-# ======================
+# =====================================================
+# MODO WEG (V5)
+# =====================================================
+
 if modo == "🔵 Modo WEG":
 
-    fabrica = analise_fabrica(dados)
     weg = analise_weg(dados, fabrica)
 
     st.subheader("Diagnóstico WEG")
@@ -88,12 +108,11 @@ if modo == "🔵 Modo WEG":
     st.write("Polos estimados:", weg["polos_estimados"])
     st.write("Diagnóstico:", weg["diagnostico"])
 
-# ======================
-# DIAGNÓSTICO IA
-# ======================
-if modo == "⚡ Diagnóstico IA":
+# =====================================================
+# DIAGNÓSTICO IA (V4)
+# =====================================================
 
-    fabrica = analise_fabrica(dados)
+if modo == "⚡ Diagnóstico IA":
 
     avisos = diagnostico_motor(
         dados,
@@ -101,14 +120,25 @@ if modo == "⚡ Diagnóstico IA":
         fabrica,
     )
 
-    st.subheader("⚡ Diagnóstico Inteligente")
+    st.subheader("Diagnóstico Inteligente")
 
     for aviso in avisos:
-        st.write(aviso)
+        st.warning(aviso)
 
-# ======================
-# SALVAR + APRENDER
-# ======================
+# =====================================================
+# V6 — AUTO SISTEMA
+# =====================================================
+
+if modo == "🧬 Auto Sistema (V6)":
+
+    st.subheader("Sistema Auto Modular")
+
+    executar_modulos(dados, engenharia, fabrica)
+
+# =====================================================
+# SALVAR + APRENDER (V4)
+# =====================================================
+
 if st.button("Salvar Motor"):
 
     salvar_motor(dados, engenharia)
