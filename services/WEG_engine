@@ -1,0 +1,61 @@
+import math
+
+
+def estimar_polos_por_rpm(rpm):
+
+    if not rpm:
+        return None
+
+    rpm = int(''.join(filter(str.isdigit, rpm)))
+
+    if rpm > 3000:
+        return 2
+    if rpm > 1500:
+        return 4
+    if rpm > 900:
+        return 6
+
+    return 8
+
+
+def prever_corrente(potencia_kw, tensao):
+
+    try:
+        corrente = (potencia_kw * 1000) / (1.732 * tensao * 0.82 * 0.85)
+        return round(corrente, 2)
+    except:
+        return None
+
+
+def detectar_risco(dados, fabrica):
+
+    corrente_placa = dados.get("corrente")
+    potencia = fabrica.get("potencia_kw")
+
+    if not corrente_placa or not potencia:
+        return "Não avaliado"
+
+    corrente_prevista = prever_corrente(
+        potencia,
+        float(dados.get("tensao").split("/")[0])
+    )
+
+    real = float(corrente_placa.replace(",", "."))
+
+    if real > corrente_prevista * 1.2:
+        return "🔴 Rebobinagem provavelmente errada"
+
+    if real < corrente_prevista * 0.7:
+        return "🟠 Possível perda de torque"
+
+    return "🟢 Dentro do padrão WEG"
+
+
+def analise_weg(dados, fabrica):
+
+    polos = estimar_polos_por_rpm(dados.get("rpm"))
+
+    return {
+        "polos_estimados": polos,
+        "diagnostico": detectar_risco(dados, fabrica)
+    }
