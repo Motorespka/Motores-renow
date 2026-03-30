@@ -1,34 +1,43 @@
 import streamlit as st
 import importlib
 
-from auth.login import login
-from components.ui import carregar_css
-from components.animation import transicao
-from components.navbar import menu
-
+# CONFIG
 st.set_page_config(
     page_title="Moto-Renow",
     page_icon="⚙️",
     layout="wide"
 )
 
-carregar_css()
-
+# LOGIN
+from auth.login import login
 login()
 
-if not st.session_state.get("logado"):
-    st.stop()
+st.title("⚙️ Moto-Renow")
 
-pagina = menu()
+menu = st.selectbox(
+    "Menu",
+    ["Cadastro", "Consulta", "Calculadora"]
+)
 
-transicao()
+def carregar_pagina(modulo, nome):
 
-mapa = {
-    "Cadastro":"pages.cadastro",
-    "Consulta":"pages.consulta",
-    "Cálculos":"pages.calculos",
-    "Rebobinador":"pages.rebobinador"
-}
+    try:
+        page = importlib.import_module(modulo)
 
-modulo = importlib.import_module(mapa[pagina])
-modulo.main()
+        if hasattr(page, "show"):
+            page.show()
+        else:
+            st.error(f"{nome} não possui show()")
+
+    except Exception as e:
+        st.error(f"Erro ao carregar {nome}")
+        st.exception(e)
+
+if menu == "Cadastro":
+    carregar_pagina("pages.cadastro", "Cadastro")
+
+elif menu == "Consulta":
+    carregar_pagina("pages.consulta", "Consulta")
+
+elif menu == "Calculadora":
+    carregar_pagina("pages.calculadora", "Calculadora")
