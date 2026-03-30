@@ -10,7 +10,7 @@ st.set_page_config(
 
 # LOGIN
 from auth.login import login
-login()
+check_login()
 
 st.title("⚙️ Moto-Renow")
 
