@@ -1,43 +1,18 @@
-.stApp {
-    background: linear-gradient(135deg,#020617,#0f172a);
-    color:#e2e8f0;
+st.markdown("""
+<style>
+
+.block-container {
+    padding-top: 2rem;
 }
 
-/* sidebar */
-section[data-testid="stSidebar"]{
-    background:#020617;
+.stButton>button {
+    border-radius: 10px;
+    transition: 0.2s;
 }
 
-/* títulos */
-h1,h2,h3{
-    font-weight:700;
+.stButton>button:hover {
+    transform: scale(1.05);
 }
 
-/* botões */
-.stButton button{
-    background:#2563eb;
-    border-radius:12px;
-    border:none;
-    color:white;
-    padding:10px 18px;
-    transition:0.3s;
-}
-
-.stButton button:hover{
-    transform:scale(1.05);
-    background:#1d4ed8;
-}
-
-/* cards */
-.card{
-    background:#111827;
-    padding:25px;
-    border-radius:16px;
-    box-shadow:0 10px 30px rgba(0,0,0,.5);
-    animation:fade .4s ease;
-}
-
-@keyframes fade{
-    from{opacity:0;transform:translateY(15px);}
-    to{opacity:1;transform:translateY(0);}
-}
+</style>
+""", unsafe_allow_html=True)
