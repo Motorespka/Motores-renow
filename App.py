@@ -2,7 +2,7 @@ import streamlit as st
 import importlib
 
 # ===============================
-# CONFIGURAÇÃO DO APP
+# CONFIG
 # ===============================
 st.set_page_config(
     page_title="Moto-Renow",
@@ -11,7 +11,7 @@ st.set_page_config(
 )
 
 # ===============================
-# LOGIN PROFISSIONAL
+# LOGIN
 # ===============================
 from auth.login import check_login
 from auth.logout import botao_logout
@@ -19,7 +19,7 @@ from auth.logout import botao_logout
 check_login()
 
 # ===============================
-# INTERFACE PRINCIPAL
+# INTERFACE
 # ===============================
 st.title("⚙️ Moto-Renow")
 
@@ -39,17 +39,17 @@ menu = st.sidebar.radio(
 )
 
 # ===============================
-# CARREGAMENTO SEGURO DAS PÁGINAS
+# CARREGAR PÁGINA
 # ===============================
 def carregar_pagina(modulo, nome):
 
     try:
         page = importlib.import_module(modulo)
 
-        if hasattr(page, "show") and callable(page.show):
+        if hasattr(page, "show"):
             page.show()
         else:
-            st.error(f"A página '{nome}' precisa ter uma função show()")
+            st.error(f"A página '{nome}' precisa ter função show()")
 
     except ModuleNotFoundError:
         st.error(f"Página '{nome}' não encontrada.")
@@ -58,15 +58,14 @@ def carregar_pagina(modulo, nome):
         st.error(f"Erro ao carregar {nome}")
         st.exception(e)
 
-
 # ===============================
 # ROTEAMENTO
 # ===============================
 paginas = {
-    "Cadastro": "pages.cadastro",
-    "Consulta": "pages.consulta",
-    "Calculadora": "pages.calculadora",
-    "Rebobinador": "pages.rebobinador",
+    "Cadastro": "page.cadastro",
+    "Consulta": "page.consulta",
+    "Calculadora": "page.calculadora",
+    "Rebobinador": "page.rebobinador",
 }
 
 carregar_pagina(paginas[menu], menu)
