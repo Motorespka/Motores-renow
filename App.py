@@ -1,6 +1,8 @@
 import streamlit as st
 import importlib
 
+from auth.login import check_login
+
 # CONFIG
 st.set_page_config(
     page_title="Moto-Renow",
@@ -9,7 +11,6 @@ st.set_page_config(
 )
 
 # LOGIN
-from auth.login import login
 check_login()
 
 st.title("⚙️ Moto-Renow")
