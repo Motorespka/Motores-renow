@@ -1,9 +1,6 @@
 import streamlit as st
 import importlib
 
-from auth.login import check_login
-from auth.logout import botao_logout
-
 # ================= CONFIG =================
 
 st.set_page_config(
@@ -12,30 +9,32 @@ st.set_page_config(
     layout="wide"
 )
 
+# ================= CSS =================
+
+def carregar_css():
+    try:
+        with open("assets/style.css") as f:
+            st.markdown(
+                f"<style>{f.read()}</style>",
+                unsafe_allow_html=True
+            )
+    except:
+        pass
+
+carregar_css()
+
 # ================= LOGIN =================
 
-check_login()
+try:
+    from auth.login import check_login
+    from auth.logout import botao_logout
 
-# ================= ESTILO =================
+    check_login()
 
-st.markdown("""
-<style>
-
-.block-container{
-    padding-top:2rem;
-}
-
-.stButton>button{
-    border-radius:10px;
-    transition:0.3s;
-}
-
-.stButton>button:hover{
-    transform:scale(1.05);
-}
-
-</style>
-""", unsafe_allow_html=True)
+except Exception as e:
+    st.error("Erro no sistema de login")
+    st.exception(e)
+    st.stop()
 
 # ================= SIDEBAR =================
 
@@ -53,14 +52,18 @@ with st.sidebar:
     )
 
     st.divider()
-    botao_logout()
+
+    try:
+        botao_logout()
+    except:
+        pass
 
 # ================= ROUTER =================
 
 def carregar_pagina(nome):
 
     try:
-        modulo = f"page.{nome}"   # 👈 AQUI ESTÁ A MUDANÇA
+        modulo = f"page.{nome}"
         page = importlib.import_module(modulo)
 
         if hasattr(page, "show"):
