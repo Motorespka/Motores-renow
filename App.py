@@ -59,7 +59,7 @@ with st.sidebar:
 
 if st.session_state.pagina == "editar":
 
-    from page.editar import show
+    from page.edit import show
     show()
 
 else:
