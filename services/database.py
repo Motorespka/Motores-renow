@@ -4,12 +4,16 @@ import os
 
 DB = "data/motores.db"
 
+# ================= GARANTE PASTA =================
+
 os.makedirs("data", exist_ok=True)
+
+# ================= CONEXÃO =================
 
 def conectar():
     return sqlite3.connect(DB, check_same_thread=False)
 
-# ================= TABELA =================
+# ================= CRIAR TABELA =================
 
 def criar_tabela():
 
@@ -26,18 +30,21 @@ def criar_tabela():
     conn.commit()
     conn.close()
 
+# ⚡ EXECUTA SEMPRE
 criar_tabela()
 
 # ================= SALVAR =================
 
 def salvar_motor(motor):
 
+    criar_tabela()  # 🔥 garantia absoluta
+
     conn = conectar()
     cur = conn.cursor()
 
     cur.execute(
         "INSERT INTO motores (dados) VALUES (?)",
-        (json.dumps(motor, ensure_ascii=False),)
+        (json.dumps(motor),)
     )
 
     conn.commit()
@@ -47,13 +54,14 @@ def salvar_motor(motor):
 
 def listar_motores():
 
+    criar_tabela()
+
     conn = conectar()
     cur = conn.cursor()
 
     cur.execute("SELECT id, dados FROM motores")
 
     resultados = cur.fetchall()
-
     conn.close()
 
     motores = []
@@ -65,21 +73,6 @@ def listar_motores():
 
     return motores
 
-# ================= ATUALIZAR =================
-
-def atualizar_motor(id_motor, motor):
-
-    conn = conectar()
-    cur = conn.cursor()
-
-    cur.execute(
-        "UPDATE motores SET dados=? WHERE id=?",
-        (json.dumps(motor, ensure_ascii=False), id_motor)
-    )
-
-    conn.commit()
-    conn.close()
-
 # ================= EXCLUIR =================
 
 def excluir_motor(id_motor):
@@ -87,10 +80,7 @@ def excluir_motor(id_motor):
     conn = conectar()
     cur = conn.cursor()
 
-    cur.execute(
-        "DELETE FROM motores WHERE id=?",
-        (id_motor,)
-    )
+    cur.execute("DELETE FROM motores WHERE id=?", (id_motor,))
 
     conn.commit()
     conn.close()
