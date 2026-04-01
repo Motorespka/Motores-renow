@@ -1,88 +1,96 @@
 import sqlite3
-from pathlib import Path
+import json
+import os
 
-DB_PATH = Path("data/motores.db")
-DB_PATH.parent.mkdir(exist_ok=True)  # garante que a pasta data exista
+DB = "data/motores.db"
 
-# =============================
-# CRIAR TABELA SE NÃO EXISTIR
-# =============================
+os.makedirs("data", exist_ok=True)
+
+def conectar():
+    return sqlite3.connect(DB, check_same_thread=False)
+
+# ================= TABELA =================
+
 def criar_tabela():
-    conn = sqlite3.connect(DB_PATH)
+
+    conn = conectar()
     cur = conn.cursor()
+
     cur.execute("""
         CREATE TABLE IF NOT EXISTS motores (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            marca TEXT DEFAULT '',
-            modelo TEXT DEFAULT '',
-            potencia TEXT DEFAULT '',
-            tensao TEXT DEFAULT '',
-            corrente TEXT DEFAULT '',
-            rpm TEXT DEFAULT '',
-            frequencia TEXT DEFAULT '',
-            fp TEXT DEFAULT '',
-            carcaca TEXT DEFAULT '',
-            ip TEXT DEFAULT '',
-            isolacao TEXT DEFAULT '',
-            regime TEXT DEFAULT '',
-            rolamento_dianteiro TEXT DEFAULT '',
-            rolamento_traseiro TEXT DEFAULT '',
-            peso TEXT DEFAULT '',
-            diametro_eixo TEXT DEFAULT '',
-            comprimento_pacote TEXT DEFAULT '',
-            numero_ranhuras TEXT DEFAULT '',
-            ligacao TEXT DEFAULT '',
-            fabricacao TEXT DEFAULT '',
-            original TEXT DEFAULT 'Sim'
+            dados TEXT
         )
     """)
+
     conn.commit()
     conn.close()
 
-# Chama a função automaticamente para garantir que a tabela exista
 criar_tabela()
 
-# =============================
-# INSERIR MOTOR
-# =============================
-def salvar_motor(motor: dict):
-    """
-    Salva um motor no banco de dados.
-    Substitui valores None por string vazia para evitar problemas.
-    """
-    # Padronizar dados: None -> ''
-    motor_limpo = {k: (v if v is not None else "") for k, v in motor.items()}
+# ================= SALVAR =================
 
-    # Garantir que todos os campos da tabela existam
-    colunas_tabela = [
-        "marca","modelo","potencia","tensao","corrente",
-        "rpm","frequencia","fp","carcaca","ip",
-        "isolacao","regime","rolamento_dianteiro",
-        "rolamento_traseiro","peso","diametro_eixo",
-        "comprimento_pacote","numero_ranhuras",
-        "ligacao","fabricacao","original"
-    ]
-    for campo in colunas_tabela:
-        if campo not in motor_limpo:
-            motor_limpo[campo] = "" if campo != "original" else "Sim"
+def salvar_motor(motor):
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = conectar()
     cur = conn.cursor()
-    campos = ", ".join(motor_limpo.keys())
-    placeholders = ", ".join("?" for _ in motor_limpo)
-    valores = list(motor_limpo.values())
-    cur.execute(f"INSERT INTO motores ({campos}) VALUES ({placeholders})", valores)
+
+    cur.execute(
+        "INSERT INTO motores (dados) VALUES (?)",
+        (json.dumps(motor, ensure_ascii=False),)
+    )
+
     conn.commit()
     conn.close()
 
-# =============================
-# LISTAR MOTORES
-# =============================
+# ================= LISTAR =================
+
 def listar_motores():
-    conn = sqlite3.connect(DB_PATH)
+
+    conn = conectar()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM motores ORDER BY id DESC")  # os mais recentes primeiro
-    colunas = [desc[0] for desc in cur.description]
-    resultados = [dict(zip(colunas, row)) for row in cur.fetchall()]
+
+    cur.execute("SELECT id, dados FROM motores")
+
+    resultados = cur.fetchall()
+
     conn.close()
-    return resultados
+
+    motores = []
+
+    for id_motor, dados in resultados:
+        motor = json.loads(dados)
+        motor["id"] = id_motor
+        motores.append(motor)
+
+    return motores
+
+# ================= ATUALIZAR =================
+
+def atualizar_motor(id_motor, motor):
+
+    conn = conectar()
+    cur = conn.cursor()
+
+    cur.execute(
+        "UPDATE motores SET dados=? WHERE id=?",
+        (json.dumps(motor, ensure_ascii=False), id_motor)
+    )
+
+    conn.commit()
+    conn.close()
+
+# ================= EXCLUIR =================
+
+def excluir_motor(id_motor):
+
+    conn = conectar()
+    cur = conn.cursor()
+
+    cur.execute(
+        "DELETE FROM motores WHERE id=?",
+        (id_motor,)
+    )
+
+    conn.commit()
+    conn.close()
