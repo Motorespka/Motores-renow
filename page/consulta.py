@@ -51,8 +51,8 @@ def mostrar_motor(motor):
                 with col:
                     st.metric(label=label, value=valor)
 
-        # -------- DETALHES --------
-        with st.expander("⬇️ Ver todos os dados"):
+        # -------- DETALHES (PREENCHIDOS) --------
+        with st.expander("⬇️ Ver dados preenchidos"):
 
             for chave, valor in motor.items():
 
@@ -61,6 +61,39 @@ def mostrar_motor(motor):
 
                 if valor:
                     st.write(f"**{chave.replace('_',' ').capitalize()}:** {valor}")
+
+        # -------- FICHA COMPLETA (NOVO 🔥) --------
+        with st.expander("📋 Ver ficha completa (tudo)"):
+
+            for chave, valor in motor.items():
+
+                if chave == "id":
+                    continue
+
+                if valor:
+                    st.write(f"**{chave.replace('_',' ').capitalize()}:** {valor}")
+                else:
+                    st.write(f"**{chave.replace('_',' ').capitalize()}:** N/A")
+
+            st.divider()
+
+            # -------- METADADOS (NOVO 🔥) --------
+            st.subheader("🧾 Informações do registro")
+
+            data = motor.get("data_cadastro", "N/A")
+            usuario = motor.get("usuario", "N/A")
+            historico = motor.get("historico_edicao", [])
+
+            st.write(f"📅 **Data de cadastro:** {data}")
+            st.write(f"👤 **Cadastrado por:** {usuario}")
+
+            st.write("🔁 **Histórico de edição:**")
+
+            if historico:
+                for item in historico:
+                    st.write(f"- {item}")
+            else:
+                st.write("N/A")
 
         # -------- AÇÕES --------
         st.divider()
