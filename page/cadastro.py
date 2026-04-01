@@ -1,133 +1,156 @@
 import streamlit as st
+from services.database import salvar_motor
 
 
-st.title("⚙️ Moto-Renow — Sistema Inteligente")
+def show():
 
-modo = st.radio(
-    "Modo de operação",
-    [
-        "🔧 Simplificado",
-        "🏭 Engenharia Industrial",
-        "🔵 Modo WEG",
-        "⚡ Diagnóstico IA",
-        "🧬 Auto Sistema (V6)"
-    ],
-)
+    st.title("⚙️ Cadastro Completo de Motor")
 
-imagem = st.camera_input("Fotografar placa do motor")
+    with st.form("cadastro_motor"):
 
-dados = {}
-engenharia = {}
-fabrica = {}
+        # ================= IDENTIFICAÇÃO =================
+        st.subheader("🔎 Identificação")
 
-# =====================================================
-# CORE DO SISTEMA (V4)
-# =====================================================
+        col1, col2, col3 = st.columns(3)
 
-if imagem:
+        with col1:
+            marca = st.text_input("Marca")
+            modelo = st.text_input("Modelo")
+            numero_serie = st.text_input("Número de Série")
 
-    dados, engenharia, texto = ler_placa_motor(imagem)
+        with col2:
+            cliente = st.text_input("Cliente")
+            equipamento = st.text_input("Equipamento")
+            data_entrada = st.date_input("Data Entrada")
 
-    st.success("OCR concluído")
+        with col3:
+            tecnico = st.text_input("Técnico Responsável")
+            ordem_servico = st.text_input("Ordem de Serviço")
 
-    with st.expander("Texto detectado"):
-        st.write(texto)
+        # ================= DADOS ELÉTRICOS =================
+        st.subheader("⚡ Dados Elétricos")
 
-    # ---------- APRENDIZADO V4 ----------
-    sugestao = sugestao_inteligente(dados)
+        c1, c2, c3, c4 = st.columns(4)
 
-    if sugestao:
-        st.info(
-            f"Baseado em {sugestao['baseado_em']} motores\n"
-            f"Espiras sugeridas: {sugestao['espiras_sugeridas']}"
-        )
+        with c1:
+            potencia = st.text_input("Potência (CV/kW)")
+            tensao = st.text_input("Tensão")
+            corrente = st.text_input("Corrente")
 
-    # ---------- FÁBRICA V5 ----------
-    fabrica = analise_fabrica(dados)
+        with c2:
+            frequencia = st.text_input("Frequência")
+            rpm = st.text_input("RPM")
+            polos = st.text_input("Polos")
 
-# =====================================================
-# FORMULÁRIO
-# =====================================================
+        with c3:
+            fp = st.text_input("Fator de Potência")
+            rendimento = st.text_input("Rendimento (%)")
+            fs = st.text_input("Fator Serviço")
 
-marca = st.text_input("Marca", dados.get("marca",""))
-rpm = st.text_input("RPM", dados.get("rpm",""))
-tensao = st.text_input("Tensão", dados.get("tensao",""))
-corrente = st.text_input("Corrente", dados.get("corrente",""))
+        with c4:
+            regime = st.text_input("Regime")
+            ligacao = st.text_input("Ligação")
+            classe_isolacao = st.text_input("Classe Isolação")
 
-# =====================================================
-# MODO SIMPLES (V4)
-# =====================================================
+        # ================= CONSTRUÇÃO =================
+        st.subheader("🏭 Construção")
 
-if modo == "🔧 Simplificado" and engenharia:
+        c1, c2, c3 = st.columns(3)
 
-    st.subheader("Resumo Técnico")
+        with c1:
+            carcaca = st.text_input("Carcaça")
+            ip = st.text_input("Grau IP")
+            peso = st.text_input("Peso")
 
-    st.write("Tipo:", engenharia.get("tipo_motor"))
-    st.write("Espiras:", engenharia.get("espiras_originais"))
-    st.write("Fio:", engenharia.get("fio_original"))
+        with c2:
+            rol_dianteiro = st.text_input("Rolamento Dianteiro")
+            rol_traseiro = st.text_input("Rolamento Traseiro")
 
-# =====================================================
-# ENGENHARIA INDUSTRIAL (V5)
-# =====================================================
+        with c3:
+            diametro_eixo = st.text_input("Diâmetro Eixo")
+            comprimento_pacote = st.text_input("Comprimento Pacote")
+            numero_ranhuras = st.text_input("Número Ranhuras")
 
-if modo == "🏭 Engenharia Industrial":
+        # ================= REBOBINAGEM =================
+        st.subheader("🧵 Dados de Rebobinagem")
 
-    st.subheader("Engenharia")
+        c1, c2 = st.columns(2)
 
-    st.write("Potência estimada:", fabrica.get("potencia_kw"), "kW")
+        with c1:
+            passo_principal = st.text_input("Passo Principal")
+            espiras_principal = st.text_input("Espiras Principal")
+            fio_principal = st.text_input("Fio Principal")
+            paralelo_principal = st.text_input("Paralelos Principal")
 
-    bitola = fabrica.get("bitola")
+        with c2:
+            passo_aux = st.text_input("Passo Auxiliar")
+            espiras_aux = st.text_input("Espiras Auxiliar")
+            fio_aux = st.text_input("Fio Auxiliar")
+            paralelo_aux = st.text_input("Paralelos Auxiliar")
 
-    if bitola:
-        st.write("Área fio:", bitola["area"], "mm²")
-        st.write("Diâmetro fio:", bitola["diametro"], "mm")
+        esquema = st.text_area("Esquema de Ligação / Observações Técnicas")
 
-# =====================================================
-# MODO WEG (V5)
-# =====================================================
+        # ================= DIAGNÓSTICO =================
+        st.subheader("🩺 Diagnóstico")
 
-if modo == "🔵 Modo WEG":
+        defeito = st.text_area("Defeito Encontrado")
+        servico_realizado = st.text_area("Serviço Realizado")
 
-    weg = analise_weg(dados, fabrica)
+        observacoes = st.text_area("Observações Gerais")
 
-    st.subheader("Diagnóstico WEG")
+        # ================= SALVAR =================
+        salvar = st.form_submit_button("💾 Salvar Motor")
 
-    st.write("Polos estimados:", weg["polos_estimados"])
-    st.write("Diagnóstico:", weg["diagnostico"])
+        if salvar:
 
-# =====================================================
-# DIAGNÓSTICO IA (V4)
-# =====================================================
+            motor = {
+                "marca": marca,
+                "modelo": modelo,
+                "numero_serie": numero_serie,
+                "cliente": cliente,
+                "equipamento": equipamento,
+                "data_entrada": str(data_entrada),
+                "tecnico": tecnico,
+                "ordem_servico": ordem_servico,
 
-if modo == "⚡ Diagnóstico IA":
+                "potencia": potencia,
+                "tensao": tensao,
+                "corrente": corrente,
+                "frequencia": frequencia,
+                "rpm": rpm,
+                "polos": polos,
+                "fp": fp,
+                "rendimento": rendimento,
+                "fs": fs,
+                "regime": regime,
+                "ligacao": ligacao,
+                "classe_isolacao": classe_isolacao,
 
-    avisos = diagnostico_motor(
-        dados,
-        engenharia,
-        fabrica,
-    )
+                "carcaca": carcaca,
+                "ip": ip,
+                "peso": peso,
+                "rol_dianteiro": rol_dianteiro,
+                "rol_traseiro": rol_traseiro,
+                "diametro_eixo": diametro_eixo,
+                "comprimento_pacote": comprimento_pacote,
+                "numero_ranhuras": numero_ranhuras,
 
-    st.subheader("Diagnóstico Inteligente")
+                "passo_principal": passo_principal,
+                "espiras_principal": espiras_principal,
+                "fio_principal": fio_principal,
+                "paralelo_principal": paralelo_principal,
 
-    for aviso in avisos:
-        st.warning(aviso)
+                "passo_aux": passo_aux,
+                "espiras_aux": espiras_aux,
+                "fio_aux": fio_aux,
+                "paralelo_aux": paralelo_aux,
 
-# =====================================================
-# V6 — AUTO SISTEMA
-# =====================================================
+                "esquema": esquema,
+                "defeito": defeito,
+                "servico_realizado": servico_realizado,
+                "observacoes": observacoes,
+            }
 
-if modo == "🧬 Auto Sistema (V6)":
+            salvar_motor(motor)
 
-    st.subheader("Sistema Auto Modular")
-
-    executar_modulos(dados, engenharia, fabrica)
-
-# =====================================================
-# SALVAR + APRENDER (V4)
-# =====================================================
-
-if st.button("Salvar Motor"):
-
-    salvar_motor(dados, engenharia)
-
-    st.success("Motor salvo — IA Aprendeu!")
+            st.success("✅ Motor cadastrado com sucesso!")
