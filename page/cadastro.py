@@ -1,18 +1,5 @@
 import streamlit as st
 
-# ===== V4 IMPORTS =====
-from services.ocr_motor import ler_placa_motor
-from services.fabrica_motor import analise_fabrica
-from services.weg_engine import analise_weg
-from services.aprendizado_motor import (
-    salvar_motor,
-    sugestao_inteligente
-)
-from services.diagnostico_ia import diagnostico_motor
-
-# ===== V6 AUTO MODULES =====
-from services.auto_modules import executar_modulos
-
 
 st.title("⚙️ Moto-Renow — Sistema Inteligente")
 
