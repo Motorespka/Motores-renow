@@ -18,8 +18,8 @@ def carregar_css():
                 f"<style>{f.read()}</style>",
                 unsafe_allow_html=True
             )
-    except Exception as e:
-        st.warning("CSS não carregado")
+    except:
+        pass
 
 carregar_css()
 
@@ -28,13 +28,14 @@ carregar_css()
 try:
     from auth.login import check_login
     from auth.logout import botao_logout
-
     check_login()
+except:
+    pass
 
-except Exception as e:
-    st.error("Erro no sistema de login")
-    st.exception(e)
-    st.stop()
+# ================= CONTROLE DE PÁGINA =================
+
+if "pagina" not in st.session_state:
+    st.session_state.pagina = "cadastro"
 
 # ================= SIDEBAR =================
 
@@ -42,13 +43,9 @@ with st.sidebar:
 
     st.title("⚙️ Moto-Renow")
 
-    menu = st.radio(
+    escolha = st.radio(
         "Sistema",
-        [
-            "cadastro",
-            "consulta",
-            "calculadora"
-        ]
+        ["cadastro", "consulta"]
     )
 
     st.divider()
@@ -60,19 +57,17 @@ with st.sidebar:
 
 # ================= ROUTER =================
 
-def carregar_pagina(nome):
+if st.session_state.pagina == "editar":
 
-    try:
-        modulo = f"page.{nome}"
-        page = importlib.import_module(modulo)
+    from page.editar import show
+    show()
 
-        if hasattr(page, "show"):
-            page.show()
-        else:
-            st.error(f"{nome} não possui função show()")
+else:
 
-    except Exception as e:
-        st.error(f"Erro ao carregar {nome}")
-        st.exception(e)
+    st.session_state.pagina = escolha
 
-carregar_pagina(menu)
+    page = importlib.import_module(
+        f"page.{st.session_state.pagina}"
+    )
+
+    page.show()
