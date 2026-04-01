@@ -1,18 +1,12 @@
-st.markdown("""
-<style>
-
 .block-container {
     padding-top: 2rem;
 }
 
-.stButton>button {
+.stButton > button {
     border-radius: 10px;
     transition: 0.2s;
 }
 
-.stButton>button:hover {
+.stButton > button:hover {
     transform: scale(1.05);
 }
-
-</style>
-""", unsafe_allow_html=True)
