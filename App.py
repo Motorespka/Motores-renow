@@ -18,8 +18,8 @@ def carregar_css():
                 f"<style>{f.read()}</style>",
                 unsafe_allow_html=True
             )
-    except:
-        pass
+    except Exception as e:
+        st.warning("CSS não carregado")
 
 carregar_css()
 
