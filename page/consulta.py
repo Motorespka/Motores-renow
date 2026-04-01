@@ -7,11 +7,13 @@ from services.database import listar_motores, excluir_motor
 CAMPOS_PRINCIPAIS = [
     "marca",
     "modelo",
-    "potencia",
+    "potencia",      # CV
+    "corrente",      # AMP
     "tensao",
+    "polos",
     "rpm",
-    "corrente",
-    "origem_calculo"
+    "isolacao",
+    "amp_teste"
 ]
 
 # ===============================
@@ -29,15 +31,25 @@ def mostrar_motor(motor):
         # -------- PRINCIPAIS --------
         st.subheader("📌 Informações principais")
 
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
 
-        principais = [campo for campo in CAMPOS_PRINCIPAIS if motor.get(campo)]
+        dados = {
+            "Marca": motor.get("marca"),
+            "Modelo": motor.get("modelo"),
+            "CV": motor.get("potencia"),
+            "AMP": motor.get("corrente"),
+            "Tensão": motor.get("tensao"),
+            "Polos": motor.get("polos"),
+            "RPM": motor.get("rpm"),
+            "Isol": motor.get("isolacao"),
+            "Amp Teste": motor.get("amp_teste")
+        }
 
-        for i, campo in enumerate(principais):
-            valor = motor.get(campo, "")
-            col = [col1, col2, col3][i % 3]
-            with col:
-                st.metric(label=campo.capitalize(), value=valor)
+        for i, (label, valor) in enumerate(dados.items()):
+            if valor:
+                col = [col1, col2, col3, col4][i % 4]
+                with col:
+                    st.metric(label=label, value=valor)
 
         # -------- DETALHES --------
         with st.expander("⬇️ Ver todos os dados"):
@@ -68,7 +80,7 @@ def mostrar_motor(motor):
                 st.success("Motor excluído!")
                 st.rerun()
 
-        # DUPLICAR (NOVO 🔥)
+        # DUPLICAR
         with col3:
             if st.button("📄 Duplicar", key=f"dup_{motor['id']}"):
                 st.session_state["motor_duplicar"] = motor
@@ -116,7 +128,7 @@ def show():
             if filtro_potencia.lower() in str(m.get("potencia", "")).lower()
         ]
 
-    # -------- CONTADOR (NOVO) --------
+    # -------- CONTADOR --------
     st.caption(f"📊 {len(motores)} motor(es) encontrado(s)")
 
     if not motores:
