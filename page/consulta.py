@@ -33,66 +33,73 @@ def show():
         st.info("Nenhum motor cadastrado ainda.")
         return
 
-    # Mostrar lista resumida
     st.subheader("📋 Lista de Motores")
     for m in motores:
         id_motor = m[0]
         marca = m[1]
         modelo = m[2]
-        fabricante = m[3]
+        cv_kw = m[4]  # Potência
+        polos = m[10]  # Polos
+        rpm = m[7]
+        amp = m[6]  # Corrente
+        tensao = m[5]
         data_cadastro = m[-1]
 
-        with st.expander(f"ID {id_motor} | {marca} {modelo} | Fabricante: {fabricante} | Cadastrado: {data_cadastro}"):
-            st.markdown("**📌 Dados Gerais**")
-            st.write(f"Marca: {marca}")
-            st.write(f"Modelo: {modelo}")
-            st.write(f"Fabricante: {fabricante}")
-            st.write(f"Potência: {m[4]}")
-            st.write(f"Tensão: {m[5]}")
-            st.write(f"Corrente: {m[6]}")
-            st.write(f"RPM: {m[7]}")
-            st.write(f"Frequência: {m[8]}")
-            st.write(f"Rendimento: {m[9]}")
+        # Expander resumido com informações principais
+        with st.expander(f"ID {id_motor} | {marca} {modelo} | CV: {cv_kw} | Polos: {polos} | RPM: {rpm} | Amp: {amp} | Tensão: {tensao} | Cadastrado: {data_cadastro}"):
+            
+            # Segunda expander para detalhes completos
+            with st.expander("ℹ️ Ver todos os detalhes do motor"):
+                st.markdown("**📌 Dados Gerais**")
+                st.write(f"Marca: {marca}")
+                st.write(f"Modelo: {modelo}")
+                st.write(f"Fabricante: {m[3]}")
+                st.write(f"Potência: {cv_kw}")
+                st.write(f"Tensão: {tensao}")
+                st.write(f"Corrente: {amp}")
+                st.write(f"RPM: {rpm}")
+                st.write(f"Frequência: {m[8]}")
+                st.write(f"Rendimento: {m[9]}")
 
-            st.markdown("**⚙️ Características Construtivas**")
-            st.write(f"Número de Polos: {m[10]}")
-            st.write(f"Carcaça: {m[11]}")
-            st.write(f"Montagem: {m[12]}")
-            st.write(f"Classe de Isolação: {m[13]}")
-            st.write(f"Grau de Proteção (IP): {m[14]}")
-            st.write(f"Regime de Serviço: {m[15]}")
-            st.write(f"Fator de Serviço: {m[16]}")
-            st.write(f"Classe de Temperatura: {m[17]}")
-            st.write(f"Altitude Máx. de Operação: {m[18]}")
+                st.markdown("**⚙️ Características Construtivas**")
+                st.write(f"Número de Polos: {polos}")
+                st.write(f"Carcaça: {m[11]}")
+                st.write(f"Montagem: {m[12]}")
+                st.write(f"Classe de Isolação: {m[13]}")
+                st.write(f"Grau de Proteção (IP): {m[14]}")
+                st.write(f"Regime de Serviço: {m[15]}")
+                st.write(f"Fator de Serviço: {m[16]}")
+                st.write(f"Classe de Temperatura: {m[17]}")
+                st.write(f"Altitude Máx. de Operação: {m[18]}")
 
-            st.markdown("**🔩 Rolamentos e Mecânica**")
-            st.write(f"Rolamento Dianteiro: {m[19]}")
-            st.write(f"Rolamento Traseiro: {m[20]}")
-            st.write(f"Diâmetro do Eixo: {m[21]}")
-            st.write(f"Comprimento do Eixo: {m[22]}")
-            st.write(f"Peso: {m[23]}")
-            st.write(f"Tipo de Ventilação: {m[24]}")
+                st.markdown("**🔩 Rolamentos e Mecânica**")
+                st.write(f"Rolamento Dianteiro: {m[19]}")
+                st.write(f"Rolamento Traseiro: {m[20]}")
+                st.write(f"Diâmetro do Eixo: {m[21]}")
+                st.write(f"Comprimento do Eixo: {m[22]}")
+                st.write(f"Peso: {m[23]}")
+                st.write(f"Tipo de Ventilação: {m[24]}")
 
-            st.markdown("**⚡ Dados Elétricos do Enrolamento**")
-            st.write(f"Tipo de Enrolamento: {m[25]}")
-            st.write(f"Passo da Bobina: {m[26]}")
-            st.write(f"Número de Ranhuras: {m[27]}")
-            st.write(f"Fios em Paralelo: {m[28]}")
-            st.write(f"Diâmetro do Fio: {m[29]}")
-            st.write(f"Tipo de Fio: {m[30]}")
-            st.write(f"Ligação: {m[31]}")
-            st.write(f"Esquema de Ligação: {m[32]}")
-            st.write(f"Resistência: {m[33]}")
+                st.markdown("**⚡ Dados Elétricos do Enrolamento**")
+                st.write(f"Tipo de Enrolamento: {m[25]}")
+                st.write(f"Passo da Bobina: {m[26]}")
+                st.write(f"Número de Ranhuras: {m[27]}")
+                st.write(f"Fios em Paralelo: {m[28]}")
+                st.write(f"Diâmetro do Fio: {m[29]}")
+                st.write(f"Tipo de Fio: {m[30]}")
+                st.write(f"Ligação: {m[31]}")
+                st.write(f"Esquema de Ligação: {m[32]}")
+                st.write(f"Resistência: {m[33]}")
 
-            st.markdown("**🧲 Dados do Induzido / Estator**")
-            st.write(f"Diâmetro Interno: {m[34]}")
-            st.write(f"Diâmetro Externo: {m[35]}")
-            st.write(f"Comprimento do Pacote: {m[36]}")
-            st.write(f"Material do Núcleo: {m[37]}")
-            st.write(f"Tipo de Chapa: {m[38]}")
-            st.write(f"Empilhamento: {m[39]}")
+                st.markdown("**🧲 Dados do Induzido / Estator**")
+                st.write(f"Diâmetro Interno: {m[34]}")
+                st.write(f"Diâmetro Externo: {m[35]}")
+                st.write(f"Comprimento do Pacote: {m[36]}")
+                st.write(f"Material do Núcleo: {m[37]}")
+                st.write(f"Tipo de Chapa: {m[38]}")
+                st.write(f"Empilhamento: {m[39]}")
 
-            st.markdown("**📝 Informações Adicionais**")
-            st.write(f"Observações: {m[40]}")
-            st.write(f"Origem do Cálculo: {m[41]}")
-            st.write(f"Data de Cadastro: {m[42]}")
+                st.markdown("**📝 Informações Adicionais**")
+                st.write(f"Observações: {m[40]}")
+                st.write(f"Origem do Cálculo: {m[41]}")
+                st.write(f"Data de Cadastro: {m[42]}")
