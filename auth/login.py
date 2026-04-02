@@ -1,9 +1,7 @@
 import streamlit as st
 from auth.session import criar_sessao, sessao_valida
 
-
 def check_login():
-
     # se sessão válida → entra direto
     if sessao_valida():
         return
@@ -16,11 +14,10 @@ def check_login():
     )
 
     if st.button("Entrar"):
-
         if senha == st.secrets["APP_PASSWORD"]:
             criar_sessao()
             st.success("Acesso liberado")
-            st.rerun()
+            st.experimental_rerun()  # ✅ corrige o problema
         else:
             st.error("Senha incorreta")
 
