@@ -2,9 +2,9 @@ import streamlit as st
 import sqlite3
 import os
 
-# ===============================
-# FUNÇÕES DE BANCO
-# ===============================
+# ------------------------------
+# Conexão com banco
+# ------------------------------
 def get_connection():
     os.makedirs("data", exist_ok=True)
     db_path = "data/calculos.db"
@@ -25,29 +25,28 @@ def excluir_motor(id_motor):
     conn.commit()
     conn.close()
 
-# ===============================
-# FUNÇÃO PRINCIPAL
-# ===============================
+# ------------------------------
+# Função principal
+# ------------------------------
 def show():
     st.title("🔍 Consulta de Motores Cadastrados")
 
-    # Inicializa flags
+    # Inicializa variáveis de sessão
     if "motor_editando" not in st.session_state:
         st.session_state.motor_editando = None
     if "motor_para_excluir" not in st.session_state:
         st.session_state.motor_para_excluir = None
-    if "abrir_edit" not in st.session_state:
-        st.session_state.abrir_edit = False
 
     motores = listar_motores()
-
     if not motores:
         st.info("Nenhum motor cadastrado ainda.")
         return
 
     st.subheader("📋 Lista de Motores")
 
-    # Loop pelos motores
+    editar_flag = None
+    excluir_flag = None
+
     for m in motores:
         id_motor = m[0]
         marca = m[1]
@@ -72,10 +71,12 @@ def show():
         with st.expander(titulo_expander):
             col1, col2 = st.columns(2)
 
-            # Botão Editar
+            # ------------------------------
+            # Botão editar
+            # ------------------------------
             with col1:
                 if st.button("✏️ Editar", key=f"editar_{id_motor}"):
-                    # Guarda o motor para edição
+                    # Salva o motor na sessão para edição
                     st.session_state.motor_editando = {
                         "id": m[0], "marca": m[1], "modelo": m[2], "fabricante": m[3],
                         "potencia": m[4], "tensao": m[5], "corrente": m[6], "rpm": m[7],
@@ -92,14 +93,18 @@ def show():
                         "material_nucleo": m[37], "tipo_chapa": m[38], "empilhamento": m[39],
                         "observacoes": m[40], "origem_calculo": m[41]
                     }
-                    st.session_state.abrir_edit = True  # Flag para abrir a página
+                    editar_flag = True  # sinal para rerun
 
-            # Botão Excluir
+            # ------------------------------
+            # Botão excluir
+            # ------------------------------
             with col2:
                 if st.button("🗑️ Excluir", key=f"excluir_{id_motor}"):
-                    st.session_state.motor_para_excluir = id_motor
+                    excluir_flag = id_motor
 
-            # Detalhes completos do motor
+            # ------------------------------
+            # Detalhes do motor
+            # ------------------------------
             with st.expander("ℹ️ Ver todos os detalhes do motor"):
                 st.write(f"Marca: {marca}")
                 st.write(f"Modelo: {modelo}")
@@ -111,16 +116,14 @@ def show():
                 st.write(f"Frequência: {m[8]}")
                 st.write(f"Rendimento: {m[9]}")
 
-    # ===============================
-    # Executa ações **fora do loop**
-    # ===============================
-    if st.session_state.motor_para_excluir:
-        excluir_motor(st.session_state.motor_para_excluir)
-        st.success(f"Motor ID {st.session_state.motor_para_excluir} excluído com sucesso.")
-        st.session_state.motor_para_excluir = None
+    # ------------------------------
+    # Ações fora do loop
+    # ------------------------------
+    if excluir_flag:
+        excluir_motor(excluir_flag)
+        st.success(f"Motor ID {excluir_flag} excluído com sucesso.")
         st.experimental_rerun()
 
-    if st.session_state.abrir_edit:
-        st.session_state.pagina = "edit"
-        st.session_state.abrir_edit = False
+    if editar_flag:
+        st.session_state.pagina = "edit"  # Muda para página de edição
         st.experimental_rerun()
