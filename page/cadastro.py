@@ -5,14 +5,8 @@ from datetime import datetime
 # FUNÇÃO PARA SALVAR NO SUPABASE
 # ===============================
 def salvar_motor_supabase(supabase, motor):
-    """
-    Envia o dicionário do motor para a tabela 'motores' no Supabase.
-    """
     try:
-        # Adicionar data de cadastro manualmente (caso não esteja no banco)
         motor["data_cadastro"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        # Inserção no Supabase
         res = supabase.table("motores").insert(motor).execute()
         
         if res.data:
@@ -26,24 +20,23 @@ def salvar_motor_supabase(supabase, motor):
 # ===============================
 # CADASTRO COMPLETO DE MOTOR
 # ===============================
-def show(supabase): # Agora recebe o cliente supabase do app.py
-    st.title("⚙️ Cadastro Completo de Motor")
+def show(supabase):
+    st.title("⚙️ Cadastro de Motores - Moto-Renow")
+    st.markdown("---")
 
     with st.form("cadastro_motor", clear_on_submit=True):
-
-        st.subheader("📌 Dados Gerais")
+        
+        # --- SEÇÃO 1: IDENTIFICAÇÃO ---
+        st.subheader("📌 Identificação e Placa")
         col1, col2, col3 = st.columns(3)
-
         with col1:
-            marca = st.text_input("Marca")
+            marca = st.text_input("Marca", help="Ex: WEG, Voges, Eberle")
             modelo = st.text_input("Modelo")
             fabricante = st.text_input("Fabricante")
-
         with col2:
             potencia = st.text_input("Potência (CV/kW)")
             tensao = st.text_input("Tensão (V)")
             corrente = st.text_input("Corrente (A)")
-
         with col3:
             rpm = st.text_input("RPM")
             frequencia = st.text_input("Frequência (Hz)")
@@ -51,136 +44,100 @@ def show(supabase): # Agora recebe o cliente supabase do app.py
 
         st.divider()
 
-        st.subheader("⚙️ Características Construtivas")
+        # --- SEÇÃO 2: CONSTRUÇÃO E MECÂNICA ---
+        st.subheader("🛠️ Construção e Mecânica")
         col4, col5, col6 = st.columns(3)
-
         with col4:
-            polos = st.text_input("Número de Polos")
+            polos = st.text_input("Pólos")
             carcaca = st.text_input("Carcaça")
-            montagem = st.text_input("Tipo de Montagem")
-
+            montagem = st.text_input("Montagem")
         with col5:
-            isolacao = st.text_input("Classe de Isolação")
-            ip = st.text_input("Grau de Proteção (IP)")
-            regime = st.text_input("Regime de Serviço")
-
+            isolacao = st.text_input("Isolação")
+            ip = st.text_input("Grau Proteção (IP)")
+            regime = st.text_input("Regime")
         with col6:
             fator_servico = st.text_input("Fator de Serviço")
-            temperatura = st.text_input("Classe de Temperatura")
-            altitude = st.text_input("Altitude Máx. de Operação")
-
-        st.divider()
-
-        st.subheader("🔩 Rolamentos e Mecânica")
-        col7, col8 = st.columns(2)
-
-        with col7:
-            rolamento_d = st.text_input("Rolamento Dianteiro")
-            eixo_diametro = st.text_input("Diâmetro do Eixo (mm)")
-            comprimento_eixo = st.text_input("Comprimento do Eixo (mm)")
-
-        with col8:
-            rolamento_t = st.text_input("Rolamento Traseiro")
             peso = st.text_input("Peso (kg)")
-            ventilacao = st.text_input("Tipo de Ventilação")
+            ventilacao = st.text_input("Ventilação")
 
         st.divider()
 
-        st.subheader("⚡ Dados Elétricos do Enrolamento")
-        col9, col10, col11 = st.columns(3)
+        # --- SEÇÃO 3: DETALHES DE BOBINAGEM (NOVA!) ---
+        st.subheader("🌀 Detalhes do Enrolamento (Bobinagem)")
+        
+        col_princ, col_aux = st.columns(2)
+        
+        with col_princ:
+            st.markdown("**Enrolamento Principal**")
+            passo_principal = st.text_input("Passo Principal")
+            fio_principal = st.text_input("Fio Principal")
+            espira_principal = st.text_input("Espiras Principal")
 
-        with col9:
-            tipo_enrolamento = st.text_input("Tipo de Enrolamento")
-            passo_bobina = st.text_input("Passo da Bobina")
-            numero_ranhuras = st.text_input("Número de Ranhuras")
+        with col_aux:
+            st.markdown("**Enrolamento Auxiliar**")
+            passo_auxiliar = st.text_input("Passo Auxiliar")
+            fio_auxiliar = st.text_input("Fio Auxiliar")
+            espira_auxiliar = st.text_input("Espiras Auxiliar")
 
-        with col10:
-            fios_paralelos = st.text_input("Fios em Paralelo")
-            diametro_fio = st.text_input("Diâmetro do Fio (mm)")
-            tipo_fio = st.text_input("Tipo de Fio (Esmaltado, etc)")
+        st.divider()
 
-        with col11:
-            ligacao = st.selectbox("Ligação", ["Estrela", "Triângulo", "Série", "Paralelo"])
-            esquema = st.text_input("Esquema de Ligação")
+        # --- SEÇÃO 4: DADOS TÉCNICOS ADICIONAIS ---
+        st.subheader("⚡ Dados Elétricos e Núcleo")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            tipo_enrolamento = st.text_input("Tipo Enrolamento")
+            numero_ranhuras = st.text_input("Nº Ranhuras")
             resistencia = st.text_input("Resistência (Ω)")
-
-        st.divider()
-
-        st.subheader("🧲 Dados do Induzido / Estator")
-        col12, col13 = st.columns(2)
-
-        with col12:
-            diametro_interno = st.text_input("Diâmetro Interno do Estator (mm)")
-            diametro_externo = st.text_input("Diâmetro Externo (mm)")
-            comprimento_pacote = st.text_input("Comprimento do Pacote (mm)")
-
-        with col13:
-            material_nucleo = st.text_input("Material do Núcleo")
-            tipo_chapa = st.text_input("Tipo de Chapa")
+        with c2:
+            diametro_fio = st.text_input("Diâmetro Fio (mm)")
+            tipo_fio = st.text_input("Tipo de Fio")
+            ligacao = st.selectbox("Ligação", ["Estrela", "Triângulo", "Série", "Paralelo"])
+        with c3:
+            diametro_interno = st.text_input("Ø Interno (mm)")
+            comprimento_pacote = st.text_input("Comp. Pacote (mm)")
             empilhamento = st.text_input("Empilhamento (mm)")
 
         st.divider()
 
-        st.subheader("📝 Informações Adicionais")
-        observacoes = st.text_area("Observações Gerais")
-
-        origem = st.selectbox(
-            "Origem do cálculo",
-            ["União", "Rebobinador", "Próprio"]
-        )
-
-        salvar = st.form_submit_button("💾 Salvar Motor")
+        # --- SEÇÃO 5: FINALIZAÇÃO ---
+        st.subheader("📝 Observações")
+        observacoes = st.text_area("Notas técnicas adicionais")
+        
+        col_fim1, col_fim2 = st.columns(2)
+        with col_fim1:
+            origem = st.selectbox("Origem do Cálculo", ["União", "Rebobinador", "Próprio"])
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        salvar = st.form_submit_button("💾 SALVAR NO BANCO DE DADOS", use_container_width=True)
 
     if salvar:
-        # Montar o dicionário com os nomes das colunas IGUAIS ao banco de dados
+        # Dicionário mapeado para o Supabase
         motor = {
-            "marca": marca,
-            "modelo": modelo,
-            "fabricante": fabricante,
-            "potencia": potencia,
-            "tensao": tensao,
-            "corrente": corrente,
-            "rpm": rpm,
-            "frequencia": frequencia,
-            "rendimento": rendimento,
-            "polos": polos,
-            "carcaca": carcaca,
-            "montagem": montagem,
-            "isolacao": isolacao,
-            "ip": ip,
-            "regime": regime,
-            "fator_servico": fator_servico,
-            "temperatura": temperatura,
-            "altitude": altitude,
-            "rolamento_d": rolamento_d,
-            "rolamento_t": rolamento_t,
-            "eixo_diametro": eixo_diametro,
-            "comprimento_eixo": comprimento_eixo,
-            "peso": peso,
-            "ventilacao": ventilacao,
-            "tipo_enrolamento": tipo_enrolamento,
-            "passo_bobina": passo_bobina,
-            "numero_ranhuras": numero_ranhuras,
-            "fios_paralelos": fios_paralelos,
-            "diametro_fio": diametro_fio,
-            "tipo_fio": tipo_fio,
-            "ligacao": ligacao,
-            "esquema": esquema,
-            "resistencia": resistencia,
-            "diametro_interno": diametro_interno,
-            "diametro_externo": diametro_externo,
-            "comprimento_pacote": comprimento_pacote,
-            "material_nucleo": material_nucleo,
-            "tipo_chapa": tipo_chapa,
-            "empilhamento": empilhamento,
-            "observacoes": observacoes,
+            "marca": marca, "modelo": modelo, "fabricante": fabricante,
+            "potencia": potencia, "tensao": tensao, "corrente": corrente,
+            "rpm": rpm, "frequencia": frequencia, "rendimento": rendimento,
+            "polos": polos, "carcaca": carcaca, "montagem": montagem,
+            "isolacao": isolacao, "ip": ip, "regime": regime,
+            "fator_servico": fator_servico, "peso": peso, "ventilacao": ventilacao,
+            # Novos campos de bobinagem
+            "passo_principal": passo_principal,
+            "fio_principal": fio_principal,
+            "espira_principal": espira_principal,
+            "passo_auxiliar": passo_auxiliar,
+            "fio_auxiliar": fio_auxiliar,
+            "espira_auxiliar": espira_auxiliar,
+            # Restante dos dados
+            "tipo_enrolamento": tipo_enrolamento, "numero_ranhuras": numero_ranhuras,
+            "resistencia": resistencia, "diametro_fio": diametro_fio,
+            "tipo_fio": tipo_fio, "ligacao": ligacao,
+            "diametro_interno": diametro_interno, "comprimento_pacote": comprimento_pacote,
+            "empilhamento": empilhamento, "observacoes": observacoes,
             "origem_calculo": origem
         }
 
-        # Chamada para o Supabase
         sucesso, mensagem = salvar_motor_supabase(supabase, motor)
-        
         if sucesso:
             st.success(mensagem)
+            st.balloons()
         else:
             st.error(mensagem)
