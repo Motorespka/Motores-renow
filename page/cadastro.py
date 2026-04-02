@@ -1,101 +1,35 @@
 import streamlit as st
-import sqlite3
-import os
 from datetime import datetime
 
 # ===============================
-# FUNÇÃO PARA SALVAR MOTOR
+# FUNÇÃO PARA SALVAR NO SUPABASE
 # ===============================
-def salvar_motor(motor):
-    # Garantir que a pasta data exista
-    os.makedirs("data", exist_ok=True)
-
-    # Conectar ao banco de dados na pasta data
-    db_path = "data/calculos.db"
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-
-    # Criar tabela se não existir
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS motores (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        marca TEXT,
-        modelo TEXT,
-        fabricante TEXT,
-        potencia TEXT,
-        tensao TEXT,
-        corrente TEXT,
-        rpm TEXT,
-        frequencia TEXT,
-        rendimento TEXT,
-        polos TEXT,
-        carcaca TEXT,
-        montagem TEXT,
-        isolacao TEXT,
-        ip TEXT,
-        regime TEXT,
-        fator_servico TEXT,
-        temperatura TEXT,
-        altitude TEXT,
-        rolamento_d TEXT,
-        rolamento_t TEXT,
-        eixo_diametro TEXT,
-        comprimento_eixo TEXT,
-        peso TEXT,
-        ventilacao TEXT,
-        tipo_enrolamento TEXT,
-        passo_bobina TEXT,
-        numero_ranhuras TEXT,
-        fios_paralelos TEXT,
-        diametro_fio TEXT,
-        tipo_fio TEXT,
-        ligacao TEXT,
-        esquema TEXT,
-        resistencia TEXT,
-        diametro_interno TEXT,
-        diametro_externo TEXT,
-        comprimento_pacote TEXT,
-        material_nucleo TEXT,
-        tipo_chapa TEXT,
-        empilhamento TEXT,
-        observacoes TEXT,
-        origem_calculo TEXT,
-        data_cadastro TEXT
-    )
-    """)
-
-    # Adicionar data de cadastro automaticamente
-    motor["data_cadastro"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    # Inserir motor no banco
-    cursor.execute("""
-    INSERT INTO motores (
-        marca, modelo, fabricante, potencia, tensao, corrente, rpm, frequencia, rendimento,
-        polos, carcaca, montagem, isolacao, ip, regime, fator_servico, temperatura, altitude,
-        rolamento_d, rolamento_t, eixo_diametro, comprimento_eixo, peso, ventilacao,
-        tipo_enrolamento, passo_bobina, numero_ranhuras, fios_paralelos, diametro_fio, tipo_fio,
-        ligacao, esquema, resistencia, diametro_interno, diametro_externo, comprimento_pacote,
-        material_nucleo, tipo_chapa, empilhamento, observacoes, origem_calculo, data_cadastro
-    ) VALUES (
-        :marca, :modelo, :fabricante, :potencia, :tensao, :corrente, :rpm, :frequencia, :rendimento,
-        :polos, :carcaca, :montagem, :isolacao, :ip, :regime, :fator_servico, :temperatura, :altitude,
-        :rolamento_d, :rolamento_t, :eixo_diametro, :comprimento_eixo, :peso, :ventilacao,
-        :tipo_enrolamento, :passo_bobina, :numero_ranhuras, :fios_paralelos, :diametro_fio, :tipo_fio,
-        :ligacao, :esquema, :resistencia, :diametro_interno, :diametro_externo, :comprimento_pacote,
-        :material_nucleo, :tipo_chapa, :empilhamento, :observacoes, :origem_calculo, :data_cadastro
-    )
-    """, motor)
-
-    conn.commit()
-    conn.close()
+def salvar_motor_supabase(supabase, motor):
+    """
+    Envia o dicionário do motor para a tabela 'motores' no Supabase.
+    """
+    try:
+        # Adicionar data de cadastro manualmente (caso não esteja no banco)
+        motor["data_cadastro"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Inserção no Supabase
+        res = supabase.table("motores").insert(motor).execute()
+        
+        if res.data:
+            return True, "✅ Motor salvo com sucesso no Supabase!"
+        else:
+            return False, f"⚠️ O banco não retornou confirmação: {res}"
+            
+    except Exception as e:
+        return False, f"❌ Erro ao salvar no Supabase: {str(e)}"
 
 # ===============================
-# CADASTRO COMPLETO DE MOTOR NO STREAMLIT
+# CADASTRO COMPLETO DE MOTOR
 # ===============================
-def show():
+def show(supabase): # Agora recebe o cliente supabase do app.py
     st.title("⚙️ Cadastro Completo de Motor")
 
-    with st.form("cadastro_motor"):
+    with st.form("cadastro_motor", clear_on_submit=True):
 
         st.subheader("📌 Dados Gerais")
         col1, col2, col3 = st.columns(3)
@@ -198,6 +132,7 @@ def show():
         salvar = st.form_submit_button("💾 Salvar Motor")
 
     if salvar:
+        # Montar o dicionário com os nomes das colunas IGUAIS ao banco de dados
         motor = {
             "marca": marca,
             "modelo": modelo,
@@ -242,5 +177,10 @@ def show():
             "origem_calculo": origem
         }
 
-        salvar_motor(motor)
-        st.success("✅ Motor salvo com sucesso em data/calculos.db!")
+        # Chamada para o Supabase
+        sucesso, mensagem = salvar_motor_supabase(supabase, motor)
+        
+        if sucesso:
+            st.success(mensagem)
+        else:
+            st.error(mensagem)
