@@ -31,9 +31,9 @@ def excluir_motor(id_motor):
 def show():
     st.title("🔍 Consulta de Motores Cadastrados")
 
-    # Inicializa flags de ação
-    if "motor_para_editar" not in st.session_state:
-        st.session_state.motor_para_editar = None
+    # Inicializa flags
+    if "motor_editando" not in st.session_state:
+        st.session_state.motor_editando = None
     if "motor_para_excluir" not in st.session_state:
         st.session_state.motor_para_excluir = None
 
@@ -45,6 +45,7 @@ def show():
 
     st.subheader("📋 Lista de Motores")
 
+    # Loop pelos motores
     for m in motores:
         id_motor = m[0]
         marca = m[1]
@@ -67,11 +68,12 @@ def show():
         )
 
         with st.expander(titulo_expander):
-            col1, col2 = st.columns([1, 1])
+            col1, col2 = st.columns(2)
 
             # Botão Editar
             with col1:
                 if st.button("✏️ Editar", key=f"editar_{id_motor}"):
+                    # Guarda o motor para edição
                     st.session_state.motor_editando = {
                         "id": m[0], "marca": m[1], "modelo": m[2], "fabricante": m[3],
                         "potencia": m[4], "tensao": m[5], "corrente": m[6], "rpm": m[7],
@@ -88,7 +90,8 @@ def show():
                         "material_nucleo": m[37], "tipo_chapa": m[38], "empilhamento": m[39],
                         "observacoes": m[40], "origem_calculo": m[41]
                     }
-                    st.session_state.motor_para_editar = True
+                    st.session_state.pagina = "edit"  # Altera a página
+                    st.experimental_rerun()  # Recarrega para abrir edit
 
             # Botão Excluir
             with col2:
@@ -119,47 +122,10 @@ def show():
                 st.write(f"Classe de Temperatura: {m[17]}")
                 st.write(f"Altitude Máx. de Operação: {m[18]}")
 
-                st.markdown("**🔩 Rolamentos e Mecânica**")
-                st.write(f"Rolamento Dianteiro: {m[19]}")
-                st.write(f"Rolamento Traseiro: {m[20]}")
-                st.write(f"Diâmetro do Eixo: {m[21]}")
-                st.write(f"Comprimento do Eixo: {m[22]}")
-                st.write(f"Peso: {m[23]}")
-                st.write(f"Tipo de Ventilação: {m[24]}")
-
-                st.markdown("**⚡ Dados Elétricos do Enrolamento**")
-                st.write(f"Tipo de Enrolamento: {m[25]}")
-                st.write(f"Passo da Bobina: {m[26]}")
-                st.write(f"Número de Ranhuras: {m[27]}")
-                st.write(f"Fios em Paralelo: {m[28]}")
-                st.write(f"Diâmetro do Fio: {m[29]}")
-                st.write(f"Tipo de Fio: {m[30]}")
-                st.write(f"Ligação: {m[31]}")
-                st.write(f"Esquema de Ligação: {m[32]}")
-                st.write(f"Resistência: {m[33]}")
-
-                st.markdown("**🧲 Dados do Induzido / Estator**")
-                st.write(f"Diâmetro Interno: {m[34]}")
-                st.write(f"Diâmetro Externo: {m[35]}")
-                st.write(f"Comprimento do Pacote: {m[36]}")
-                st.write(f"Material do Núcleo: {m[37]}")
-                st.write(f"Tipo de Chapa: {m[38]}")
-                st.write(f"Empilhamento: {m[39]}")
-
-                st.markdown("**📝 Informações Adicionais**")
-                st.write(f"Observações: {m[40]}")
-                st.write(f"Origem do Cálculo: {m[41]}")
-                st.write(f"Data de Cadastro: {data_cadastro}")
-
     # ===============================
-    # Ações após loop
+    # Ações após o loop
     # ===============================
-    if st.session_state.motor_para_editar:
-        st.session_state.pagina = "edit"
-        st.session_state.motor_para_editar = None
-        st.experimental_rerun()
-
-    if st.session_state.motor_para_excluir is not None:
+    if st.session_state.motor_para_excluir:
         excluir_motor(st.session_state.motor_para_excluir)
         st.success(f"Motor ID {st.session_state.motor_para_excluir} excluído com sucesso.")
         st.session_state.motor_para_excluir = None
