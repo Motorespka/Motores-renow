@@ -2,23 +2,19 @@ import streamlit as st
 from auth.session import criar_sessao, sessao_valida
 
 def check_login():
-    # se sessão válida → entra direto
+    # Se sessão válida → entra direto, nada é mostrado
     if sessao_valida():
-        return
+        return True  # Retorna True para sinalizar que o usuário está logado
 
+    # Formulário de login
     st.title("🔐 Moto-Renow • Acesso Técnico")
-
-    senha = st.text_input(
-        "Chave técnica",
-        type="password"
-    )
+    senha = st.text_input("Chave técnica", type="password")
 
     if st.button("Entrar"):
         if senha == st.secrets["APP_PASSWORD"]:
             criar_sessao()
-            st.success("Acesso liberado")
-            st.experimental_rerun()  # ✅ corrige o problema
+            st.experimental_rerun()  # reinicia a página para refletir a sessão
         else:
             st.error("Senha incorreta")
 
-    st.stop()
+    st.stop()  # bloqueia qualquer execução adicional até login
