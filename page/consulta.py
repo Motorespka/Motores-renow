@@ -36,6 +36,8 @@ def show():
         st.session_state.motor_editando = None
     if "motor_para_excluir" not in st.session_state:
         st.session_state.motor_para_excluir = None
+    if "abrir_edit" not in st.session_state:
+        st.session_state.abrir_edit = False
 
     motores = listar_motores()
 
@@ -90,8 +92,7 @@ def show():
                         "material_nucleo": m[37], "tipo_chapa": m[38], "empilhamento": m[39],
                         "observacoes": m[40], "origem_calculo": m[41]
                     }
-                    st.session_state.pagina = "edit"  # Altera a página
-                    st.experimental_rerun()  # Recarrega para abrir edit
+                    st.session_state.abrir_edit = True  # Flag para abrir a página
 
             # Botão Excluir
             with col2:
@@ -100,7 +101,6 @@ def show():
 
             # Detalhes completos do motor
             with st.expander("ℹ️ Ver todos os detalhes do motor"):
-                st.markdown("**📌 Dados Gerais**")
                 st.write(f"Marca: {marca}")
                 st.write(f"Modelo: {modelo}")
                 st.write(f"Fabricante: {m[3]}")
@@ -111,22 +111,16 @@ def show():
                 st.write(f"Frequência: {m[8]}")
                 st.write(f"Rendimento: {m[9]}")
 
-                st.markdown("**⚙️ Características Construtivas**")
-                st.write(f"Número de Polos: {polos}")
-                st.write(f"Carcaça: {m[11]}")
-                st.write(f"Montagem: {m[12]}")
-                st.write(f"Classe de Isolação: {m[13]}")
-                st.write(f"Grau de Proteção (IP): {m[14]}")
-                st.write(f"Regime de Serviço: {m[15]}")
-                st.write(f"Fator de Serviço: {m[16]}")
-                st.write(f"Classe de Temperatura: {m[17]}")
-                st.write(f"Altitude Máx. de Operação: {m[18]}")
-
     # ===============================
-    # Ações após o loop
+    # Executa ações **fora do loop**
     # ===============================
     if st.session_state.motor_para_excluir:
         excluir_motor(st.session_state.motor_para_excluir)
         st.success(f"Motor ID {st.session_state.motor_para_excluir} excluído com sucesso.")
         st.session_state.motor_para_excluir = None
+        st.experimental_rerun()
+
+    if st.session_state.abrir_edit:
+        st.session_state.pagina = "edit"
+        st.session_state.abrir_edit = False
         st.experimental_rerun()
