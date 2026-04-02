@@ -1,6 +1,7 @@
 import streamlit as st
 import sqlite3
 import os
+import importlib
 
 # ------------------------------
 # Conexão com banco
@@ -90,14 +91,24 @@ def excluir_motor(id_motor):
 def show():
     st.title("🔍 Consulta de Motores Cadastrados")
 
-    # Cria tabela se não existir
     criar_tabela()
 
-    # Inicializa variáveis de sessão
+    # Inicializa sessão
     if "motor_editando" not in st.session_state:
         st.session_state.motor_editando = None
-    if "motor_para_excluir" not in st.session_state:
-        st.session_state.motor_para_excluir = None
+    if "abrir_edit" not in st.session_state:
+        st.session_state.abrir_edit = False
+
+    # Se estiver em modo edição, chama a página edit diretamente
+    if st.session_state.abrir_edit and st.session_state.motor_editando:
+        edit_module = importlib.import_module("page.edit")
+        edit_module.show()
+        # Botão para fechar edição
+        if st.button("🔙 Fechar Edição"):
+            st.session_state.abrir_edit = False
+            st.session_state.motor_editando = None
+            st.experimental_rerun()
+        return
 
     motores = listar_motores()
     if not motores:
@@ -105,9 +116,6 @@ def show():
         return
 
     st.subheader("📋 Lista de Motores")
-
-    editar_flag = False
-    excluir_flag = None
 
     for m in motores:
         id_motor = m[0]
@@ -133,31 +141,20 @@ def show():
         with st.expander(titulo_expander):
             col1, col2 = st.columns(2)
 
-            # Botão editar
+            # Botão Editar
             with col1:
                 if st.button("✏️ Editar", key=f"editar_{id_motor}"):
-                    st.session_state.motor_editando = {
-                        "id": m[0], "marca": m[1], "modelo": m[2], "fabricante": m[3],
-                        "potencia": m[4], "tensao": m[5], "corrente": m[6], "rpm": m[7],
-                        "frequencia": m[8], "rendimento": m[9], "polos": m[10],
-                        "carcaca": m[11], "montagem": m[12], "isolacao": m[13],
-                        "ip": m[14], "regime": m[15], "fator_servico": m[16],
-                        "temperatura": m[17], "altitude": m[18], "rolamento_d": m[19],
-                        "rolamento_t": m[20], "eixo_diametro": m[21], "comprimento_eixo": m[22],
-                        "peso": m[23], "ventilacao": m[24], "tipo_enrolamento": m[25],
-                        "passo_bobina": m[26], "numero_ranhuras": m[27], "fios_paralelos": m[28],
-                        "diametro_fio": m[29], "tipo_fio": m[30], "ligacao": m[31],
-                        "esquema": m[32], "resistencia": m[33], "diametro_interno": m[34],
-                        "diametro_externo": m[35], "comprimento_pacote": m[36],
-                        "material_nucleo": m[37], "tipo_chapa": m[38], "empilhamento": m[39],
-                        "observacoes": m[40], "origem_calculo": m[41]
-                    }
-                    editar_flag = True
+                    # Seta motor para edição e abre modo edit
+                    st.session_state.motor_editando = {i: m[i] for i in range(len(m))}
+                    st.session_state.abrir_edit = True
+                    st.experimental_rerun()
 
-            # Botão excluir
+            # Botão Excluir
             with col2:
                 if st.button("🗑️ Excluir", key=f"excluir_{id_motor}"):
-                    excluir_flag = id_motor
+                    excluir_motor(id_motor)
+                    st.success(f"Motor ID {id_motor} excluído com sucesso.")
+                    st.experimental_rerun()
 
             # Detalhes do motor
             with st.expander("ℹ️ Ver todos os detalhes do motor"):
@@ -170,15 +167,3 @@ def show():
                 st.write(f"RPM: {rpm}")
                 st.write(f"Frequência: {m[8]}")
                 st.write(f"Rendimento: {m[9]}")
-
-    # ------------------------------
-    # Executa ações fora do loop
-    # ------------------------------
-    if excluir_flag:
-        excluir_motor(excluir_flag)
-        st.success(f"Motor ID {excluir_flag} excluído com sucesso.")
-        st.experimental_rerun()
-
-    if editar_flag:
-        st.session_state.pagina = "edit"
-        st.experimental_rerun()
