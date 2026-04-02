@@ -1,173 +1,268 @@
 import streamlit as st
-from services.database import listar_motores, excluir_motor
+import sqlite3
+import os
+from datetime import datetime
 
 # ===============================
-# CAMPOS IMPORTANTES (TOPO)
+# FUNÇÃO PARA CONECTAR AO BANCO
 # ===============================
-CAMPOS_PRINCIPAIS = [
-    "marca",
-    "modelo",
-    "potencia",      # CV
-    "corrente",      # AMP
-    "tensao",
-    "polos",
-    "rpm",
-    "isolacao",
-    "amp_teste"
-]
+def get_connection():
+    os.makedirs("data", exist_ok=True)
+    db_path = "data/calculos.db"
+    return sqlite3.connect(db_path)
 
 # ===============================
-# MOSTRAR MOTOR
+# FUNÇÃO PARA SALVAR MOTOR
 # ===============================
-def mostrar_motor(motor):
+def salvar_motor(motor):
+    conn = get_connection()
+    cursor = conn.cursor()
 
-    titulo = f"{motor.get('marca','')} {motor.get('modelo','')}".strip()
+    # Criar tabela se não existir
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS motores (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        marca TEXT,
+        modelo TEXT,
+        fabricante TEXT,
+        potencia TEXT,
+        tensao TEXT,
+        corrente TEXT,
+        rpm TEXT,
+        frequencia TEXT,
+        rendimento TEXT,
+        polos TEXT,
+        carcaca TEXT,
+        montagem TEXT,
+        isolacao TEXT,
+        ip TEXT,
+        regime TEXT,
+        fator_servico TEXT,
+        temperatura TEXT,
+        altitude TEXT,
+        rolamento_d TEXT,
+        rolamento_t TEXT,
+        eixo_diametro TEXT,
+        comprimento_eixo TEXT,
+        peso TEXT,
+        ventilacao TEXT,
+        tipo_enrolamento TEXT,
+        passo_bobina TEXT,
+        numero_ranhuras TEXT,
+        fios_paralelos TEXT,
+        diametro_fio TEXT,
+        tipo_fio TEXT,
+        ligacao TEXT,
+        esquema TEXT,
+        resistencia TEXT,
+        diametro_interno TEXT,
+        diametro_externo TEXT,
+        comprimento_pacote TEXT,
+        material_nucleo TEXT,
+        tipo_chapa TEXT,
+        empilhamento TEXT,
+        observacoes TEXT,
+        origem_calculo TEXT,
+        data_cadastro TEXT
+    )
+    """)
 
-    if not titulo:
-        titulo = f"Motor #{motor['id']}"
+    # Adicionar data de cadastro
+    motor["data_cadastro"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    with st.expander(f"🔧 {titulo}", expanded=False):
+    # Inserir motor
+    cursor.execute("""
+    INSERT INTO motores (
+        marca, modelo, fabricante, potencia, tensao, corrente, rpm, frequencia, rendimento,
+        polos, carcaca, montagem, isolacao, ip, regime, fator_servico, temperatura, altitude,
+        rolamento_d, rolamento_t, eixo_diametro, comprimento_eixo, peso, ventilacao,
+        tipo_enrolamento, passo_bobina, numero_ranhuras, fios_paralelos, diametro_fio, tipo_fio,
+        ligacao, esquema, resistencia, diametro_interno, diametro_externo, comprimento_pacote,
+        material_nucleo, tipo_chapa, empilhamento, observacoes, origem_calculo, data_cadastro
+    ) VALUES (
+        :marca, :modelo, :fabricante, :potencia, :tensao, :corrente, :rpm, :frequencia, :rendimento,
+        :polos, :carcaca, :montagem, :isolacao, :ip, :regime, :fator_servico, :temperatura, :altitude,
+        :rolamento_d, :rolamento_t, :eixo_diametro, :comprimento_eixo, :peso, :ventilacao,
+        :tipo_enrolamento, :passo_bobina, :numero_ranhuras, :fios_paralelos, :diametro_fio, :tipo_fio,
+        :ligacao, :esquema, :resistencia, :diametro_interno, :diametro_externo, :comprimento_pacote,
+        :material_nucleo, :tipo_chapa, :empilhamento, :observacoes, :origem_calculo, :data_cadastro
+    )
+    """, motor)
 
-        # -------- PRINCIPAIS --------
-        st.subheader("📌 Informações principais")
-
-        col1, col2, col3, col4 = st.columns(4)
-
-        dados = {
-            "Marca": motor.get("marca"),
-            "Modelo": motor.get("modelo"),
-            "CV": motor.get("potencia"),
-            "AMP": motor.get("corrente"),
-            "Tensão": motor.get("tensao"),
-            "Polos": motor.get("polos"),
-            "RPM": motor.get("rpm"),
-            "Isol": motor.get("isolacao"),
-            "Amp Teste": motor.get("amp_teste")
-        }
-
-        for i, (label, valor) in enumerate(dados.items()):
-            if valor:
-                col = [col1, col2, col3, col4][i % 4]
-                with col:
-                    st.metric(label=label, value=valor)
-
-        # -------- DETALHES (PREENCHIDOS) --------
-        with st.expander("⬇️ Ver dados preenchidos"):
-
-            for chave, valor in motor.items():
-
-                if chave in CAMPOS_PRINCIPAIS or chave == "id":
-                    continue
-
-                if valor:
-                    st.write(f"**{chave.replace('_',' ').capitalize()}:** {valor}")
-
-        # -------- FICHA COMPLETA (NOVO 🔥) --------
-        with st.expander("📋 Ver ficha completa (tudo)"):
-
-            for chave, valor in motor.items():
-
-                if chave == "id":
-                    continue
-
-                if valor:
-                    st.write(f"**{chave.replace('_',' ').capitalize()}:** {valor}")
-                else:
-                    st.write(f"**{chave.replace('_',' ').capitalize()}:** N/A")
-
-            st.divider()
-
-            # -------- METADADOS (NOVO 🔥) --------
-            st.subheader("🧾 Informações do registro")
-
-            data = motor.get("data_cadastro", "N/A")
-            usuario = motor.get("usuario", "N/A")
-            historico = motor.get("historico_edicao", [])
-
-            st.write(f"📅 **Data de cadastro:** {data}")
-            st.write(f"👤 **Cadastrado por:** {usuario}")
-
-            st.write("🔁 **Histórico de edição:**")
-
-            if historico:
-                for item in historico:
-                    st.write(f"- {item}")
-            else:
-                st.write("N/A")
-
-        # -------- AÇÕES --------
-        st.divider()
-        col1, col2, col3 = st.columns(3)
-
-        # EDITAR
-        with col1:
-            if st.button("✏️ Editar", key=f"edit_{motor['id']}"):
-                st.session_state["motor_id"] = motor["id"]
-                st.session_state["pagina"] = "editar"
-                st.rerun()
-
-        # EXCLUIR
-        with col2:
-            if st.button("🗑️ Excluir", key=f"del_{motor['id']}"):
-                excluir_motor(motor["id"])
-                st.success("Motor excluído!")
-                st.rerun()
-
-        # DUPLICAR
-        with col3:
-            if st.button("📄 Duplicar", key=f"dup_{motor['id']}"):
-                st.session_state["motor_duplicar"] = motor
-                st.session_state["pagina"] = "cadastro"
-                st.rerun()
-
+    conn.commit()
+    conn.close()
 
 # ===============================
-# PAGE SHOW
+# FUNÇÃO PARA LISTAR MOTORES
+# ===============================
+def listar_motores():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, marca, modelo, fabricante, data_cadastro FROM motores ORDER BY id DESC")
+    motores = cursor.fetchall()
+    conn.close()
+    return motores
+
+# ===============================
+# CADASTRO COMPLETO DE MOTOR NO STREAMLIT
 # ===============================
 def show():
+    st.title("⚙️ Cadastro Completo de Motor")
 
-    st.title("🔎 Consulta de Motores")
+    with st.form("cadastro_motor"):
 
-    # -------- FILTROS --------
-    col1, col2, col3 = st.columns(3)
+        st.subheader("📌 Dados Gerais")
+        col1, col2, col3 = st.columns(3)
 
-    with col1:
-        busca = st.text_input("🔍 Pesquisa geral")
+        with col1:
+            marca = st.text_input("Marca")
+            modelo = st.text_input("Modelo")
+            fabricante = st.text_input("Fabricante")
 
-    with col2:
-        filtro_marca = st.text_input("Filtrar por marca")
+        with col2:
+            potencia = st.text_input("Potência (CV/kW)")
+            tensao = st.text_input("Tensão (V)")
+            corrente = st.text_input("Corrente (A)")
 
-    with col3:
-        filtro_potencia = st.text_input("Filtrar por potência")
+        with col3:
+            rpm = st.text_input("RPM")
+            frequencia = st.text_input("Frequência (Hz)")
+            rendimento = st.text_input("Rendimento (%)")
 
+        st.divider()
+        st.subheader("⚙️ Características Construtivas")
+        col4, col5, col6 = st.columns(3)
+
+        with col4:
+            polos = st.text_input("Número de Polos")
+            carcaca = st.text_input("Carcaça")
+            montagem = st.text_input("Tipo de Montagem")
+
+        with col5:
+            isolacao = st.text_input("Classe de Isolação")
+            ip = st.text_input("Grau de Proteção (IP)")
+            regime = st.text_input("Regime de Serviço")
+
+        with col6:
+            fator_servico = st.text_input("Fator de Serviço")
+            temperatura = st.text_input("Classe de Temperatura")
+            altitude = st.text_input("Altitude Máx. de Operação")
+
+        st.divider()
+        st.subheader("🔩 Rolamentos e Mecânica")
+        col7, col8 = st.columns(2)
+
+        with col7:
+            rolamento_d = st.text_input("Rolamento Dianteiro")
+            eixo_diametro = st.text_input("Diâmetro do Eixo (mm)")
+            comprimento_eixo = st.text_input("Comprimento do Eixo (mm)")
+
+        with col8:
+            rolamento_t = st.text_input("Rolamento Traseiro")
+            peso = st.text_input("Peso (kg)")
+            ventilacao = st.text_input("Tipo de Ventilação")
+
+        st.divider()
+        st.subheader("⚡ Dados Elétricos do Enrolamento")
+        col9, col10, col11 = st.columns(3)
+
+        with col9:
+            tipo_enrolamento = st.text_input("Tipo de Enrolamento")
+            passo_bobina = st.text_input("Passo da Bobina")
+            numero_ranhuras = st.text_input("Número de Ranhuras")
+
+        with col10:
+            fios_paralelos = st.text_input("Fios em Paralelo")
+            diametro_fio = st.text_input("Diâmetro do Fio (mm)")
+            tipo_fio = st.text_input("Tipo de Fio (Esmaltado, etc)")
+
+        with col11:
+            ligacao = st.selectbox("Ligação", ["Estrela", "Triângulo", "Série", "Paralelo"])
+            esquema = st.text_input("Esquema de Ligação")
+            resistencia = st.text_input("Resistência (Ω)")
+
+        st.divider()
+        st.subheader("🧲 Dados do Induzido / Estator")
+        col12, col13 = st.columns(2)
+
+        with col12:
+            diametro_interno = st.text_input("Diâmetro Interno do Estator (mm)")
+            diametro_externo = st.text_input("Diâmetro Externo (mm)")
+            comprimento_pacote = st.text_input("Comprimento do Pacote (mm)")
+
+        with col13:
+            material_nucleo = st.text_input("Material do Núcleo")
+            tipo_chapa = st.text_input("Tipo de Chapa")
+            empilhamento = st.text_input("Empilhamento (mm)")
+
+        st.divider()
+        st.subheader("📝 Informações Adicionais")
+        observacoes = st.text_area("Observações Gerais")
+
+        origem = st.selectbox(
+            "Origem do cálculo",
+            ["União", "Rebobinador", "Próprio"]
+        )
+
+        salvar = st.form_submit_button("💾 Salvar Motor")
+
+    if salvar:
+        motor = {
+            "marca": marca,
+            "modelo": modelo,
+            "fabricante": fabricante,
+            "potencia": potencia,
+            "tensao": tensao,
+            "corrente": corrente,
+            "rpm": rpm,
+            "frequencia": frequencia,
+            "rendimento": rendimento,
+            "polos": polos,
+            "carcaca": carcaca,
+            "montagem": montagem,
+            "isolacao": isolacao,
+            "ip": ip,
+            "regime": regime,
+            "fator_servico": fator_servico,
+            "temperatura": temperatura,
+            "altitude": altitude,
+            "rolamento_d": rolamento_d,
+            "rolamento_t": rolamento_t,
+            "eixo_diametro": eixo_diametro,
+            "comprimento_eixo": comprimento_eixo,
+            "peso": peso,
+            "ventilacao": ventilacao,
+            "tipo_enrolamento": tipo_enrolamento,
+            "passo_bobina": passo_bobina,
+            "numero_ranhuras": numero_ranhuras,
+            "fios_paralelos": fios_paralelos,
+            "diametro_fio": diametro_fio,
+            "tipo_fio": tipo_fio,
+            "ligacao": ligacao,
+            "esquema": esquema,
+            "resistencia": resistencia,
+            "diametro_interno": diametro_interno,
+            "diametro_externo": diametro_externo,
+            "comprimento_pacote": comprimento_pacote,
+            "material_nucleo": material_nucleo,
+            "tipo_chapa": tipo_chapa,
+            "empilhamento": empilhamento,
+            "observacoes": observacoes,
+            "origem_calculo": origem
+        }
+
+        salvar_motor(motor)
+        st.success("✅ Motor salvo com sucesso em data/calculos.db!")
+
+    # ===============================
+    # MOSTRAR MOTORES CADASTRADOS
+    # ===============================
+    st.divider()
+    st.subheader("📋 Motores Cadastrados")
     motores = listar_motores()
-
-    # -------- FILTRO --------
-    if busca:
-        motores = [
-            m for m in motores
-            if busca.lower() in str(m).lower()
-        ]
-
-    if filtro_marca:
-        motores = [
-            m for m in motores
-            if filtro_marca.lower() in str(m.get("marca", "")).lower()
-        ]
-
-    if filtro_potencia:
-        motores = [
-            m for m in motores
-            if filtro_potencia.lower() in str(m.get("potencia", "")).lower()
-        ]
-
-    # -------- CONTADOR --------
-    st.caption(f"📊 {len(motores)} motor(es) encontrado(s)")
-
-    if not motores:
-        st.info("Nenhum motor encontrado.")
-        return
-
-    # -------- LISTAGEM --------
-    for motor in motores:
-        mostrar_motor(motor)
+    if motores:
+        for m in motores:
+            st.write(f"ID {m[0]} | Marca: {m[1]} | Modelo: {m[2]} | Fabricante: {m[3]} | Cadastrado em: {m[4]}")
+    else:
+        st.info("Nenhum motor cadastrado ainda.")
+        
