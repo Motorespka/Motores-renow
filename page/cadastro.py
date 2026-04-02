@@ -10,8 +10,9 @@ def salvar_motor(motor):
     # Garantir que a pasta data exista
     os.makedirs("data", exist_ok=True)
 
-    # Conectar ao banco na pasta data
-    conn = sqlite3.connect("data/calculos.db")
+    # Conectar ao banco de dados na pasta data
+    db_path = "data/calculos.db"
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     # Criar tabela se não existir
@@ -66,7 +67,7 @@ def salvar_motor(motor):
     # Adicionar data de cadastro automaticamente
     motor["data_cadastro"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # Inserir motor
+    # Inserir motor no banco
     cursor.execute("""
     INSERT INTO motores (
         marca, modelo, fabricante, potencia, tensao, corrente, rpm, frequencia, rendimento,
@@ -87,3 +88,39 @@ def salvar_motor(motor):
 
     conn.commit()
     conn.close()
+
+# ===============================
+# EXEMPLO DE USO NO STREAMLIT
+# ===============================
+def show():
+    st.title("⚙️ Cadastro Completo de Motor")
+
+    with st.form("cadastro_motor"):
+        marca = st.text_input("Marca")
+        modelo = st.text_input("Modelo")
+        carcaca = st.text_input("Carcaça")
+        polos = st.text_input("Número de Polos")
+        salvar = st.form_submit_button("💾 Salvar Motor")
+
+    if salvar:
+        motor = {
+            "marca": marca,
+            "modelo": modelo,
+            "carcaca": carcaca,
+            "polos": polos,
+            # preenchendo os campos restantes com vazio
+            "fabricante":"", "potencia":"", "tensao":"", "corrente":"",
+            "rpm":"", "frequencia":"", "rendimento":"",
+            "montagem":"", "isolacao":"", "ip":"", "regime":"",
+            "fator_servico":"", "temperatura":"", "altitude":"",
+            "rolamento_d":"", "rolamento_t":"", "eixo_diametro":"",
+            "comprimento_eixo":"", "peso":"", "ventilacao":"",
+            "tipo_enrolamento":"", "passo_bobina":"", "numero_ranhuras":"",
+            "fios_paralelos":"", "diametro_fio":"", "tipo_fio":"",
+            "ligacao":"", "esquema":"", "resistencia":"",
+            "diametro_interno":"", "diametro_externo":"", "comprimento_pacote":"",
+            "material_nucleo":"", "tipo_chapa":"", "empilhamento":"",
+            "observacoes":"", "origem_calculo":""
+        }
+        salvar_motor(motor)
+        st.success("✅ Motor salvo com sucesso no banco data/calculos.db!")
