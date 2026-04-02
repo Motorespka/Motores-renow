@@ -10,6 +10,65 @@ def get_connection():
     db_path = "data/calculos.db"
     return sqlite3.connect(db_path)
 
+# ------------------------------
+# Cria tabela caso não exista
+# ------------------------------
+def criar_tabela():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS motores (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        marca TEXT,
+        modelo TEXT,
+        fabricante TEXT,
+        potencia TEXT,
+        tensao TEXT,
+        corrente TEXT,
+        rpm TEXT,
+        frequencia TEXT,
+        rendimento TEXT,
+        polos TEXT,
+        carcaca TEXT,
+        montagem TEXT,
+        isolacao TEXT,
+        ip TEXT,
+        regime TEXT,
+        fator_servico TEXT,
+        temperatura TEXT,
+        altitude TEXT,
+        rolamento_d TEXT,
+        rolamento_t TEXT,
+        eixo_diametro TEXT,
+        comprimento_eixo TEXT,
+        peso TEXT,
+        ventilacao TEXT,
+        tipo_enrolamento TEXT,
+        passo_bobina TEXT,
+        numero_ranhuras TEXT,
+        fios_paralelos TEXT,
+        diametro_fio TEXT,
+        tipo_fio TEXT,
+        ligacao TEXT,
+        esquema TEXT,
+        resistencia TEXT,
+        diametro_interno TEXT,
+        diametro_externo TEXT,
+        comprimento_pacote TEXT,
+        material_nucleo TEXT,
+        tipo_chapa TEXT,
+        empilhamento TEXT,
+        observacoes TEXT,
+        origem_calculo TEXT,
+        data_cadastro TEXT
+    )
+    """)
+    conn.commit()
+    conn.close()
+
+# ------------------------------
+# Operações no banco
+# ------------------------------
 def listar_motores():
     conn = get_connection()
     cursor = conn.cursor()
@@ -31,6 +90,9 @@ def excluir_motor(id_motor):
 def show():
     st.title("🔍 Consulta de Motores Cadastrados")
 
+    # Cria tabela se não existir
+    criar_tabela()
+
     # Inicializa variáveis de sessão
     if "motor_editando" not in st.session_state:
         st.session_state.motor_editando = None
@@ -44,7 +106,7 @@ def show():
 
     st.subheader("📋 Lista de Motores")
 
-    editar_flag = None
+    editar_flag = False
     excluir_flag = None
 
     for m in motores:
@@ -71,12 +133,9 @@ def show():
         with st.expander(titulo_expander):
             col1, col2 = st.columns(2)
 
-            # ------------------------------
             # Botão editar
-            # ------------------------------
             with col1:
                 if st.button("✏️ Editar", key=f"editar_{id_motor}"):
-                    # Salva o motor na sessão para edição
                     st.session_state.motor_editando = {
                         "id": m[0], "marca": m[1], "modelo": m[2], "fabricante": m[3],
                         "potencia": m[4], "tensao": m[5], "corrente": m[6], "rpm": m[7],
@@ -93,18 +152,14 @@ def show():
                         "material_nucleo": m[37], "tipo_chapa": m[38], "empilhamento": m[39],
                         "observacoes": m[40], "origem_calculo": m[41]
                     }
-                    editar_flag = True  # sinal para rerun
+                    editar_flag = True
 
-            # ------------------------------
             # Botão excluir
-            # ------------------------------
             with col2:
                 if st.button("🗑️ Excluir", key=f"excluir_{id_motor}"):
                     excluir_flag = id_motor
 
-            # ------------------------------
             # Detalhes do motor
-            # ------------------------------
             with st.expander("ℹ️ Ver todos os detalhes do motor"):
                 st.write(f"Marca: {marca}")
                 st.write(f"Modelo: {modelo}")
@@ -117,7 +172,7 @@ def show():
                 st.write(f"Rendimento: {m[9]}")
 
     # ------------------------------
-    # Ações fora do loop
+    # Executa ações fora do loop
     # ------------------------------
     if excluir_flag:
         excluir_motor(excluir_flag)
@@ -125,5 +180,5 @@ def show():
         st.experimental_rerun()
 
     if editar_flag:
-        st.session_state.pagina = "edit"  # Muda para página de edição
+        st.session_state.pagina = "edit"
         st.experimental_rerun()
