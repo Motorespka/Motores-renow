@@ -2,17 +2,11 @@ import streamlit as st
 import sqlite3
 import os
 
-# ===============================
-# FUNÇÃO PARA CONECTAR AO BANCO
-# ===============================
 def get_connection():
     os.makedirs("data", exist_ok=True)
     db_path = "data/calculos.db"
     return sqlite3.connect(db_path)
 
-# ===============================
-# FUNÇÃO PARA LISTAR MOTORES
-# ===============================
 def listar_motores():
     conn = get_connection()
     cursor = conn.cursor()
@@ -21,9 +15,6 @@ def listar_motores():
     conn.close()
     return motores
 
-# ===============================
-# FUNÇÃO PARA EXCLUIR MOTOR
-# ===============================
 def excluir_motor(id_motor):
     conn = get_connection()
     cursor = conn.cursor()
@@ -31,19 +22,8 @@ def excluir_motor(id_motor):
     conn.commit()
     conn.close()
 
-# ===============================
-# ABA DE CONSULTA DE MOTORES
-# ===============================
 def show():
     st.title("🔍 Consulta de Motores Cadastrados")
-
-    # Flag para atualização da lista
-    if 'update_list' not in st.session_state:
-        st.session_state['update_list'] = False
-
-    # Se botão de excluir foi clicado, processar exclusão
-    if st.session_state['update_list']:
-        st.experimental_rerun()
 
     motores = listar_motores()
 
@@ -57,10 +37,10 @@ def show():
         id_motor = m[0]
         marca = m[1]
         modelo = m[2]
-        cv_kw = m[4] or "N/A"  # Potência
-        polos = m[10] or "N/A"  # Polos
+        cv_kw = m[4] or "N/A"
+        polos = m[10] or "N/A"
         rpm = m[7] or "N/A"
-        amp = m[6] or "N/A"  # Corrente
+        amp = m[6] or "N/A"
         tensao = m[5] or "N/A"
         data_cadastro = m[-1] or "N/A"
 
@@ -75,20 +55,17 @@ def show():
         )
 
         with st.expander(titulo_expander):
-
             col1, col2 = st.columns([1, 1])
+
             with col1:
-                if st.button("✏️ Editar", key=f"editar_{id_motor}"):
-                    # Redireciona para /edit passando o id via query params
-                    st.experimental_set_query_params(page="edit", id=id_motor)
-                    st.experimental_rerun()
+                # Link para editar - muda a página para /edit?id=<id_motor>
+                st.markdown(f"[✏️ Editar](#/edit?id={id_motor})")
+
             with col2:
                 if st.button("🗑️ Excluir", key=f"excluir_{id_motor}"):
                     if st.confirm(f"Você tem certeza que deseja excluir o motor ID {id_motor}?"):
                         excluir_motor(id_motor)
                         st.success(f"Motor ID {id_motor} excluído com sucesso.")
-                        # Atualiza a lista removendo o motor excluído
-                        st.session_state['update_list'] = True
                         st.experimental_rerun()
 
             with st.expander("ℹ️ Ver todos os detalhes do motor"):
