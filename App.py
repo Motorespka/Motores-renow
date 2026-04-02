@@ -34,10 +34,10 @@ def show():
     # Inicializa variáveis de sessão
     if "motor_editando" not in st.session_state:
         st.session_state.motor_editando = None
-    if "acao_motor" not in st.session_state:
-        st.session_state.acao_motor = None
     if "motor_para_excluir" not in st.session_state:
         st.session_state.motor_para_excluir = None
+    if "abrir_edit" not in st.session_state:
+        st.session_state.abrir_edit = False
 
     motores = listar_motores()
     if not motores:
@@ -45,6 +45,10 @@ def show():
         return
 
     st.subheader("📋 Lista de Motores")
+
+    # Variáveis temporárias para sinalizar rerun
+    editar_flag = None
+    excluir_flag = None
 
     for m in motores:
         id_motor = m[0]
@@ -70,9 +74,7 @@ def show():
         with st.expander(titulo_expander):
             col1, col2 = st.columns(2)
 
-            # --------------------------
-            # Botão Editar
-            # --------------------------
+            # Botão editar
             with col1:
                 if st.button("✏️ Editar", key=f"editar_{id_motor}"):
                     st.session_state.motor_editando = {
@@ -91,20 +93,15 @@ def show():
                         "material_nucleo": m[37], "tipo_chapa": m[38], "empilhamento": m[39],
                         "observacoes": m[40], "origem_calculo": m[41]
                     }
-                    st.session_state.acao_motor = "editar"
+                    editar_flag = True  # sinal para rerun
 
-            # --------------------------
-            # Botão Excluir
-            # --------------------------
+            # Botão excluir
             with col2:
                 if st.button("🗑️ Excluir", key=f"excluir_{id_motor}"):
-                    st.session_state.acao_motor = f"excluir_{id_motor}"
+                    excluir_flag = id_motor  # sinal para excluir
 
-            # --------------------------
             # Detalhes do motor
-            # --------------------------
             with st.expander("ℹ️ Ver todos os detalhes do motor"):
-                st.markdown("**📌 Dados Gerais**")
                 st.write(f"Marca: {marca}")
                 st.write(f"Modelo: {modelo}")
                 st.write(f"Fabricante: {m[3]}")
@@ -115,61 +112,14 @@ def show():
                 st.write(f"Frequência: {m[8]}")
                 st.write(f"Rendimento: {m[9]}")
 
-                st.markdown("**⚙️ Características Construtivas**")
-                st.write(f"Número de Polos: {polos}")
-                st.write(f"Carcaça: {m[11]}")
-                st.write(f"Montagem: {m[12]}")
-                st.write(f"Classe de Isolação: {m[13]}")
-                st.write(f"Grau de Proteção (IP): {m[14]}")
-                st.write(f"Regime de Serviço: {m[15]}")
-                st.write(f"Fator de Serviço: {m[16]}")
-                st.write(f"Classe de Temperatura: {m[17]}")
-                st.write(f"Altitude Máx. de Operação: {m[18]}")
-
-                st.markdown("**🔩 Rolamentos e Mecânica**")
-                st.write(f"Rolamento Dianteiro: {m[19]}")
-                st.write(f"Rolamento Traseiro: {m[20]}")
-                st.write(f"Diâmetro do Eixo: {m[21]}")
-                st.write(f"Comprimento do Eixo: {m[22]}")
-                st.write(f"Peso: {m[23]}")
-                st.write(f"Tipo de Ventilação: {m[24]}")
-
-                st.markdown("**⚡ Dados Elétricos do Enrolamento**")
-                st.write(f"Tipo de Enrolamento: {m[25]}")
-                st.write(f"Passo da Bobina: {m[26]}")
-                st.write(f"Número de Ranhuras: {m[27]}")
-                st.write(f"Fios em Paralelo: {m[28]}")
-                st.write(f"Diâmetro do Fio: {m[29]}")
-                st.write(f"Tipo de Fio: {m[30]}")
-                st.write(f"Ligação: {m[31]}")
-                st.write(f"Esquema de Ligação: {m[32]}")
-                st.write(f"Resistência: {m[33]}")
-
-                st.markdown("**🧲 Dados do Induzido / Estator**")
-                st.write(f"Diâmetro Interno: {m[34]}")
-                st.write(f"Diâmetro Externo: {m[35]}")
-                st.write(f"Comprimento do Pacote: {m[36]}")
-                st.write(f"Material do Núcleo: {m[37]}")
-                st.write(f"Tipo de Chapa: {m[38]}")
-                st.write(f"Empilhamento: {m[39]}")
-
-                st.markdown("**📝 Informações Adicionais**")
-                st.write(f"Observações: {m[40]}")
-                st.write(f"Origem do Cálculo: {m[41]}")
-                st.write(f"Data de Cadastro: {data_cadastro}")
-
     # ------------------------------
     # Executa ações fora do loop
     # ------------------------------
-    if st.session_state.acao_motor:
-        if st.session_state.acao_motor.startswith("excluir_"):
-            id_excluir = int(st.session_state.acao_motor.replace("excluir_", ""))
-            excluir_motor(id_excluir)
-            st.success(f"Motor ID {id_excluir} excluído com sucesso.")
-            st.session_state.acao_motor = None
-            st.experimental_rerun()
+    if excluir_flag:
+        excluir_motor(excluir_flag)
+        st.success(f"Motor ID {excluir_flag} excluído com sucesso.")
+        st.experimental_rerun()
 
-        elif st.session_state.acao_motor == "editar":
-            st.session_state.pagina = "edit"
-            st.session_state.acao_motor = None
-            st.experimental_rerun()
+    if editar_flag:
+        st.session_state.pagina = "edit"
+        st.experimental_rerun()
