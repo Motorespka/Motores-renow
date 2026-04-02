@@ -99,11 +99,10 @@ def show():
     if "abrir_edit" not in st.session_state:
         st.session_state.abrir_edit = False
 
-    # Se estiver em modo edição, chama a página edit diretamente
+    # Modo edição temporário
     if st.session_state.abrir_edit and st.session_state.motor_editando:
         edit_module = importlib.import_module("page.edit")
         edit_module.show()
-        # Botão para fechar edição
         if st.button("🔙 Fechar Edição"):
             st.session_state.abrir_edit = False
             st.session_state.motor_editando = None
@@ -119,8 +118,8 @@ def show():
 
     for m in motores:
         id_motor = m[0]
-        marca = m[1]
-        modelo = m[2]
+        marca = m[1] or "N/A"
+        modelo = m[2] or "N/A"
         cv_kw = m[4] or "N/A"
         polos = m[10] or "N/A"
         rpm = m[7] or "N/A"
@@ -144,7 +143,6 @@ def show():
             # Botão Editar
             with col1:
                 if st.button("✏️ Editar", key=f"editar_{id_motor}"):
-                    # Seta motor para edição e abre modo edit
                     st.session_state.motor_editando = {i: m[i] for i in range(len(m))}
                     st.session_state.abrir_edit = True
                     st.experimental_rerun()
@@ -156,14 +154,60 @@ def show():
                     st.success(f"Motor ID {id_motor} excluído com sucesso.")
                     st.experimental_rerun()
 
-            # Detalhes do motor
-            with st.expander("ℹ️ Ver todos os detalhes do motor"):
-                st.write(f"Marca: {marca}")
-                st.write(f"Modelo: {modelo}")
-                st.write(f"Fabricante: {m[3]}")
-                st.write(f"Potência: {cv_kw}")
-                st.write(f"Tensão: {tensao}")
-                st.write(f"Corrente: {amp}")
-                st.write(f"RPM: {rpm}")
-                st.write(f"Frequência: {m[8]}")
-                st.write(f"Rendimento: {m[9]}")
+            # ------------------------------
+            # Dados completos do motor
+            # ------------------------------
+            st.markdown("## ⚙️ Cadastro Completo de Motor")
+
+            st.markdown("### 📌 Dados Gerais")
+            st.write(f"Marca: {m[1]}")
+            st.write(f"Modelo: {m[2]}")
+            st.write(f"Fabricante: {m[3]}")
+            st.write(f"Potência (CV/kW): {m[4]}")
+            st.write(f"Tensão (V): {m[5]}")
+            st.write(f"Corrente (A): {m[6]}")
+            st.write(f"RPM: {m[7]}")
+            st.write(f"Frequência (Hz): {m[8]}")
+            st.write(f"Rendimento (%): {m[9]}")
+
+            st.markdown("### ⚙️ Características Construtivas")
+            st.write(f"Número de Polos: {m[10]}")
+            st.write(f"Carcaça: {m[11]}")
+            st.write(f"Tipo de Montagem: {m[12]}")
+            st.write(f"Classe de Isolação: {m[13]}")
+            st.write(f"Grau de Proteção (IP): {m[14]}")
+            st.write(f"Regime de Serviço: {m[15]}")
+            st.write(f"Fator de Serviço: {m[16]}")
+            st.write(f"Classe de Temperatura: {m[17]}")
+            st.write(f"Altitude Máx. de Operação: {m[18]}")
+
+            st.markdown("### 🔩 Rolamentos e Mecânica")
+            st.write(f"Rolamento Dianteiro: {m[19]}")
+            st.write(f"Diâmetro do Eixo (mm): {m[21]}")
+            st.write(f"Comprimento do Eixo (mm): {m[22]}")
+            st.write(f"Rolamento Traseiro: {m[20]}")
+            st.write(f"Peso (kg): {m[23]}")
+            st.write(f"Tipo de Ventilação: {m[24]}")
+
+            st.markdown("### ⚡ Dados Elétricos do Enrolamento")
+            st.write(f"Tipo de Enrolamento: {m[25]}")
+            st.write(f"Passo da Bobina: {m[26]}")
+            st.write(f"Número de Ranhuras: {m[27]}")
+            st.write(f"Fios em Paralelo: {m[28]}")
+            st.write(f"Diâmetro do Fio (mm): {m[29]}")
+            st.write(f"Tipo de Fio: {m[30]}")
+            st.write(f"Ligação: {m[31]}")
+            st.write(f"Esquema de Ligação: {m[32]}")
+            st.write(f"Resistência (Ω): {m[33]}")
+
+            st.markdown("### 🧲 Dados do Induzido / Estator")
+            st.write(f"Diâmetro Interno do Estator (mm): {m[34]}")
+            st.write(f"Diâmetro Externo (mm): {m[35]}")
+            st.write(f"Comprimento do Pacote (mm): {m[36]}")
+            st.write(f"Material do Núcleo: {m[37]}")
+            st.write(f"Tipo de Chapa: {m[38]}")
+            st.write(f"Empilhamento (mm): {m[39]}")
+
+            st.markdown("### 📝 Informações Adicionais")
+            st.write(f"Observações Gerais: {m[40]}")
+            st.write(f"Origem do cálculo: {m[41]}")
