@@ -22,10 +22,28 @@ def listar_motores():
     return motores
 
 # ===============================
+# FUNÇÃO PARA EXCLUIR MOTOR
+# ===============================
+def excluir_motor(id_motor):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM motores WHERE id = ?", (id_motor,))
+    conn.commit()
+    conn.close()
+
+# ===============================
 # ABA DE CONSULTA DE MOTORES
 # ===============================
 def show():
     st.title("🔍 Consulta de Motores Cadastrados")
+
+    # Flag para atualização da lista
+    if 'update_list' not in st.session_state:
+        st.session_state['update_list'] = False
+
+    # Se botão de excluir foi clicado, processar exclusão
+    if st.session_state['update_list']:
+        st.experimental_rerun()
 
     motores = listar_motores()
 
@@ -34,6 +52,7 @@ def show():
         return
 
     st.subheader("📋 Lista de Motores")
+
     for m in motores:
         id_motor = m[0]
         marca = m[1]
@@ -45,7 +64,6 @@ def show():
         tensao = m[5] or "N/A"
         data_cadastro = m[-1] or "N/A"
 
-        # Expander resumido com informações principais (mais espaçado e organizado)
         titulo_expander = (
             f"🆔 ID: {id_motor}     "
             f"⚡ Potência: {cv_kw}     "
@@ -57,6 +75,22 @@ def show():
         )
 
         with st.expander(titulo_expander):
+
+            col1, col2 = st.columns([1, 1])
+            with col1:
+                if st.button("✏️ Editar", key=f"editar_{id_motor}"):
+                    # Redireciona para /edit passando o id via query params
+                    st.experimental_set_query_params(page="edit", id=id_motor)
+                    st.experimental_rerun()
+            with col2:
+                if st.button("🗑️ Excluir", key=f"excluir_{id_motor}"):
+                    if st.confirm(f"Você tem certeza que deseja excluir o motor ID {id_motor}?"):
+                        excluir_motor(id_motor)
+                        st.success(f"Motor ID {id_motor} excluído com sucesso.")
+                        # Atualiza a lista removendo o motor excluído
+                        st.session_state['update_list'] = True
+                        st.experimental_rerun()
+
             with st.expander("ℹ️ Ver todos os detalhes do motor"):
                 st.markdown("**📌 Dados Gerais**")
                 st.write(f"Marca: {marca}")
