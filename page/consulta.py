@@ -118,8 +118,6 @@ def show():
 
     for m in motores:
         id_motor = m[0]
-        marca = m[1] or "N/A"
-        modelo = m[2] or "N/A"
         cv_kw = m[4] or "N/A"
         polos = m[10] or "N/A"
         rpm = m[7] or "N/A"
@@ -155,59 +153,76 @@ def show():
                     st.experimental_rerun()
 
             # ------------------------------
-            # Dados completos do motor
+            # Dados completos em colunas
             # ------------------------------
             st.markdown("## ⚙️ Cadastro Completo de Motor")
 
+            # 📌 Dados Gerais
             st.markdown("### 📌 Dados Gerais")
-            st.write(f"Marca: {m[1]}")
-            st.write(f"Modelo: {m[2]}")
-            st.write(f"Fabricante: {m[3]}")
-            st.write(f"Potência (CV/kW): {m[4]}")
-            st.write(f"Tensão (V): {m[5]}")
-            st.write(f"Corrente (A): {m[6]}")
-            st.write(f"RPM: {m[7]}")
-            st.write(f"Frequência (Hz): {m[8]}")
-            st.write(f"Rendimento (%): {m[9]}")
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.write(f"Marca: {m[1]}")
+                st.write(f"Modelo: {m[2]}")
+                st.write(f"Fabricante: {m[3]}")
+                st.write(f"Potência (CV/kW): {m[4]}")
+            with c2:
+                st.write(f"Tensão (V): {m[5]}")
+                st.write(f"Corrente (A): {m[6]}")
+                st.write(f"RPM: {m[7]}")
+                st.write(f"Frequência (Hz): {m[8]}")
+            with c3:
+                st.write(f"Rendimento (%): {m[9]}")
+                st.write(f"Número de Polos: {m[10]}")
+                st.write(f"Carcaça: {m[11]}")
+                st.write(f"Tipo de Montagem: {m[12]}")
 
+            # ⚙️ Características Construtivas
             st.markdown("### ⚙️ Características Construtivas")
-            st.write(f"Número de Polos: {m[10]}")
-            st.write(f"Carcaça: {m[11]}")
-            st.write(f"Tipo de Montagem: {m[12]}")
-            st.write(f"Classe de Isolação: {m[13]}")
-            st.write(f"Grau de Proteção (IP): {m[14]}")
-            st.write(f"Regime de Serviço: {m[15]}")
-            st.write(f"Fator de Serviço: {m[16]}")
-            st.write(f"Classe de Temperatura: {m[17]}")
-            st.write(f"Altitude Máx. de Operação: {m[18]}")
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.write(f"Classe de Isolação: {m[13]}")
+                st.write(f"Grau de Proteção (IP): {m[14]}")
+                st.write(f"Regime de Serviço: {m[15]}")
+            with c2:
+                st.write(f"Fator de Serviço: {m[16]}")
+                st.write(f"Classe de Temperatura: {m[17]}")
+                st.write(f"Altitude Máx. de Operação: {m[18]}")
+            with c3:
+                st.write(f"Rolamento Dianteiro: {m[19]}")
+                st.write(f"Rolamento Traseiro: {m[20]}")
+                st.write(f"Diâmetro do Eixo (mm): {m[21]}")
+                st.write(f"Comprimento do Eixo (mm): {m[22]}")
 
+            # 🔩 Rolamentos e Mecânica
             st.markdown("### 🔩 Rolamentos e Mecânica")
-            st.write(f"Rolamento Dianteiro: {m[19]}")
-            st.write(f"Diâmetro do Eixo (mm): {m[21]}")
-            st.write(f"Comprimento do Eixo (mm): {m[22]}")
-            st.write(f"Rolamento Traseiro: {m[20]}")
-            st.write(f"Peso (kg): {m[23]}")
-            st.write(f"Tipo de Ventilação: {m[24]}")
+            c1, c2 = st.columns(2)
+            with c1:
+                st.write(f"Peso (kg): {m[23]}")
+                st.write(f"Tipo de Ventilação: {m[24]}")
+            with c2:
+                st.write(f"Tipo de Enrolamento: {m[25]}")
+                st.write(f"Passo da Bobina: {m[26]}")
+                st.write(f"Número de Ranhuras: {m[27]}")
+                st.write(f"Fios em Paralelo: {m[28]}")
+                st.write(f"Diâmetro do Fio (mm): {m[29]}")
+                st.write(f"Tipo de Fio: {m[30]}")
+                st.write(f"Ligação: {m[31]}")
+                st.write(f"Esquema de Ligação: {m[32]}")
+                st.write(f"Resistência (Ω): {m[33]}")
 
-            st.markdown("### ⚡ Dados Elétricos do Enrolamento")
-            st.write(f"Tipo de Enrolamento: {m[25]}")
-            st.write(f"Passo da Bobina: {m[26]}")
-            st.write(f"Número de Ranhuras: {m[27]}")
-            st.write(f"Fios em Paralelo: {m[28]}")
-            st.write(f"Diâmetro do Fio (mm): {m[29]}")
-            st.write(f"Tipo de Fio: {m[30]}")
-            st.write(f"Ligação: {m[31]}")
-            st.write(f"Esquema de Ligação: {m[32]}")
-            st.write(f"Resistência (Ω): {m[33]}")
-
+            # 🧲 Dados do Induzido / Estator
             st.markdown("### 🧲 Dados do Induzido / Estator")
-            st.write(f"Diâmetro Interno do Estator (mm): {m[34]}")
-            st.write(f"Diâmetro Externo (mm): {m[35]}")
-            st.write(f"Comprimento do Pacote (mm): {m[36]}")
-            st.write(f"Material do Núcleo: {m[37]}")
-            st.write(f"Tipo de Chapa: {m[38]}")
-            st.write(f"Empilhamento (mm): {m[39]}")
+            c1, c2 = st.columns(2)
+            with c1:
+                st.write(f"Diâmetro Interno do Estator (mm): {m[34]}")
+                st.write(f"Diâmetro Externo (mm): {m[35]}")
+                st.write(f"Comprimento do Pacote (mm): {m[36]}")
+            with c2:
+                st.write(f"Material do Núcleo: {m[37]}")
+                st.write(f"Tipo de Chapa: {m[38]}")
+                st.write(f"Empilhamento (mm): {m[39]}")
 
+            # 📝 Informações Adicionais
             st.markdown("### 📝 Informações Adicionais")
             st.write(f"Observações Gerais: {m[40]}")
             st.write(f"Origem do cálculo: {m[41]}")
