@@ -38,17 +38,25 @@ def show():
         id_motor = m[0]
         marca = m[1]
         modelo = m[2]
-        cv_kw = m[4]  # Potência
-        polos = m[10]  # Polos
-        rpm = m[7]
-        amp = m[6]  # Corrente
-        tensao = m[5]
-        data_cadastro = m[-1]
+        cv_kw = m[4] or "N/A"  # Potência
+        polos = m[10] or "N/A"  # Polos
+        rpm = m[7] or "N/A"
+        amp = m[6] or "N/A"  # Corrente
+        tensao = m[5] or "N/A"
+        data_cadastro = m[-1] or "N/A"
 
-        # Expander resumido com informações principais
-        with st.expander(f"ID {id_motor} | {marca} {modelo} | CV: {cv_kw} | Polos: {polos} | RPM: {rpm} | Amp: {amp} | Tensão: {tensao} | Cadastrado: {data_cadastro}"):
-            
-            # Segunda expander para detalhes completos
+        # Expander resumido com informações principais (mais espaçado e organizado)
+        titulo_expander = (
+            f"🆔 ID: {id_motor}     "
+            f"⚡ Potência: {cv_kw}     "
+            f"🎯 Polos: {polos}     "
+            f"🔄 RPM: {rpm}     "
+            f"🔌 Amp: {amp}     "
+            f"🔋 Tensão: {tensao}     "
+            f"🗓️ Cadastrado: {data_cadastro}"
+        )
+
+        with st.expander(titulo_expander):
             with st.expander("ℹ️ Ver todos os detalhes do motor"):
                 st.markdown("**📌 Dados Gerais**")
                 st.write(f"Marca: {marca}")
@@ -102,4 +110,4 @@ def show():
                 st.markdown("**📝 Informações Adicionais**")
                 st.write(f"Observações: {m[40]}")
                 st.write(f"Origem do Cálculo: {m[41]}")
-                st.write(f"Data de Cadastro: {m[42]}")
+                st.write(f"Data de Cadastro: {data_cadastro}")
