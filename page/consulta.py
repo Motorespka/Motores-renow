@@ -2,11 +2,17 @@ import streamlit as st
 import sqlite3
 import os
 
+# ===============================
+# FUNÇÃO PARA CONECTAR AO BANCO
+# ===============================
 def get_connection():
     os.makedirs("data", exist_ok=True)
     db_path = "data/calculos.db"
     return sqlite3.connect(db_path)
 
+# ===============================
+# FUNÇÃO PARA LISTAR MOTORES
+# ===============================
 def listar_motores():
     conn = get_connection()
     cursor = conn.cursor()
@@ -15,6 +21,9 @@ def listar_motores():
     conn.close()
     return motores
 
+# ===============================
+# FUNÇÃO PARA EXCLUIR MOTOR
+# ===============================
 def excluir_motor(id_motor):
     conn = get_connection()
     cursor = conn.cursor()
@@ -22,6 +31,9 @@ def excluir_motor(id_motor):
     conn.commit()
     conn.close()
 
+# ===============================
+# ABA DE CONSULTA DE MOTORES
+# ===============================
 def show():
     st.title("🔍 Consulta de Motores Cadastrados")
 
@@ -55,12 +67,62 @@ def show():
         )
 
         with st.expander(titulo_expander):
+            # Colunas para Editar e Excluir
             col1, col2 = st.columns([1, 1])
 
+            # Botão Editar
             with col1:
-                # Link para editar - muda a página para /edit?id=<id_motor>
-                st.markdown(f"[✏️ Editar](#/edit?id={id_motor})")
+                if st.button("✏️ Editar", key=f"editar_{id_motor}"):
+                    # Cria dicionário do motor e envia para page/edit via session_state
+                    motor_data = {
+                        "id": m[0],
+                        "marca": m[1],
+                        "modelo": m[2],
+                        "fabricante": m[3],
+                        "potencia": m[4],
+                        "tensao": m[5],
+                        "corrente": m[6],
+                        "rpm": m[7],
+                        "frequencia": m[8],
+                        "rendimento": m[9],
+                        "polos": m[10],
+                        "carcaca": m[11],
+                        "montagem": m[12],
+                        "isolacao": m[13],
+                        "ip": m[14],
+                        "regime": m[15],
+                        "fator_servico": m[16],
+                        "temperatura": m[17],
+                        "altitude": m[18],
+                        "rolamento_d": m[19],
+                        "rolamento_t": m[20],
+                        "eixo_diametro": m[21],
+                        "comprimento_eixo": m[22],
+                        "peso": m[23],
+                        "ventilacao": m[24],
+                        "tipo_enrolamento": m[25],
+                        "passo_bobina": m[26],
+                        "numero_ranhuras": m[27],
+                        "fios_paralelos": m[28],
+                        "diametro_fio": m[29],
+                        "tipo_fio": m[30],
+                        "ligacao": m[31],
+                        "esquema": m[32],
+                        "resistencia": m[33],
+                        "diametro_interno": m[34],
+                        "diametro_externo": m[35],
+                        "comprimento_pacote": m[36],
+                        "material_nucleo": m[37],
+                        "tipo_chapa": m[38],
+                        "empilhamento": m[39],
+                        "observacoes": m[40],
+                        "origem_calculo": m[41],
+                    }
+                    st.session_state.motor_editando = motor_data
+                    st.session_state.pagina = "edit"
+                    st.experimental_rerun()
 
+            # Botão Excluir
             with col2:
                 if st.button("🗑️ Excluir", key=f"excluir_{id_motor}"):
                     if st.confirm(f"Você tem certeza que deseja excluir o motor ID {id_motor}?"):
@@ -68,6 +130,7 @@ def show():
                         st.success(f"Motor ID {id_motor} excluído com sucesso.")
                         st.experimental_rerun()
 
+            # Expander de detalhes completos
             with st.expander("ℹ️ Ver todos os detalhes do motor"):
                 st.markdown("**📌 Dados Gerais**")
                 st.write(f"Marca: {marca}")
