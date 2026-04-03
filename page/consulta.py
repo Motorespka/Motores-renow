@@ -259,8 +259,8 @@ def show(supabase):
             obs_texto = str(m.get("observacoes") or "").lower()
             modelo_completo = (str(m.get("modelo") or "") + str(m.get("fase") or "")).lower()
 
-            # Detecta se é monofásico para decidir se mostra o texto de rotação
-            is_monofasico = any(x in modelo_completo or x in ligacao_texto for x in ["mono", "monofasico", "1~", "1 f"])
+            # Detecta se é monofásico (Verifica modelo, ligação e também as observações)
+            is_monofasico = any(x in modelo_completo or x in ligacao_texto or x in obs_texto for x in ["mono", "monofasico", "1~", "1 f"])
 
             # --- LÓGICA DE EXIBIÇÃO ---
             if any(x in esquema_texto or x in ligacao_texto or x in obs_texto for x in ["6 cabos", "6 fios", "6 pontas"]) or "220/380" in str(m.get("tensao")):
