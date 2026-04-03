@@ -1,5 +1,6 @@
 import streamlit as st
 import importlib
+from core.calculadora import alertas_validacao_projeto  # Importando a inteligência
 
 # ------------------------------
 # Operações no banco (SUPABASE)
@@ -12,7 +13,6 @@ def listar_motores(supabase):
         st.error(f"Erro ao listar motores: {e}")
         return []
 
-
 def excluir_motor(supabase, id_motor):
     try:
         supabase.table("motores").delete().eq("id", id_motor).execute()
@@ -20,7 +20,6 @@ def excluir_motor(supabase, id_motor):
     except Exception as e:
         st.error(f"Erro ao excluir motor: {e}")
         return False
-
 
 # ------------------------------
 # Função principal
@@ -76,12 +75,16 @@ def show(supabase):
 
     st.caption(f"Exibindo {len(motores)} motor(es)")
 
-    # --- ESTILO VISUAL (leve, local) ---
+    # --- ESTILO VISUAL (Melhorado para os Alertas) ---
     st.markdown(
         """
         <style>
         [data-testid="stExpander"] { border: 1px solid #444; border-radius: 10px; margin-bottom: 10px; }
         .stMarkdown p { font-size: 14px; margin-bottom: 5px; }
+        .status-badge { padding: 2px 8px; border-radius: 5px; font-weight: bold; font-size: 12px; }
+        .status-red { background-color: #ff4b4b; color: white; }
+        .status-yellow { background-color: #ffa500; color: black; }
+        .status-green { background-color: #00c853; color: white; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -95,11 +98,22 @@ def show(supabase):
         rpm = m.get("rpm") or "---"
         modelo = m.get("modelo") or ""
 
-        # Título visível (contraste no tema claro/escuro). O expander fica só para "Ver detalhes".
+        # --- NOVA LÓGICA DE ALERTAS ---
+        lista_alertas = alertas_validacao_projeto(m)
+        
+        # Define a cor do selo principal
+        if any("Risco" in a or "alta" in a.lower() for a in lista_alertas):
+            status_html = '<span class="status-badge status-red">🔴 RISCO ALTO</span>'
+        elif lista_alertas:
+            status_html = '<span class="status-badge status-yellow">🟡 ATENÇÃO</span>'
+        else:
+            status_html = '<span class="status-badge status-green">🟢 DADOS OK</span>'
+
+        # Título visível com o Status
         st.markdown(
             f"""
             <div class="consulta-motor-resumo">
-              <div class="titulo">#{id_motor} · {marca} {modelo}</div>
+              <div class="titulo">#{id_motor} · {marca} {modelo} {status_html}</div>
               <div class="meta">{pot} · {rpm} RPM</div>
             </div>
             """,
@@ -107,6 +121,16 @@ def show(supabase):
         )
 
         with st.expander("Ver detalhes"):
+            # Exibe os alertas dentro do expander para o mecânico ler
+            if lista_alertas:
+                for alerta in lista_alertas:
+                    if "Risco" in alerta or "alta" in alerta.lower():
+                        st.error(alerta)
+                    else:
+                        st.warning(alerta)
+            else:
+                st.success("✅ Projeto validado: Densidade de corrente e espiras coerentes.")
+
             # Ações rápidas
             c1, c2 = st.columns(2)
             if c1.button("✏️ Editar", key=f"ed_{id_motor}", use_container_width=True):
@@ -156,7 +180,7 @@ def show(supabase):
 
             st.divider()
 
-            # --- SEÇÃO 3: BOBINAGEM (layout melhor, mesmos dados) ---
+            # --- SEÇÃO 3: BOBINAGEM ---
             st.markdown("#### 🌀 Bobinagem")
             col_b1, col_b2 = st.columns(2)
 
@@ -196,7 +220,7 @@ def show(supabase):
 
             st.divider()
 
-            # --- SEÇÃO 4: DADOS ELÉTRICOS E NÚCLEO (NOVO) ---
+            # --- SEÇÃO 4: DADOS ELÉTRICOS E NÚCLEO ---
             st.markdown("#### ⚡ Elétrica e Núcleo")
             ec1, ec2, ec3 = st.columns(3)
             with ec1:
