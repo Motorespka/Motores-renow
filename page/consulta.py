@@ -99,19 +99,21 @@ def show(supabase):
 
             st.divider()
 
-            # 🌀 Seção 2: Bobinagem (CAMPOS NOVOS)
+            # 🌀 Seção 2: Bobinagem (CORRIGIDO PARA AS CHAVES DO OCR)
             st.markdown("### 🌀 Detalhes do Enrolamento")
             col_princ, col_aux = st.columns(2)
             with col_princ:
                 st.info("**Enrolamento Principal**")
-                st.write(f"**Passo:** {m.get('passo_principal', 'N/A')}")
-                st.write(f"**Fio:** {m.get('fio_principal', 'N/A')}")
-                st.write(f"**Espiras:** {m.get('espira_principal', 'N/A')}")
+                # Lendo exatamente como o OCR enviou para o Supabase
+                st.write(f"**Passo:** {m.get('passo_princ', 'N/A')}")
+                st.write(f"**Fio:** {m.get('fio_princ', 'N/A')}")
+                st.write(f"**Espiras:** {m.get('espiras_princ', 'N/A')}")
             with col_aux:
                 st.warning("**Enrolamento Auxiliar**")
-                st.write(f"**Passo:** {m.get('passo_auxiliar', 'N/A')}")
-                st.write(f"**Fio:** {m.get('fio_auxiliar', 'N/A')}")
-                st.write(f"**Espiras:** {m.get('espira_auxiliar', 'N/A')}")
+                # Lendo exatamente como o OCR enviou para o Supabase
+                st.write(f"**Passo:** {m.get('passo_aux', 'N/A')}")
+                st.write(f"**Fio:** {m.get('fio_aux', 'N/A')}")
+                st.write(f"**Espiras:** {m.get('espiras_aux', 'N/A')}")
 
             st.divider()
 
