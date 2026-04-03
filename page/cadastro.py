@@ -6,10 +6,7 @@ from datetime import datetime
 # ===============================
 def salvar_motor_supabase(supabase, motor):
     try:
-        # Adiciona timestamp de cadastro
         motor["data_cadastro"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
-        # Insere na tabela 'motores'
         res = supabase.table("motores").insert(motor).execute()
         
         if res.data:
@@ -25,10 +22,8 @@ def salvar_motor_supabase(supabase, motor):
 # ===============================
 def show(supabase):
     st.title("⚙️ Cadastro de Motores - Moto-Renow")
-    st.markdown("Preencha os campos abaixo para registrar as especificações técnicas no banco de dados.")
     st.markdown("---")
 
-    # Início do Formulário
     with st.form("cadastro_motor", clear_on_submit=True):
         
         # --- SEÇÃO 1: IDENTIFICAÇÃO ---
@@ -73,13 +68,13 @@ def show(supabase):
         col_princ, col_aux = st.columns(2)
         
         with col_princ:
-            st.markdown("### **Enrolamento Principal**")
+            st.markdown("**Enrolamento Principal**")
             passo_principal = st.text_input("Passo Principal")
             fio_principal = st.text_input("Fio Principal")
             espira_principal = st.text_input("Espiras Principal")
 
         with col_aux:
-            st.markdown("### **Enrolamento Auxiliar**")
+            st.markdown("**Enrolamento Auxiliar**")
             passo_auxiliar = st.text_input("Passo Auxiliar")
             fio_auxiliar = st.text_input("Fio Auxiliar")
             espira_auxiliar = st.text_input("Espiras Auxiliar")
@@ -115,11 +110,9 @@ def show(supabase):
         st.markdown("<br>", unsafe_allow_html=True)
         salvar = st.form_submit_button("💾 SALVAR NO BANCO DE DADOS", use_container_width=True)
 
-    # Lógica ao clicar no botão Salvar
     if salvar:
-        # Montagem do dicionário para o Supabase
-        # As chaves aqui devem ser idênticas às colunas da sua tabela no Supabase
-        motor_data = {
+        # Mapeamento do Dicionário respeitando o seu novo SQL
+        motor = {
             "marca": marca, "modelo": modelo, "fabricante": fabricante,
             "potencia": potencia, "tensao": tensao, "corrente": corrente,
             "rpm": rpm, "frequencia": frequencia, "rendimento": rendimento,
@@ -127,15 +120,16 @@ def show(supabase):
             "isolacao": isolacao, "ip": ip, "regime": regime,
             "fator_servico": fator_servico, "peso": peso, "ventilacao": ventilacao,
             
-            # Campos de bobinagem
-            "passo_principal": passo_principal,
-            "fio_principal": fio_principal,
-            "espira_principal": espira_principal,
-            "passo_auxiliar": passo_auxiliar,
-            "fio_auxiliar": fio_auxiliar,
-            "espira_auxiliar": espira_auxiliar,
+            # Salvando nos dois nomes de campos (OCR e Manual) para garantir compatibilidade
+            "passo_principal": passo_principal, "passo_princ": passo_principal,
+            "fio_principal": fio_principal, "fio_princ": fio_principal,
+            "espira_principal": espira_principal, "espiras_princ": espira_principal,
             
-            # Dados técnicos e núcleo
+            "passo_auxiliar": passo_auxiliar, "passo_aux": passo_auxiliar,
+            "fio_auxiliar": fio_auxiliar, "fio_aux": fio_auxiliar,
+            "espira_auxiliar": espira_auxiliar, "espiras_aux": espira_auxiliar,
+            
+            # Restante dos dados técnicos
             "tipo_enrolamento": tipo_enrolamento, 
             "numero_ranhuras": numero_ranhuras,
             "resistencia": resistencia, 
@@ -149,8 +143,7 @@ def show(supabase):
             "origem_calculo": origem
         }
 
-        sucesso, mensagem = salvar_motor_supabase(supabase, motor_data)
-        
+        sucesso, mensagem = salvar_motor_supabase(supabase, motor)
         if sucesso:
             st.success(mensagem)
             st.balloons()
