@@ -259,42 +259,37 @@ def show(supabase):
             obs_texto = str(m.get("observacoes") or "").lower()
             modelo_completo = (str(m.get("modelo") or "") + str(m.get("fase") or "")).lower()
 
-            # Detecta se é monofásico (Verifica modelo, ligação e também as observações)
             is_monofasico = any(x in modelo_completo or x in ligacao_texto or x in obs_texto for x in ["mono", "monofasico", "1~", "1 f"])
 
-            # --- LÓGICA DE EXIBIÇÃO ---
+            # --- CORREÇÃO DE LÓGICA DE EXIBIÇÃO (Removendo identação fantasma) ---
             if any(x in esquema_texto or x in ligacao_texto or x in obs_texto for x in ["6 cabos", "6 fios", "6 pontas"]) or "220/380" in str(m.get("tensao")):
                 
-                texto_6_fios = """
-                    <b>🔌 FECHAMENTO 6 FIOS (PADRÃO):</b><br><br>
-                    <b>Triângulo (Δ) - Menor Tensão:</b> (1-6), (2-4), (3-5) ligados à rede.<br>
-                    <b>Estrela (Y) - Maior Tensão:</b> (1, 2, 3) à rede e (4-5-6) unidos entre si.<br>
-                """
+                texto_6_fios = (
+                    "<b>🔌 FECHAMENTO 6 FIOS (PADRÃO):</b><br><br>"
+                    "<b>Triângulo (Δ) - Menor Tensão:</b> (1-6), (2-4), (3-5) ligados à rede.<br>"
+                    "<b>Estrela (Y) - Maior Tensão:</b> (1, 2, 3) à rede e (4-5-6) unidos entre si."
+                )
                 
                 if is_monofasico:
-                    texto_6_fios += """
-                        <hr style="border: 0.5px solid #2979ff; margin: 10px 0;">
-                        <b>🔄 ROTAÇÃO (MONOFÁSICO 6 FIOS):</b><br>
-                        <b>Sentido Horário:</b> Ligar (1 e 5) em um cabo da rede, e (4 e 6) no outro cabo.<br>
-                        <b>Sentido Anti-Horário:</b> Ligar (1 e 6) em um cabo da rede, e (4 e 5) no outro cabo.
-                    """
+                    texto_6_fios += (
+                        "<hr style='border: 0.5px solid #2979ff; margin: 10px 0;'>"
+                        "<b>🔄 ROTAÇÃO (MONOFÁSICO 6 FIOS):</b><br>"
+                        "<b>Sentido Horário:</b> Ligar (1 e 5) em um cabo da rede, e (4 e 6) no outro cabo.<br>"
+                        "<b>Sentido Anti-Horário:</b> Ligar (1 e 6) em um cabo da rede, e (4 e 5) no outro cabo."
+                    )
                 
                 st.markdown(f'<div class="alerta-6-cabos">{texto_6_fios}</div>', unsafe_allow_html=True)
 
             elif any(x in esquema_texto or x in ligacao_texto or x in obs_texto for x in ["5 cabos", "5 fios", "5 pontas"]):
-                st.markdown(
-                    """
-                    <div class="alerta-5-cabos">
-                        <b>📌 ESQUEMA DE LIGAÇÃO 5 FIOS (SIMPLIFICADO):</b><br><br>
-                        <b>Como ligar na rede elétrica:</b><br>
-                        1. Pegue o <b>Fio 1</b> e ligue direto em um cabo da rede.<br>
-                        2. Junte o <b>Fio 4 e o Fio 5</b> e ligue no outro cabo da rede.<br>
-                        3. Junte o <b>Fio 2 e o Fio 3</b> e isole-os (eles ficam apenas unidos entre si).<br><br>
-                        <i>Nota: O fio 5 é o auxiliar. Caso precise inverter a rotação, a inversão deve ser feita internamente na bobina auxiliar.</i>
-                    </div>
-                    """, 
-                    unsafe_allow_html=True
+                texto_5_fios = (
+                    "<b>📌 ESQUEMA DE LIGAÇÃO 5 FIOS (SIMPLIFICADO):</b><br><br>"
+                    "<b>Como ligar na rede elétrica:</b><br>"
+                    "1. Pegue o <b>Fio 1</b> e ligue direto em um cabo da rede.<br>"
+                    "2. Junte o <b>Fio 4 e o Fio 5</b> e ligue no outro cabo da rede.<br>"
+                    "3. Junte o <b>Fio 2 e o Fio 3</b> e isole-os (unidos entre si).<br><br>"
+                    "<i>Nota: O fio 5 é o auxiliar. Para inverter rotação, inverta internamente.</i>"
                 )
+                st.markdown(f'<div class="alerta-5-cabos">{texto_5_fios}</div>', unsafe_allow_html=True)
 
             # 2. LIGAÇÕES DINÂMICAS POR TENSÃO
             tensao_val = str(m.get("tensao") or "").lower()
