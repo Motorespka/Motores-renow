@@ -44,7 +44,7 @@ def show(supabase):
         except Exception as e:
             st.error(f"Erro ao carregar edição: {e}")
 
-    # --- BARRA DE PESQUISA (MUITO FUNCIONAL) ---
+    # --- BARRA DE PESQUISA ---
     search_query = st.text_input("🔎 Pesquisar motor", placeholder="Ex: WEG, 12.5, 1750, 132M, 3:5:7...", help="Procure por marca, potência, RPM, carcaça ou qualquer detalhe.")
 
     motores_db = listar_motores(supabase)
@@ -83,8 +83,9 @@ def show(supabase):
         marca = m.get('marca') or "---"
         pot = m.get('potencia') or "---"
         rpm = m.get('rpm') or "---"
+        modelo = m.get('modelo') or ""
         
-        titulo_card = f"🆔 {id_motor} | {marca} | {pot} | {rpm} RPM"
+        titulo_card = f"🆔 {id_motor} | {marca} {modelo} | {pot} | {rpm} RPM"
 
         with st.expander(titulo_card):
             # Ações rápidas
@@ -100,48 +101,77 @@ def show(supabase):
 
             st.divider()
 
-            # --- DADOS DE PLACA ---
-            st.markdown("#### 📋 Dados de Placa")
-            col1, col2 = st.columns(2)
+            # --- SEÇÃO 1: IDENTIFICAÇÃO (EXTENDIDA) ---
+            st.markdown("#### 📋 Dados de Placa e Identificação")
+            col1, col2, col3 = st.columns(3)
             with col1:
-                st.markdown(f"**Marca:**\n{m.get('marca') or '---'}")
-                st.markdown(f"**Potência:**\n{m.get('potencia') or '---'}")
-                st.markdown(f"**Tensão:**\n{m.get('tensao') or '---'}")
+                st.markdown(f"**Marca:** {m.get('marca') or '---'}")
+                st.markdown(f"**Modelo:** {m.get('modelo') or '---'}")
+                st.markdown(f"**Fabricante:** {m.get('fabricante') or '---'}")
             with col2:
-                st.markdown(f"**RPM:**\n{m.get('rpm') or '---'}")
-                st.markdown(f"**Corrente:**\n{m.get('corrente') or '---'}")
-                st.markdown(f"**Freq:**\n{m.get('frequencia') or '---'}")
-
-            st.divider()
-
-            # --- BOBINAGEM ---
-            st.markdown("#### 🌀 Bobinagem")
-            st.info(f"**Principal** \n**Passo:** {m.get('passo_principal') or m.get('passo_princ') or '---'}  \n"
-                    f"**Fio:** {m.get('fio_principal') or m.get('fio_princ') or '---'}  \n"
-                    f"**Espiras:** {m.get('espira_principal') or m.get('espiras_princ') or '---'}")
-            
-            st.warning(f"**Auxiliar** \n**Passo:** {m.get('passo_auxiliar') or m.get('passo_aux') or '---'}  \n"
-                       f"**Fio:** {m.get('fio_auxiliar') or m.get('fio_aux') or '---'}  \n"
-                       f"**Espiras:** {m.get('espira_auxiliar') or m.get('espiras_aux') or '---'}")
-
-            st.divider()
-
-            # --- TÉCNICA E NÚCLEO ---
-            st.markdown("#### ⚙️ Técnica e Núcleo")
-            col3, col4 = st.columns(2)
+                st.markdown(f"**Potência:** {m.get('potencia') or '---'}")
+                st.markdown(f"**Tensão:** {m.get('tensao') or '---'}")
+                st.markdown(f"**Corrente:** {m.get('corrente') or '---'}")
             with col3:
-                st.markdown(f"**Carcaça:**\n{m.get('carcaca') or '---'}")
-                st.markdown(f"**IP:** {m.get('ip') or '---'}")
-                st.markdown(f"**Ranhuras:** {m.get('numero_ranhuras') or '---'}")
-            with col4:
-                st.markdown(f"**Polos:** {m.get('polos') or '---'}")
-                st.markdown(f"**Ligação:** {m.get('ligacao') or '---'}")
-                st.markdown(f"**Pacote:** {m.get('comprimento_pacote') or '---'}mm")
+                st.markdown(f"**RPM:** {m.get('rpm') or '---'}")
+                st.markdown(f"**Freq:** {m.get('frequencia') or '---'}")
+                st.markdown(f"**Rendimento:** {m.get('rendimento') or '---'}")
 
-            # --- OBSERVAÇÕES ---
+            st.divider()
+
+            # --- SEÇÃO 2: CONSTRUÇÃO E MECÂNICA ---
+            st.markdown("#### 🛠️ Construção e Mecânica")
+            mc1, mc2, mc3 = st.columns(3)
+            with mc1:
+                st.markdown(f"**Carcaça:** {m.get('carcaca') or '---'}")
+                st.markdown(f"**Montagem:** {m.get('montagem') or '---'}")
+                st.markdown(f"**Pólos:** {m.get('polos') or '---'}")
+            with mc2:
+                st.markdown(f"**Isolação:** {m.get('isolacao') or '---'}")
+                st.markdown(f"**IP:** {m.get('ip') or '---'}")
+                st.markdown(f"**Regime:** {m.get('regime') or '---'}")
+            with mc3:
+                st.markdown(f"**Fator Serv.:** {m.get('fator_servico') or '---'}")
+                st.markdown(f"**Peso:** {m.get('peso') or '---'}")
+                st.markdown(f"**Ventilação:** {m.get('ventilacao') or '---'}")
+
+            st.divider()
+
+            # --- SEÇÃO 3: BOBINAGEM ---
+            st.markdown("#### 🌀 Bobinagem")
+            col_b1, col_b2 = st.columns(2)
+            with col_b1:
+                st.info(f"**Principal** \n"
+                        f"**Passo:** {m.get('passo_principal') or m.get('passo_princ') or '---'} \n"
+                        f"**Fio:** {m.get('fio_principal') or m.get('fio_princ') or '---'} \n"
+                        f"**Espiras:** {m.get('espira_principal') or m.get('espiras_princ') or '---'}")
+            with col_b2:
+                st.warning(f"**Auxiliar** \n"
+                           f"**Passo:** {m.get('passo_auxiliar') or m.get('passo_aux') or '---'} \n"
+                           f"**Fio:** {m.get('fio_auxiliar') or m.get('fio_aux') or '---'} \n"
+                           f"**Espiras:** {m.get('espira_auxiliar') or m.get('espiras_aux') or '---'}")
+
+            st.divider()
+
+            # --- SEÇÃO 4: DADOS ELÉTRICOS E NÚCLEO (NOVO) ---
+            st.markdown("#### ⚡ Elétrica e Núcleo")
+            ec1, ec2, ec3 = st.columns(3)
+            with ec1:
+                st.markdown(f"**Tipo Enrol.:** {m.get('tipo_enrolamento') or '---'}")
+                st.markdown(f"**Nº Ranhuras:** {m.get('numero_ranhuras') or '---'}")
+                st.markdown(f"**Resistência:** {m.get('resistencia') or '---'}")
+            with ec2:
+                st.markdown(f"**Diâm. Fio:** {m.get('diametro_fio') or '---'}")
+                st.markdown(f"**Tipo Fio:** {m.get('tipo_fio') or '---'}")
+                st.markdown(f"**Ligação:** {m.get('ligacao') or '---'}")
+            with ec3:
+                st.markdown(f"**Ø Interno:** {m.get('diametro_interno') or '---'}mm")
+                st.markdown(f"**Comp. Pacote:** {m.get('comprimento_pacote') or '---'}mm")
+                st.markdown(f"**Empilhamento:** {m.get('empilhamento') or '---'}mm")
+
+            # --- OBSERVAÇÕES E RODAPÉ ---
             if m.get('observacoes'):
                 st.markdown("---")
                 st.markdown(f"**📝 Obs:** {m.get('observacoes')}")
 
             st.caption(f"📅 {m.get('data_cadastro')} | Origem: {m.get('origem_calculo')}")
-            
