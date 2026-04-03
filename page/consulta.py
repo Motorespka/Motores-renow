@@ -81,74 +81,75 @@ def show(supabase):
 
             st.markdown("---")
 
-            # 📌 Seção 1: Dados Gerais
-            st.markdown("### 📌 Dados Gerais")
+            # --- SEÇÃO 1: DADOS GERAIS (PRIORIDADE) ---
+            st.markdown("### 📌 Dados Gerais e Placa")
             c1, c2, c3 = st.columns(3)
             with c1:
-                st.write(f"**Marca:** {m.get('marca', '')}")
-                st.write(f"**Modelo:** {m.get('modelo', '')}")
-                st.write(f"**Fabricante:** {m.get('fabricante', '')}")
+                st.write(f"**Marca:** {m.get('marca', 'N/A')}")
+                st.write(f"**Modelo:** {m.get('modelo', 'N/A')}")
+                st.write(f"**Fabricante:** {m.get('fabricante', 'N/A')}")
             with c2:
-                st.write(f"**Potência:** {m.get('potencia', '')}")
-                st.write(f"**Tensão:** {m.get('tensao', '')}")
-                st.write(f"**Corrente:** {m.get('corrente', '')}")
+                st.write(f"**Potência:** {m.get('potencia', 'N/A')}")
+                st.write(f"**Tensão:** {m.get('tensao', 'N/A')}")
+                st.write(f"**Corrente:** {m.get('corrente', 'N/A')}")
             with c3:
-                st.write(f"**RPM:** {m.get('rpm', '')}")
-                st.write(f"**Frequência:** {m.get('frequencia', '')}")
-                st.write(f"**Rendimento:** {m.get('rendimento', '')}%")
+                st.write(f"**RPM:** {m.get('rpm', 'N/A')}")
+                st.write(f"**Frequência:** {m.get('frequencia', 'N/A')}")
+                st.write(f"**Rendimento:** {m.get('rendimento', 'N/A')}%")
 
             st.divider()
 
-            # 🌀 Seção 2: Bobinagem (CORRIGIDO PARA AS CHAVES DO OCR)
+            # --- SEÇÃO 2: DETALHES DO ENROLAMENTO ---
             st.markdown("### 🌀 Detalhes do Enrolamento")
-            col_princ, col_aux = st.columns(2)
-            with col_princ:
+            col_p, col_a = st.columns(2)
+            with col_p:
                 st.info("**Enrolamento Principal**")
-                # Lendo exatamente como o OCR enviou para o Supabase
-                st.write(f"**Passo:** {m.get('passo_princ', 'N/A')}")
-                st.write(f"**Fio:** {m.get('fio_princ', 'N/A')}")
-                st.write(f"**Espiras:** {m.get('espiras_princ', 'N/A')}")
-            with col_aux:
+                st.write(f"**Passo:** {m.get('passo_principal', 'N/A')}")
+                st.write(f"**Fio:** {m.get('fio_principal', 'N/A')}")
+                st.write(f"**Espiras:** {m.get('espira_principal', 'N/A')}")
+            with col_a:
                 st.warning("**Enrolamento Auxiliar**")
-                # Lendo exatamente como o OCR enviou para o Supabase
-                st.write(f"**Passo:** {m.get('passo_aux', 'N/A')}")
-                st.write(f"**Fio:** {m.get('fio_aux', 'N/A')}")
-                st.write(f"**Espiras:** {m.get('espiras_aux', 'N/A')}")
+                st.write(f"**Passo:** {m.get('passo_auxiliar', 'N/A')}")
+                st.write(f"**Fio:** {m.get('fio_auxiliar', 'N/A')}")
+                st.write(f"**Espiras:** {m.get('espira_auxiliar', 'N/A')}")
 
             st.divider()
 
-            # ⚙️ Seção 3: Características Técnicas
+            # --- SEÇÃO 3: CARACTERÍSTICAS TÉCNICAS E MECÂNICAS ---
             st.markdown("### ⚙️ Características Técnicas e Mecânicas")
             c4, c5, c6 = st.columns(3)
             with c4:
-                st.write(f"**Polos:** {m.get('polos', '')}")
-                st.write(f"**Carcaça:** {m.get('carcaca', '')}")
-                st.write(f"**Isolação:** {m.get('isolacao', '')}")
+                st.write(f"**Pólos:** {m.get('polos', 'N/A')}")
+                st.write(f"**Carcaça:** {m.get('carcaca', 'N/A')}")
+                st.write(f"**Montagem:** {m.get('montagem', 'N/A')}")
             with c5:
-                st.write(f"**IP:** {m.get('ip', '')}")
-                st.write(f"**Fator Serviço:** {m.get('fator_servico', '')}")
-                st.write(f"**Peso:** {m.get('peso', '')} kg")
+                st.write(f"**Isolação:** {m.get('isolacao', 'N/A')}")
+                st.write(f"**Grau Prot. (IP):** {m.get('ip', 'N/A')}")
+                st.write(f"**Regime:** {m.get('regime', 'N/A')}")
             with c6:
-                st.write(f"**Rolamento D:** {m.get('rolamento_d', '')}")
-                st.write(f"**Rolamento T:** {m.get('rolamento_t', '')}")
-                st.write(f"**Ventilação:** {m.get('ventilacao', '')}")
+                st.write(f"**Fator Serviço:** {m.get('fator_servico', 'N/A')}")
+                st.write(f"**Peso:** {m.get('peso', 'N/A')} kg")
+                st.write(f"**Ventilação:** {m.get('ventilacao', 'N/A')}")
 
             st.divider()
 
-            # 🧲 Seção 4: Dados do Estator e Elétricos
-            st.markdown("### 🧲 Dados do Estator e Ligação")
-            c7, c8 = st.columns(2)
+            # --- SEÇÃO 4: DADOS DO NÚCLEO E LIGAÇÃO ---
+            st.markdown("### 🧲 Dados Elétricos e Núcleo")
+            c7, c8, c9 = st.columns(3)
             with c7:
-                st.write(f"**Tipo Enrolamento:** {m.get('tipo_enrolamento', '')}")
-                st.write(f"**Nº Ranhuras:** {m.get('numero_ranhuras', '')}")
-                st.write(f"**Ligação:** {m.get('ligacao', '')}")
-                st.write(f"**Resistência:** {m.get('resistencia', '')} Ω")
+                st.write(f"**Tipo Enrolamento:** {m.get('tipo_enrolamento', 'N/A')}")
+                st.write(f"**Nº Ranhuras:** {m.get('numero_ranhuras', 'N/A')}")
+                st.write(f"**Resistência:** {m.get('resistencia', 'N/A')} Ω")
             with c8:
-                st.write(f"**Ø Interno:** {m.get('diametro_interno', '')} mm")
-                st.write(f"**Comp. Pacote:** {m.get('comprimento_pacote', '')} mm")
-                st.write(f"**Empilhamento:** {m.get('empilhamento', '')} mm")
+                st.write(f"**Ø Fio:** {m.get('diametro_fio', 'N/A')} mm")
+                st.write(f"**Tipo Fio:** {m.get('tipo_fio', 'N/A')}")
+                st.write(f"**Ligação:** {m.get('ligacao', 'N/A')}")
+            with c9:
+                st.write(f"**Ø Interno:** {m.get('diametro_interno', 'N/A')} mm")
+                st.write(f"**Comp. Pacote:** {m.get('comprimento_pacote', 'N/A')} mm")
+                st.write(f"**Empilhamento:** {m.get('empilhamento', 'N/A')} mm")
 
-            # 📝 Seção 5: Observações
+            # --- SEÇÃO 5: OBSERVAÇÕES ---
             st.markdown("---")
-            st.markdown(f"**Observações:** {m.get('observacoes', 'Sem observações.')}")
+            st.markdown(f"**📝 Observações:** {m.get('observacoes', 'Sem observações.')}")
             st.caption(f"Origem do cálculo: {m.get('origem_calculo', 'N/A')} | Cadastrado em: {data_cadastro}")
