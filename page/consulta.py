@@ -249,18 +249,24 @@ def show(supabase):
             # 1. Lógica para identificar motores de 5 cabos
             esquema_texto = str(m.get("esquema") or "").lower()
             ligacao_texto = str(m.get("ligacao") or "").lower()
+            obs_texto = str(m.get("observacoes") or "").lower()
             
-            if "5 cabos" in esquema_texto or "5 fios" in esquema_texto or "5 cabos" in ligacao_texto:
+            if any(x in esquema_texto or x in ligacao_texto or x in obs_texto for x in ["5 cabos", "5 fios", "5 pontas"]):
                 st.markdown(
-                    """<div class="alerta-5-cabos"><b>💡 DICA DE BANCADA (5 CABOS):</b><br>
-                    Este motor possui apenas 5 pontas externas. A bobina <b>Auxiliar (Partida)</b> 
-                    está ligada internamente junto com o <b>Cabo 2 ou Cabo 3</b>.</div>""", 
+                    """
+                    <div class="alerta-5-cabos">
+                        <b>🔌 FECHAMENTO 5 FIOS (DETALHADO):</b><br><br>
+                        <b>Sentido Horário:</b> Linha em 1 e (4+5). Unir 2 e 3.<br>
+                        <b>Sentido Anti-Horário:</b> Linha em (1+5) e 4. Unir 2 e 3.<br><br>
+                        <i>Nota: O cabo 5 é o auxiliar de partida. A outra ponta da auxiliar está ligada internamente ao cabo 2 ou 3.</i>
+                    </div>
+                    """, 
                     unsafe_allow_html=True
                 )
 
-            # 2. NOVA LÓGICA DE LIGAÇÕES DINÂMICAS (SÓ APARECE O QUE ESTIVER NA TENSÃO)
+            # 2. LIGAÇÕES DINÂMICAS POR TENSÃO
             tensao_val = str(m.get("tensao") or "").lower()
-            cols_liga = st.columns(4) # Colunas para as ligações
+            cols_liga = st.columns(4) 
             
             if "110" in tensao_val:
                 with cols_liga[0]:
