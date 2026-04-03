@@ -83,11 +83,20 @@ def show(supabase):
         rpm = m.get("rpm") or "---"
         modelo = m.get("modelo") or ""
 
-        titulo_card = f"🆔 {id_motor} | {marca} {modelo} | {pot} | {rpm} RPM"
-
         st.markdown('<div class="motor-card">', unsafe_allow_html=True)
 
-        with st.expander(titulo_card):
+        # Header acima do expander (fica com cara de card no celular)
+        st.markdown(
+            f"""
+            <div class="motor-card__header">
+              <div class="motor-card__title">#{id_motor} • {marca} {modelo}</div>
+              <div class="motor-card__meta">{pot} • {rpm} RPM</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        with st.expander("Ver detalhes", expanded=False):
             # Ações rápidas
             c1, c2 = st.columns(2)
             if c1.button("✏️ Editar", key=f"ed_{id_motor}", use_container_width=True):
