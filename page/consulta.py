@@ -271,12 +271,11 @@ def show(supabase):
                 )
                 
                 if is_monofasico:
-                    # CORRIGIDO: Alterado de texto_5_fios para texto_6_fios
                     texto_6_fios += (
                         "<hr style='border: 0.5px solid #2979ff; margin: 10px 0;'>"
-                        "<b>🔄 ROTAÇÃO (MONOFÁSICO 6 FIOS):</b><br>"
-                        "<b>Sentido Horário:</b> Ligar (1 e 5) em um cabo da rede, e (4 e 6) no outro cabo.<br>"
-                        "<b>Sentido Anti-Horário:</b> Ligar (1 e 6) em um cabo da rede, e (4 e 5) no outro cabo."
+                        "<b>🔄 ROTAÇÃO (MONOFÁSICO 5 FIOS):</b><br>"
+                        "<b>Sentido Horário:</b> Ligar (1) em um cabo da rede, e (4 e 5) no outro cabo.<br>"
+                        "<b>Sentido Anti-Horário:</b> Ligar (1 e 5) em um cabo da rede, e (4) no outro cabo."
                     )
                 
                 st.markdown(f'<div class="alerta-6-cabos">{texto_6_fios}</div>', unsafe_allow_html=True)
@@ -288,7 +287,7 @@ def show(supabase):
                     "1. Pegue o <b>Fio 1</b> e ligue direto em um cabo da rede.<br>"
                     "2. Junte o <b>Fio 4 e o Fio 5</b> e ligue no outro cabo da rede.<br>"
                     "3. Junte o <b>Fio 2 e o Fio 3</b> e isole-os (unidos entre si).<br><br>"
-                    "<i>Nota: O fio 5 é o auxiliar. Para inverter rotação, inverta internamente.</i>"
+                    "<i>Nota: O fio 5 é o auxiliar. Para inverter rotação, inverta o fio 5 de posição com o 1 ou 4.</i>"
                 )
                 st.markdown(f'<div class="alerta-5-cabos">{texto_5_fios}</div>', unsafe_allow_html=True)
 
