@@ -90,3 +90,29 @@
     border-radius: 18px;
   }
 }
+/* Evita conteúdo colado sob a “barra preta” (header) */
+.below-topbar {
+  height: 12px;
+}
+
+/* Header do card (consulta) */
+.motor-card__header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.motor-card__title {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: .2px;
+  color: rgba(255,255,255,.96);
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.motor-card__meta {
+  font-size: 13px;
+  color: rgba(255,255,255,.75);
+}
