@@ -1,117 +1,107 @@
 import streamlit as st
+from datetime import datetime
+from pathlib import Path
 
-from services.supabase_database import salvar_motor_supabase
+from core.calculadora import alertas_validacao_projeto, sugerir_equivalentes_paralelos
+from services.supabase_data import clear_motores_cache
+
+
+def _load_css() -> None:
+    css_path = Path(__file__).resolve().parents[1] / "assets" / "style.css"
+    if css_path.exists():
+        st.markdown(f"<style>{css_path.read_text(encoding='utf-8')}</style>", unsafe_allow_html=True)
+
+
+def salvar_motor_supabase(supabase, motor):
+    try:
+        motor["data_cadastro"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        res = supabase.table("motores").insert(motor).execute()
+
+        if res.data:
+            return True, "✅ Motor salvo com sucesso no Supabase!"
+        else:
+            return False, f"⚠️ O banco não retornou confirmação: {res}"
+
+    except Exception as e:
+        return False, f"❌ Erro ao salvar no Supabase: {str(e)}"
 
 
 def show(supabase):
+    _load_css()
     st.title("⚙️ Cadastro de Motores - Moto-Renow")
     st.markdown("---")
 
     with st.form("cadastro_motor", clear_on_submit=True):
-        # =========================
-        # CARD 1: IDENTIFICAÇÃO
-        # =========================
-        st.markdown('<div class="motor-card">', unsafe_allow_html=True)
-        st.markdown("#### 📌 Identificação e Placa")
+        with st.expander("📌 Identificação e Placa", expanded=True):
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                marca = st.text_input("Marca", help="Ex: WEG, Voges, Eberle")
+                modelo = st.text_input("Modelo")
+                fabricante = st.text_input("Fabricante")
+            with col2:
+                potencia = st.text_input("Potência (CV/kW)")
+                tensao = st.text_input("Tensão (V)")
+                corrente = st.text_input("Corrente (A)")
+            with col3:
+                rpm = st.text_input("RPM")
+                frequencia = st.text_input("Frequência (Hz)")
+                rendimento = st.text_input("Rendimento (%)")
 
-        marca = st.text_input("Marca", help="Ex: WEG, Voges, Eberle")
-        modelo = st.text_input("Modelo")
-        fabricante = st.text_input("Fabricante")
+        with st.expander("🛠️ Dados mecânicos", expanded=False):
+            col4, col5, col6 = st.columns(3)
+            with col4:
+                polos = st.text_input("Pólos")
+                carcaca = st.text_input("Carcaça")
+                montagem = st.text_input("Montagem")
+            with col5:
+                isolacao = st.text_input("Isolação")
+                ip = st.text_input("Grau Proteção (IP)")
+                regime = st.text_input("Regime")
+            with col6:
+                fator_servico = st.text_input("Fator de Serviço")
+                peso = st.text_input("Peso (kg)")
+                ventilacao = st.text_input("Ventilação")
 
-        st.divider()
+        with st.expander("🌀 Dados de bobinagem e núcleo", expanded=False):
+            col_princ, col_aux = st.columns(2)
 
-        potencia = st.text_input("Potência (CV/kW)")
-        tensao = st.text_input("Tensão (V)")
-        corrente = st.text_input("Corrente (A)")
+            with col_princ:
+                st.markdown("**Enrolamento Principal**")
+                passo_principal = st.text_input("Passo Principal")
+                fio_principal = st.text_input("Fio Principal")
+                espira_principal = st.text_input("Espiras Principal")
 
-        st.divider()
+            with col_aux:
+                st.markdown("**Enrolamento Auxiliar**")
+                passo_auxiliar = st.text_input("Passo Auxiliar")
+                fio_auxiliar = st.text_input("Fio Auxiliar")
+                espira_auxiliar = st.text_input("Espiras Auxiliar")
 
-        rpm = st.text_input("RPM")
-        frequencia = st.text_input("Frequência (Hz)")
-        rendimento = st.text_input("Rendimento (%)")
+            st.divider()
 
-        st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown("**⚡ Dados Elétricos e Núcleo**")
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                tipo_enrolamento = st.text_input("Tipo Enrolamento")
+                numero_ranhuras = st.text_input("Nº Ranhuras")
+                resistencia = st.text_input("Resistência (Ω)")
+            with c2:
+                diametro_fio = st.text_input("Diâmetro Fio (mm)")
+                tipo_fio = st.text_input("Tipo de Fio")
+                ligacao = st.selectbox("Ligação", ["Estrela", "Triângulo", "Série", "Paralelo"])
+            with c3:
+                diametro_interno = st.text_input("Ø Interno (mm)")
+                comprimento_pacote = st.text_input("Comp. Pacote (mm)")
+                empilhamento = st.text_input("Empilhamento (mm)")
 
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # =========================
-        # CARD 2: MECÂNICA
-        # =========================
-        st.markdown('<div class="motor-card">', unsafe_allow_html=True)
-        st.markdown("#### 🛠️ Mecânica")
-
-        polos = st.text_input("Pólos")
-        carcaca = st.text_input("Carcaça")
-        montagem = st.text_input("Montagem")
-
-        st.divider()
-
-        isolacao = st.text_input("Isolação")
-        ip = st.text_input("Grau Proteção (IP)")
-        regime = st.text_input("Regime")
-
-        st.divider()
-
-        fator_servico = st.text_input("Fator de Serviço")
-        peso = st.text_input("Peso (kg)")
-        ventilacao = st.text_input("Ventilação")
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        st.markdown("<br>", unsafe_allow_html=True)
-
-        # =========================
-        # CARD 3: BOBINAGEM
-        # =========================
-        st.markdown('<div class="motor-card">', unsafe_allow_html=True)
-        st.markdown("#### 🌀 Bobinagem")
-
-        st.markdown("**Enrolamento Principal**")
-        passo_principal = st.text_input("Passo Principal")
-        fio_principal = st.text_input("Fio Principal")
-        espira_principal = st.text_input("Espiras Principal")
-
-        st.divider()
-
-        st.markdown("**Enrolamento Auxiliar**")
-        passo_auxiliar = st.text_input("Passo Auxiliar")
-        fio_auxiliar = st.text_input("Fio Auxiliar")
-        espira_auxiliar = st.text_input("Espiras Auxiliar")
-
-        st.divider()
-
-        st.markdown("#### ⚡ Dados Elétricos e Núcleo")
-        tipo_enrolamento = st.text_input("Tipo Enrolamento")
-        numero_ranhuras = st.text_input("Nº Ranhuras")
-        resistencia = st.text_input("Resistência (Ω)")
-
-        st.divider()
-
-        diametro_fio = st.text_input("Diâmetro Fio (mm)")
-        tipo_fio = st.text_input("Tipo de Fio")
-        ligacao = st.selectbox("Ligação", ["Estrela", "Triângulo", "Série", "Paralelo"])
-
-        st.divider()
-
-        diametro_interno = st.text_input("Ø Interno (mm)")
-        comprimento_pacote = st.text_input("Comp. Pacote (mm)")
-        empilhamento = st.text_input("Empilhamento (mm)")
-
-        st.divider()
-
-        st.markdown("#### 📝 Observações")
-        observacoes = st.text_area("Notas técnicas adicionais")
-
-        st.markdown("#### 📍 Origem do Cálculo")
-        origem = st.selectbox("Origem do Cálculo", ["União", "Rebobinador", "Próprio"])
-
-        st.markdown("</div>", unsafe_allow_html=True)
+        with st.expander("📝 Observações e origem", expanded=False):
+            observacoes = st.text_area("Notas técnicas adicionais")
+            origem = st.selectbox("Origem do Cálculo", ["União", "Rebobinador", "Próprio"])
 
         st.markdown("<br>", unsafe_allow_html=True)
         salvar = st.form_submit_button("💾 SALVAR NO BANCO DE DADOS", use_container_width=True)
 
     if salvar:
-        # Mapeamento do Dicionário respeitando o seu schema atual
         motor = {
             "marca": marca,
             "modelo": modelo,
@@ -128,10 +118,9 @@ def show(supabase):
             "isolacao": isolacao,
             "ip": ip,
             "regime": regime,
-            "fator_servico": fator_servico,
+            "fator_servico": faktor_servico if 'faktor_servico' in locals() else fator_servico,
             "peso": peso,
             "ventilacao": ventilacao,
-            # Salvando nos dois nomes de campos (OCR e Manual) para garantir compatibilidade
             "passo_principal": passo_principal,
             "passo_princ": passo_principal,
             "fio_principal": fio_principal,
@@ -144,7 +133,6 @@ def show(supabase):
             "fio_aux": fio_auxiliar,
             "espira_auxiliar": espira_auxiliar,
             "espiras_aux": espira_auxiliar,
-            # Restante dos dados técnicos
             "tipo_enrolamento": tipo_enrolamento,
             "numero_ranhuras": numero_ranhuras,
             "resistencia": resistencia,
@@ -158,8 +146,18 @@ def show(supabase):
             "origem_calculo": origem,
         }
 
+        # --- NOVAS INTEGRAÇÕES ---
+        for msg in alertas_validacao_projeto(motor):
+            st.warning(msg)
+
+        for lab, txt in (("Fio principal", fio_principal), ("Fio auxiliar", fio_auxiliar)):
+            sugs = sugerir_equivalentes_paralelos(txt)
+            if sugs:
+                st.info(f"**Equivalente de estoque ({lab}):**\n- " + "\n- ".join(sugs))
+
         sucesso, mensagem = salvar_motor_supabase(supabase, motor)
         if sucesso:
+            clear_motores_cache()
             st.success(mensagem)
             st.balloons()
         else:
