@@ -1,29 +1,22 @@
 import streamlit as st
 import importlib
+from pathlib import Path
 
-# ------------------------------
-# Operações no banco (SUPABASE)
-# ------------------------------
-def listar_motores(supabase):
-    try:
-        res = supabase.table("motores").select("*").order("id", desc=True).execute()
-        return res.data 
-    except Exception as e:
-        st.error(f"Erro ao listar motores: {e}")
-        return []
+from use_cases.listar_motores import consultar_motores, excluir_motor
 
-def excluir_motor(supabase, id_motor):
-    try:
-        supabase.table("motores").delete().eq("id", id_motor).execute()
-        return True
-    except Exception as e:
-        st.error(f"Erro ao excluir motor: {e}")
-        return False
 
-# ------------------------------
-# Função principal
-# ------------------------------
-def show(supabase): 
+def load_css() -> None:
+    """
+    Carrega o CSS do arquivo `assets/style.css` no Streamlit.
+    (Obs: seu `App.py` já faz isso, mas aqui fica exatamente como você pediu.)
+    """
+    css_path = Path(__file__).resolve().parents[1] / "assets" / "style.css"
+    if css_path.exists():
+        st.markdown(f"<style>{css_path.read_text(encoding='utf-8')}</style>", unsafe_allow_html=True)
+
+
+def show(supabase):
+    load_css()
     st.title("🔍 Consulta de Motores")
 
     # --- LÓGICA DE NAVEGAÇÃO DE EDIÇÃO ---
@@ -39,16 +32,28 @@ def show(supabase):
             if st.button("🔙 Voltar para Lista", use_container_width=True):
                 st.session_state.abrir_edit = False
                 st.session_state.motor_editando = None
+                try:
+                    consultar_motores.clear()  # garante lista fresca ao voltar
+                except Exception:
+                    pass
                 st.rerun()
             return
         except Exception as e:
             st.error(f"Erro ao carregar edição: {e}")
 
     # --- BARRA DE PESQUISA ---
-    search_query = st.text_input("🔎 Pesquisar motor", placeholder="Ex: WEG, 12.5, 1750, 132M, 3:5:7...", help="Procure por marca, potência, RPM, carcaça ou qualquer detalhe.")
+    search_query = st.text_input(
+        "🔎 Pesquisar motor",
+        placeholder="Ex: WEG, 12.5, 1750, 132M, 3:5:7...",
+        help="Procure por marca, potência, RPM, carcaça ou qualquer detalhe.",
+    )
 
-    motores_db = listar_motores(supabase)
-    
+    try:
+        motores_db = consultar_motores(supabase)
+    except Exception as e:
+        st.error(f"Erro ao listar motores: {e}")
+        motores_db = []
+
     if not motores_db:
         st.info("Nenhum motor cadastrado.")
         return
@@ -57,7 +62,8 @@ def show(supabase):
     if search_query:
         query = search_query.lower()
         motores = [
-            m for m in motores_db 
+            m
+            for m in motores_db
             if any(query in str(valor).lower() for valor in m.values() if valor is not None)
         ]
     else:
@@ -69,23 +75,17 @@ def show(supabase):
 
     st.caption(f"Exibindo {len(motores)} motor(es)")
 
-    # --- ESTILO VISUAL ---
-    st.markdown("""
-        <style>
-        [data-testid="stExpander"] { border: 1px solid #444; border-radius: 10px; margin-bottom: 10px; }
-        .stMarkdown p { font-size: 14px; margin-bottom: 5px; }
-        </style>
-    """, unsafe_allow_html=True)
-
     # --- RENDERIZAÇÃO DOS CARDS ---
     for m in motores:
-        id_motor = m.get('id')
-        marca = m.get('marca') or "---"
-        pot = m.get('potencia') or "---"
-        rpm = m.get('rpm') or "---"
-        modelo = m.get('modelo') or ""
-        
+        id_motor = m.get("id")
+        marca = m.get("marca") or "---"
+        pot = m.get("potencia") or "---"
+        rpm = m.get("rpm") or "---"
+        modelo = m.get("modelo") or ""
+
         titulo_card = f"🆔 {id_motor} | {marca} {modelo} | {pot} | {rpm} RPM"
+
+        st.markdown('<div class="motor-card">', unsafe_allow_html=True)
 
         with st.expander(titulo_card):
             # Ações rápidas
@@ -94,10 +94,18 @@ def show(supabase):
                 st.session_state.motor_editando = m
                 st.session_state.abrir_edit = True
                 st.rerun()
+
             if c2.button("🗑️ Excluir", key=f"ex_{id_motor}", use_container_width=True):
-                if excluir_motor(supabase, id_motor):
-                    st.success("Excluído!")
-                    st.rerun()
+                try:
+                    if excluir_motor(supabase, id_motor):
+                        st.success("Excluído!")
+                        try:
+                            consultar_motores.clear()  # garante lista fresca após deletar
+                        except Exception:
+                            pass
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"Erro ao excluir motor: {e}")
 
             st.divider()
 
@@ -141,15 +149,19 @@ def show(supabase):
             st.markdown("#### 🌀 Bobinagem")
             col_b1, col_b2 = st.columns(2)
             with col_b1:
-                st.info(f"**Principal** \n"
-                        f"**Passo:** {m.get('passo_principal') or m.get('passo_princ') or '---'} \n"
-                        f"**Fio:** {m.get('fio_principal') or m.get('fio_princ') or '---'} \n"
-                        f"**Espiras:** {m.get('espira_principal') or m.get('espiras_princ') or '---'}")
+                st.info(
+                    f"**Principal** \n"
+                    f"**Passo:** {m.get('passo_principal') or m.get('passo_princ') or '---'} \n"
+                    f"**Fio:** {m.get('fio_principal') or m.get('fio_princ') or '---'} \n"
+                    f"**Espiras:** {m.get('espira_principal') or m.get('espiras_princ') or '---'}"
+                )
             with col_b2:
-                st.warning(f"**Auxiliar** \n"
-                           f"**Passo:** {m.get('passo_auxiliar') or m.get('passo_aux') or '---'} \n"
-                           f"**Fio:** {m.get('fio_auxiliar') or m.get('fio_aux') or '---'} \n"
-                           f"**Espiras:** {m.get('espira_auxiliar') or m.get('espiras_aux') or '---'}")
+                st.warning(
+                    f"**Auxiliar** \n"
+                    f"**Passo:** {m.get('passo_auxiliar') or m.get('passo_aux') or '---'} \n"
+                    f"**Fio:** {m.get('fio_auxiliar') or m.get('fio_aux') or '---'} \n"
+                    f"**Espiras:** {m.get('espira_auxiliar') or m.get('espiras_aux') or '---'}"
+                )
 
             st.divider()
 
@@ -170,8 +182,10 @@ def show(supabase):
                 st.markdown(f"**Empilhamento:** {m.get('empilhamento') or '---'}mm")
 
             # --- OBSERVAÇÕES E RODAPÉ ---
-            if m.get('observacoes'):
+            if m.get("observacoes"):
                 st.markdown("---")
                 st.markdown(f"**📝 Obs:** {m.get('observacoes')}")
 
             st.caption(f"📅 {m.get('data_cadastro')} | Origem: {m.get('origem_calculo')}")
+
+        st.markdown("</div>", unsafe_allow_html=True)
