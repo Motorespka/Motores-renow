@@ -1,15 +1,10 @@
 import streamlit as st
-import importlib
 from pathlib import Path
 
 from use_cases.listar_motores import consultar_motores, excluir_motor
 
 
 def load_css() -> None:
-    """
-    Carrega o CSS do arquivo `assets/style.css` no Streamlit.
-    (Obs: seu `App.py` já faz isso, mas aqui fica exatamente como você pediu.)
-    """
     css_path = Path(__file__).resolve().parents[1] / "assets" / "style.css"
     if css_path.exists():
         st.markdown(f"<style>{css_path.read_text(encoding='utf-8')}</style>", unsafe_allow_html=True)
@@ -17,31 +12,12 @@ def load_css() -> None:
 
 def show(supabase):
     load_css()
+
+    # garante respiro (se a “barra preta” estiver cobrindo conteúdo)
+    st.markdown('<div class="below-topbar"></div>', unsafe_allow_html=True)
+
     st.title("🔍 Consulta de Motores")
 
-    # --- LÓGICA DE NAVEGAÇÃO DE EDIÇÃO ---
-    if "motor_editando" not in st.session_state:
-        st.session_state.motor_editando = None
-    if "abrir_edit" not in st.session_state:
-        st.session_state.abrir_edit = False
-
-    if st.session_state.abrir_edit and st.session_state.motor_editando:
-        try:
-            edit_module = importlib.import_module("page.edit")
-            edit_module.show(supabase)
-            if st.button("🔙 Voltar para Lista", use_container_width=True):
-                st.session_state.abrir_edit = False
-                st.session_state.motor_editando = None
-                try:
-                    consultar_motores.clear()  # garante lista fresca ao voltar
-                except Exception:
-                    pass
-                st.rerun()
-            return
-        except Exception as e:
-            st.error(f"Erro ao carregar edição: {e}")
-
-    # --- BARRA DE PESQUISA ---
     search_query = st.text_input(
         "🔎 Pesquisar motor",
         placeholder="Ex: WEG, 12.5, 1750, 132M, 3:5:7...",
@@ -58,7 +34,6 @@ def show(supabase):
         st.info("Nenhum motor cadastrado.")
         return
 
-    # --- LÓGICA DE FILTRO DINÂMICO ---
     if search_query:
         query = search_query.lower()
         motores = [
@@ -75,17 +50,15 @@ def show(supabase):
 
     st.caption(f"Exibindo {len(motores)} motor(es)")
 
-    # --- RENDERIZAÇÃO DOS CARDS ---
     for m in motores:
         id_motor = m.get("id")
         marca = m.get("marca") or "---"
+        modelo = m.get("modelo") or ""
         pot = m.get("potencia") or "---"
         rpm = m.get("rpm") or "---"
-        modelo = m.get("modelo") or ""
 
         st.markdown('<div class="motor-card">', unsafe_allow_html=True)
 
-        # Header acima do expander (fica com cara de card no celular)
         st.markdown(
             f"""
             <div class="motor-card__header">
@@ -96,29 +69,25 @@ def show(supabase):
             unsafe_allow_html=True,
         )
 
+        c1, c2 = st.columns(2)
+        if c1.button("✏️ Editar", key=f"ed_{id_motor}", use_container_width=True):
+            st.session_state.motor_editando = m
+            st.session_state.pagina = "edit"
+            st.rerun()
+
+        if c2.button("🗑️ Excluir", key=f"ex_{id_motor}", use_container_width=True):
+            try:
+                if excluir_motor(supabase, id_motor):
+                    st.success("Excluído!")
+                    try:
+                        consultar_motores.clear()
+                    except Exception:
+                        pass
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Erro ao excluir motor: {e}")
+
         with st.expander("Ver detalhes", expanded=False):
-            # Ações rápidas
-            c1, c2 = st.columns(2)
-            if c1.button("✏️ Editar", key=f"ed_{id_motor}", use_container_width=True):
-                st.session_state.motor_editando = m
-                st.session_state.abrir_edit = True
-                st.rerun()
-
-            if c2.button("🗑️ Excluir", key=f"ex_{id_motor}", use_container_width=True):
-                try:
-                    if excluir_motor(supabase, id_motor):
-                        st.success("Excluído!")
-                        try:
-                            consultar_motores.clear()  # garante lista fresca após deletar
-                        except Exception:
-                            pass
-                        st.rerun()
-                except Exception as e:
-                    st.error(f"Erro ao excluir motor: {e}")
-
-            st.divider()
-
-            # --- SEÇÃO 1: IDENTIFICAÇÃO (EXTENDIDA) ---
             st.markdown("#### 📋 Dados de Placa e Identificação")
             col1, col2, col3 = st.columns(3)
             with col1:
@@ -136,7 +105,6 @@ def show(supabase):
 
             st.divider()
 
-            # --- SEÇÃO 2: CONSTRUÇÃO E MECÂNICA ---
             st.markdown("#### 🛠️ Construção e Mecânica")
             mc1, mc2, mc3 = st.columns(3)
             with mc1:
@@ -154,7 +122,6 @@ def show(supabase):
 
             st.divider()
 
-            # --- SEÇÃO 3: BOBINAGEM ---
             st.markdown("#### 🌀 Bobinagem")
             col_b1, col_b2 = st.columns(2)
             with col_b1:
@@ -174,7 +141,6 @@ def show(supabase):
 
             st.divider()
 
-            # --- SEÇÃO 4: DADOS ELÉTRICOS E NÚCLEO (NOVO) ---
             st.markdown("#### ⚡ Elétrica e Núcleo")
             ec1, ec2, ec3 = st.columns(3)
             with ec1:
@@ -190,7 +156,6 @@ def show(supabase):
                 st.markdown(f"**Comp. Pacote:** {m.get('comprimento_pacote') or '---'}mm")
                 st.markdown(f"**Empilhamento:** {m.get('empilhamento') or '---'}mm")
 
-            # --- OBSERVAÇÕES E RODAPÉ ---
             if m.get("observacoes"):
                 st.markdown("---")
                 st.markdown(f"**📝 Obs:** {m.get('observacoes')}")
