@@ -117,6 +117,15 @@ def show(supabase):
             color: #ffcc80;
         }
 
+        .alerta-6-cabos {
+            background-color: #1a237e;
+            border-left: 5px solid #2979ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            color: #e3f2fd;
+        }
+
         .card-voltagem {
             background: #111;
             border: 1px solid #333;
@@ -246,11 +255,11 @@ def show(supabase):
             # --- SEÇÃO: ESQUEMA DE LIGAÇÃO E TRADUTOR DE CORES ---
             st.markdown("#### ⚡ Esquema de Ligação e Cores")
             
-            # 1. Lógica para identificar motores de 5 cabos
             esquema_texto = str(m.get("esquema") or "").lower()
             ligacao_texto = str(m.get("ligacao") or "").lower()
             obs_texto = str(m.get("observacoes") or "").lower()
-            
+
+            # 1. Lógica para identificar motores de 5 cabos
             if any(x in esquema_texto or x in ligacao_texto or x in obs_texto for x in ["5 cabos", "5 fios", "5 pontas"]):
                 st.markdown(
                     """
@@ -259,6 +268,20 @@ def show(supabase):
                         <b>Sentido Horário:</b> Linha em 1 e (4+5). Unir 2 e 3.<br>
                         <b>Sentido Anti-Horário:</b> Linha em (1+5) e 4. Unir 2 e 3.<br><br>
                         <i>Nota: O cabo 5 é o auxiliar de partida. A outra ponta da auxiliar está ligada internamente ao cabo 2 ou 3.</i>
+                    </div>
+                    """, 
+                    unsafe_allow_html=True
+                )
+
+            # --- ACRESCENTADO: Lógica para identificar motores de 6 fios ---
+            elif any(x in esquema_texto or x in ligacao_texto or x in obs_texto for x in ["6 cabos", "6 fios", "6 pontas"]) or "220/380" in str(m.get("tensao")):
+                st.markdown(
+                    """
+                    <div class="alerta-6-cabos">
+                        <b>🔌 FECHAMENTO 6 FIOS (PADRÃO):</b><br><br>
+                        <b>Triângulo (Δ) - Menor Tensão:</b> (1-6), (2-4), (3-5) ligados à rede.<br>
+                        <b>Estrela (Y) - Maior Tensão:</b> (1, 2, 3) à rede e (4-5-6) unidos entre si.<br><br>
+                        <i>Nota: Para motores monofásicos de 6 pontas, os cabos 5 e 6 pertencem à bobina auxiliar.</i>
                     </div>
                     """, 
                     unsafe_allow_html=True
