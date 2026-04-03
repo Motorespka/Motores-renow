@@ -271,7 +271,7 @@ def show(supabase):
                 )
                 
                 if is_monofasico:
-                    texto_6_fios += (
+                    texto_5_fios += (
                         "<hr style='border: 0.5px solid #2979ff; margin: 10px 0;'>"
                         "<b>🔄 ROTAÇÃO (MONOFÁSICO 6 FIOS):</b><br>"
                         "<b>Sentido Horário:</b> Ligar (1 e 5) em um cabo da rede, e (4 e 6) no outro cabo.<br>"
