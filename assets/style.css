@@ -1,6 +1,32 @@
+/*
+  Moto-Renow — estilos globais do Streamlit
+  Dica: ao adicionar regras novas, ACRESCENTE ao final do arquivo em vez de
+  substituir tudo por um snippet curto (evita “sumir” centenas de linhas).
+*/
+
+/* --------------------------------------------------------------------------
+   Barra escura no topo: cabeçalho nativo do Streamlit
+   [data-testid="stHeader"] — menu (⋮), tema, Deploy, etc.
+   -------------------------------------------------------------------------- */
+
 .block-container {
-    padding-top: 2rem;
+    padding-top: 5rem;
+    padding-bottom: 2rem;
 }
+
+[data-testid="stHeader"] {
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Espaço opcional logo abaixo do header (use no HTML se precisar) */
+.below-topbar {
+    height: 12px;
+}
+
+/* --------------------------------------------------------------------------
+   Botões
+   -------------------------------------------------------------------------- */
 
 .stButton > button {
     border-radius: 10px;
@@ -11,108 +37,172 @@
     transform: scale(1.05);
 }
 
-/* ===== Cards de motores (mobile-first) ===== */
+/* --------------------------------------------------------------------------
+   Consulta — resumo de cada motor (legível em tema claro/escuro)
+   -------------------------------------------------------------------------- */
+
+.consulta-motor-resumo {
+    margin: 0.75rem 0 0.25rem 0;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    border: 1px solid rgba(100, 116, 139, 0.35);
+    background: var(--secondary-background-color, #f1f5f9);
+}
+
+.consulta-motor-resumo .titulo {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--text-color, #0f172a);
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+.consulta-motor-resumo .meta {
+    margin-top: 0.25rem;
+    font-size: 0.9rem;
+    color: rgba(51, 65, 85, 0.92);
+}
+
+/* Fallback se o navegador não suportar variáveis do tema */
+@media (prefers-color-scheme: dark) {
+    .consulta-motor-resumo {
+        border-color: rgba(148, 163, 184, 0.25);
+        background: rgba(30, 41, 59, 0.65);
+    }
+    .consulta-motor-resumo .titulo {
+        color: #f8fafc;
+    }
+    .consulta-motor-resumo .meta {
+        color: rgba(203, 213, 225, 0.95);
+    }
+}
+
+/* --------------------------------------------------------------------------
+   Cards genéricos (cadastro / listas)
+   -------------------------------------------------------------------------- */
+
 .motor-card {
-  background: #0f172a;               /* slate-900 */
-  border: 1px solid rgba(255,255,255,.10);
-  border-radius: 16px;
-  padding: 12px;
-  margin: 12px 0;
-  box-shadow: 0 10px 24px rgba(0,0,0,.25);
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 14px;
+    margin: 12px 0;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
 }
 
 .motor-card__header {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
 }
 
 .motor-card__title {
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: .2px;
-  color: rgba(255,255,255,.96);
-  line-height: 1.25;
-  word-break: break-word;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.2px;
+    color: rgba(255, 255, 255, 0.95);
+    line-height: 1.25;
+    word-break: break-word;
 }
 
 .motor-card__meta {
-  font-size: 13px;
-  color: rgba(255,255,255,.75);
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.75);
 }
 
 .motor-card .stButton > button {
-  border-radius: 12px;
-  border: 1px solid rgba(255,255,255,.14);
-  background: rgba(255,255,255,.06);
-  color: rgba(255,255,255,.92);
-  padding: 10px 12px;
-  transition: transform .12s ease, background .12s ease, border-color .12s ease;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.92);
+    padding: 10px 12px;
 }
 
-.motor-card .stButton > button:hover {
-  transform: translateY(-1px);
-  background: rgba(255,255,255,.10);
-  border-color: rgba(255,255,255,.22);
-}
-
-/* Expander dentro do card */
 .motor-card [data-testid="stExpander"] {
-  border: 1px solid rgba(255,255,255,.10);
-  border-radius: 12px;
-  background: rgba(255,255,255,.03);
-  overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    overflow: hidden;
 }
 
-/* Tenta deixar o botão do expander com cara de container */
-.motor-card [data-testid="stExpander"] button {
-  width: 100%;
-  text-align: left;
-  white-space: normal;
-  border-radius: 12px;
-}
-
-/* Resumo/summary (quando existir no DOM) */
-.motor-card [data-testid="stExpander"] summary {
-  font-weight: 800;
-}
-
-/* Tipografia no conteúdo */
 .motor-card .stMarkdown p {
-  font-size: 14px;
-  margin-bottom: 6px;
+    font-size: 14px;
+    margin-bottom: 6px;
 }
 
-@media (min-width: 720px) {
-  .motor-card {
-    padding: 16px;
-    border-radius: 18px;
-  }
-}
-/* Evita conteúdo colado sob a “barra preta” (header) */
-.below-topbar {
-  height: 12px;
+/* --------------------------------------------------------------------------
+   Expanders na consulta (borda suave)
+   -------------------------------------------------------------------------- */
+
+[data-testid="stExpander"] {
+    border-radius: 10px;
+    margin-bottom: 10px;
 }
 
-/* Header do card (consulta) */
-.motor-card__header {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 10px;
+/* --------------------------------------------------------------------------
+   Tipografia geral em markdown
+   -------------------------------------------------------------------------- */
+
+.stMarkdown p {
+    font-size: 14px;
+    margin-bottom: 5px;
 }
 
-.motor-card__title {
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: .2px;
-  color: rgba(255,255,255,.96);
-  line-height: 1.25;
-  word-break: break-word;
+/* --------------------------------------------------------------------------
+   Sidebar (opcional, leve)
+   -------------------------------------------------------------------------- */
+
+[data-testid="stSidebar"] {
+    border-right: 1px solid rgba(128, 128, 128, 0.2);
 }
 
-.motor-card__meta {
-  font-size: 13px;
-  color: rgba(255,255,255,.75);
+/* --------------------------------------------------------------------------
+   Mobile: cards um pouco mais confortáveis
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 768px) {
+    .block-container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    .motor-card {
+        padding: 12px;
+        border-radius: 14px;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   Consulta - Bobinagem mais legível
+   -------------------------------------------------------------------------- */
+
+.bobinagem-box {
+    border-radius: 12px;
+    padding: 12px 12px;
+    border: 1px solid rgba(100, 116, 139, 0.25);
+    background: var(--secondary-background-color, #f1f5f9);
+    margin-bottom: 10px;
+}
+
+.bobinagem-titulo {
+    font-weight: 800;
+    margin-bottom: 8px;
+}
+
+.bobinagem-linha {
+    display: grid;
+    grid-template-columns: 72px 1fr;
+    gap: 10px;
+    padding: 6px 0;
+    border-top: 1px dashed rgba(100, 116, 139, 0.25);
+}
+
+.bobinagem-linha:first-of-type {
+    border-top: none;
+}
+
+.bobinagem-k {
+    font-weight: 700;
+    opacity: 0.85;
 }
