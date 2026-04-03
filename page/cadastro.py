@@ -118,7 +118,7 @@ def show(supabase):
             "isolacao": isolacao,
             "ip": ip,
             "regime": regime,
-            "fator_servico": faktor_servico if 'faktor_servico' in locals() else fator_servico,
+            "fator_servico": fator_servico, # CORRIGIDO AQUI
             "peso": peso,
             "ventilacao": ventilacao,
             "passo_principal": passo_principal,
@@ -146,7 +146,7 @@ def show(supabase):
             "origem_calculo": origem,
         }
 
-        # --- NOVAS INTEGRAÇÕES ---
+        # --- INTEGRAÇÕES ---
         for msg in alertas_validacao_projeto(motor):
             st.warning(msg)
 
