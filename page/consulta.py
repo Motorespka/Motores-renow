@@ -93,7 +93,6 @@ def show(supabase):
         .status-yellow { background-color: #ffa500; color: black; }
         .status-green { background-color: #00c853; color: white; }
         
-        /* Mantendo os estilos das caixas de bobinagem do seu código original */
         .bobinagem-box { border: 1px solid #555; padding: 10px; border-radius: 5px; background: #262730; margin-bottom: 5px; }
         .bobinagem-titulo { font-weight: bold; color: #ff4b4b; border-bottom: 1px solid #555; margin-bottom: 5px; padding-bottom: 2px; }
         .bobinagem-linha { display: flex; justify-content: space-between; font-size: 13px; }
@@ -108,6 +107,16 @@ def show(supabase):
         }
         .consulta-motor-resumo .titulo { font-weight: bold; font-size: 16px; margin-bottom: 4px; }
         .consulta-motor-resumo .meta { color: #888; font-size: 13px; }
+
+        /* Estilo para destaque de motores de 5 cabos */
+        .alerta-5-cabos {
+            background-color: #3e2723;
+            border-left: 5px solid #ffab40;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            color: #ffcc80;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -124,7 +133,6 @@ def show(supabase):
         # --- NOVA LÓGICA DE ALERTAS ---
         lista_alertas = alertas_validacao_projeto(m)
         
-        # Define a cor do selo principal
         if any("Risco" in a or "alta" in a.lower() for a in lista_alertas):
             status_html = '<span class="status-badge status-red">🔴 RISCO ALTO</span>'
         elif lista_alertas:
@@ -132,7 +140,6 @@ def show(supabase):
         else:
             status_html = '<span class="status-badge status-green">🟢 DADOS OK</span>'
 
-        # Título visível com o Status
         st.markdown(
             f"""
             <div class="consulta-motor-resumo">
@@ -144,7 +151,6 @@ def show(supabase):
         )
 
         with st.expander("Ver detalhes"):
-            # Exibe os alertas dentro do expander para o mecânico ler
             if lista_alertas:
                 for alerta in lista_alertas:
                     if "Risco" in alerta or "alta" in alerta.lower():
@@ -154,7 +160,6 @@ def show(supabase):
             else:
                 st.success("✅ Projeto validado: Densidade de corrente e espiras coerentes.")
 
-            # Ações rápidas
             c1, c2 = st.columns(2)
             if c1.button("✏️ Editar", key=f"ed_{id_motor}", use_container_width=True):
                 st.session_state.motor_editando = m
@@ -167,7 +172,7 @@ def show(supabase):
 
             st.divider()
 
-            # --- SEÇÃO 1: IDENTIFICAÇÃO (EXTENDIDA) ---
+            # --- SEÇÃO 1: IDENTIFICAÇÃO ---
             st.markdown("#### 📋 Dados de Placa e Identificação")
             col1, col2, col3 = st.columns(3)
             with col1:
@@ -216,37 +221,39 @@ def show(supabase):
             aux_esp = m.get("espira_auxiliar") or m.get("espiras_aux") or "---"
 
             with col_b1:
-                st.markdown(
-                    f"""
-                    <div class="bobinagem-box">
-                      <div class="bobinagem-titulo">Principal</div>
-                      <div class="bobinagem-linha"><div class="bobinagem-k">Passo</div><div>{principal_passo}</div></div>
-                      <div class="bobinagem-linha"><div class="bobinagem-k">Fio</div><div>{principal_fio}</div></div>
-                      <div class="bobinagem-linha"><div class="bobinagem-k">Espiras</div><div>{principal_esp}</div></div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+                st.markdown(f"""<div class="bobinagem-box"><div class="bobinagem-titulo">Principal</div>
+                    <div class="bobinagem-linha"><div class="bobinagem-k">Passo</div><div>{principal_passo}</div></div>
+                    <div class="bobinagem-linha"><div class="bobinagem-k">Fio</div><div>{principal_fio}</div></div>
+                    <div class="bobinagem-linha"><div class="bobinagem-k">Espiras</div><div>{principal_esp}</div></div></div>""", unsafe_allow_html=True)
 
             with col_b2:
-                st.markdown(
-                    f"""
-                    <div class="bobinagem-box">
-                      <div class="bobinagem-titulo">Auxiliar</div>
-                      <div class="bobinagem-linha"><div class="bobinagem-k">Passo</div><div>{aux_passo}</div></div>
-                      <div class="bobinagem-linha"><div class="bobinagem-k">Fio</div><div>{aux_fio}</div></div>
-                      <div class="bobinagem-linha"><div class="bobinagem-k">Espiras</div><div>{aux_esp}</div></div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+                st.markdown(f"""<div class="bobinagem-box"><div class="bobinagem-titulo">Auxiliar</div>
+                    <div class="bobinagem-linha"><div class="bobinagem-k">Passo</div><div>{aux_passo}</div></div>
+                    <div class="bobinagem-linha"><div class="bobinagem-k">Fio</div><div>{aux_fio}</div></div>
+                    <div class="bobinagem-linha"><div class="bobinagem-k">Espiras</div><div>{aux_esp}</div></div></div>""", unsafe_allow_html=True)
 
             st.divider()
 
-            # --- NOVA SEÇÃO: ESQUEMA DE LIGAÇÃO E TRADUTOR DE CORES ---
+            # --- SEÇÃO: ESQUEMA DE LIGAÇÃO E TRADUTOR DE CORES (COM LÓGICA DE 5 FIOS) ---
             st.markdown("#### ⚡ Esquema de Ligação e Cores")
             
-            # Tradutor visual de cores
+            # Lógica para identificar motores de 5 cabos
+            esquema_texto = str(m.get("esquema") or "").lower()
+            ligacao_texto = str(m.get("ligacao") or "").lower()
+            
+            if "5 cabos" in esquema_texto or "5 fios" in esquema_texto or "5 cabos" in ligacao_texto:
+                st.markdown(
+                    """
+                    <div class="alerta-5-cabos">
+                        <b>💡 DICA DE BANCADA (5 CABOS):</b><br>
+                        Este motor possui apenas 5 pontas externas. A bobina <b>Auxiliar (Partida)</b> 
+                        está ligada internamente junto com o <b>Cabo 2 ou Cabo 3</b>. 
+                        Na hora de ligar, ignore o cabo que falta no fechamento padrão.
+                    </div>
+                    """, 
+                    unsafe_allow_html=True
+                )
+
             cols_cores = st.columns(len(TABELA_CORES))
             for i, (cor, num) in enumerate(TABELA_CORES.items()):
                 cols_cores[i].metric(label=cor, value=num)
@@ -255,11 +262,11 @@ def show(supabase):
             if esquema_salvo and esquema_salvo != "---":
                 st.info(f"**Instrução de Ligação:**\n\n{esquema_salvo}")
             else:
-                st.write("*(Nenhum esquema de ligação cadastrado para este motor)*")
+                st.write("*(Nenhum esquema de ligação cadastrado)*")
 
             st.divider()
 
-            # --- SEÇÃO 4: DADOS ELÉTRICOS E NÚCLEO (TODOS OS SEUS CAMPOS) ---
+            # --- SEÇÃO 4: DADOS ELÉTRICOS E NÚCLEO ---
             st.markdown("#### ⚡ Elétrica e Núcleo")
             ec1, ec2, ec3 = st.columns(3)
             with ec1:
@@ -275,7 +282,6 @@ def show(supabase):
                 st.markdown(f"**Comp. Pacote:** {m.get('comprimento_pacote') or '---'}mm")
                 st.markdown(f"**Empilhamento:** {m.get('empilhamento') or '---'}mm")
 
-            # --- OBSERVAÇÕES E RODAPÉ ---
             if m.get("observacoes"):
                 st.markdown("---")
                 st.markdown(f"**📝 Obs:** {m.get('observacoes')}")
