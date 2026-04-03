@@ -26,17 +26,17 @@ def excluir_motor(supabase, id_motor):
 def show(supabase): 
     st.title("🔍 Consulta de Motores")
 
+    # --- LÓGICA DE NAVEGAÇÃO DE EDIÇÃO ---
     if "motor_editando" not in st.session_state:
         st.session_state.motor_editando = None
     if "abrir_edit" not in st.session_state:
         st.session_state.abrir_edit = False
 
-    # Modo edição
     if st.session_state.abrir_edit and st.session_state.motor_editando:
         try:
             edit_module = importlib.import_module("page.edit")
             edit_module.show(supabase)
-            if st.button("🔙 Voltar para Lista"):
+            if st.button("🔙 Voltar para Lista", use_container_width=True):
                 st.session_state.abrir_edit = False
                 st.session_state.motor_editando = None
                 st.rerun()
@@ -44,13 +44,32 @@ def show(supabase):
         except Exception as e:
             st.error(f"Erro ao carregar edição: {e}")
 
-    motores = listar_motores(supabase)
+    # --- BARRA DE PESQUISA (MUITO FUNCIONAL) ---
+    search_query = st.text_input("🔎 Pesquisar motor", placeholder="Ex: WEG, 12.5, 1750, 132M, 3:5:7...", help="Procure por marca, potência, RPM, carcaça ou qualquer detalhe.")
+
+    motores_db = listar_motores(supabase)
     
-    if not motores:
+    if not motores_db:
         st.info("Nenhum motor cadastrado.")
         return
 
-    # Estilo CSS para melhorar espaçamento no mobile
+    # --- LÓGICA DE FILTRO DINÂMICO ---
+    if search_query:
+        query = search_query.lower()
+        motores = [
+            m for m in motores_db 
+            if any(query in str(valor).lower() for valor in m.values() if valor is not None)
+        ]
+    else:
+        motores = motores_db
+
+    if not motores:
+        st.warning(f"Nenhum resultado encontrado para: '{search_query}'")
+        return
+
+    st.caption(f"Exibindo {len(motores)} motor(es)")
+
+    # --- ESTILO VISUAL ---
     st.markdown("""
         <style>
         [data-testid="stExpander"] { border: 1px solid #444; border-radius: 10px; margin-bottom: 10px; }
@@ -58,16 +77,17 @@ def show(supabase):
         </style>
     """, unsafe_allow_html=True)
 
+    # --- RENDERIZAÇÃO DOS CARDS ---
     for m in motores:
         id_motor = m.get('id')
-        marca = m.get('marca') or "WEG"
+        marca = m.get('marca') or "---"
         pot = m.get('potencia') or "---"
+        rpm = m.get('rpm') or "---"
         
-        # Cabeçalho otimizado para telas pequenas
-        titulo_card = f"🆔 {id_motor} | {marca} | {pot}"
+        titulo_card = f"🆔 {id_motor} | {marca} | {pot} | {rpm} RPM"
 
         with st.expander(titulo_card):
-            # Ações rápidas (Botões grandes para facilitar o toque)
+            # Ações rápidas
             c1, c2 = st.columns(2)
             if c1.button("✏️ Editar", key=f"ed_{id_motor}", use_container_width=True):
                 st.session_state.motor_editando = m
@@ -80,7 +100,7 @@ def show(supabase):
 
             st.divider()
 
-            # --- SEÇÃO 1: PLACA (2 colunas para não esmagar no celular) ---
+            # --- DADOS DE PLACA ---
             st.markdown("#### 📋 Dados de Placa")
             col1, col2 = st.columns(2)
             with col1:
@@ -94,36 +114,34 @@ def show(supabase):
 
             st.divider()
 
-            # --- SEÇÃO 2: BOBINAGEM (Cards coloridos) ---
+            # --- BOBINAGEM ---
             st.markdown("#### 🌀 Bobinagem")
-            
-            st.info(f"**Principal**\n\n**Passo:** {m.get('passo_principal') or m.get('passo_princ') or '---'}  \n"
+            st.info(f"**Principal** \n**Passo:** {m.get('passo_principal') or m.get('passo_princ') or '---'}  \n"
                     f"**Fio:** {m.get('fio_principal') or m.get('fio_princ') or '---'}  \n"
                     f"**Espiras:** {m.get('espira_principal') or m.get('espiras_princ') or '---'}")
             
-            st.warning(f"**Auxiliar**\n\n**Passo:** {m.get('passo_auxiliar') or m.get('passo_aux') or '---'}  \n"
+            st.warning(f"**Auxiliar** \n**Passo:** {m.get('passo_auxiliar') or m.get('passo_aux') or '---'}  \n"
                        f"**Fio:** {m.get('fio_auxiliar') or m.get('fio_aux') or '---'}  \n"
                        f"**Espiras:** {m.get('espira_auxiliar') or m.get('espiras_aux') or '---'}")
 
             st.divider()
 
-            # --- SEÇÃO 3: MECÂNICA E NÚCLEO (Compacto) ---
+            # --- TÉCNICA E NÚCLEO ---
             st.markdown("#### ⚙️ Técnica e Núcleo")
             col3, col4 = st.columns(2)
             with col3:
                 st.markdown(f"**Carcaça:**\n{m.get('carcaca') or '---'}")
                 st.markdown(f"**IP:** {m.get('ip') or '---'}")
                 st.markdown(f"**Ranhuras:** {m.get('numero_ranhuras') or '---'}")
-                st.markdown(f"**Ø Fio:** {m.get('diametro_fio') or '---'}")
             with col4:
                 st.markdown(f"**Polos:** {m.get('polos') or '---'}")
                 st.markdown(f"**Ligação:** {m.get('ligacao') or '---'}")
                 st.markdown(f"**Pacote:** {m.get('comprimento_pacote') or '---'}mm")
-                st.markdown(f"**Ø Int:** {m.get('diametro_interno') or '---'}mm")
 
-            # --- SEÇÃO 4: OBSERVAÇÕES ---
+            # --- OBSERVAÇÕES ---
             if m.get('observacoes'):
                 st.markdown("---")
                 st.markdown(f"**📝 Obs:** {m.get('observacoes')}")
 
             st.caption(f"📅 {m.get('data_cadastro')} | Origem: {m.get('origem_calculo')}")
+            
