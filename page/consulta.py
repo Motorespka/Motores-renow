@@ -61,12 +61,13 @@ def show(supabase):
         tensao = m.get('tensao') or "N/A"
         data_cadastro = m.get('data_cadastro') or "N/A"
 
+        # Cabeçalho do card (Resumo rápido)
         titulo_expander = (
             f"🆔 {id_motor} | ⚡ {cv_kw} | 🎯 {polos}P | 🔄 {rpm} RPM | 🔌 {amp}A | 🔋 {tensao}V"
         )
 
         with st.expander(titulo_expander):
-            # Ações rápidas
+            # Botões de Ação
             col_btn1, col_btn2 = st.columns([1, 5])
             with col_btn1:
                 if st.button("✏️ Editar", key=f"editar_{id_motor}"):
@@ -81,75 +82,75 @@ def show(supabase):
 
             st.markdown("---")
 
-            # --- SEÇÃO 1: DADOS GERAIS (PRIORIDADE) ---
+            # 📌 Seção 1: Dados Gerais (Principais)
             st.markdown("### 📌 Dados Gerais e Placa")
             c1, c2, c3 = st.columns(3)
             with c1:
-                st.write(f"**Marca:** {m.get('marca', 'N/A')}")
-                st.write(f"**Modelo:** {m.get('modelo', 'N/A')}")
-                st.write(f"**Fabricante:** {m.get('fabricante', 'N/A')}")
+                st.write(f"**Marca:** {m.get('marca') or '---'}")
+                st.write(f"**Modelo:** {m.get('modelo') or '---'}")
+                st.write(f"**Fabricante:** {m.get('fabricante') or '---'}")
             with c2:
-                st.write(f"**Potência:** {m.get('potencia', 'N/A')}")
-                st.write(f"**Tensão:** {m.get('tensao', 'N/A')}")
-                st.write(f"**Corrente:** {m.get('corrente', 'N/A')}")
+                st.write(f"**Potência:** {m.get('potencia') or '---'}")
+                st.write(f"**Tensão:** {m.get('tensao') or '---'}")
+                st.write(f"**Corrente:** {m.get('corrente') or '---'}")
             with c3:
-                st.write(f"**RPM:** {m.get('rpm', 'N/A')}")
-                st.write(f"**Frequência:** {m.get('frequencia', 'N/A')}")
-                st.write(f"**Rendimento:** {m.get('rendimento', 'N/A')}%")
+                st.write(f"**RPM:** {m.get('rpm') or '---'}")
+                st.write(f"**Frequência:** {m.get('frequencia') or '---'}")
+                st.write(f"**Rendimento:** {m.get('rendimento') or '---'}%")
 
             st.divider()
 
-            # --- SEÇÃO 2: DETALHES DO ENROLAMENTO ---
+            # 🌀 Seção 2: Bobinagem (CHAVES CORRIGIDAS PARA O SEU CADASTRO)
             st.markdown("### 🌀 Detalhes do Enrolamento")
-            col_p, col_a = st.columns(2)
-            with col_p:
+            col_princ, col_aux = st.columns(2)
+            with col_princ:
                 st.info("**Enrolamento Principal**")
-                st.write(f"**Passo:** {m.get('passo_principal', 'N/A')}")
-                st.write(f"**Fio:** {m.get('fio_principal', 'N/A')}")
-                st.write(f"**Espiras:** {m.get('espira_principal', 'N/A')}")
-            with col_a:
+                st.write(f"**Passo:** {m.get('passo_principal') or 'N/A'}")
+                st.write(f"**Fio:** {m.get('fio_principal') or 'N/A'}")
+                st.write(f"**Espiras:** {m.get('espira_principal') or 'N/A'}")
+            with col_aux:
                 st.warning("**Enrolamento Auxiliar**")
-                st.write(f"**Passo:** {m.get('passo_auxiliar', 'N/A')}")
-                st.write(f"**Fio:** {m.get('fio_auxiliar', 'N/A')}")
-                st.write(f"**Espiras:** {m.get('espira_auxiliar', 'N/A')}")
+                st.write(f"**Passo:** {m.get('passo_auxiliar') or 'N/A'}")
+                st.write(f"**Fio:** {m.get('fio_auxiliar') or 'N/A'}")
+                st.write(f"**Espiras:** {m.get('espira_auxiliar') or 'N/A'}")
 
             st.divider()
 
-            # --- SEÇÃO 3: CARACTERÍSTICAS TÉCNICAS E MECÂNICAS ---
+            # ⚙️ Seção 3: Características Técnicas (Acrescentado Montagem, Regime, etc)
             st.markdown("### ⚙️ Características Técnicas e Mecânicas")
             c4, c5, c6 = st.columns(3)
             with c4:
-                st.write(f"**Pólos:** {m.get('polos', 'N/A')}")
-                st.write(f"**Carcaça:** {m.get('carcaca', 'N/A')}")
-                st.write(f"**Montagem:** {m.get('montagem', 'N/A')}")
+                st.write(f"**Polos:** {m.get('polos') or '---'}")
+                st.write(f"**Carcaça:** {m.get('carcaca') or '---'}")
+                st.write(f"**Montagem:** {m.get('montagem') or '---'}")
             with c5:
-                st.write(f"**Isolação:** {m.get('isolacao', 'N/A')}")
-                st.write(f"**Grau Prot. (IP):** {m.get('ip', 'N/A')}")
-                st.write(f"**Regime:** {m.get('regime', 'N/A')}")
+                st.write(f"**Isolação:** {m.get('isolacao') or '---'}")
+                st.write(f"**IP:** {m.get('ip') or '---'}")
+                st.write(f"**Regime:** {m.get('regime') or '---'}")
             with c6:
-                st.write(f"**Fator Serviço:** {m.get('fator_servico', 'N/A')}")
-                st.write(f"**Peso:** {m.get('peso', 'N/A')} kg")
-                st.write(f"**Ventilação:** {m.get('ventilacao', 'N/A')}")
+                st.write(f"**Fator Serviço:** {m.get('fator_servico') or '---'}")
+                st.write(f"**Peso:** {m.get('peso') or '---'} kg")
+                st.write(f"**Ventilação:** {m.get('ventilacao') or '---'}")
 
             st.divider()
 
-            # --- SEÇÃO 4: DADOS DO NÚCLEO E LIGAÇÃO ---
+            # 🧲 Seção 4: Dados Elétricos e Núcleo (Acrescentado Diâmetro e Tipo de Fio)
             st.markdown("### 🧲 Dados Elétricos e Núcleo")
             c7, c8, c9 = st.columns(3)
             with c7:
-                st.write(f"**Tipo Enrolamento:** {m.get('tipo_enrolamento', 'N/A')}")
-                st.write(f"**Nº Ranhuras:** {m.get('numero_ranhuras', 'N/A')}")
-                st.write(f"**Resistência:** {m.get('resistencia', 'N/A')} Ω")
+                st.write(f"**Tipo Enrolamento:** {m.get('tipo_enrolamento') or '---'}")
+                st.write(f"**Nº Ranhuras:** {m.get('numero_ranhuras') or '---'}")
+                st.write(f"**Resistência:** {m.get('resistencia') or '---'} Ω")
             with c8:
-                st.write(f"**Ø Fio:** {m.get('diametro_fio', 'N/A')} mm")
-                st.write(f"**Tipo Fio:** {m.get('tipo_fio', 'N/A')}")
-                st.write(f"**Ligação:** {m.get('ligacao', 'N/A')}")
+                st.write(f"**Ø Fio:** {m.get('diametro_fio') or '---'} mm")
+                st.write(f"**Tipo Fio:** {m.get('tipo_fio') or '---'}")
+                st.write(f"**Ligação:** {m.get('ligacao') or '---'}")
             with c9:
-                st.write(f"**Ø Interno:** {m.get('diametro_interno', 'N/A')} mm")
-                st.write(f"**Comp. Pacote:** {m.get('comprimento_pacote', 'N/A')} mm")
-                st.write(f"**Empilhamento:** {m.get('empilhamento', 'N/A')} mm")
+                st.write(f"**Ø Interno:** {m.get('diametro_interno') or '---'} mm")
+                st.write(f"**Comp. Pacote:** {m.get('comprimento_pacote') or '---'} mm")
+                st.write(f"**Empilhamento:** {m.get('empilhamento') or '---'} mm")
 
-            # --- SEÇÃO 5: OBSERVAÇÕES ---
+            # 📝 Seção 5: Observações
             st.markdown("---")
-            st.markdown(f"**📝 Observações:** {m.get('observacoes', 'Sem observações.')}")
-            st.caption(f"Origem do cálculo: {m.get('origem_calculo', 'N/A')} | Cadastrado em: {data_cadastro}")
+            st.markdown(f"**Observações:** {m.get('observacoes') or 'Sem observações.'}")
+            st.caption(f"Origem do cálculo: {m.get('origem_calculo') or 'N/A'} | Cadastrado em: {data_cadastro}")
