@@ -1,6 +1,9 @@
 import streamlit as st
 import importlib
 
+# ------------------------------
+# Operações no banco (SUPABASE)
+# ------------------------------
 def listar_motores(supabase):
     try:
         res = supabase.table("motores").select("*").order("id", desc=True).execute()
@@ -17,132 +20,110 @@ def excluir_motor(supabase, id_motor):
         st.error(f"Erro ao excluir motor: {e}")
         return False
 
+# ------------------------------
+# Função principal
+# ------------------------------
 def show(supabase): 
-    st.title("🔍 Consulta de Motores Cadastrados")
+    st.title("🔍 Consulta de Motores")
 
     if "motor_editando" not in st.session_state:
         st.session_state.motor_editando = None
     if "abrir_edit" not in st.session_state:
         st.session_state.abrir_edit = False
 
-    # Verificação de Modo Edição
+    # Modo edição
     if st.session_state.abrir_edit and st.session_state.motor_editando:
         try:
             edit_module = importlib.import_module("page.edit")
             edit_module.show(supabase)
-            if st.button("🔙 Fechar Edição"):
+            if st.button("🔙 Voltar para Lista"):
                 st.session_state.abrir_edit = False
                 st.session_state.motor_editando = None
                 st.rerun()
             return
         except Exception as e:
-            st.error(f"Erro ao carregar página de edição: {e}")
+            st.error(f"Erro ao carregar edição: {e}")
 
     motores = listar_motores(supabase)
     
     if not motores:
-        st.info("Nenhum motor encontrado.")
+        st.info("Nenhum motor cadastrado.")
         return
+
+    # Estilo CSS para melhorar espaçamento no mobile
+    st.markdown("""
+        <style>
+        [data-testid="stExpander"] { border: 1px solid #444; border-radius: 10px; margin-bottom: 10px; }
+        .stMarkdown p { font-size: 14px; margin-bottom: 5px; }
+        </style>
+    """, unsafe_allow_html=True)
 
     for m in motores:
         id_motor = m.get('id')
+        marca = m.get('marca') or "WEG"
+        pot = m.get('potencia') or "---"
         
-        # Título do card com informações vitais
-        titulo = f"🆔 {id_motor} | {m.get('marca') or 'S/M'} | {m.get('potencia') or '---'} | {m.get('rpm') or '---'} RPM"
+        # Cabeçalho otimizado para telas pequenas
+        titulo_card = f"🆔 {id_motor} | {marca} | {pot}"
 
-        with st.expander(titulo):
-            # Botões de Controle
-            c_edit, c_excl, _ = st.columns([1, 1, 4])
-            if c_edit.button("✏️ Editar", key=f"ed_{id_motor}"):
+        with st.expander(titulo_card):
+            # Ações rápidas (Botões grandes para facilitar o toque)
+            c1, c2 = st.columns(2)
+            if c1.button("✏️ Editar", key=f"ed_{id_motor}", use_container_width=True):
                 st.session_state.motor_editando = m
                 st.session_state.abrir_edit = True
                 st.rerun()
-            if c_excl.button("🗑️ Excluir", key=f"ex_{id_motor}"):
+            if c2.button("🗑️ Excluir", key=f"ex_{id_motor}", use_container_width=True):
                 if excluir_motor(supabase, id_motor):
                     st.success("Excluído!")
                     st.rerun()
 
-            st.markdown("---")
+            st.divider()
 
-            # --- SEÇÃO 1: PLACA E IDENTIFICAÇÃO ---
-            st.markdown("### 📌 Identificação da Placa")
-            col1, col2, col3 = st.columns(3)
+            # --- SEÇÃO 1: PLACA (2 colunas para não esmagar no celular) ---
+            st.markdown("#### 📋 Dados de Placa")
+            col1, col2 = st.columns(2)
             with col1:
-                st.write(f"**Marca:** {m.get('marca') or '---'}")
-                st.write(f"**Modelo:** {m.get('modelo') or '---'}")
-                st.write(f"**Fabricante:** {m.get('fabricante') or '---'}")
+                st.markdown(f"**Marca:**\n{m.get('marca') or '---'}")
+                st.markdown(f"**Potência:**\n{m.get('potencia') or '---'}")
+                st.markdown(f"**Tensão:**\n{m.get('tensao') or '---'}")
             with col2:
-                st.write(f"**Potência:** {m.get('potencia') or '---'}")
-                st.write(f"**Tensão:** {m.get('tensao') or '---'}")
-                st.write(f"**Corrente:** {m.get('corrente') or '---'}")
+                st.markdown(f"**RPM:**\n{m.get('rpm') or '---'}")
+                st.markdown(f"**Corrente:**\n{m.get('corrente') or '---'}")
+                st.markdown(f"**Freq:**\n{m.get('frequencia') or '---'}")
+
+            st.divider()
+
+            # --- SEÇÃO 2: BOBINAGEM (Cards coloridos) ---
+            st.markdown("#### 🌀 Bobinagem")
+            
+            st.info(f"**Principal**\n\n**Passo:** {m.get('passo_principal') or m.get('passo_princ') or '---'}  \n"
+                    f"**Fio:** {m.get('fio_principal') or m.get('fio_princ') or '---'}  \n"
+                    f"**Espiras:** {m.get('espira_principal') or m.get('espiras_princ') or '---'}")
+            
+            st.warning(f"**Auxiliar**\n\n**Passo:** {m.get('passo_auxiliar') or m.get('passo_aux') or '---'}  \n"
+                       f"**Fio:** {m.get('fio_auxiliar') or m.get('fio_aux') or '---'}  \n"
+                       f"**Espiras:** {m.get('espira_auxiliar') or m.get('espiras_aux') or '---'}")
+
+            st.divider()
+
+            # --- SEÇÃO 3: MECÂNICA E NÚCLEO (Compacto) ---
+            st.markdown("#### ⚙️ Técnica e Núcleo")
+            col3, col4 = st.columns(2)
             with col3:
-                st.write(f"**RPM:** {m.get('rpm') or '---'}")
-                st.write(f"**Frequência:** {m.get('frequencia') or '---'}")
-                st.write(f"**Rendimento:** {m.get('rendimento') or '---'}%")
+                st.markdown(f"**Carcaça:**\n{m.get('carcaca') or '---'}")
+                st.markdown(f"**IP:** {m.get('ip') or '---'}")
+                st.markdown(f"**Ranhuras:** {m.get('numero_ranhuras') or '---'}")
+                st.markdown(f"**Ø Fio:** {m.get('diametro_fio') or '---'}")
+            with col4:
+                st.markdown(f"**Polos:** {m.get('polos') or '---'}")
+                st.markdown(f"**Ligação:** {m.get('ligacao') or '---'}")
+                st.markdown(f"**Pacote:** {m.get('comprimento_pacote') or '---'}mm")
+                st.markdown(f"**Ø Int:** {m.get('diametro_interno') or '---'}mm")
 
-            st.divider()
+            # --- SEÇÃO 4: OBSERVAÇÕES ---
+            if m.get('observacoes'):
+                st.markdown("---")
+                st.markdown(f"**📝 Obs:** {m.get('observacoes')}")
 
-            # --- SEÇÃO 2: BOBINAGEM (Lógica de busca em dois campos) ---
-            st.markdown("### 🌀 Detalhes do Enrolamento")
-            col_p, col_a = st.columns(2)
-            with col_p:
-                st.info("**Enrolamento Principal**")
-                # Busca no campo manual OU no campo OCR
-                passo_p = m.get('passo_principal') or m.get('passo_princ') or "---"
-                fio_p = m.get('fio_principal') or m.get('fio_princ') or "---"
-                esp_p = m.get('espira_principal') or m.get('espiras_princ') or "---"
-                st.write(f"**Passo:** {passo_p}")
-                st.write(f"**Fio:** {fio_p}")
-                st.write(f"**Espiras:** {esp_p}")
-            
-            with col_a:
-                st.warning("**Enrolamento Auxiliar**")
-                passo_a = m.get('passo_auxiliar') or m.get('passo_aux') or "---"
-                fio_a = m.get('fio_auxiliar') or m.get('fio_aux') or "---"
-                esp_a = m.get('espira_auxiliar') or m.get('espiras_aux') or "---"
-                st.write(f"**Passo:** {passo_a}")
-                st.write(f"**Fio:** {fio_a}")
-                st.write(f"**Espiras:** {esp_a}")
-
-            st.divider()
-
-            # --- SEÇÃO 3: MECÂNICA E PROTEÇÃO ---
-            st.markdown("### ⚙️ Características Mecânicas")
-            m1, m2, m3 = st.columns(3)
-            with m1:
-                st.write(f"**Carcaça:** {m.get('carcaca') or '---'}")
-                st.write(f"**Polos:** {m.get('polos') or '---'}")
-                st.write(f"**Montagem:** {m.get('montagem') or '---'}")
-            with m2:
-                st.write(f"**Isolação:** {m.get('isolacao') or '---'}")
-                st.write(f"**IP:** {m.get('ip') or '---'}")
-                st.write(f"**Regime:** {m.get('regime') or '---'}")
-            with m3:
-                st.write(f"**Rolamento D:** {m.get('rolamento_d') or '---'}")
-                st.write(f"**Rolamento T:** {m.get('rolamento_t') or '---'}")
-                st.write(f"**Peso:** {m.get('peso') or '---'} kg")
-
-            st.divider()
-
-            # --- SEÇÃO 4: DADOS TÉCNICOS DO NÚCLEO E LIGAÇÃO ---
-            st.markdown("### 🧲 Dados Elétricos e Núcleo")
-            d1, d2, d3 = st.columns(3)
-            with d1:
-                st.write(f"**Tipo Enrol.:** {m.get('tipo_enrolamento') or '---'}")
-                st.write(f"**Nº Ranhuras:** {m.get('numero_ranhuras') or '---'}")
-                st.write(f"**Ligação:** {m.get('ligacao') or '---'}")
-            with d2:
-                st.write(f"**Ø Fio:** {m.get('diametro_fio') or '---'} mm")
-                st.write(f"**Tipo Fio:** {m.get('tipo_fio') or '---'}")
-                st.write(f"**Resistência:** {m.get('resistencia') or '---'} Ω")
-            with d3:
-                st.write(f"**Ø Interno:** {m.get('diametro_interno') or '---'} mm")
-                st.write(f"**Ø Externo:** {m.get('diametro_externo') or '---'} mm")
-                st.write(f"**Pacote/Empilh.:** {m.get('comprimento_pacote') or '---'} / {m.get('empilhamento') or '---'} mm")
-
-            # --- SEÇÃO 5: OBSERVAÇÕES E METADADOS ---
-            st.markdown("---")
-            st.info(f"**📝 Observações:** {m.get('observacoes') or 'Sem notas adicionais.'}")
-            
-            # Rodapé com informações de sistema
-            st.caption(f"📍 Origem: {m.get('origem_calculo')} | 📂 Arquivo: {m.get('arquivo') or 'Manual'} | 📅 Cadastro: {m.get('data_cadastro')}")
+            st.caption(f"📅 {m.get('data_cadastro')} | Origem: {m.get('origem_calculo')}")
