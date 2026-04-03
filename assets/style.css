@@ -10,3 +10,61 @@
 .stButton > button:hover {
     transform: scale(1.05);
 }
+
+/* ===== Cards de motores (mobile-first) ===== */
+.motor-card {
+  background: #0f172a;               /* slate-900 */
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 16px;
+  padding: 12px;
+  margin: 12px 0;
+  box-shadow: 0 10px 24px rgba(0,0,0,.25);
+}
+
+.motor-card__header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.motor-card .stButton > button {
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.06);
+  color: rgba(255,255,255,.92);
+  padding: 10px 12px;
+  transition: transform .12s ease, background .12s ease, border-color .12s ease;
+}
+
+.motor-card .stButton > button:hover {
+  transform: translateY(-1px);
+  background: rgba(255,255,255,.10);
+  border-color: rgba(255,255,255,.22);
+}
+
+/* Expander dentro do card */
+.motor-card [data-testid="stExpander"] {
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 12px;
+  background: rgba(255,255,255,.03);
+  overflow: hidden;
+}
+
+/* “resumo” do expander (summary) */
+.motor-card [data-testid="stExpander"] summary {
+  font-weight: 700;
+}
+
+/* Tipografia no conteúdo */
+.motor-card .stMarkdown p {
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+@media (min-width: 720px) {
+  .motor-card {
+    padding: 16px;
+    border-radius: 18px;
+  }
+}
