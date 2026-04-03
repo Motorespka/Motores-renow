@@ -148,7 +148,6 @@ def show(supabase):
         rpm = m.get("rpm") or "---"
         modelo = m.get("modelo") or ""
 
-        # --- NOVA LÓGICA DE ALERTAS ---
         lista_alertas = alertas_validacao_projeto(m)
         
         if any("Risco" in a or "alta" in a.lower() for a in lista_alertas):
@@ -259,7 +258,7 @@ def show(supabase):
             ligacao_texto = str(m.get("ligacao") or "").lower()
             obs_texto = str(m.get("observacoes") or "").lower()
 
-            # --- LÓGICA ACRESCENTADA E ORGANIZADA ---
+            # --- LÓGICA CONSOLIDADA NO BLOCO 6 FIOS ---
             if any(x in esquema_texto or x in ligacao_texto or x in obs_texto for x in ["6 cabos", "6 fios", "6 pontas"]) or "220/380" in str(m.get("tensao")):
                 st.markdown(
                     """
@@ -269,8 +268,7 @@ def show(supabase):
                         <b>Estrela (Y) - Maior Tensão:</b> (1, 2, 3) à rede e (4-5-6) unidos entre si.<br><br>
                         <hr style="border: 0.5px solid #2979ff; margin: 10px 0;">
                         <b>📌 ESQUEMA DE LIGAÇÃO 5 FIOS:</b><br>
-                        <b>Sentido Horário:</b> Linha em 1 e (4+5). Unir 2 e 3.<br>
-                        <b>Sentido Anti-Horário:</b> Linha em (1+5) e 4. Unir 2 e 3.
+                        <b>Conexão:</b> Linha em 1 e (4+5). Unir 2 e 3.
                     </div>
                     """, 
                     unsafe_allow_html=True
@@ -280,8 +278,7 @@ def show(supabase):
                     """
                     <div class="alerta-5-cabos">
                         <b>🔌 FECHAMENTO 5 FIOS (DETALHADO):</b><br><br>
-                        <b>Sentido Horário:</b> Linha em 1 e (4+5). Unir 2 e 3.<br>
-                        <b>Sentido Anti-Horário:</b> Linha em (1+5) e 4. Unir 2 e 3.<br><br>
+                        <b>Conexão:</b> Linha em 1 e (4+5). Unir 2 e 3.<br><br>
                         <i>Nota: O cabo 5 é o auxiliar de partida. A outra ponta da auxiliar está ligada internamente ao cabo 2 ou 3.</i>
                     </div>
                     """, 
@@ -310,7 +307,7 @@ def show(supabase):
             for i, (cor, num) in enumerate(TABELA_CORES.items()):
                 cols_cores[i].metric(label=cor, value=num)
             
-            # --- REMOVIDA A EXIBIÇÃO DA STRING "Instrução de Ligação" POLUÍDA ---
+            # REMOVIDO: A exibição do texto original 'esquema_salvo' foi retirada para limpar o visual.
 
             st.divider()
 
