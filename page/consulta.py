@@ -259,8 +259,23 @@ def show(supabase):
             ligacao_texto = str(m.get("ligacao") or "").lower()
             obs_texto = str(m.get("observacoes") or "").lower()
 
-            # 1. Lógica para identificar motores de 5 cabos
-            if any(x in esquema_texto or x in ligacao_texto or x in obs_texto for x in ["5 cabos", "5 fios", "5 pontas"]):
+            # --- LÓGICA ACRESCENTADA E ORGANIZADA ---
+            if any(x in esquema_texto or x in ligacao_texto or x in obs_texto for x in ["6 cabos", "6 fios", "6 pontas"]) or "220/380" in str(m.get("tensao")):
+                st.markdown(
+                    """
+                    <div class="alerta-6-cabos">
+                        <b>🔌 FECHAMENTO 6 FIOS (PADRÃO):</b><br><br>
+                        <b>Triângulo (Δ) - Menor Tensão:</b> (1-6), (2-4), (3-5) ligados à rede.<br>
+                        <b>Estrela (Y) - Maior Tensão:</b> (1, 2, 3) à rede e (4-5-6) unidos entre si.<br><br>
+                        <hr style="border: 0.5px solid #2979ff; margin: 10px 0;">
+                        <b>📌 ESQUEMA DE LIGAÇÃO 5 FIOS:</b><br>
+                        <b>Sentido Horário:</b> Linha em 1 e (4+5). Unir 2 e 3.<br>
+                        <b>Sentido Anti-Horário:</b> Linha em (1+5) e 4. Unir 2 e 3.
+                    </div>
+                    """, 
+                    unsafe_allow_html=True
+                )
+            elif any(x in esquema_texto or x in ligacao_texto or x in obs_texto for x in ["5 cabos", "5 fios", "5 pontas"]):
                 st.markdown(
                     """
                     <div class="alerta-5-cabos">
@@ -268,20 +283,6 @@ def show(supabase):
                         <b>Sentido Horário:</b> Linha em 1 e (4+5). Unir 2 e 3.<br>
                         <b>Sentido Anti-Horário:</b> Linha em (1+5) e 4. Unir 2 e 3.<br><br>
                         <i>Nota: O cabo 5 é o auxiliar de partida. A outra ponta da auxiliar está ligada internamente ao cabo 2 ou 3.</i>
-                    </div>
-                    """, 
-                    unsafe_allow_html=True
-                )
-
-            # --- ACRESCENTADO: Lógica para identificar motores de 6 fios ---
-            elif any(x in esquema_texto or x in ligacao_texto or x in obs_texto for x in ["6 cabos", "6 fios", "6 pontas"]) or "220/380" in str(m.get("tensao")):
-                st.markdown(
-                    """
-                    <div class="alerta-6-cabos">
-                        <b>🔌 FECHAMENTO 6 FIOS (PADRÃO):</b><br><br>
-                        <b>Triângulo (Δ) - Menor Tensão:</b> (1-6), (2-4), (3-5) ligados à rede.<br>
-                        <b>Estrela (Y) - Maior Tensão:</b> (1, 2, 3) à rede e (4-5-6) unidos entre si.<br><br>
-                        <i>Nota: Para motores monofásicos de 6 pontas, os cabos 5 e 6 pertencem à bobina auxiliar.</i>
                     </div>
                     """, 
                     unsafe_allow_html=True
@@ -309,11 +310,7 @@ def show(supabase):
             for i, (cor, num) in enumerate(TABELA_CORES.items()):
                 cols_cores[i].metric(label=cor, value=num)
             
-            esquema_salvo = m.get("esquema")
-            if esquema_salvo and esquema_salvo != "---":
-                st.info(f"**Instrução de Ligação:**\n\n{esquema_salvo}")
-            else:
-                st.write("*(Nenhum esquema de ligação adicional)*")
+            # --- REMOVIDA A EXIBIÇÃO DA STRING "Instrução de Ligação" POLUÍDA ---
 
             st.divider()
 
