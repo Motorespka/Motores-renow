@@ -34,6 +34,13 @@ def show(supabase):
     st.title("⚙️ Cadastro de Motores - Moto-Renow")
     st.markdown("---")
 
+    # Tabela de Cores para consulta rápida (ajuda para o seu pai)
+    TABELA_CORES = {
+        "Azul": "1", "Branco": "2", "Laranja": "3", 
+        "Amarelo": "4", "Preto": "5", "Vermelho": "6",
+        "Verde": "Terra"
+    }
+
     with st.form("cadastro_motor", clear_on_submit=True):
         # --- SEÇÃO 1: PLACA ---
         with st.expander("📌 Identificação e Placa", expanded=True):
@@ -93,13 +100,27 @@ def show(supabase):
                 diametro_interno = st.text_input("Ø Interno (mm)")
                 comprimento_pacote = st.text_input("Comp. Pacote (mm)")
 
+        # --- NOVA SEÇÃO: GUIA DE LIGAÇÃO (CORES E ESQUEMA) ---
+        with st.expander("⚡ Esquema de Ligação e Cores", expanded=True):
+            st.info("Consulte as cores abaixo para preencher o esquema se os fios não tiverem números.")
+            
+            # Tradutor visual de cores para o seu pai
+            cols_cores = st.columns(len(TABELA_CORES))
+            for i, (cor, num) in enumerate(TABELA_CORES.items()):
+                cols_cores[i].metric(label=cor, value=num)
+            
+            st.divider()
+            esquema = st.text_area(
+                "Esquema de Ligação", 
+                placeholder="Ex: 110V: (1,3,5) e (2,4,6) | 220V: 1-(2,3,5)-4,6\nCores: 1-Az, 2-Br, 3-La, 4-Am, 5-Pr, 6-Vm"
+            )
+
         origem = st.selectbox("Origem do Cálculo", ["União", "Rebobinador", "Próprio"])
         observacoes = st.text_area("Observações")
         
         salvar = st.form_submit_button("💾 SALVAR NO BANCO DE DADOS", use_container_width=True)
 
     if salvar:
-        # Montagem do dicionário (CUIDADO: Usei 'fator_servico' sem o erro do 'k')
         motor = {
             "marca": marca, "modelo": modelo, "fabricante": fabricante,
             "potencia": potencia, "tensao": tensao, "corrente": corrente,
@@ -114,6 +135,7 @@ def show(supabase):
             "espira_auxiliar": espira_auxiliar, "tipo_enrolamento": tipo_enrolamento,
             "numero_ranhuras": numero_ranhuras, "ligacao": ligacao,
             "diametro_interno": diametro_interno, "comprimento_pacote": comprimento_pacote,
+            "esquema": esquema, # ADICIONADO AO DICIONÁRIO
             "observacoes": observacoes, "origem_calculo": origem
         }
 
@@ -128,4 +150,3 @@ def show(supabase):
             st.balloons()
         else:
             st.error(mensagem)
-        
