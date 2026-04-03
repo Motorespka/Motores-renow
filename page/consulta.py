@@ -7,10 +7,11 @@ import importlib
 def listar_motores(supabase):
     try:
         res = supabase.table("motores").select("*").order("id", desc=True).execute()
-        return res.data 
+        return res.data
     except Exception as e:
         st.error(f"Erro ao listar motores: {e}")
         return []
+
 
 def excluir_motor(supabase, id_motor):
     try:
@@ -20,10 +21,11 @@ def excluir_motor(supabase, id_motor):
         st.error(f"Erro ao excluir motor: {e}")
         return False
 
+
 # ------------------------------
 # Função principal
 # ------------------------------
-def show(supabase): 
+def show(supabase):
     st.title("🔍 Consulta de Motores")
 
     # --- LÓGICA DE NAVEGAÇÃO DE EDIÇÃO ---
@@ -45,10 +47,14 @@ def show(supabase):
             st.error(f"Erro ao carregar edição: {e}")
 
     # --- BARRA DE PESQUISA ---
-    search_query = st.text_input("🔎 Pesquisar motor", placeholder="Ex: WEG, 12.5, 1750, 132M, 3:5:7...", help="Procure por marca, potência, RPM, carcaça ou qualquer detalhe.")
+    search_query = st.text_input(
+        "🔎 Pesquisar motor",
+        placeholder="Ex: WEG, 12.5, 1750, 132M, 3:5:7...",
+        help="Procure por marca, potência, RPM, carcaça ou qualquer detalhe.",
+    )
 
     motores_db = listar_motores(supabase)
-    
+
     if not motores_db:
         st.info("Nenhum motor cadastrado.")
         return
@@ -57,7 +63,8 @@ def show(supabase):
     if search_query:
         query = search_query.lower()
         motores = [
-            m for m in motores_db 
+            m
+            for m in motores_db
             if any(query in str(valor).lower() for valor in m.values() if valor is not None)
         ]
     else:
@@ -69,21 +76,24 @@ def show(supabase):
 
     st.caption(f"Exibindo {len(motores)} motor(es)")
 
-    # --- ESTILO VISUAL ---
-    st.markdown("""
+    # --- ESTILO VISUAL (leve, local) ---
+    st.markdown(
+        """
         <style>
         [data-testid="stExpander"] { border: 1px solid #444; border-radius: 10px; margin-bottom: 10px; }
         .stMarkdown p { font-size: 14px; margin-bottom: 5px; }
         </style>
-    """, unsafe_allow_html=True)
+        """,
+        unsafe_allow_html=True,
+    )
 
     # --- RENDERIZAÇÃO DOS CARDS ---
     for m in motores:
-        id_motor = m.get('id')
-        marca = m.get('marca') or "---"
-        pot = m.get('potencia') or "---"
-        rpm = m.get('rpm') or "---"
-        modelo = m.get('modelo') or ""
+        id_motor = m.get("id")
+        marca = m.get("marca") or "---"
+        pot = m.get("potencia") or "---"
+        rpm = m.get("rpm") or "---"
+        modelo = m.get("modelo") or ""
 
         # Título visível (contraste no tema claro/escuro). O expander fica só para "Ver detalhes".
         st.markdown(
@@ -146,19 +156,43 @@ def show(supabase):
 
             st.divider()
 
-            # --- SEÇÃO 3: BOBINAGEM ---
+            # --- SEÇÃO 3: BOBINAGEM (layout melhor, mesmos dados) ---
             st.markdown("#### 🌀 Bobinagem")
             col_b1, col_b2 = st.columns(2)
+
+            principal_passo = m.get("passo_principal") or m.get("passo_princ") or "---"
+            principal_fio = m.get("fio_principal") or m.get("fio_princ") or "---"
+            principal_esp = m.get("espira_principal") or m.get("espiras_princ") or "---"
+
+            aux_passo = m.get("passo_auxiliar") or m.get("passo_aux") or "---"
+            aux_fio = m.get("fio_auxiliar") or m.get("fio_aux") or "---"
+            aux_esp = m.get("espira_auxiliar") or m.get("espiras_aux") or "---"
+
             with col_b1:
-                st.info(f"**Principal** \n"
-                        f"**Passo:** {m.get('passo_principal') or m.get('passo_princ') or '---'} \n"
-                        f"**Fio:** {m.get('fio_principal') or m.get('fio_princ') or '---'} \n"
-                        f"**Espiras:** {m.get('espira_principal') or m.get('espiras_princ') or '---'}")
+                st.markdown(
+                    f"""
+                    <div class="bobinagem-box">
+                      <div class="bobinagem-titulo">Principal</div>
+                      <div class="bobinagem-linha"><div class="bobinagem-k">Passo</div><div>{principal_passo}</div></div>
+                      <div class="bobinagem-linha"><div class="bobinagem-k">Fio</div><div>{principal_fio}</div></div>
+                      <div class="bobinagem-linha"><div class="bobinagem-k">Espiras</div><div>{principal_esp}</div></div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
             with col_b2:
-                st.warning(f"**Auxiliar** \n"
-                           f"**Passo:** {m.get('passo_auxiliar') or m.get('passo_aux') or '---'} \n"
-                           f"**Fio:** {m.get('fio_auxiliar') or m.get('fio_aux') or '---'} \n"
-                           f"**Espiras:** {m.get('espira_auxiliar') or m.get('espiras_aux') or '---'}")
+                st.markdown(
+                    f"""
+                    <div class="bobinagem-box">
+                      <div class="bobinagem-titulo">Auxiliar</div>
+                      <div class="bobinagem-linha"><div class="bobinagem-k">Passo</div><div>{aux_passo}</div></div>
+                      <div class="bobinagem-linha"><div class="bobinagem-k">Fio</div><div>{aux_fio}</div></div>
+                      <div class="bobinagem-linha"><div class="bobinagem-k">Espiras</div><div>{aux_esp}</div></div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
             st.divider()
 
@@ -179,7 +213,7 @@ def show(supabase):
                 st.markdown(f"**Empilhamento:** {m.get('empilhamento') or '---'}mm")
 
             # --- OBSERVAÇÕES E RODAPÉ ---
-            if m.get('observacoes'):
+            if m.get("observacoes"):
                 st.markdown("---")
                 st.markdown(f"**📝 Obs:** {m.get('observacoes')}")
 
