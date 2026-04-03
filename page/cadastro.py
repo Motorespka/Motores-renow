@@ -2,29 +2,32 @@ import streamlit as st
 from datetime import datetime
 from pathlib import Path
 
-from core.calculadora import alertas_validacao_projeto, sugerir_equivalentes_paralelos
-from services.supabase_data import clear_motores_cache
-
+# --- PROTEÇÃO DE IMPORTAÇÃO ---
+try:
+    from core.calculadora import alertas_validacao_projeto, sugerir_equivalentes_paralelos
+    from services.supabase_data import clear_motores_cache
+except ImportError as e:
+    st.error(f"⚠️ Erro de estrutura: Não encontrei o arquivo ou pasta: {e.name}")
+    st.info("Verifique se as pastas 'core' e 'services' possuem o arquivo __init__.py vazio.")
+    # Funções de "estepe" para o código não travar se os arquivos acima faltarem
+    def alertas_validacao_projeto(m): return []
+    def sugerir_equivalentes_paralelos(t): return []
+    def clear_motores_cache(): pass
 
 def _load_css() -> None:
     css_path = Path(__file__).resolve().parents[1] / "assets" / "style.css"
     if css_path.exists():
         st.markdown(f"<style>{css_path.read_text(encoding='utf-8')}</style>", unsafe_allow_html=True)
 
-
 def salvar_motor_supabase(supabase, motor):
     try:
         motor["data_cadastro"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         res = supabase.table("motores").insert(motor).execute()
-
         if res.data:
             return True, "✅ Motor salvo com sucesso no Supabase!"
-        else:
-            return False, f"⚠️ O banco não retornou confirmação: {res}"
-
+        return False, f"⚠️ Erro ao salvar: {res}"
     except Exception as e:
-        return False, f"❌ Erro ao salvar no Supabase: {str(e)}"
-
+        return False, f"❌ Erro de conexão: {str(e)}"
 
 def show(supabase):
     _load_css()
@@ -32,10 +35,11 @@ def show(supabase):
     st.markdown("---")
 
     with st.form("cadastro_motor", clear_on_submit=True):
+        # --- SEÇÃO 1: PLACA ---
         with st.expander("📌 Identificação e Placa", expanded=True):
             col1, col2, col3 = st.columns(3)
             with col1:
-                marca = st.text_input("Marca", help="Ex: WEG, Voges, Eberle")
+                marca = st.text_input("Marca")
                 modelo = st.text_input("Modelo")
                 fabricante = st.text_input("Fabricante")
             with col2:
@@ -47,6 +51,7 @@ def show(supabase):
                 frequencia = st.text_input("Frequência (Hz)")
                 rendimento = st.text_input("Rendimento (%)")
 
+        # --- SEÇÃO 2: MECÂNICA ---
         with st.expander("🛠️ Dados mecânicos", expanded=False):
             col4, col5, col6 = st.columns(3)
             with col4:
@@ -62,103 +67,60 @@ def show(supabase):
                 peso = st.text_input("Peso (kg)")
                 ventilacao = st.text_input("Ventilação")
 
+        # --- SEÇÃO 3: BOBINAGEM ---
         with st.expander("🌀 Dados de bobinagem e núcleo", expanded=False):
             col_princ, col_aux = st.columns(2)
-
             with col_princ:
                 st.markdown("**Enrolamento Principal**")
                 passo_principal = st.text_input("Passo Principal")
                 fio_principal = st.text_input("Fio Principal")
                 espira_principal = st.text_input("Espiras Principal")
-
             with col_aux:
                 st.markdown("**Enrolamento Auxiliar**")
                 passo_auxiliar = st.text_input("Passo Auxiliar")
                 fio_auxiliar = st.text_input("Fio Auxiliar")
                 espira_auxiliar = st.text_input("Espiras Auxiliar")
-
+            
             st.divider()
-
-            st.markdown("**⚡ Dados Elétricos e Núcleo**")
             c1, c2, c3 = st.columns(3)
             with c1:
                 tipo_enrolamento = st.text_input("Tipo Enrolamento")
                 numero_ranhuras = st.text_input("Nº Ranhuras")
-                resistencia = st.text_input("Resistência (Ω)")
             with c2:
                 diametro_fio = st.text_input("Diâmetro Fio (mm)")
-                tipo_fio = st.text_input("Tipo de Fio")
                 ligacao = st.selectbox("Ligação", ["Estrela", "Triângulo", "Série", "Paralelo"])
             with c3:
                 diametro_interno = st.text_input("Ø Interno (mm)")
                 comprimento_pacote = st.text_input("Comp. Pacote (mm)")
-                empilhamento = st.text_input("Empilhamento (mm)")
 
-        with st.expander("📝 Observações e origem", expanded=False):
-            observacoes = st.text_area("Notas técnicas adicionais")
-            origem = st.selectbox("Origem do Cálculo", ["União", "Rebobinador", "Próprio"])
-
-        st.markdown("<br>", unsafe_allow_html=True)
+        origem = st.selectbox("Origem do Cálculo", ["União", "Rebobinador", "Próprio"])
+        observacoes = st.text_area("Observações")
+        
         salvar = st.form_submit_button("💾 SALVAR NO BANCO DE DADOS", use_container_width=True)
 
     if salvar:
+        # Montagem do dicionário (CUIDADO: Usei 'fator_servico' sem o erro do 'k')
         motor = {
-            "marca": marca,
-            "modelo": modelo,
-            "fabricante": fabricante,
-            "potencia": potencia,
-            "tensao": tensao,
-            "corrente": corrente,
-            "rpm": rpm,
-            "frequencia": frequencia,
-            "rendimento": rendimento,
-            "polos": polos,
-            "carcaca": carcaca,
-            "montagem": montagem,
-            "isolacao": isolacao,
-            "ip": ip,
-            "regime": regime,
-            "fator_servico": fator_servico,
-            "peso": peso,
-            "ventilacao": ventilacao,
-            "passo_principal": passo_principal,
-            "passo_princ": passo_principal,
-            "fio_principal": fio_principal,
-            "fio_princ": fio_principal,
-            "espira_principal": espira_principal,
-            "espiras_princ": espira_principal,
-            "passo_auxiliar": passo_auxiliar,
-            "passo_aux": passo_auxiliar,
-            "fio_auxiliar": fio_auxiliar,
-            "fio_aux": fio_auxiliar,
-            "espira_auxiliar": espira_auxiliar,
-            "espiras_aux": espira_auxiliar,
-            "tipo_enrolamento": tipo_enrolamento,
-            "numero_ranhuras": numero_ranhuras,
-            "resistencia": resistencia,
-            "diametro_fio": diametro_fio,
-            "tipo_fio": tipo_fio,
-            "ligacao": ligacao,
-            "diametro_interno": diametro_interno,
-            "comprimento_pacote": comprimento_pacote,
-            "empilhamento": empilhamento,
-            "observacoes": observacoes,
-            "origem_calculo": origem,
+            "marca": marca, "modelo": modelo, "fabricante": fabricante,
+            "potencia": potencia, "tensao": tensao, "corrente": corrente,
+            "rpm": rpm, "frequencia": frequencia, "rendimento": rendimento,
+            "polos": polos, "carcaca": carcaca, "montagem": montagem,
+            "isolacao": isolacao, "ip": ip, "regime": regime,
+            "fator_servico": fator_servico, "peso": peso, "ventilacao": ventilacao,
+            "passo_principal": passo_principal, "passo_princ": passo_principal,
+            "fio_principal": fio_principal, "fio_princ": fio_principal,
+            "espira_principal": espira_principal, "espiras_princ": espira_principal,
+            "passo_auxiliar": passo_auxiliar, "fio_auxiliar": fio_auxiliar,
+            "espira_auxiliar": espira_auxiliar, "tipo_enrolamento": tipo_enrolamento,
+            "numero_ranhuras": numero_ranhuras, "ligacao": ligacao,
+            "diametro_interno": diametro_interno, "comprimento_pacote": comprimento_pacote,
+            "observacoes": observacoes, "origem_calculo": origem
         }
 
-        # --- INTEGRAÇÕES DA CALCULADORA ---
+        # Rodar lógica da calculadora (se os arquivos existirem)
         for msg in alertas_validacao_projeto(motor):
             st.warning(msg)
 
-        for lab, txt in (
-            ("Fio principal", fio_principal),
-            ("Fio auxiliar", fio_auxiliar),
-        ):
-            sugs = sugerir_equivalentes_paralelos(txt)
-            if sugs:
-                st.info("**Equivalente de estoque (bitola)** — " + lab + ":\n- " + "\n- ".join(sugs))
-
-        # --- SALVAMENTO NO SUPABASE ---
         sucesso, mensagem = salvar_motor_supabase(supabase, motor)
         if sucesso:
             clear_motores_cache()
@@ -166,3 +128,4 @@ def show(supabase):
             st.balloons()
         else:
             st.error(mensagem)
+        
