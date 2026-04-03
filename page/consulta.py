@@ -261,7 +261,7 @@ def show(supabase):
 
             is_monofasico = any(x in modelo_completo or x in ligacao_texto or x in obs_texto for x in ["mono", "monofasico", "1~", "1 f"])
 
-            # --- CORREÇÃO DE LÓGICA DE EXIBIÇÃO (Removendo identação fantasma) ---
+            # --- CORREÇÃO DE LÓGICA DE EXIBIÇÃO ---
             if any(x in esquema_texto or x in ligacao_texto or x in obs_texto for x in ["6 cabos", "6 fios", "6 pontas"]) or "220/380" in str(m.get("tensao")):
                 
                 texto_6_fios = (
@@ -271,7 +271,8 @@ def show(supabase):
                 )
                 
                 if is_monofasico:
-                    texto_5_fios += (
+                    # CORRIGIDO: Alterado de texto_5_fios para texto_6_fios
+                    texto_6_fios += (
                         "<hr style='border: 0.5px solid #2979ff; margin: 10px 0;'>"
                         "<b>🔄 ROTAÇÃO (MONOFÁSICO 6 FIOS):</b><br>"
                         "<b>Sentido Horário:</b> Ligar (1 e 5) em um cabo da rede, e (4 e 6) no outro cabo.<br>"
