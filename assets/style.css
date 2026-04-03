@@ -28,6 +28,20 @@
   margin-bottom: 10px;
 }
 
+.motor-card__title {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: .2px;
+  color: rgba(255,255,255,.96);
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.motor-card__meta {
+  font-size: 13px;
+  color: rgba(255,255,255,.75);
+}
+
 .motor-card .stButton > button {
   border-radius: 12px;
   border: 1px solid rgba(255,255,255,.14);
@@ -51,9 +65,17 @@
   overflow: hidden;
 }
 
-/* “resumo” do expander (summary) */
+/* Tenta deixar o botão do expander com cara de container */
+.motor-card [data-testid="stExpander"] button {
+  width: 100%;
+  text-align: left;
+  white-space: normal;
+  border-radius: 12px;
+}
+
+/* Resumo/summary (quando existir no DOM) */
 .motor-card [data-testid="stExpander"] summary {
-  font-weight: 700;
+  font-weight: 800;
 }
 
 /* Tipografia no conteúdo */
