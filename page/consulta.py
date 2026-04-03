@@ -82,7 +82,7 @@ def show(supabase):
 
     st.caption(f"Exibindo {len(motores)} motor(es)")
 
-    # --- ESTILO VISUAL (Preservado e Garantido) ---
+    # --- ESTILO VISUAL ---
     st.markdown(
         """
         <style>
@@ -108,7 +108,6 @@ def show(supabase):
         .consulta-motor-resumo .titulo { font-weight: bold; font-size: 16px; margin-bottom: 4px; }
         .consulta-motor-resumo .meta { color: #888; font-size: 13px; }
 
-        /* Estilo para destaque de motores de 5 cabos */
         .alerta-5-cabos {
             background-color: #3e2723;
             border-left: 5px solid #ffab40;
@@ -117,6 +116,16 @@ def show(supabase):
             margin: 10px 0;
             color: #ffcc80;
         }
+
+        .card-voltagem {
+            background: #111;
+            border: 1px solid #333;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .voltagem-header { color: #ff4b4b; font-weight: bold; margin-bottom: 5px; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -234,26 +243,39 @@ def show(supabase):
 
             st.divider()
 
-            # --- SEÇÃO: ESQUEMA DE LIGAÇÃO E TRADUTOR DE CORES (COM LÓGICA DE 5 FIOS) ---
+            # --- SEÇÃO: ESQUEMA DE LIGAÇÃO E TRADUTOR DE CORES ---
             st.markdown("#### ⚡ Esquema de Ligação e Cores")
             
-            # Lógica para identificar motores de 5 cabos
+            # 1. Lógica para identificar motores de 5 cabos
             esquema_texto = str(m.get("esquema") or "").lower()
             ligacao_texto = str(m.get("ligacao") or "").lower()
             
             if "5 cabos" in esquema_texto or "5 fios" in esquema_texto or "5 cabos" in ligacao_texto:
                 st.markdown(
-                    """
-                    <div class="alerta-5-cabos">
-                        <b>💡 DICA DE BANCADA (5 CABOS):</b><br>
-                        Este motor possui apenas 5 pontas externas. A bobina <b>Auxiliar (Partida)</b> 
-                        está ligada internamente junto com o <b>Cabo 2 ou Cabo 3</b>. 
-                        Na hora de ligar, ignore o cabo que falta no fechamento padrão.
-                    </div>
-                    """, 
+                    """<div class="alerta-5-cabos"><b>💡 DICA DE BANCADA (5 CABOS):</b><br>
+                    Este motor possui apenas 5 pontas externas. A bobina <b>Auxiliar (Partida)</b> 
+                    está ligada internamente junto com o <b>Cabo 2 ou Cabo 3</b>.</div>""", 
                     unsafe_allow_html=True
                 )
 
+            # 2. NOVA LÓGICA DE LIGAÇÕES DINÂMICAS (SÓ APARECE O QUE ESTIVER NA TENSÃO)
+            tensao_val = str(m.get("tensao") or "").lower()
+            cols_liga = st.columns(4) # Colunas para as ligações
+            
+            if "110" in tensao_val:
+                with cols_liga[0]:
+                    st.markdown('<div class="card-voltagem"><div class="voltagem-header">110V</div>1-3 com L1<br>2-4 com L2</div>', unsafe_allow_html=True)
+            if "220" in tensao_val:
+                with cols_liga[1]:
+                    st.markdown('<div class="card-voltagem"><div class="voltagem-header">220V</div>1 com L1<br>4 com L2<br>Unir 2-3</div>', unsafe_allow_html=True)
+            if "380" in tensao_val:
+                with cols_liga[2]:
+                    st.markdown('<div class="card-voltagem"><div class="voltagem-header">380V</div>Estrela (Y)<br>1-2-3 Linha<br>Unir 4-5-6</div>', unsafe_allow_html=True)
+            if "440" in tensao_val:
+                with cols_liga[3]:
+                    st.markdown('<div class="card-voltagem"><div class="voltagem-header">440V</div>Série<br>Conforme Placa</div>', unsafe_allow_html=True)
+
+            # 3. Tradutor de Cores
             cols_cores = st.columns(len(TABELA_CORES))
             for i, (cor, num) in enumerate(TABELA_CORES.items()):
                 cols_cores[i].metric(label=cor, value=num)
@@ -262,7 +284,7 @@ def show(supabase):
             if esquema_salvo and esquema_salvo != "---":
                 st.info(f"**Instrução de Ligação:**\n\n{esquema_salvo}")
             else:
-                st.write("*(Nenhum esquema de ligação cadastrado)*")
+                st.write("*(Nenhum esquema de ligação adicional)*")
 
             st.divider()
 
