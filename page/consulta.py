@@ -27,6 +27,13 @@ def excluir_motor(supabase, id_motor):
 def show(supabase):
     st.title("🔍 Consulta de Motores")
 
+    # --- DICIONÁRIO DE CORES PARA CONSULTA ---
+    TABELA_CORES = {
+        "Azul": "1", "Branco": "2", "Laranja": "3", 
+        "Amarelo": "4", "Preto": "5", "Vermelho": "6",
+        "Verde": "Terra"
+    }
+
     # --- LÓGICA DE NAVEGAÇÃO DE EDIÇÃO ---
     if "motor_editando" not in st.session_state:
         st.session_state.motor_editando = None
@@ -37,7 +44,7 @@ def show(supabase):
         try:
             edit_module = importlib.import_module("page.edit")
             edit_module.show(supabase)
-            if st.button("🔙 Voltar para Lista", use_container_width=True):
+            if st.button("🔙 Voltar para Lista", key="btn_voltar_lista", use_container_width=True):
                 st.session_state.abrir_edit = False
                 st.session_state.motor_editando = None
                 st.rerun()
@@ -75,7 +82,7 @@ def show(supabase):
 
     st.caption(f"Exibindo {len(motores)} motor(es)")
 
-    # --- ESTILO VISUAL (Melhorado para os Alertas) ---
+    # --- ESTILO VISUAL (Preservado e Garantido) ---
     st.markdown(
         """
         <style>
@@ -85,6 +92,22 @@ def show(supabase):
         .status-red { background-color: #ff4b4b; color: white; }
         .status-yellow { background-color: #ffa500; color: black; }
         .status-green { background-color: #00c853; color: white; }
+        
+        /* Mantendo os estilos das caixas de bobinagem do seu código original */
+        .bobinagem-box { border: 1px solid #555; padding: 10px; border-radius: 5px; background: #262730; margin-bottom: 5px; }
+        .bobinagem-titulo { font-weight: bold; color: #ff4b4b; border-bottom: 1px solid #555; margin-bottom: 5px; padding-bottom: 2px; }
+        .bobinagem-linha { display: flex; justify-content: space-between; font-size: 13px; }
+        .bobinagem-k { color: #888; }
+        
+        .consulta-motor-resumo {
+            background-color: #1e1e1e; 
+            padding: 12px; 
+            border-radius: 10px 10px 0 0; 
+            border: 1px solid #444; 
+            border-bottom: none;
+        }
+        .consulta-motor-resumo .titulo { font-weight: bold; font-size: 16px; margin-bottom: 4px; }
+        .consulta-motor-resumo .meta { color: #888; font-size: 13px; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -220,7 +243,23 @@ def show(supabase):
 
             st.divider()
 
-            # --- SEÇÃO 4: DADOS ELÉTRICOS E NÚCLEO ---
+            # --- NOVA SEÇÃO: ESQUEMA DE LIGAÇÃO E TRADUTOR DE CORES ---
+            st.markdown("#### ⚡ Esquema de Ligação e Cores")
+            
+            # Tradutor visual de cores
+            cols_cores = st.columns(len(TABELA_CORES))
+            for i, (cor, num) in enumerate(TABELA_CORES.items()):
+                cols_cores[i].metric(label=cor, value=num)
+            
+            esquema_salvo = m.get("esquema")
+            if esquema_salvo and esquema_salvo != "---":
+                st.info(f"**Instrução de Ligação:**\n\n{esquema_salvo}")
+            else:
+                st.write("*(Nenhum esquema de ligação cadastrado para este motor)*")
+
+            st.divider()
+
+            # --- SEÇÃO 4: DADOS ELÉTRICOS E NÚCLEO (TODOS OS SEUS CAMPOS) ---
             st.markdown("#### ⚡ Elétrica e Núcleo")
             ec1, ec2, ec3 = st.columns(3)
             with ec1:
