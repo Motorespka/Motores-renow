@@ -6,6 +6,7 @@ import importlib
 # ------------------------------
 def listar_motores(supabase):
     try:
+        # Busca todos os campos da tabela motores
         res = supabase.table("motores").select("*").order("id", desc=True).execute()
         return res.data 
     except Exception as e:
@@ -47,27 +48,27 @@ def show(supabase):
     motores = listar_motores(supabase)
     
     if not motores:
-        st.info("Nenhum motor cadastrado ainda no Supabase.")
+        st.info("Nenhum motor cadastrado no banco de dados.")
         return
 
     st.subheader("📋 Lista de Motores")
 
     for m in motores:
         id_motor = m.get('id')
-        cv_kw = m.get('potencia') or "N/A"
-        polos = m.get('polos') or "N/A"
-        rpm = m.get('rpm') or "N/A"
-        amp = m.get('corrente') or "N/A"
-        tensao = m.get('tensao') or "N/A"
-        data_cadastro = m.get('data_cadastro') or "N/A"
+        cv_kw = m.get('potencia') or "---"
+        polos = m.get('polos') or "---"
+        rpm = m.get('rpm') or "---"
+        amp = m.get('corrente') or "---"
+        tensao = m.get('tensao') or "---"
+        data_cadastro = m.get('data_cadastro') or "---"
 
-        # Cabeçalho do card (Resumo rápido)
+        # Cabeçalho do Card
         titulo_expander = (
             f"🆔 {id_motor} | ⚡ {cv_kw} | 🎯 {polos}P | 🔄 {rpm} RPM | 🔌 {amp}A | 🔋 {tensao}V"
         )
 
         with st.expander(titulo_expander):
-            # Botões de Ação
+            # Ações rápidas
             col_btn1, col_btn2 = st.columns([1, 5])
             with col_btn1:
                 if st.button("✏️ Editar", key=f"editar_{id_motor}"):
@@ -82,7 +83,7 @@ def show(supabase):
 
             st.markdown("---")
 
-            # 📌 Seção 1: Dados Gerais (Principais)
+            # --- SEÇÃO 1: DADOS GERAIS ---
             st.markdown("### 📌 Dados Gerais e Placa")
             c1, c2, c3 = st.columns(3)
             with c1:
@@ -100,29 +101,40 @@ def show(supabase):
 
             st.divider()
 
-            # 🌀 Seção 2: Bobinagem (CHAVES CORRIGIDAS PARA O SEU CADASTRO)
+            # --- SEÇÃO 2: BOBINAGEM (Lógica Dupla para os novos campos do SQL) ---
             st.markdown("### 🌀 Detalhes do Enrolamento")
             col_princ, col_aux = st.columns(2)
+            
             with col_princ:
                 st.info("**Enrolamento Principal**")
-                st.write(f"**Passo:** {m.get('passo_principal') or 'N/A'}")
-                st.write(f"**Fio:** {m.get('fio_principal') or 'N/A'}")
-                st.write(f"**Espiras:** {m.get('espira_principal') or 'N/A'}")
+                # Tenta pegar do formulário (passo_principal), se não houver, pega do OCR (passo_princ)
+                passo_p = m.get('passo_principal') or m.get('passo_princ') or "---"
+                fio_p = m.get('fio_principal') or m.get('fio_princ') or "---"
+                esp_p = m.get('espira_principal') or m.get('espiras_princ') or "---"
+                
+                st.write(f"**Passo:** {passo_p}")
+                st.write(f"**Fio:** {fio_p}")
+                st.write(f"**Espiras:** {esp_p}")
+
             with col_aux:
                 st.warning("**Enrolamento Auxiliar**")
-                st.write(f"**Passo:** {m.get('passo_auxiliar') or 'N/A'}")
-                st.write(f"**Fio:** {m.get('fio_auxiliar') or 'N/A'}")
-                st.write(f"**Espiras:** {m.get('espira_auxiliar') or 'N/A'}")
+                passo_a = m.get('passo_auxiliar') or m.get('passo_aux') or "---"
+                fio_a = m.get('fio_auxiliar') or m.get('fio_aux') or "---"
+                esp_a = m.get('espira_auxiliar') or m.get('espiras_aux') or "---"
+                
+                st.write(f"**Passo:** {passo_a}")
+                st.write(f"**Fio:** {fio_a}")
+                st.write(f"**Espiras:** {esp_a}")
 
             st.divider()
 
-            # ⚙️ Seção 3: Características Técnicas (Acrescentado Montagem, Regime, etc)
+            # --- SEÇÃO 3: CARACTERÍSTICAS MECÂNICAS ---
             st.markdown("### ⚙️ Características Técnicas e Mecânicas")
             c4, c5, c6 = st.columns(3)
             with c4:
-                st.write(f"**Polos:** {m.get('polos') or '---'}")
                 st.write(f"**Carcaça:** {m.get('carcaca') or '---'}")
                 st.write(f"**Montagem:** {m.get('montagem') or '---'}")
+                st.write(f"**Ventilação:** {m.get('ventilacao') or '---'}")
             with c5:
                 st.write(f"**Isolação:** {m.get('isolacao') or '---'}")
                 st.write(f"**IP:** {m.get('ip') or '---'}")
@@ -130,27 +142,27 @@ def show(supabase):
             with c6:
                 st.write(f"**Fator Serviço:** {m.get('fator_servico') or '---'}")
                 st.write(f"**Peso:** {m.get('peso') or '---'} kg")
-                st.write(f"**Ventilação:** {m.get('ventilacao') or '---'}")
+                st.write(f"**Rolamento D/T:** {m.get('rolamento_d') or '-'}/{m.get('rolamento_t') or '-'}")
 
             st.divider()
 
-            # 🧲 Seção 4: Dados Elétricos e Núcleo (Acrescentado Diâmetro e Tipo de Fio)
+            # --- SEÇÃO 4: DADOS DO NÚCLEO E ELÉTRICOS ---
             st.markdown("### 🧲 Dados Elétricos e Núcleo")
             c7, c8, c9 = st.columns(3)
             with c7:
                 st.write(f"**Tipo Enrolamento:** {m.get('tipo_enrolamento') or '---'}")
                 st.write(f"**Nº Ranhuras:** {m.get('numero_ranhuras') or '---'}")
-                st.write(f"**Resistência:** {m.get('resistencia') or '---'} Ω")
+                st.write(f"**Ligação:** {m.get('ligacao') or '---'}")
             with c8:
                 st.write(f"**Ø Fio:** {m.get('diametro_fio') or '---'} mm")
                 st.write(f"**Tipo Fio:** {m.get('tipo_fio') or '---'}")
-                st.write(f"**Ligação:** {m.get('ligacao') or '---'}")
+                st.write(f"**Resistência:** {m.get('resistencia') or '---'} Ω")
             with c9:
                 st.write(f"**Ø Interno:** {m.get('diametro_interno') or '---'} mm")
                 st.write(f"**Comp. Pacote:** {m.get('comprimento_pacote') or '---'} mm")
                 st.write(f"**Empilhamento:** {m.get('empilhamento') or '---'} mm")
 
-            # 📝 Seção 5: Observações
+            # --- SEÇÃO 5: OBSERVAÇÕES ---
             st.markdown("---")
             st.markdown(f"**Observações:** {m.get('observacoes') or 'Sem observações.'}")
-            st.caption(f"Origem do cálculo: {m.get('origem_calculo') or 'N/A'} | Cadastrado em: {data_cadastro}")
+            st.caption(f"Arquivo: {m.get('arquivo') or 'N/A'} | Origem: {m.get('origem_calculo')} | Cadastrado em: {data_cadastro}")
