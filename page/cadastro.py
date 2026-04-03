@@ -118,7 +118,7 @@ def show(supabase):
             "isolacao": isolacao,
             "ip": ip,
             "regime": regime,
-            "fator_servico": fator_servico, # CORRIGIDO AQUI
+            "fator_servico": fator_servico,
             "peso": peso,
             "ventilacao": ventilacao,
             "passo_principal": passo_principal,
@@ -146,15 +146,19 @@ def show(supabase):
             "origem_calculo": origem,
         }
 
-        # --- INTEGRAÇÕES ---
+        # --- INTEGRAÇÕES DA CALCULADORA ---
         for msg in alertas_validacao_projeto(motor):
             st.warning(msg)
 
-        for lab, txt in (("Fio principal", fio_principal), ("Fio auxiliar", fio_auxiliar)):
+        for lab, txt in (
+            ("Fio principal", fio_principal),
+            ("Fio auxiliar", fio_auxiliar),
+        ):
             sugs = sugerir_equivalentes_paralelos(txt)
             if sugs:
-                st.info(f"**Equivalente de estoque ({lab}):**\n- " + "\n- ".join(sugs))
+                st.info("**Equivalente de estoque (bitola)** — " + lab + ":\n- " + "\n- ".join(sugs))
 
+        # --- SALVAMENTO NO SUPABASE ---
         sucesso, mensagem = salvar_motor_supabase(supabase, motor)
         if sucesso:
             clear_motores_cache()
