@@ -137,8 +137,8 @@ def show(supabase):
         id_motor = m.get("id")
         marca = m.get("marca") or "---"
         modelo = m.get("modelo") or ""
-        potencia = m.get("potencia") or "---"
-        rpm = m.get("rpm") or "---"
+        potencia = m.get("potencia_hp_cv") or m.get("potencia") or "---"
+        rpm = m.get("rpm_nominal") or m.get("rpm") or "---"
 
         alertas = alertas_validacao_projeto(m)
 
@@ -151,8 +151,7 @@ def show(supabase):
 
         st.markdown(
             f"""
-            **#{id_motor} · {marca} {modelo} — {status}**  
-            {potencia} · {rpm} RPM
+            **#{id_motor} · {marca} {modelo} — {status}** {potencia} · {rpm} RPM
             """
         )
 
@@ -179,47 +178,80 @@ def show(supabase):
 
             st.divider()
 
-            # DADOS GERAIS
-            st.markdown("### 📋 Dados do Motor")
-            c1, c2, c3 = st.columns(3)
+            # --- NOVA ORGANIZAÇÃO EM ABAS ---
+            tab_placa, tab_oficina, tab_avancado = st.tabs([
+                "📋 Placa (Principal)", 
+                "🛠️ Rebobinagem & Mecânica", 
+                "🚀 Avançado & Performance"
+            ])
 
-            with c1:
-                st.write("Marca:", m.get("marca"))
-                st.write("Modelo:", m.get("modelo"))
-                st.write("Fabricante:", m.get("fabricante"))
+            with tab_placa:
+                st.markdown("### 📋 Informações da Placa")
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    st.write("**Marca:**", m.get("marca"))
+                    st.write("**Modelo:**", m.get("modelo"))
+                    st.write("**Fabricante:**", m.get("fabricante"))
+                    st.write("**Carcaça:**", m.get("carcaca"))
+                with c2:
+                    st.write("**Potência:**", m.get("potencia_hp_cv") or m.get("potencia"))
+                    st.write("**Tensão:**", m.get("tensao_v") or m.get("tensao"))
+                    st.write("**Amperagem (In):**", m.get("corrente_nominal_a") or m.get("corrente"))
+                with c3:
+                    st.write("**RPM:**", m.get("rpm_nominal") or m.get("rpm"))
+                    st.write("**Frequência:**", m.get("frequencia_hz") or m.get("frequencia"))
+                    st.write("**Fases:**", m.get("fases", "---"))
 
-            with c2:
-                st.write("Potência:", m.get("potencia"))
-                st.write("Tensão:", m.get("tensao"))
-                st.write("Corrente:", m.get("corrente"))
+                st.info(f"📏 **Tamanho do Induzido (Pacote):** {m.get('comprimento_pacote_mm', '---')} mm")
 
-            with c3:
-                st.write("RPM:", m.get("rpm"))
-                st.write("Frequência:", m.get("frequencia"))
-                st.write("Rendimento:", m.get("rendimento"))
+            with tab_oficina:
+                col_reb, col_mec = st.columns(2)
+                with col_reb:
+                    st.markdown("#### 🌀 Rebobinagem")
+                    st.write("**Número de Ranhuras:**", m.get("numero_ranhuras"))
+                    st.write("**Tipo de Enrolamento:**", m.get("tipo_enrolamento"))
+                    st.write("**Ligação:**", m.get("ligacao_interna") or m.get("ligacao"))
+                    
+                    st.markdown("---")
+                    st.write("**Principal:**")
+                    st.write(f"P: {m.get('passo_principal')} | F: {m.get('bitola_fio_principal') or m.get('fio_principal')} | E: {m.get('espiras_principal') or m.get('espira_principal')}")
+                    
+                    st.write("**Auxiliar:**")
+                    st.write(f"P: {m.get('passo_auxiliar')} | F: {m.get('bitola_fio_auxiliar') or m.get('fio_auxiliar')} | E: {m.get('espiras_auxiliar') or m.get('espira_auxiliar')}")
 
-            st.divider()
+                with col_mec:
+                    st.markdown("#### ⚙️ Mecânica")
+                    st.write("**Rolamento Dianteiro:**", m.get("rolamento_dianteiro"))
+                    st.write("**Rolamento Traseiro:**", m.get("rolamento_traseiro"))
+                    st.write("**Peso Total:**", m.get("peso_total_kg"), "kg")
+                    st.write("**Graxa:**", m.get("tipo_graxa"))
+                    
+                    st.markdown("---")
+                    st.write("**Capacitores:**")
+                    st.write(f"Partida: {m.get('capacitor_partida_mfd') or m.get('capacitor_partida', '---')}")
+                    st.write(f"Perm.: {m.get('capacitor_permanente_mfd') or m.get('capacitor_permanente', '---')}")
 
-            # BOBINAGEM
-            st.markdown("### 🌀 Bobinagem")
-
-            b1, b2 = st.columns(2)
-
-            with b1:
-                st.write("Passo Principal:", m.get("passo_principal"))
-                st.write("Fio Principal:", m.get("fio_principal"))
-                st.write("Espiras Principal:", m.get("espira_principal"))
-
-            with b2:
-                st.write("Passo Auxiliar:", m.get("passo_auxiliar"))
-                st.write("Fio Auxiliar:", m.get("fio_auxiliar"))
-                st.write("Espiras Auxiliar:", m.get("espira_auxiliar"))
+            with tab_avancado:
+                st.markdown("### 🔬 Dados de Performance & Engenharia")
+                a1, a2 = st.columns(2)
+                with a1:
+                    st.write("**Rendimento (%):**", m.get("rendimento_perc"))
+                    st.write("**Fator de Potência (cos φ):**", m.get("fator_potencia_cos_phi"))
+                    st.write("**Fator de Serviço (FS):**", m.get("fator_servico"))
+                with a2:
+                    st.write("**Relação Ip/In:**", m.get("ip_in_ratio"))
+                    st.write("**Classe de Isolação:**", m.get("classe_isolacao"))
+                    st.write("**Grau de Proteção (IP):**", m.get("grau_protecao_ip"))
+                
+                if m.get("especificacoes_extra"):
+                    st.markdown("---")
+                    st.write("**📋 Atributos Adicionais:**")
+                    st.json(m.get("especificacoes_extra"))
 
             st.divider()
 
             # TRADUTOR DE CORES
             st.markdown("### ⚡ Cores dos Cabos")
-
             cols_cores = st.columns(len(TABELA_CORES))
             for i, (cor, num) in enumerate(TABELA_CORES.items()):
                 cols_cores[i].metric(label=cor, value=num)
@@ -229,5 +261,5 @@ def show(supabase):
                 st.write("📝 Obs:", m.get("observacoes"))
 
             st.caption(
-                f"📅 {m.get('data_cadastro')} | Origem: {m.get('origem_calculo')}"
+                f"📅 {m.get('data_cadastro')} | Origem: {m.get('origem_registro') or m.get('origem_calculo')}"
             )
