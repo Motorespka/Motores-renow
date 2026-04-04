@@ -5,43 +5,98 @@ import os
 from pathlib import Path
 from supabase import create_client, Client
 
-# ================= 0. CORREÇÃO DE PATH DEFINITIVA =================
+# ================= 0. CORREÇÃO DE PATH (REFORÇADO) =================
+# Mantendo sua lógica original, mas garantindo que as subpastas virem módulos
 raiz = Path(__file__).resolve().parent
 if str(raiz) not in sys.path:
     sys.path.insert(0, str(raiz))
 
-# Adicional para subpastas serem reconhecidas como pacotes
-sys.path.append(os.path.join(os.path.dirname(__file__), 'page'))
+# ================= 1. CONFIGURAÇÃO DA PÁGINA =================
+st.set_page_config(
+    page_title="Moto-Renow",
+    page_icon="⚙️",
+    layout="wide"
+)
 
-st.set_page_config(page_title="Moto-Renow", page_icon="⚙️", layout="wide")
-
+# ================= 2. INICIALIZAÇÃO SUPABASE =================
 @st.cache_resource
 def init_connection():
     try:
         url = st.secrets["SUPABASE_URL"]
         key = st.secrets["SUPABASE_KEY"]
         return create_client(url, key)
-    except Exception:
-        st.error("Erro nas credenciais. Verifique o secrets.toml.")
+    except Exception as e:
+        st.error("Erro nas credenciais do Supabase. Verifique o arquivo secrets.toml.")
         return None
 
 supabase = init_connection()
 
-# ... (Mantenha o CSS e Autenticação como estão) ...
+# ================= 3. CSS CUSTOMIZADO =================
+def carregar_css():
+    try:
+        css_path = raiz / "assets" / "style.css"
+        if css_path.exists():
+            with open(css_path) as f:
+                st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    except Exception:
+        pass
 
+carregar_css()
+
+# ================= 4. AUTENTICAÇÃO =================
+try:
+    from auth.login import check_login
+    from auth.logout import botao_logout
+    check_login()
+except Exception as e:
+    pass
+
+# ================= 5. CONTROLE DE ESTADO (ROTEAMENTO) =================
 if "pagina" not in st.session_state:
     st.session_state.pagina = "cadastro"
 
-# Lógica de Roteamento (Melhorada para evitar ModuleNotFoundError)
-try:
-    nome_modulo = f"page.{st.session_state.pagina}"
-    if st.session_state.pagina == "edit":
-        nome_modulo = "page.edit"
-        
-    modulo = importlib.import_module(nome_modulo)
-    importlib.reload(modulo)
+# ================= 6. SIDEBAR (MENU NAV) =================
+with st.sidebar:
+    st.title("⚙️ Moto-Renow")
     
-    if hasattr(modulo, "show"):
-        modulo.show(supabase)
+    escolha = st.radio(
+        "Navegação",
+        ["cadastro", "consulta"],
+        index=0 if st.session_state.pagina == "cadastro" else 1,
+        key="menu_principal"
+    )
+
+    if st.session_state.get("pagina") != "edit":
+        st.session_state.pagina = escolha
+
+    st.divider()
+
+    try:
+        botao_logout()
+    except:
+        pass
+
+# ================= 7. ROUTER (CARREGAMENTO DE PÁGINAS) =================
+# Aqui mantive sua lógica de importlib exata para não quebrar o fluxo
+try:
+    if st.session_state.pagina == "edit":
+        from page.edit import show
+        show(supabase)
+    else:
+        nome_modulo = f"page.{st.session_state.pagina}"
+        
+        # O segredo para não dar erro de módulo é garantir que o importlib
+        # use o path que definimos no início
+        modulo = importlib.import_module(nome_modulo)
+        importlib.reload(modulo) 
+        
+        if hasattr(modulo, "show"):
+            modulo.show(supabase)
+        else:
+            st.error(f"O módulo '{nome_modulo}' não possui a função 'show(supabase)'.")
+
+except ModuleNotFoundError as e:
+    st.error(f"Erro: A página '{st.session_state.pagina}' não foi encontrada.")
+    st.info(f"Detalhe: {e}")
 except Exception as e:
-    st.error(f"Erro ao carregar página: {e}")
+    st.error(f"Ocorreu um erro ao carregar a página: {e}")
