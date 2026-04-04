@@ -137,8 +137,13 @@ def show(supabase):
         id_motor = m.get("id")
         marca = m.get("marca") or "---"
         modelo = m.get("modelo") or ""
+        
+        # Variáveis com fallback para garantir que os dados apareçam
         potencia = m.get("potencia_hp_cv") or m.get("potencia") or "---"
         rpm = m.get("rpm_nominal") or m.get("rpm") or "---"
+        tensao = m.get("tensao_v") or m.get("tensao") or "---"
+        amperagem = m.get("corrente_nominal_a") or m.get("corrente") or "---"
+        fases = m.get("fases") or "---"
 
         alertas = alertas_validacao_projeto(m)
 
@@ -149,9 +154,10 @@ def show(supabase):
         else:
             status = "🟢 OK"
 
+        # TÍTULO EXIBINDO MARCA, MODELO, STATUS, POTÊNCIA, FASES, RPM, TENSÃO E AMPERAGEM
         st.markdown(
             f"""
-            **#{id_motor} · {marca} {modelo} — {status}** {potencia} · {rpm} RPM
+            **#{id_motor} · {marca} {modelo} — {status}** {potencia} ({fases}) · {rpm} RPM · {tensao} · {amperagem}
             """
         )
 
@@ -178,7 +184,7 @@ def show(supabase):
 
             st.divider()
 
-            # --- NOVA ORGANIZAÇÃO EM ABAS ---
+            # --- ORGANIZAÇÃO EM ABAS ---
             tab_placa, tab_oficina, tab_avancado = st.tabs([
                 "📋 Placa (Principal)", 
                 "🛠️ Rebobinagem & Mecânica", 
@@ -194,13 +200,13 @@ def show(supabase):
                     st.write("**Fabricante:**", m.get("fabricante"))
                     st.write("**Carcaça:**", m.get("carcaca"))
                 with c2:
-                    st.write("**Potência:**", m.get("potencia_hp_cv") or m.get("potencia"))
-                    st.write("**Tensão:**", m.get("tensao_v") or m.get("tensao"))
-                    st.write("**Amperagem (In):**", m.get("corrente_nominal_a") or m.get("corrente"))
+                    st.write("**Potência:**", potencia)
+                    st.write("**Tensão:**", tensao)
+                    st.write("**Amperagem (In):**", amperagem)
                 with c3:
-                    st.write("**RPM:**", m.get("rpm_nominal") or m.get("rpm"))
+                    st.write("**RPM:**", rpm)
                     st.write("**Frequência:**", m.get("frequencia_hz") or m.get("frequencia"))
-                    st.write("**Fases:**", m.get("fases", "---"))
+                    st.write("**Fases:**", fases)
 
                 st.info(f"📏 **Tamanho do Induzido (Pacote):** {m.get('comprimento_pacote_mm', '---')} mm")
 
