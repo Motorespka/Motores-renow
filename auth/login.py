@@ -34,14 +34,14 @@ def check_login():
             if not usuario or not senha:
                 st.warning("Por favor, preencha todos os campos.")
             else:
-                # Busca o usuário no banco
-                res = supabase.table("perfis_usuarios").select("*").eq("username", usuario).execute()
+                # BUSCA NA TABELA CORRETA: usuarios_app
+                res = supabase.table("usuarios_app").select("*").eq("username", usuario).execute()
                 
                 if res.data:
                     stored_hash = res.data[0]["password_hash"]
                     # Verifica se a senha bate com o hash seguro
                     if bcrypt.checkpw(senha.encode('utf-8'), stored_hash.encode('utf-8')):
-                        criar_sessao() # Cria o token e salva na URL (seu session.py)
+                        criar_sessao() 
                         st.success("Login realizado!")
                         st.rerun()
                     else:
@@ -66,13 +66,15 @@ def check_login():
                 # Gera o hash para nunca salvar a senha limpa
                 hashed = bcrypt.hashpw(nova_senha.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                 try:
-                    supabase.table("perfis_usuarios").insert({
+                    # INSERE NA TABELA CORRETA: usuarios_app
+                    supabase.table("usuarios_app").insert({
                         "username": novo_usuario,
                         "password_hash": hashed
                     }).execute()
                     st.success("Conta criada! Vá na aba 'Entrar'.")
-                except Exception:
-                    st.error("Erro: Nome de usuário já está em uso ou falha na conexão.")
+                except Exception as e:
+                    # Mostra o erro real caso a conexão falhe ou o RLS bloqueie
+                    st.error(f"Erro ao cadastrar: {e}")
 
     # Interrompe o restante do app enquanto o usuário não estiver logado
     st.stop()
