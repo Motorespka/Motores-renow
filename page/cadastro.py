@@ -5,9 +5,10 @@ import sys
 import os
 
 # --- CONFIGURAÇÃO DE CAMINHO DO SISTEMA (REFORÇADO) ---
-# Detecta a raiz do projeto 'Uniao-motor' para que 'core' e 'services' sejam achados
+# Detecta a raiz do projeto para que 'core' e 'services' sejam achados
 file_path = Path(__file__).resolve()
-root_path = file_path.parents[1] # Sobe para a raiz do projeto
+# Se o arquivo está em 'page/cadastro.py', o root é o pai dele
+root_path = file_path.parents[1] 
 
 if str(root_path) not in sys.path:
     sys.path.insert(0, str(root_path))
@@ -19,13 +20,11 @@ try:
 except ImportError as e:
     st.error(f"⚠️ Erro de estrutura: Não encontrei o módulo: {e.name}")
     st.info("Certifique-se de que está rodando o app a partir da raiz do projeto.")
-    # Funções de "estepe" para o código não travar se os arquivos acima faltarem
     def alertas_validacao_projeto(m): return []
     def sugerir_equivalentes_paralelos(t): return []
     def clear_motores_cache(): pass
 
 def _load_css() -> None:
-    # Ajustado para usar a variável root_path já definida
     css_path = root_path / "assets" / "style.css"
     if css_path.exists():
         st.markdown(f"<style>{css_path.read_text(encoding='utf-8')}</style>", unsafe_allow_html=True)
@@ -45,14 +44,14 @@ def show(supabase):
     st.title("⚙️ Cadastro de Motores - Moto-Renow")
     st.markdown("---")
 
-    # Tabela de Cores para consulta rápida (ajuda para o seu pai)
     TABELA_CORES = {
         "Azul": "1", "Branco": "2", "Laranja": "3", 
         "Amarelo": "4", "Preto": "5", "Vermelho": "6",
         "Verde": "Terra"
     }
 
-    with st.form("cadastro_motor", clear_on_submit=True):
+    # Alterado para clear_on_submit=False para não perder dados se houver aviso da calculadora
+    with st.form("cadastro_motor", clear_on_submit=False):
         # --- SEÇÃO 1: PLACA ---
         with st.expander("📌 Identificação e Placa", expanded=True):
             col1, col2, col3 = st.columns(3)
@@ -114,8 +113,6 @@ def show(supabase):
         # --- NOVA SEÇÃO: GUIA DE LIGAÇÃO (CORES E ESQUEMA) ---
         with st.expander("⚡ Esquema de Ligação e Cores", expanded=True):
             st.info("Consulte as cores abaixo para preencher o esquema se os fios não tiverem números.")
-            
-            # Tradutor visual de cores para o seu pai
             cols_cores = st.columns(len(TABELA_CORES))
             for i, (cor, num) in enumerate(TABELA_CORES.items()):
                 cols_cores[i].metric(label=cor, value=num)
@@ -157,18 +154,26 @@ def show(supabase):
             "observacoes": observacoes, "origem_calculo": origem
         }
 
-        # --- LIMPEZA DE DADOS VAZIOS ---
-        # Converte strings vazias em None para o banco de dados aceitar corretamente
-        motor = {k: (v if v != "" else None) for k, v in motor.items()}
+        # --- BLINDAGEM CONTRA ALERTAS AMARELOS (LIMPEZA DE CARACTERES) ---
+        # Remove colchetes e espaços extras que causam erro na calculadora.py
+        for campo in ["potencia", "tensao", "corrente", "rpm"]:
+            if motor[campo]:
+                motor[campo] = str(motor[campo]).replace("[", "").replace("]", "").strip()
 
-        # Rodar lógica da calculadora (se os arquivos existirem)
-        for msg in alertas_validacao_projeto(motor):
-            st.warning(msg)
+        # --- LIMPEZA DE DADOS VAZIOS ---
+        motor = {k: (v if (v != "" and v is not None) else None) for k, v in motor.items()}
+
+        # Rodar lógica da calculadora
+        alertas = alertas_validacao_projeto(motor)
+        if alertas:
+            for msg in alertas:
+                st.warning(msg)
 
         sucesso, mensagem = salvar_motor_supabase(supabase, motor)
         if sucesso:
             clear_motores_cache()
             st.success(mensagem)
             st.balloons()
+            # Opcional: st.rerun() após sucesso para limpar formulário manualmente
         else:
             st.error(mensagem)
