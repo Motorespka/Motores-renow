@@ -1,17 +1,16 @@
 import streamlit as st
 import importlib
 import sys
-import os
 from pathlib import Path
-from supabase import create_client, Client
+from supabase import create_client
 
-# ================= 0. CORREÇÃO DE PATH (REFORÇADO) =================
-# Mantendo sua lógica original, mas garantindo que as subpastas virem módulos
+# ================= 0. CORREÇÃO DE PATH =================
 raiz = Path(__file__).resolve().parent
 if str(raiz) not in sys.path:
     sys.path.insert(0, str(raiz))
 
 # ================= 1. CONFIGURAÇÃO DA PÁGINA =================
+# st.set_page_config DEVE ser o primeiro comando Streamlit
 st.set_page_config(
     page_title="Moto-Renow",
     page_icon="⚙️",
@@ -43,13 +42,19 @@ def carregar_css():
 
 carregar_css()
 
-# ================= 4. AUTENTICAÇÃO =================
+# ================= 4. AUTENTICAÇÃO (BLOQUEIO) =================
 try:
     from auth.login import check_login
-    from auth.logout import botao_logout
-    check_login()
+    
+    # Se check_login() for False, ele mostra a tela de login e para o script aqui.
+    if not check_login():
+        st.stop()
+        
 except Exception as e:
-    pass
+    st.error(f"Erro ao carregar sistema de autenticação: {e}")
+    st.stop()
+
+# ================= TUDO ABAIXO SÓ APARECE SE ESTIVER LOGADO =================
 
 # ================= 5. CONTROLE DE ESTADO (ROTEAMENTO) =================
 if "pagina" not in st.session_state:
@@ -66,27 +71,21 @@ with st.sidebar:
         key="menu_principal"
     )
 
+    # Atualiza a página apenas se não estiver em modo de edição
     if st.session_state.get("pagina") != "edit":
         st.session_state.pagina = escolha
 
     st.divider()
-
-    try:
-        botao_logout()
-    except:
-        pass
+    # O botão de logout já está dentro do check_login() na sidebar, 
+    # mas se você preferir o seu arquivo logout.py, ele seria chamado aqui.
 
 # ================= 7. ROUTER (CARREGAMENTO DE PÁGINAS) =================
-# Aqui mantive sua lógica de importlib exata para não quebrar o fluxo
 try:
     if st.session_state.pagina == "edit":
         from page.edit import show
         show(supabase)
     else:
         nome_modulo = f"page.{st.session_state.pagina}"
-        
-        # O segredo para não dar erro de módulo é garantir que o importlib
-        # use o path que definimos no início
         modulo = importlib.import_module(nome_modulo)
         importlib.reload(modulo) 
         
@@ -97,6 +96,5 @@ try:
 
 except ModuleNotFoundError as e:
     st.error(f"Erro: A página '{st.session_state.pagina}' não foi encontrada.")
-    st.info(f"Detalhe: {e}")
 except Exception as e:
     st.error(f"Ocorreu um erro ao carregar a página: {e}")
