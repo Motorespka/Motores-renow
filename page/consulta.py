@@ -1,5 +1,6 @@
 import streamlit as st
 import importlib
+import re  # Import necessário para a busca inteligente
 from core.calculadora import alertas_validacao_projeto
 
 
@@ -30,36 +31,43 @@ def excluir_motor(supabase, id_motor):
 
 
 # ------------------------------
-# BUSCA INTELIGENTE 🔥
+# BUSCA INTELIGENTE 🔥 (ATUALIZADA)
 # ------------------------------
 def buscar_motores(motores_db, search_query):
-
     if not search_query:
         return motores_db
 
-    query = search_query.strip().lower()
+    # Normaliza a query: minúsculo e troca vírgula por ponto (ex: 10,5 -> 10.5)
+    query = search_query.strip().lower().replace(",", ".")
+    
+    # Tenta identificar se o usuário digitou algo como "10cv" ou "10 cv"
+    match_potencia = re.search(r"(\d+\.?\d*)\s*(cv|hp|kw)", query)
+    filtro_potencia_valor = match_potencia.group(1) if match_potencia else None
 
-    def normalizar(valor):
-        return (
-            str(valor)
-            .lower()
-            .replace("cv", "")
-            .replace("kw", "")
-            .replace("rpm", "")
-            .replace("hz", "")
-            .strip()
-        )
-
-    palavras = query.split()
+    # Remove as unidades da busca geral para não dar conflito (ex: "10cv" vira "10")
+    termos_busca = query.replace("cv", "").replace("kw", "").replace("hp", "").replace("rpm", "").split()
 
     motores_filtrados = []
 
     for m in motores_db:
-        texto_motor = " ".join(
-            normalizar(v) for v in m.values() if v is not None
-        )
+        # Extração e normalização de campos chave do seu banco
+        marca = str(m.get("marca") or "").lower()
+        modelo = str(m.get("modelo") or "").lower()
+        potencia_orig = str(m.get("potencia_hp_cv") or m.get("potencia") or "").lower().replace(",", ".")
+        corrente_orig = str(m.get("corrente_nominal_a") or m.get("corrente") or "").lower().replace(",", ".")
+        id_str = str(m.get("id") or "")
 
-        if all(p in texto_motor for p in palavras):
+        # Criamos um texto único para busca geral (inclui tudo: marca, modelo, id, etc)
+        # m.values() garante que campos extras também sejam pesquisados
+        texto_motor = " ".join(str(v).lower().replace(",", ".") for v in m.values() if v is not None)
+
+        # LÓGICA 1: Se o usuário especificou a unidade (ex: 10cv), validamos rigorosamente na coluna de potência
+        if filtro_potencia_valor:
+            if filtro_potencia_valor not in potencia_orig:
+                continue
+
+        # LÓGICA 2: Verifica se todas as palavras da busca (weg, 10.5, etc) estão no motor
+        if all(termo in texto_motor for termo in termos_busca):
             motores_filtrados.append(m)
 
     return motores_filtrados
@@ -112,7 +120,7 @@ def show(supabase):
     search_query = st.text_input(
         "🔎 Pesquisar motor",
         placeholder="Ex: WEG 12.5 1750 132M estrela",
-        help="Você pode digitar várias palavras como no Google.",
+        help="Você pode digitar várias palavras como no Google. Aceita '10,5' ou '10.5' e detecta 'CV'.",
     )
 
     motores_db = listar_motores(supabase)
@@ -135,7 +143,8 @@ def show(supabase):
     for m in motores:
 
         id_motor = m.get("id")
-        marca = m.get("marca") or "---"
+        # .upper() garante que weg, Weg, WEG apareçam sempre como WEG na tela
+        marca = (m.get("marca") or "---").upper() 
         modelo = m.get("modelo") or ""
         
         # Variáveis com fallback para garantir que os dados apareçam
