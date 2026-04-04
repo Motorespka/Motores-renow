@@ -1,6 +1,13 @@
 import streamlit as st
 from datetime import datetime
 from pathlib import Path
+import sys # --- ACRESCENTADO ---
+
+# --- CONFIGURAÇÃO DE CAMINHO DO SISTEMA (ACRESCENTADO) ---
+# Isso garante que o Python ache 'core' e 'services' na raiz do projeto
+root_path = Path(__file__).resolve().parents[1]
+if str(root_path) not in sys.path:
+    sys.path.append(str(root_path))
 
 # --- PROTEÇÃO DE IMPORTAÇÃO ---
 try:
@@ -118,6 +125,13 @@ def show(supabase):
         origem = st.selectbox("Origem do Cálculo", ["União", "Rebobinador", "Próprio"])
         observacoes = st.text_area("Observações")
         
+        # --- ACRESCENTADO: CÁLCULO DE FIOS EM PARALELO (OPCIONAL NO FORM) ---
+        with st.expander("⚖️ Equivalência de Fios (Cálculo Rápido)"):
+            fio_alvo = st.text_input("Se não tiver o fio original, digite o AWG aqui:")
+            if fio_alvo:
+                sugestoes = sugerir_equivalentes_paralelos(fio_alvo)
+                st.write(f"Opções para substituir o fio {fio_alvo}:", sugestoes)
+
         salvar = st.form_submit_button("💾 SALVAR NO BANCO DE DADOS", use_container_width=True)
 
     if salvar:
@@ -135,9 +149,12 @@ def show(supabase):
             "espira_auxiliar": espira_auxiliar, "tipo_enrolamento": tipo_enrolamento,
             "numero_ranhuras": numero_ranhuras, "ligacao": ligacao,
             "diametro_interno": diametro_interno, "comprimento_pacote": comprimento_pacote,
-            "esquema": esquema, # ADICIONADO AO DICIONÁRIO
+            "esquema": esquema,
             "observacoes": observacoes, "origem_calculo": origem
         }
+
+        # --- ACRESCENTADO: LIMPEZA DE DADOS VAZIOS (Para evitar erro no banco) ---
+        motor = {k: (v if v != "" else None) for k, v in motor.items()}
 
         # Rodar lógica da calculadora (se os arquivos existirem)
         for msg in alertas_validacao_projeto(motor):
