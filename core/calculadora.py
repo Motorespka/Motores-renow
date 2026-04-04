@@ -94,3 +94,30 @@ def preparar_dados(dados: dict):
         "corrente": limpar_numero(dados.get("corrente")),
         "rpm": limpar_numero(dados.get("rpm")),
     }
+# =====================================
+# SUGESTÃO DE LIGAÇÕES PARALELAS
+# =====================================
+
+def sugerir_equivalentes_paralelos(tensao):
+    """
+    Sugere equivalentes simples de ligação
+    baseado na tensão informada.
+    """
+
+    try:
+        t = float(str(tensao).replace(",", "."))
+    except:
+        return []
+
+    sugestoes = []
+
+    if t == 110:
+        sugestoes.append("Ligação paralela possível para 220V")
+
+    elif t == 220:
+        sugestoes.append("Ligação série possível para 440V")
+
+    elif t == 380:
+        sugestoes.append("Verificar estrela/triângulo")
+
+    return sugestoes
