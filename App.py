@@ -1,6 +1,16 @@
 import streamlit as st
 import importlib
+import sys
+import os
+from pathlib import Path
 from supabase import create_client, Client
+
+# ================= 0. CORREÇÃO DE PATH (ACRESCENTADO) =================
+# Este bloco garante que o Python encontre as pastas 'core' e 'services'
+# mesmo quando os módulos são carregados de dentro da pasta 'page'
+raiz = Path(__file__).resolve().parent
+if str(raiz) not in sys.path:
+    sys.path.insert(0, str(raiz))
 
 # ================= 1. CONFIGURAÇÃO DA PÁGINA =================
 st.set_page_config(
@@ -10,10 +20,10 @@ st.set_page_config(
 )
 
 # ================= 2. INICIALIZAÇÃO SUPABASE =================
-# Usando cache para não reconectar a cada clique
 @st.cache_resource
 def init_connection():
     try:
+        # Busca das secrets do Streamlit
         url = st.secrets["SUPABASE_URL"]
         key = st.secrets["SUPABASE_KEY"]
         return create_client(url, key)
@@ -21,15 +31,18 @@ def init_connection():
         st.error("Erro nas credenciais do Supabase. Verifique o arquivo secrets.toml.")
         return None
 
-# Disponibiliza o cliente supabase para ser usado em qualquer lugar do app
+# Disponibiliza o cliente supabase
 supabase = init_connection()
 
 # ================= 3. CSS CUSTOMIZADO =================
 def carregar_css():
     try:
-        with open("assets/style.css") as f:
-            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-    except FileNotFoundError:
+        # Caminho relativo à raiz para garantir funcionamento
+        css_path = raiz / "assets" / "style.css"
+        if css_path.exists():
+            with open(css_path) as f:
+                st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    except Exception:
         pass
 
 carregar_css()
@@ -38,10 +51,9 @@ carregar_css()
 try:
     from auth.login import check_login
     from auth.logout import botao_logout
-    # Se o check_login barrar o usuário, o script para aqui (dependendo de como sua auth foi feita)
     check_login()
 except Exception as e:
-    # Se não houver sistema de login ou der erro, segue o fluxo
+    # Se não houver sistema de login, o app segue normalmente
     pass
 
 # ================= 5. CONTROLE DE ESTADO (ROTEAMENTO) =================
@@ -60,8 +72,8 @@ with st.sidebar:
         key="menu_principal"
     )
 
-    # Se o usuário clicar no rádio, limpamos o estado de 'edit' para voltar ao fluxo normal
-    if st.session_state.pagina != "edit":
+    # Se o usuário mudar no rádio, atualizamos a página (exceto se estiver em modo edit)
+    if st.session_state.get("pagina") != "edit":
         st.session_state.pagina = escolha
 
     st.divider()
@@ -72,21 +84,28 @@ with st.sidebar:
         pass
 
 # ================= 7. ROUTER (CARREGAMENTO DE PÁGINAS) =================
-# Lógica para exibir a página correta
 try:
     if st.session_state.pagina == "edit":
-        # Importação direta para a página de edição (caso precise de parâmetros extras)
+        # Importação para a página de edição
         from page.edit import show
-        show(supabase) # Passando o cliente supabase como argumento
+        show(supabase)
     else:
         # Importação dinâmica para cadastro ou consulta
-        # O módulo deve ter uma função 'show(supabase)'
+        # nome_modulo assume que seus arquivos estão em: page/cadastro.py ou page/consulta.py
         nome_modulo = f"page.{st.session_state.pagina}"
+        
+        # Carregamento e recarregamento para refletir alterações em tempo real
         modulo = importlib.import_module(nome_modulo)
-        importlib.reload(modulo) # Garante que o código novo seja carregado
-        modulo.show(supabase) # Passando o cliente supabase como argumento
+        importlib.reload(modulo) 
+        
+        # Executa a função principal da página passando o supabase
+        if hasattr(modulo, "show"):
+            modulo.show(supabase)
+        else:
+            st.error(f"O módulo '{nome_modulo}' não possui a função 'show(supabase)'.")
 
 except ModuleNotFoundError as e:
-    st.error(f"Erro: A página '{st.session_state.pagina}' não foi encontrada na pasta 'page/'.")
+    st.error(f"Erro: A página '{st.session_state.pagina}' não foi encontrada. Verifique se o arquivo existe em 'page/{st.session_state.pagina}.py'")
+    st.info(f"Detalhe do erro: {e}")
 except Exception as e:
     st.error(f"Ocorreu um erro ao carregar a página: {e}")
