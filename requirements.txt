@@ -10,3 +10,4 @@ numpy
 google-generativeai>=0.8.0
 st-supabase-connection
 supabase
+bcrypt
