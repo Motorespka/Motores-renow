@@ -31,7 +31,7 @@ def excluir_motor(supabase, id_motor):
 
 
 # ------------------------------
-# BUSCA INTELIGENTE 🔥 (ATUALIZADA PARA NÃO IGNORAR NÚMEROS)
+# BUSCA INTELIGENTE 🔥 (MODIFICADA: IGNORA O #ID NA PESQUISA)
 # ------------------------------
 def buscar_motores(motores_db, search_query):
     if not search_query:
@@ -40,10 +40,9 @@ def buscar_motores(motores_db, search_query):
     # Normaliza a query: minúsculo e troca vírgula por ponto (ex: 10,5 -> 10.5)
     query = search_query.strip().lower().replace(",", ".")
     
-    # Identifica se o usuário digitou algo como "10cv" ou "10 cv"
-    # Melhoramos o Regex para capturar números mesmo que não tenham a unidade colada
-    match_potencia = re.search(r"(\d+\.?\d*)", query)
-    filtro_valor_puro = match_potencia.group(1) if match_potencia else None
+    # Identifica se o usuário digitou um número (ex: 10)
+    match_numero = re.search(r"(\d+\.?\d*)", query)
+    filtro_valor_puro = match_numero.group(1) if match_numero else None
 
     # Remove as unidades da busca geral para não dar conflito
     termos_busca = query.replace("cv", "").replace("kw", "").replace("hp", "").replace("rpm", "").split()
@@ -51,33 +50,33 @@ def buscar_motores(motores_db, search_query):
     motores_filtrados = []
 
     for m in motores_db:
-        # Extração e normalização de campos chave do seu banco para comparação prioritária
+        # Extração e normalização: ignoramos o campo "id" propositalmente aqui
         marca = str(m.get("marca") or "").lower()
         modelo = str(m.get("modelo") or "").lower()
-        # Aqui está o segredo: pegamos a potência e removemos espaços para comparar "10cv" com "10 cv"
+        
+        # Pegamos a potência e removemos espaços para comparar
         potencia_orig = str(m.get("potencia_hp_cv") or m.get("potencia") or "").lower().replace(",", ".").replace(" ", "")
-        id_str = str(m.get("id") or "")
 
-        # Texto único para busca geral
-        texto_motor = " ".join(str(v).lower().replace(",", ".") for v in m.values() if v is not None)
+        # Criamos o texto de busca excluindo o ID para que a busca por número não o encontre
+        dados_tecnicos = [str(v).lower().replace(",", ".") for k, v in m.items() if k != "id" and v is not None]
+        texto_motor = " ".join(dados_tecnicos)
 
-        # LÓGICA DE MATCH REFINADA:
-        # 1. Se o usuário buscou um número (ex: 10), verificamos se ele é o INÍCIO da potência ou o ID
-        # Isso evita que o ID #159 apareça antes do motor de 10 CV
+        # LÓGICA DE MATCH:
         match_prioritario = False
         if filtro_valor_puro:
-            if potencia_orig.startswith(filtro_valor_puro) or id_str == filtro_valor_puro:
+            # Se o número digitado for o início da potência (ex: usuário digitou 10, motor é 10cv)
+            if potencia_orig.startswith(filtro_valor_puro):
                 match_prioritario = True
 
-        # 2. Verifica se todos os termos (ex: "weg", "10") estão no texto
+        # Verifica se todos os termos digitados (ex: "weg") estão nos dados técnicos
         match_geral = all(termo in texto_motor for termo in termos_busca)
 
         if match_prioritario or match_geral:
-            # Criamos um score para ordenar: quem tem o número na potência ganha
+            # Score 1 para quem tem a potência batendo, garantindo que fiquem no topo
             m["_score"] = 1 if match_prioritario else 0
             motores_filtrados.append(m)
 
-    # Ordena para que os resultados mais relevantes (potência batendo) fiquem no topo
+    # Ordena pelo Score (Potência) e depois pela ordem de cadastro
     motores_filtrados.sort(key=lambda x: (x.get("_score", 0), x.get("id", 0)), reverse=True)
     return motores_filtrados
 
@@ -129,7 +128,7 @@ def show(supabase):
     search_query = st.text_input(
         "🔎 Pesquisar motor",
         placeholder="Ex: WEG 12.5 1750 132M estrela",
-        help="Você pode digitar várias palavras como no Google. Aceita '10,5' ou '10.5' e detecta 'CV'.",
+        help="A busca agora prioriza potência. O número do motor (#ID) não é mais usado na pesquisa.",
     )
 
     motores_db = listar_motores(supabase)
@@ -152,11 +151,9 @@ def show(supabase):
     for m in motores:
 
         id_motor = m.get("id")
-        # .upper() garante que weg, Weg, WEG apareçam sempre como WEG na tela
         marca = (m.get("marca") or "---").upper() 
         modelo = m.get("modelo") or ""
         
-        # Variáveis com fallback para garantir que os dados apareçam
         potencia = m.get("potencia_hp_cv") or m.get("potencia") or "---"
         rpm = m.get("rpm_nominal") or m.get("rpm") or "---"
         tensao = m.get("tensao_v") or m.get("tensao") or "---"
@@ -172,7 +169,6 @@ def show(supabase):
         else:
             status = "🟢 OK"
 
-        # TÍTULO EXIBINDO MARCA, MODELO, STATUS, POTÊNCIA, FASES, RPM, TENSÃO E AMPERAGEM
         st.markdown(
             f"""
             **#{id_motor} · {marca} {modelo} — {status}** {potencia} ({fases}) · {rpm} RPM · {tensao} · {amperagem}
@@ -181,7 +177,6 @@ def show(supabase):
 
         with st.expander("Ver detalhes"):
 
-            # ALERTAS
             if alertas:
                 for a in alertas:
                     st.warning(a)
@@ -202,7 +197,6 @@ def show(supabase):
 
             st.divider()
 
-            # --- ORGANIZAÇÃO EM ABAS ---
             tab_placa, tab_oficina, tab_avancado = st.tabs([
                 "📋 Placa (Principal)", 
                 "🛠️ Rebobinagem & Mecânica", 
@@ -274,7 +268,6 @@ def show(supabase):
 
             st.divider()
 
-            # TRADUTOR DE CORES
             st.markdown("### ⚡ Cores dos Cabos")
             cols_cores = st.columns(len(TABELA_CORES))
             for i, (cor, num) in enumerate(TABELA_CORES.items()):
