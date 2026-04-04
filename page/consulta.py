@@ -139,8 +139,23 @@ def show(supabase):
 
     motores = buscar_motores(motores_db, search_query)
 
+    # --- NOVA LÓGICA DE AVISO ESPECÍFICO ---
+    if not motores and search_query:
+        query_limpa = search_query.lower()
+        # Tenta identificar se o usuário buscou por RPM ou Potência
+        num_match = re.search(r"(\d+\.?\d*)", query_limpa)
+        valor = num_match.group(1) if num_match else None
+        
+        if valor:
+            if "rpm" in query_limpa or int(float(valor)) > 500:
+                st.warning(f"Nenhum motor de {valor} RPM encontrado no banco de dados.")
+            else:
+                st.warning(f"Nenhum motor de {valor} CV encontrado no banco de dados.")
+        else:
+            st.warning(f"Nenhum resultado encontrado para: '{search_query}'")
+        return
+
     if not motores:
-        st.warning(f"Nenhum resultado encontrado para: '{search_query}'")
         return
 
     st.caption(f"Exibindo {len(motores)} motor(es)")
