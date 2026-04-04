@@ -5,9 +5,7 @@ import sys
 import os
 
 # --- CONFIGURAÇÃO DE CAMINHO DO SISTEMA (REFORÇADO) ---
-# Detecta a raiz do projeto para que 'core' e 'services' sejam achados
 file_path = Path(__file__).resolve()
-# Se o arquivo está em 'page/cadastro.py', o root é o pai dele
 root_path = file_path.parents[1] 
 
 if str(root_path) not in sys.path:
@@ -31,7 +29,8 @@ def _load_css() -> None:
 
 def salvar_motor_supabase(supabase, motor):
     try:
-        motor["data_cadastro"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # data_cadastro agora usa o formato ISO que o Supabase prefere para timestamptz
+        motor["data_cadastro"] = datetime.now().isoformat()
         res = supabase.table("motores").insert(motor).execute()
         if res.data:
             return True, "✅ Motor salvo com sucesso no Supabase!"
@@ -50,7 +49,6 @@ def show(supabase):
         "Verde": "Terra"
     }
 
-    # Alterado para clear_on_submit=False para não perder dados se houver aviso da calculadora
     with st.form("cadastro_motor", clear_on_submit=False):
         # --- SEÇÃO 1: PLACA ---
         with st.expander("📌 Identificação e Placa", expanded=True):
@@ -59,6 +57,7 @@ def show(supabase):
                 marca = st.text_input("Marca")
                 modelo = st.text_input("Modelo")
                 fabricante = st.text_input("Fabricante")
+                num_serie = st.text_input("Nº de Série") # Adicionado para bater com o banco
             with col2:
                 potencia = st.text_input("Potência (CV/kW)")
                 tensao = st.text_input("Tensão (V)")
@@ -74,15 +73,15 @@ def show(supabase):
             with col4:
                 polos = st.text_input("Pólos")
                 carcaca = st.text_input("Carcaça")
-                montagem = st.text_input("Montagem")
+                norma = st.text_input("Norma", value="ABNT/IEC")
             with col5:
-                isolacao = st.text_input("Isolação")
-                ip = st.text_input("Grau Proteção (IP)")
-                regime = st.text_input("Regime")
+                isolacao = st.text_input("Classe Isolação", value="F")
+                ip = st.text_input("Grau Proteção (IP)", value="IP55")
+                regime = st.text_input("Regime", value="S1")
             with col6:
-                fator_servico = st.text_input("Fator de Serviço")
-                peso = st.text_input("Peso (kg)")
-                ventilacao = st.text_input("Ventilação")
+                fator_servico = st.text_input("Fator de Serviço", value="1.0")
+                peso = st.text_input("Peso Total (kg)")
+                tipo_graxa = st.text_input("Tipo de Graxa")
 
         # --- SEÇÃO 3: BOBINAGEM ---
         with st.expander("🌀 Dados de bobinagem e núcleo", expanded=False):
@@ -90,12 +89,12 @@ def show(supabase):
             with col_princ:
                 st.markdown("**Enrolamento Principal**")
                 passo_principal = st.text_input("Passo Principal")
-                fio_principal = st.text_input("Fio Principal")
+                fio_principal = st.text_input("Bitola Fio Principal")
                 espira_principal = st.text_input("Espiras Principal")
             with col_aux:
                 st.markdown("**Enrolamento Auxiliar**")
                 passo_auxiliar = st.text_input("Passo Auxiliar")
-                fio_auxiliar = st.text_input("Fio Auxiliar")
+                fio_auxiliar = st.text_input("Bitola Fio Auxiliar")
                 espira_auxiliar = st.text_input("Espiras Auxiliar")
             
             st.divider()
@@ -103,14 +102,15 @@ def show(supabase):
             with c1:
                 tipo_enrolamento = st.text_input("Tipo Enrolamento")
                 numero_ranhuras = st.text_input("Nº Ranhuras")
+                fios_paralelos = st.text_input("Fios em Paralelo") # Novo campo para bater com erro corrigido
             with c2:
-                diametro_fio = st.text_input("Diâmetro Fio (mm)")
-                ligacao = st.selectbox("Ligação", ["Estrela", "Triângulo", "Série", "Paralelo"])
+                ligacao_interna = st.text_input("Ligação Interna")
+                ligacao = st.selectbox("Ligação Placa", ["Estrela", "Triângulo", "Série", "Paralelo"])
             with c3:
-                diametro_interno = st.text_input("Ø Interno (mm)")
+                diametro_interno = st.text_input("Ø Interno Estator (mm)")
                 comprimento_pacote = st.text_input("Comp. Pacote (mm)")
 
-        # --- NOVA SEÇÃO: GUIA DE LIGAÇÃO (CORES E ESQUEMA) ---
+        # --- NOVA SEÇÃO: GUIA DE LIGAÇÃO ---
         with st.expander("⚡ Esquema de Ligação e Cores", expanded=True):
             st.info("Consulte as cores abaixo para preencher o esquema se os fios não tiverem números.")
             cols_cores = st.columns(len(TABELA_CORES))
@@ -120,10 +120,10 @@ def show(supabase):
             st.divider()
             esquema = st.text_area(
                 "Esquema de Ligação", 
-                placeholder="Ex: 110V: (1,3,5) e (2,4,6) | 220V: 1-(2,3,5)-4,6\nCores: 1-Az, 2-Br, 3-La, 4-Am, 5-Pr, 6-Vm"
+                placeholder="Ex: 110V: (1,3,5) e (2,4,6) | Cores: 1-Az, 2-Br..."
             )
 
-        origem = st.selectbox("Origem do Cálculo", ["União", "Rebobinador", "Próprio"])
+        origem = st.selectbox("Origem do Registro", ["União", "Rebobinador", "OCR", "Manual"])
         observacoes = st.text_area("Observações")
         
         # --- CÁLCULO DE FIOS EM PARALELO ---
@@ -136,34 +136,47 @@ def show(supabase):
         salvar = st.form_submit_button("💾 SALVAR NO BANCO DE DADOS", use_container_width=True)
 
     if salvar:
+        # Mapeamento exato com as colunas do seu SQL
         motor = {
-            "marca": marca, "modelo": modelo, "fabricante": fabricante,
-            "potencia": potencia, "tensao": tensao, "corrente": corrente,
-            "rpm": rpm, "frequencia": frequencia, "rendimento": rendimento,
-            "polos": polos, "carcaca": carcaca, "montagem": montagem,
-            "isolacao": isolacao, "ip": ip, "regime": regime,
-            "fator_servico": fator_servico, "peso": peso, "ventilacao": ventilacao,
-            "passo_principal": passo_principal, "passo_princ": passo_principal,
-            "fio_principal": fio_principal, "fio_princ": fio_principal,
-            "espira_principal": espira_principal, "espiras_princ": espira_principal,
-            "passo_auxiliar": passo_auxiliar, "fio_auxiliar": fio_auxiliar,
-            "espira_auxiliar": espira_auxiliar, "tipo_enrolamento": tipo_enrolamento,
-            "numero_ranhuras": numero_ranhuras, "ligacao": ligacao,
-            "diametro_interno": diametro_interno, "comprimento_pacote": comprimento_pacote,
-            "esquema": esquema,
-            "observacoes": observacoes, "origem_calculo": origem
+            "marca": marca, 
+            "modelo": modelo, 
+            "fabricante": fabricante,
+            "num_serie": num_serie,
+            "potencia_hp_cv": potencia, 
+            "tensao_v": tensao, 
+            "corrente_nominal_a": corrente,
+            "rpm_nominal": rpm, 
+            "frequencia_hz": frequencia, 
+            "rendimento_perc": rendimento,
+            "polos": polos, 
+            "carcaca": carcaca, 
+            "norma": norma,
+            "classe_isolacao": isolacao, 
+            "grau_protecao_ip": ip, 
+            "regime_servico": regime,
+            "fator_servico": fator_servico, 
+            "peso_total_kg": peso, 
+            "tipo_graxa": tipo_graxa,
+            "passo_principal": passo_principal, 
+            "bitola_fio_principal": fio_principal, 
+            "espiras_principal": espira_principal,
+            "passo_auxiliar": passo_auxiliar, 
+            "bitola_fio_auxiliar": fio_auxiliar, 
+            "espiras_auxiliar": espira_auxiliar, 
+            "tipo_enrolamento": tipo_enrolamento,
+            "numero_ranhuras": numero_ranhuras, 
+            "fios_paralelos": fios_paralelos,
+            "ligacao_interna": ligacao_interna,
+            "diametro_interno_estator_mm": diametro_interno, 
+            "comprimento_pacote_mm": comprimento_pacote,
+            "observacoes": f"{observacoes} \nEsquema: {esquema}", 
+            "origem_registro": origem
         }
-
-        # --- BLINDAGEM CONTRA ALERTAS AMARELOS (LIMPEZA DE CARACTERES) ---
-        # Remove colchetes e espaços extras que causam erro na calculadora.py
-        for campo in ["potencia", "tensao", "corrente", "rpm"]:
-            if motor[campo]:
-                motor[campo] = str(motor[campo]).replace("[", "").replace("]", "").strip()
 
         # --- LIMPEZA DE DADOS VAZIOS ---
         motor = {k: (v if (v != "" and v is not None) else None) for k, v in motor.items()}
 
-        # Rodar lógica da calculadora
+        # Rodar lógica da calculadora (alerta apenas visual, não impede salvar)
         alertas = alertas_validacao_projeto(motor)
         if alertas:
             for msg in alertas:
@@ -174,6 +187,5 @@ def show(supabase):
             clear_motores_cache()
             st.success(mensagem)
             st.balloons()
-            # Opcional: st.rerun() após sucesso para limpar formulário manualmente
         else:
             st.error(mensagem)
