@@ -1,28 +1,32 @@
 import streamlit as st
 from datetime import datetime
 from pathlib import Path
-import sys # --- ACRESCENTADO ---
+import sys
+import os
 
-# --- CONFIGURAÇÃO DE CAMINHO DO SISTEMA (ACRESCENTADO) ---
-# Isso garante que o Python ache 'core' e 'services' na raiz do projeto
-root_path = Path(__file__).resolve().parents[1]
+# --- CONFIGURAÇÃO DE CAMINHO DO SISTEMA (REFORÇADO) ---
+# Detecta a raiz do projeto 'Uniao-motor' para que 'core' e 'services' sejam achados
+file_path = Path(__file__).resolve()
+root_path = file_path.parents[1] # Sobe para a raiz do projeto
+
 if str(root_path) not in sys.path:
-    sys.path.append(str(root_path))
+    sys.path.insert(0, str(root_path))
 
 # --- PROTEÇÃO DE IMPORTAÇÃO ---
 try:
     from core.calculadora import alertas_validacao_projeto, sugerir_equivalentes_paralelos
     from services.supabase_data import clear_motores_cache
 except ImportError as e:
-    st.error(f"⚠️ Erro de estrutura: Não encontrei o arquivo ou pasta: {e.name}")
-    st.info("Verifique se as pastas 'core' e 'services' possuem o arquivo __init__.py vazio.")
+    st.error(f"⚠️ Erro de estrutura: Não encontrei o módulo: {e.name}")
+    st.info("Certifique-se de que está rodando o app a partir da raiz do projeto.")
     # Funções de "estepe" para o código não travar se os arquivos acima faltarem
     def alertas_validacao_projeto(m): return []
     def sugerir_equivalentes_paralelos(t): return []
     def clear_motores_cache(): pass
 
 def _load_css() -> None:
-    css_path = Path(__file__).resolve().parents[1] / "assets" / "style.css"
+    # Ajustado para usar a variável root_path já definida
+    css_path = root_path / "assets" / "style.css"
     if css_path.exists():
         st.markdown(f"<style>{css_path.read_text(encoding='utf-8')}</style>", unsafe_allow_html=True)
 
@@ -125,7 +129,7 @@ def show(supabase):
         origem = st.selectbox("Origem do Cálculo", ["União", "Rebobinador", "Próprio"])
         observacoes = st.text_area("Observações")
         
-        # --- ACRESCENTADO: CÁLCULO DE FIOS EM PARALELO (OPCIONAL NO FORM) ---
+        # --- CÁLCULO DE FIOS EM PARALELO ---
         with st.expander("⚖️ Equivalência de Fios (Cálculo Rápido)"):
             fio_alvo = st.text_input("Se não tiver o fio original, digite o AWG aqui:")
             if fio_alvo:
@@ -153,7 +157,8 @@ def show(supabase):
             "observacoes": observacoes, "origem_calculo": origem
         }
 
-        # --- ACRESCENTADO: LIMPEZA DE DADOS VAZIOS (Para evitar erro no banco) ---
+        # --- LIMPEZA DE DADOS VAZIOS ---
+        # Converte strings vazias em None para o banco de dados aceitar corretamente
         motor = {k: (v if v != "" else None) for k, v in motor.items()}
 
         # Rodar lógica da calculadora (se os arquivos existirem)
