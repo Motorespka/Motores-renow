@@ -31,7 +31,7 @@ def excluir_motor(supabase, id_motor):
 
 
 # ------------------------------
-# BUSCA INTELIGENTE 🔥 (ATUALIZADA)
+# BUSCA INTELIGENTE 🔥 (ATUALIZADA PARA NÃO IGNORAR NÚMEROS)
 # ------------------------------
 def buscar_motores(motores_db, search_query):
     if not search_query:
@@ -40,36 +40,45 @@ def buscar_motores(motores_db, search_query):
     # Normaliza a query: minúsculo e troca vírgula por ponto (ex: 10,5 -> 10.5)
     query = search_query.strip().lower().replace(",", ".")
     
-    # Tenta identificar se o usuário digitou algo como "10cv" ou "10 cv"
-    match_potencia = re.search(r"(\d+\.?\d*)\s*(cv|hp|kw)", query)
-    filtro_potencia_valor = match_potencia.group(1) if match_potencia else None
+    # Identifica se o usuário digitou algo como "10cv" ou "10 cv"
+    # Melhoramos o Regex para capturar números mesmo que não tenham a unidade colada
+    match_potencia = re.search(r"(\d+\.?\d*)", query)
+    filtro_valor_puro = match_potencia.group(1) if match_potencia else None
 
-    # Remove as unidades da busca geral para não dar conflito (ex: "10cv" vira "10")
+    # Remove as unidades da busca geral para não dar conflito
     termos_busca = query.replace("cv", "").replace("kw", "").replace("hp", "").replace("rpm", "").split()
 
     motores_filtrados = []
 
     for m in motores_db:
-        # Extração e normalização de campos chave do seu banco
+        # Extração e normalização de campos chave do seu banco para comparação prioritária
         marca = str(m.get("marca") or "").lower()
         modelo = str(m.get("modelo") or "").lower()
-        potencia_orig = str(m.get("potencia_hp_cv") or m.get("potencia") or "").lower().replace(",", ".")
-        corrente_orig = str(m.get("corrente_nominal_a") or m.get("corrente") or "").lower().replace(",", ".")
+        # Aqui está o segredo: pegamos a potência e removemos espaços para comparar "10cv" com "10 cv"
+        potencia_orig = str(m.get("potencia_hp_cv") or m.get("potencia") or "").lower().replace(",", ".").replace(" ", "")
         id_str = str(m.get("id") or "")
 
-        # Criamos um texto único para busca geral (inclui tudo: marca, modelo, id, etc)
-        # m.values() garante que campos extras também sejam pesquisados
+        # Texto único para busca geral
         texto_motor = " ".join(str(v).lower().replace(",", ".") for v in m.values() if v is not None)
 
-        # LÓGICA 1: Se o usuário especificou a unidade (ex: 10cv), validamos rigorosamente na coluna de potência
-        if filtro_potencia_valor:
-            if filtro_potencia_valor not in potencia_orig:
-                continue
+        # LÓGICA DE MATCH REFINADA:
+        # 1. Se o usuário buscou um número (ex: 10), verificamos se ele é o INÍCIO da potência ou o ID
+        # Isso evita que o ID #159 apareça antes do motor de 10 CV
+        match_prioritario = False
+        if filtro_valor_puro:
+            if potencia_orig.startswith(filtro_valor_puro) or id_str == filtro_valor_puro:
+                match_prioritario = True
 
-        # LÓGICA 2: Verifica se todas as palavras da busca (weg, 10.5, etc) estão no motor
-        if all(termo in texto_motor for termo in termos_busca):
+        # 2. Verifica se todos os termos (ex: "weg", "10") estão no texto
+        match_geral = all(termo in texto_motor for termo in termos_busca)
+
+        if match_prioritario or match_geral:
+            # Criamos um score para ordenar: quem tem o número na potência ganha
+            m["_score"] = 1 if match_prioritario else 0
             motores_filtrados.append(m)
 
+    # Ordena para que os resultados mais relevantes (potência batendo) fiquem no topo
+    motores_filtrados.sort(key=lambda x: (x.get("_score", 0), x.get("id", 0)), reverse=True)
     return motores_filtrados
 
 
