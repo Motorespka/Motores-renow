@@ -23,7 +23,7 @@ def excluir_motor(supabase, id_motor):
         return False
 
 # ------------------------------
-# BUSCA INTELIGENTE CONTEXTUAL 🔥
+# BUSCA INTELIGENTE CONTEXTUAL
 # ------------------------------
 def buscar_motores(motores_db, search_query):
     if not search_query: return motores_db
@@ -71,6 +71,17 @@ def buscar_motores(motores_db, search_query):
         elif match_texto: motores_filtrados.append(m)
 
     return motores_filtrados
+
+# ------------------------------
+# COMPONENTE DE DADO TÉCNICO (HUD MINI)
+# ------------------------------
+def render_dado(label, valor, unidade=""):
+    st.markdown(f"""
+        <div style="background: rgba(0, 255, 255, 0.03); border: 1px solid rgba(0, 255, 255, 0.1); border-radius: 6px; padding: 10px; margin-bottom: 5px;">
+            <div style="font-size: 0.65rem; color: #8b949e; text-transform: uppercase; letter-spacing: 1px;">{label}</div>
+            <div style="font-size: 1rem; color: white; font-family: monospace; font-weight: bold;">{valor} <span style="color: #00ffff; font-size: 0.8rem;">{unidade}</span></div>
+        </div>
+    """, unsafe_allow_html=True)
 
 # ------------------------------
 # TELA PRINCIPAL
@@ -122,7 +133,7 @@ def show(supabase):
         else:
             st_color = "#10b981"; label = "🟢 NOMINAL"
 
-        # --- INTERFACE HUD UTILIZANDO SEU CSS ---
+        # Card Principal (Seu CSS)
         st.markdown(f"""
             <div class="tech-card">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -151,31 +162,71 @@ def show(supabase):
             </div>
         """, unsafe_allow_html=True)
 
-        with st.expander("ACESSO AOS DADOS TÉCNICOS"):
+        with st.expander("📊 TELEMETRIA E DADOS TÉCNICOS"):
             if alertas:
                 for a in alertas: st.warning(a)
 
-            c1, c2 = st.columns(2)
-            if c1.button("✏️ EDITAR", key=f"ed_{id_motor}", use_container_width=True):
+            # Botões de Ação
+            ca1, ca2 = st.columns(2)
+            if ca1.button("✏️ EDITAR REGISTRO", key=f"ed_{id_motor}", use_container_width=True):
                 st.session_state.motor_editando = m
                 st.session_state.abrir_edit = True
                 st.rerun()
-            if c2.button("🗑️ DELETAR", key=f"ex_{id_motor}", use_container_width=True):
+            if ca2.button("🗑️ ELIMINAR DADOS", key=f"ex_{id_motor}", use_container_width=True):
                 if excluir_motor(supabase, id_motor): st.rerun()
 
-            st.divider()
-            t1, t2, t3 = st.tabs(["📋 PLACA", "🛠️ OFICINA", "🚀 PERFORMANCE"])
+            st.markdown("<br>", unsafe_allow_html=True)
+            t1, t2, t3 = st.tabs(["📋 ESPECIFICAÇÕES", "🛠️ CONSTRUÇÃO", "🚀 PERFORMANCE"])
+            
             with t1:
-                col_a, col_b = st.columns(2)
-                col_a.write(f"**Marca:** {m.get('marca')}\n\n**Modelo:** {m.get('modelo')}")
-                col_b.write(f"**Tensão:** {tensao}\n\n**Corrente:** {m.get('corrente_nominal_a')}")
+                st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
+                col_pl1, col_pl2 = st.columns(2)
+                with col_pl1:
+                    render_dado("Marca", m.get("marca"))
+                    render_dado("Modelo", m.get("modelo"))
+                    render_dado("Fabricante", m.get("fabricante"))
+                with col_pl2:
+                    render_dado("Tensão", tensao, "V")
+                    render_dado("Corrente", m.get("corrente_nominal_a"), "A")
+                    render_dado("Frequência", m.get("frequencia_hz"), "Hz")
+
             with t2:
-                st.markdown(f"**Ranhuras:** {m.get('numero_ranhuras')} | **Fio:** {m.get('bitola_fio_principal')}")
+                st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
+                col_of1, col_of2 = st.columns(2)
+                with col_of1:
+                    st.markdown("<h5 style='color:#00ffff; font-size:0.8rem;'>🌀 ENROLAMENTO</h5>", unsafe_allow_html=True)
+                    render_dado("Ranhuras", m.get("numero_ranhuras"))
+                    render_dado("Fio Principal", m.get("bitola_fio_principal"))
+                    render_dado("Espiras", m.get("espiras_principal"))
+                with col_of2:
+                    st.markdown("<h5 style='color:#00ffff; font-size:0.8rem;'>⚙️ MECÂNICA</h5>", unsafe_allow_html=True)
+                    render_dado("Rol. Dianteiro", m.get("rolamento_dianteiro"))
+                    render_dado("Rol. Traseiro", m.get("rolamento_traseiro"))
+                    render_dado("Carcaça", m.get("carcaca"))
+
             with t3:
-                st.write(f"**Rendimento:** {m.get('rendimento_perc')}%")
+                st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
+                col_pf1, col_pf2 = st.columns(2)
+                with col_pf1:
+                    render_dado("Rendimento", m.get("rendimento_perc"), "%")
+                    render_dado("Fator de Serviço", m.get("fator_servico"))
+                with col_pf2:
+                    render_dado("Classe Isolação", m.get("classe_isolacao"))
+                    render_dado("Grau Proteção", m.get("grau_protecao_ip"))
 
-            st.markdown("#### ⚡ CORES DOS CABOS")
-            cols = st.columns(len(TABELA_CORES))
+            # Seção de Cores (Estilizada)
+            st.markdown("<hr style='border-color: rgba(0,255,255,0.1);'>", unsafe_allow_html=True)
+            st.markdown("#### ⚡ MAPA DE CONEXÃO (CABOS)")
+            cols_c = st.columns(len(TABELA_CORES))
             for i, (cor, num) in enumerate(TABELA_CORES.items()):
-                cols[i].metric(label=cor, value=num)
-
+                with cols_c[i]:
+                    st.markdown(f"""
+                        <div style="text-align: center; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 5px; background: rgba(255,255,255,0.02);">
+                            <div style="font-size: 0.6rem; color: #8b949e;">{cor.upper()}</div>
+                            <div style="font-size: 1.1rem; color: #00ffff; font-weight: bold;">{num}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+            
+            if m.get("observacoes"):
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.info(f"📝 **NOTAS DE CAMPO:** {m.get('observacoes')}")
