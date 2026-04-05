@@ -67,12 +67,11 @@ def show(supabase):
     if "motor_editando" not in st.session_state: st.session_state.motor_editando = None
     if "abrir_edit" not in st.session_state: st.session_state.abrir_edit = False
 
-    # Lógica de Navegação para Edição
     if st.session_state.abrir_edit and st.session_state.motor_editando:
         try:
             edit_module = importlib.import_module("page.edit")
             edit_module.show(supabase)
-            if st.button("🔙 Voltar para Lista", use_container_width=True):
+            if st.button("🔙 Voltar", use_container_width=True):
                 st.session_state.abrir_edit = False
                 st.rerun()
             return
@@ -97,33 +96,38 @@ def show(supabase):
         alertas = alertas_validacao_projeto(m)
         st_color = "#ef4444" if any("risco" in a.lower() for a in alertas) else "#10b981"
 
-        # --- CARD CLICÁVEL REFEITO ---
-        # Usamos um container para agrupar o botão e o visual
+        # --- CONTAINER DO CARD CLICÁVEL ---
         with st.container():
-            # Título do card que funciona como gatilho de clique
-            label_card = f"{marca} {modelo} | {m.get('potencia_hp_cv','-')} | {m.get('rpm_nominal','-')} RPM"
-            
-            if st.button(label_card, key=f"btn_card_{id_motor}", use_container_width=True):
-                st.session_state.detalhes_visiveis[key_det] = not st.session_state.detalhes_visiveis[key_det]
-                st.rerun()
-
-            # Estilização visual do card logo abaixo do botão para dar o aspecto técnico
+            # 1. O Visual (Exatamente como estava)
             st.markdown(f"""
-                <div style="margin-top: -10px; margin-bottom: 10px;">
-                    <div class="tech-card" style="border-left: 4px solid {st_color}; padding: 10px; background: rgba(0,255,255,0.02);">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <small style="color: #00ffff; font-family: monospace; font-size: 0.6rem;">REGISTRO TÉCNICO ID: #{id_motor}</small>
-                            <span style="font-size: 0.6rem; color: #8b949e;">{fases}</span>
+                <div class="tech-card" style="border-left: 4px solid {st_color}; position: relative; margin-bottom: -45px;">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div>
+                            <small style="color: #00ffff; font-family: monospace; letter-spacing: 2px;">REGISTRO TÉCNICO ID: #{id_motor}</small>
+                            <h3 style="margin:0; color:white;">{marca} <span style="font-weight:300;">{modelo}</span></h3>
+                            <span style="font-size: 0.7rem; color: #8b949e;">MOTORES {fases}</span>
                         </div>
+                        <div style="font-size: 0.6rem; color: {st_color}; border: 1px solid {st_color}44; padding: 2px 8px; border-radius: 10px;">
+                            { "ESTÁVEL" if st_color == "#10b981" else "ALERTA" }
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 15px; border-top: 1px solid #00ffff11; padding-top: 10px; text-align: center;">
+                        <div><small style="color:#8b949e;">POT</small><br><b style="color:#00f2ff; font-size:0.9rem;">{m.get('potencia_hp_cv','-')}</b></div>
+                        <div><small style="color:#8b949e;">RPM</small><br><b style="color:#10b981; font-size:0.9rem;">{m.get('rpm_nominal','-')}</b></div>
+                        <div><small style="color:#8b949e;">VOLTS</small><br><b style="color:#a855f7; font-size:0.9rem;">{m.get('tensao_v','-')}V</b></div>
                     </div>
                 </div>
             """, unsafe_allow_html=True)
 
+            # 2. O Botão Transparente que cobre tudo (Faz o card ser clicável)
+            if st.button("", key=f"overlay_{id_motor}", use_container_width=True):
+                st.session_state.detalhes_visiveis[key_det] = not st.session_state.detalhes_visiveis[key_det]
+                st.rerun()
+
         # --- SEÇÃO EXPANDIDA (TELEMETRIA) ---
         if st.session_state.detalhes_visiveis[key_det]:
-            st.markdown("<div style='background: rgba(0,25,35,0.8); border: 1px solid #00ffff33; border-radius: 8px; padding: 15px; margin-bottom: 20px;'>", unsafe_allow_html=True)
+            st.markdown("<div style='background: rgba(0,25,35,0.8); border: 1px solid #00ffff33; border-top:none; border-radius: 0 0 8px 8px; padding: 20px; margin-top: -10px; margin-bottom: 30px;'>", unsafe_allow_html=True)
             
-            # Ações de Registro
             col_act1, col_act2 = st.columns(2)
             if col_act1.button("✏️ EDITAR", key=f"ed_{id_motor}", use_container_width=True):
                 st.session_state.motor_editando = m
@@ -135,10 +139,10 @@ def show(supabase):
             tabs = st.tabs(["📋 CONEXÃO / PLACA", "🌀 REBOBINAGEM", "⚙️ MECÂNICA"])
             
             with tabs[0]:
-                st.markdown("<p style='font-size:0.6rem; color:#8b949e; letter-spacing:1px; margin-bottom:10px;'>ESQUEMA DE CORES DE SAÍDA</p>", unsafe_allow_html=True)
+                st.markdown("<p style='font-size:0.65rem; color:#8b949e; letter-spacing:2px; margin-bottom:10px;'>MAPA TÉCNICO DE CORES (SAÍDAS)</p>", unsafe_allow_html=True)
                 cols_c = st.columns(len(TABELA_CORES))
                 for i, (cor, num) in enumerate(TABELA_CORES.items()):
-                    cols_c[i].markdown(f"<div style='text-align:center; background:#000; border:1px solid #333; border-radius:4px; padding:2px;'><small style='color:#8b949e; font-size:0.5rem;'>{cor[:3].upper()}</small><br><b style='color:#00ffff; font-size:0.75rem;'>{num}</b></div>", unsafe_allow_html=True)
+                    cols_c[i].markdown(f"<div style='text-align:center; background:#000; border-radius:4px; padding:4px;'><small style='color:#8b949e; font-size:0.5rem;'>{cor[:3].upper()}</small><br><b style='color:#00ffff; font-size:0.8rem;'>{num}</b></div>", unsafe_allow_html=True)
                 
                 st.markdown("<br>", unsafe_allow_html=True)
                 c1, c2 = st.columns(2)
@@ -147,7 +151,7 @@ def show(supabase):
                     render_dado("Amperagem Teste", m.get("corrente_vazio_a"), "A", highlight=True)
                 with c2:
                     cap = f"{m.get('capacitor_permanente') or ''} {m.get('capacitor_partida') or ''}".strip()
-                    render_dado("Capacitores", cap if cap else "---")
+                    render_dado("Capacitores", cap if cap else "N/A")
                     render_dado("Fator de Serviço", m.get("fator_servico"))
 
             with tabs[1]:
