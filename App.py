@@ -41,7 +41,16 @@ def carregar_css():
         pass
 
 carregar_css()
+# ================= UI TECH =================
+try:
+    from ui.theme import aplicar_tema
+    from ui.animations import iniciar_animacoes
 
+    aplicar_tema()
+    iniciar_animacoes()
+
+except Exception as e:
+    print("UI não carregada:", e)
 # ================= 4. AUTENTICAÇÃO (BLOQUEIO) =================
 try:
     from auth.login import check_login
