@@ -1,6 +1,7 @@
 import streamlit as st
 import importlib
 import re
+import os
 
 # ✅ MANTIDO — IMPORTAÇÕES ORIGINAIS E IA
 from core.engenheiro_ia import engenheiro_busca_v4
@@ -75,7 +76,7 @@ def render_dado(label, valor, unidade="", highlight=False):
 # TELA PRINCIPAL
 # ------------------------------
 def show(supabase):
-    # ✅ ACRESCENTADO — CARREGAMENTO DO CSS EXTERNO PARA O BACKGROUND E GRID
+    # ✅ MANTIDO — CARREGAMENTO DO CSS EXTERNO
     try:
         with open("style.css") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
@@ -126,7 +127,7 @@ def show(supabase):
         st.session_state.abrir_edit = False
 
     # ------------------------------
-    # EDITOR
+    # EDITOR (Logica Original)
     # ------------------------------
     if st.session_state.abrir_edit and st.session_state.motor_editando:
         edit_module = importlib.import_module("page.edit")
@@ -138,20 +139,20 @@ def show(supabase):
         return
 
     # ------------------------------
-    # CARDS (ESTRUTURA ORIGINAL PRESERVADA)
+    # CARDS (ESTRUTURA ORIGINAL DE SOBREPOSIÇÃO)
     # ------------------------------
     for m in motores:
 
         id_m = m.get("id")
         key_det = f"vis_{id_m}"
 
-        # Botão invisível que recebe o clique
+        # O botão invisível que o usuário realmente clica
         if st.button(" ", key=f"btn_m_{id_m}", use_container_width=True):
             st.session_state.detalhes_visiveis[key_det] = \
                 not st.session_state.detalhes_visiveis.get(key_det, False)
             st.rerun()
 
-        # Visual do Card (Mantido exatamente igual ao original)
+        # Visual do Card (Mantido exatamente igual ao original com margin negativa)
         st.markdown(f"""
         <div style="margin-top:-165px;margin-bottom:20px;
         padding:18px;pointer-events:none;position:relative;z-index:5;">
@@ -196,7 +197,7 @@ def show(supabase):
         """, unsafe_allow_html=True)
 
         # ------------------------------
-        # DETALHES (ACRESCENTADO NOVAS FUNÇÕES)
+        # DETALHES (LOGICA DE EXPANSÃO ORIGINAL + ACRÉSCIMOS)
         # ------------------------------
         if st.session_state.detalhes_visiveis.get(key_det):
 
@@ -216,45 +217,31 @@ def show(supabase):
                 if excluir_motor(supabase, id_m):
                     st.rerun()
 
-            # Renderização dos dados originais
+            # Dados Técnicos Originais
             render_dado("Amperagem", m.get("corrente_nominal_a"), "A")
             render_dado("Ranhuras", m.get("numero_ranhuras"))
             render_dado("Pacote", m.get("comprimento_pacote_mm"), "mm")
 
-            # --- ✅ ACRESCENTADO: LIGAÇÕES DO MOTOR ---
+            # ✅ ACRESCENTADO: LIGAÇÕES DO MOTOR (Injetado sem remover nada)
             st.markdown("### 🔌 Esquemas de Ligação")
             ligacoes = gerar_ligacoes_motor(m)
             if ligacoes:
-                # Criamos colunas dinâmicas conforme a quantidade de ligações
                 cols_lig = st.columns(len(ligacoes))
                 for idx, lig in enumerate(ligacoes):
                     with cols_lig[idx]:
                         st.markdown(f"""
                         <div style="background: rgba(0,255,255,0.05); border: 1px solid #00ffff33; padding: 12px; border-radius: 8px; min-height: 100px;">
-                            <div style="color:#00ffff; font-weight:bold; font-size:0.9rem;">{lig['titulo']}</div>
-                            <div style="color:#e0e0e0; font-size:0.75rem; margin-top:5px;">{lig['descricao']}</div>
+                            <div style="color:#00ffff; font-weight:bold; font-size:0.9rem;">{lig.get('titulo', 'Ligação')}</div>
+                            <div style="color:#e0e0e0; font-size:0.75rem; margin-top:5px;">{lig.get('descricao', '')}</div>
                             {f"<div style='color:#f59e0b; font-size:0.8rem; margin-top:8px; font-family:monospace;'>AMP: {lig['corrente']}A</div>" if 'corrente' in lig and lig['corrente'] != "-" else ""}
                         </div>
                         """, unsafe_allow_html=True)
             
-            # --- ✅ ACRESCENTADO: DIAGNÓSTICO RÁPIDO ---
+            # ✅ ACRESCENTADO: DIAGNÓSTICO RÁPIDO (Injetado sem remover nada)
             st.markdown("---")
             with st.expander("🧠 Guia de Diagnóstico Rápido"):
-                # Conteúdo direto do seu arquivo de diagnóstico para manter agilidade
-                st.markdown("""
-                ### ⚡ Identificação rápida
-                ✅ **Girou leve** → 2 polos  
-                ✅ **Girou firme** → 4 polos  
-                ✅ **Pesado** → 6 ou 8 polos  
-
-                ---
-                ### ⚡ Teste de resistência
-                **Bobinas iguais** = OK  
-                **Uma diferente** = defeito  
-
-                ---
-                ### ⚡ Corrente
-                Diferença máxima entre fases: **10%**
-                """)
+                # Chamamos a função do seu módulo diagnostico ou renderizamos direto
+                diagnostico.render_diagnostico()
 
             st.markdown("</div>", unsafe_allow_html=True)
+
