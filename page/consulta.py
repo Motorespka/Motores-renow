@@ -1,7 +1,9 @@
 import streamlit as st
 import re
 
-# Funções de apoio
+# =============================
+# FUNÇÕES AUXILIARES
+# =============================
 def limpar_passo(passo_raw):
     if not passo_raw: return "---"
     s = str(passo_raw).strip()
@@ -21,14 +23,22 @@ def render_dado(label, valor, unidade="", highlight=False):
         </div>
     """, unsafe_allow_html=True)
 
-# Tela principal
+def render_detalhes_motor(m):
+    render_dado("Passo Principal", limpar_passo(m.get("passo_principal")))
+    render_dado("Fio Principal", m.get("bitola_fio_principal"))
+    render_dado("Rolamentos", f"{m.get('rolamento_dianteiro','-')} / {m.get('rolamento_traseiro','-')}")
+
+# =============================
+# TELA PRINCIPAL
+# =============================
 def show(supabase):
-    st.markdown('<link rel="stylesheet" href="styles.css">', unsafe_allow_html=True)
-    st.markdown("## 🔍 Central de Motores")
-    
+    st.title("🔍 Central de Motores")
+
     busca = st.text_input("🔎 Pesquisar motor...", placeholder="Ex: Weg 2cv 4 polos")
-    
-    # Busca dados
+
+    # =============================
+    # BUSCA NO SUPABASE
+    # =============================
     try:
         res = supabase.table("motores").select("*").order("id", desc=True).execute()
         motores = res.data if res.data else []
@@ -38,126 +48,62 @@ def show(supabase):
 
     if busca:
         q = busca.lower()
-        motores = [m for m in motores if q in f"{m.get('marca')} {m.get('modelo')} {m.get('potencia_hp_cv')}".lower()]
+        motores = [m for m in motores if q in f"{m.get('marca','')} {m.get('modelo','')} {m.get('potencia_hp_cv','')}".lower()]
+
+    if not motores:
+        st.info("Nenhum motor encontrado.")
+        return
 
     if "detalhes_visiveis" not in st.session_state:
         st.session_state.detalhes_visiveis = {}
 
+    # =============================
+    # RENDERIZAÇÃO DE CARDS
+    # =============================
     for m in motores:
         id_m = m.get("id")
         key_det = f"vis_{id_m}"
-        
-        # Card grande clicável
-        if st.button(f"{m.get('marca','---')} {m.get('modelo','')} ({m.get('potencia_hp_cv','-')})", key=f"btn_card_{id_m}"):
+
+        # BOTÃO PARA ABRIR DETALHES
+        if st.button(f"{m.get('marca','---')} {m.get('modelo','')} ({m.get('potencia_hp_cv','-')})", key=f"btn_{id_m}"):
             st.session_state.detalhes_visiveis[key_det] = not st.session_state.detalhes_visiveis.get(key_det, False)
-        
-        # Card visual
+
+        # CARD VISUAL
         st.markdown(f"""
-        <div class="tech-card">
-            <div>ID: {id_m}</div>
-            <div>Fases: {m.get('fases','-')}</div>
-            <div>Potência: {m.get('potencia_hp_cv','-')}</div>
-            <div>RPM: {m.get('rpm_nominal','-')}</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Detalhes expandidos
-        if st.session_state.detalhes_visiveis.get(key_det):
-            with st.expander("🛠️ Detalhes do Motor", expanded=True):
-                fases = str(m.get('fases','')).upper()
-                t_liga, t_bobina, t_mecanica = st.tabs(["🔌 Ligações", "🌀 Bobinagem", "⚙️ Mecânica"])
-                
-                with t_liga:
-                    if "MONO" in fases:
-                        st.code("5 e 6 cabos monofásicos...", language="text")
-                    else:
-                        st.code("6 e 12 cabos trifásicos...", language="text")
-                
-                with t_bobina:
-                    render_dado("Passo Principal", limpar_passo(m.get("passo_principal")))
-                    render_dado("Fio Principal", m.get("bitola_fio_principal"))
-                
-                with t_mecanica:
-                    render_dado("Rolamentos", f"{m.get('rolamento_dianteiro')} / {m.get('rolamento_traseiro')}")    # Busca segura
-    if busca:
-        q = busca.lower()
-        motores = [
-            m for m in motores
-            if q in f"{m.get('marca') or ''} {m.get('modelo') or ''} {m.get('potencia_hp_cv') or ''}".lower()
-        ]
-
-    if "detalhes_visiveis" not in st.session_state:
-        st.session_state.detalhes_visiveis = {}
-
-    # Renderização de cards
-    for m in motores:
-        id_m = m.get("id")
-        key_det = f"vis_{id_m}"
-        btn_key = f"btn_card_{id_m}"
-
-        # BOTÃO PARA MOSTRAR DETALHES
-        if st.button(" ", key=btn_key):
-            st.session_state.detalhes_visiveis[key_det] = not st.session_state.detalhes_visiveis.get(key_det, False)
-            st.experimental_rerun()
-
-        # CAPA DO CARD
-        fases = str(m.get('fases') or '').upper()
-        st.markdown(f"""
-        <div style="margin-top:-245px; margin-bottom:50px; padding:20px; pointer-events:none; position:relative; z-index:5;">
-            <div style="display:flex; justify-content:space-between; align-items:start;">
-                <div>
-                    <small style="color:#00ffff; font-family:monospace; letter-spacing:1px;">ID #{id_m}</small>
-                    <div style="font-size:1.5rem; color:white; font-weight:800; line-height:1.1;">{(m.get('marca') or '---').upper()}</div>
-                    <div style="color:#aaa; font-size:0.95rem;">{m.get('modelo') or ''}</div>
-                </div>
-                <div style="background:rgba(16,185,129,0.2); color:#10b981; padding:4px 12px; border-radius:20px; font-size:0.75rem; font-weight:bold; border:1px solid #10b981;">
-                    {fases}
-                </div>
-            </div>
-            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-top:22px; border-top:1px solid rgba(255,255,255,0.1); padding-top:18px;">
-                <div style="text-align:center;">
-                    <div style="font-size:0.55rem; color:#8b949e;">POTÊNCIA</div>
-                    <div style="color:#00f2ff; font-weight:bold; font-size:1.1rem;">{m.get('potencia_hp_cv','-')}</div>
-                </div>
-                <div style="text-align:center; border-left:1px solid #333; border-right:1px solid #333;">
-                    <div style="font-size:0.55rem; color:#8b949e;">ROTAÇÃO</div>
-                    <div style="color:#10b981; font-weight:bold; font-size:1.1rem;">{m.get('rpm_nominal','-')}</div>
-                </div>
-                <div style="text-align:center;">
-                    <div style="font-size:0.55rem; color:#8b949e;">AMPERAGEM</div>
-                    <div style="color:#f59e0b; font-weight:bold; font-size:1.1rem;">{m.get('corrente_nominal_a','-')}A</div>
-                </div>
-                <div style="text-align:center;">
-                    <div style="font-size:0.55rem; color:#8b949e;">TENSÃO</div>
-                    <div style="color:#a855f7; font-weight:bold; font-size:1rem;">{m.get('tensao_v','-')}V</div>
-                </div>
-                <div style="text-align:center; border-left:1px solid #333; border-right:1px solid #333;">
-                    <div style="font-size:0.55rem; color:#8b949e;">POLOS</div>
-                    <div style="color:white; font-weight:bold; font-size:1rem;">{m.get('polos','-')}P</div>
-                </div>
-                <div style="text-align:center;">
-                    <div style="font-size:0.55rem; color:#8b949e;">FREQ.</div>
-                    <div style="color:#8b949e; font-weight:bold; font-size:1rem;">{m.get('frequencia_hz','-')}Hz</div>
-                </div>
+        <div style="
+            background: linear-gradient(145deg,#081018,#05070d);
+            border: 2px solid #00ffff33; border-radius:18px; padding:25px;
+            box-shadow:0 0 30px #00ffff22; margin:20px auto; max-width:600px;
+            text-align:center; cursor:pointer;
+        ">
+            <div style="font-size:1.5rem; color:#00ffff; font-weight:800;">{m.get('marca','---').upper()}</div>
+            <div style="color:#aaa; font-size:1rem; margin-bottom:10px;">{m.get('modelo','-')}</div>
+            <div style="display:flex; justify-content:space-around; margin-top:15px; font-weight:bold;">
+                <div style="color:#00ffff;">{m.get('potencia_hp_cv','-')} HP</div>
+                <div style="color:#10b981;">{m.get('rpm_nominal','-')} RPM</div>
+                <div style="color:#f59e0b;">{m.get('corrente_nominal_a','-')} A</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
         # DETALHES EXPANDIDOS
         if st.session_state.detalhes_visiveis.get(key_det):
-            st.markdown("<div style='background:rgba(0,10,20,0.95); border:1px solid #00ffff44; border-radius:0 0 12px 12px; padding:20px; margin-top:-50px; margin-bottom:40px;'>", unsafe_allow_html=True)
-            
-            st.markdown("### 🏷️ Identificação de Cabos (Cores e Placas)")
-            st.markdown("""
-                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; background:rgba(255,255,255,0.05); padding:15px; border-radius:8px; font-family:monospace; font-size:0.85rem;">
-                    <div><span style="color:#4d4dff">●</span> 1: AZUL (U1)</div>
-                    <div><span style="color:#ffffff">●</span> 2: BRANCO (V1)</div>
-                    <div><span style="color:#ff8c00">●</span> 3: LARANJA (W1)</div>
-                    <div><span style="color:#ffff00">●</span> 4: AMARELO (U2)</div>
-                    <div><span style="color:#888888">●</span> 5: PRETO (V2)</div>
-                    <div><span style="color:#ff4d4d">●</span> 6: VERMELHO (W2)</div>
-                </div>
-            """, unsafe_allow_html=True)
+            st.markdown("<div style='background:rgba(0,10,20,0.95); border:1px solid #00ffff44; border-radius:12px; padding:20px; margin-bottom:40px;'>", unsafe_allow_html=True)
+            st.markdown("### 🛠️ Detalhes do Motor")
 
-            render_detalhes_motor(m)
+            fases = str(m.get('fases','')).upper()
+            t_liga, t_bobina, t_mecanica = st.tabs(["🔌 Ligações", "🌀 Bobinagem", "⚙️ Mecânica"])
+
+            with t_liga:
+                if "MONO" in fases:
+                    st.code("5 e 6 cabos monofásicos...", language="text")
+                else:
+                    st.code("6 e 12 cabos trifásicos...", language="text")
+
+            with t_bobina:
+                render_detalhes_motor(m)
+
+            with t_mecanica:
+                render_dado("Rolamentos", f"{m.get('rolamento_dianteiro','-')} / {m.get('rolamento_traseiro','-')}")
+
             st.markdown("</div>", unsafe_allow_html=True)
