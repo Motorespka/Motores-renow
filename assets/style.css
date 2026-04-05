@@ -7,7 +7,7 @@
     background: transparent !important;
 }
 
-/* Fundo geral */
+/* Fundo geral com gradientes radiais profundos */
 body {
     background:
         radial-gradient(circle at 20% 20%, #00ffff11 0%, transparent 40%),
@@ -38,7 +38,7 @@ body::before {
 }
 
 /* =============================
-   🔥 TECH CARDS
+   🔥 TECH CARDS (USADO NOS DETALHES)
 ============================= */
 
 .tech-card {
@@ -58,8 +58,14 @@ body::before {
 }
 
 /* =============================
-   🧠 HUD STATUS
+   🧠 HUD STATUS & TITULOS
 ============================= */
+
+h1, h2, h3 {
+    color: #00ffff !important;
+    text-shadow: 0 0 10px #00ffff44;
+    font-family: 'Courier New', monospace;
+}
 
 .hud-status {
     border: 1px solid #00ffff55;
@@ -103,30 +109,32 @@ textarea::placeholder {
 ============================= */
 
 .stButton > button {
-    background: linear-gradient(135deg,#001c2b,#000f1a);
-    border: 1px solid #00ffff55;
-    color: #00ffff;
-    border-radius: 10px;
-    transition: 0.3s;
-    font-weight: bold;
+    background: linear-gradient(135deg,#001c2b,#000f1a) !important;
+    border: 1px solid #00ffff55 !important;
+    color: #00ffff !important;
+    border-radius: 10px !important;
+    transition: 0.3s !important;
+    font-weight: bold !important;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 .stButton > button:hover {
-    border-color: #00ffff;
-    box-shadow: 0 0 18px #00ffff55;
+    border-color: #00ffff !important;
+    box-shadow: 0 0 18px #00ffff55 !important;
     transform: translateY(-1px);
 }
 
 /* =============================
-   📊 METRICS (CARDS NUMÉRICOS)
+   📊 METRICS (CARDS NUMÉRICOS ORIGINAIS)
 ============================= */
 
 [data-testid="stMetric"] {
-    background: linear-gradient(145deg,#081018,#05070d);
-    border: 1px solid #00ffff22;
-    padding: 12px;
-    border-radius: 12px;
-    box-shadow: 0 0 12px #00ffff22 inset;
+    background: linear-gradient(145deg,#081018,#05070d) !important;
+    border: 1px solid #00ffff22 !important;
+    padding: 12px !important;
+    border-radius: 12px !important;
+    box-shadow: 0 0 12px #00ffff22 inset !important;
 }
 
 [data-testid="stMetricLabel"] {
@@ -139,13 +147,22 @@ textarea::placeholder {
 }
 
 /* =============================
-   📦 EXPANDERS
+   📦 EXPANDERS (PARA DIAGNÓSTICO)
 ============================= */
 
 .streamlit-expanderHeader {
-    background: rgba(0,255,255,0.05);
-    border-radius: 8px;
-    border: 1px solid #00ffff22;
+    background: rgba(0,255,255,0.05) !important;
+    border-radius: 8px !important;
+    border: 1px solid #00ffff22 !important;
+    color: #00ffff !important;
+}
+
+.streamlit-expanderContent {
+    background: rgba(8, 16, 24, 0.5) !important;
+    border-left: 1px solid #00ffff33 !important;
+    border-right: 1px solid #00ffff33 !important;
+    border-bottom: 1px solid #00ffff33 !important;
+    border-radius: 0 0 8px 8px;
 }
 
 /* =============================
@@ -174,7 +191,6 @@ textarea::placeholder {
 ============================= */
 
 @media (max-width: 768px) {
-
     .tech-card {
         padding: 15px;
     }
@@ -183,3 +199,4 @@ textarea::placeholder {
         background-size: 40px 40px;
     }
 }
+
