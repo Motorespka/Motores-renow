@@ -7,7 +7,6 @@ import re
 # ------------------------------
 def listar_motores(supabase):
     try:
-        # Limitado a 1000 para garantir que suas 272 linhas apareçam sempre
         res = supabase.table("motores").select("*").order("id", desc=True).limit(1000).execute()
         return res.data if res.data else []
     except Exception as e:
@@ -23,7 +22,7 @@ def excluir_motor(supabase, id_motor):
         return False
 
 # ------------------------------
-# BUSCA RÁPIDA
+# BUSCA
 # ------------------------------
 def buscar_motores(motores_db, search_query):
     if not search_query: return motores_db
@@ -36,7 +35,7 @@ def buscar_motores(motores_db, search_query):
 def limpar_passo(passo_raw):
     if not passo_raw: return "---"
     s = str(passo_raw).strip()
-    s = re.sub(r"^[1][\s?:\-]*", "", s) # Remove "1:"
+    s = re.sub(r"^[1][\s?:\-]*", "", s)
     return s.replace(":", " ").replace("-", " ").strip()
 
 def render_dado(label, valor, unidade="", highlight=False):
@@ -55,32 +54,23 @@ def render_dado(label, valor, unidade="", highlight=False):
 def show(supabase):
     st.markdown("## 🔍 Consulta de Motores")
 
-    # Estilos CSS para tornar o botão IDÊNTICO a um card e rápido
+    # CSS para o Botão de Sobreposição Invisível
     st.markdown("""
         <style>
-        div[data-testid="stButton"] > button {
+        .stButton > button {
             width: 100% !important;
-            height: auto !important;
-            padding: 15px !important;
-            background: rgba(0, 40, 60, 0.4) !important;
-            border: 1px solid rgba(0, 255, 255, 0.2) !important;
-            border-left: 5px solid #10b981 !important;
-            border-radius: 8px !important;
-            text-align: left !important;
-            transition: all 0.2s ease;
+            height: 160px !important; /* Altura exata do card */
+            background-color: transparent !important;
+            color: transparent !important;
+            border: none !important;
+            position: absolute !important;
+            z-index: 10 !important;
+            cursor: pointer !important;
         }
-        div[data-testid="stButton"] > button:hover {
-            border-color: #00ffff !important;
-            background: rgba(0, 60, 80, 0.6) !important;
+        .stButton > button:hover {
+            border: none !important;
+            background-color: rgba(0, 255, 255, 0.05) !important;
         }
-        /* Ajuste para o texto dentro do botão parecer um card técnico */
-        .btn-text { color: white; font-family: sans-serif; }
-        .btn-header { font-size: 0.6rem; color: #00ffff; font-family: monospace; }
-        .btn-title { font-size: 1.1rem; font-weight: bold; display: block; margin: 4px 0; }
-        .btn-grid { display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 10px; padding-top: 10px; }
-        .btn-col { text-align: center; flex: 1; }
-        .btn-label { font-size: 0.55rem; color: #8b949e; }
-        .btn-val { font-size: 0.85rem; font-weight: bold; color: #00f2ff; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -92,7 +82,7 @@ def show(supabase):
         try:
             edit_module = importlib.import_module("page.edit")
             edit_module.show(supabase)
-            if st.button("🔙 Voltar para Lista"):
+            if st.button("🔙 Voltar", key="voltar_btn"):
                 st.session_state.abrir_edit = False
                 st.rerun()
             return
@@ -103,65 +93,89 @@ def show(supabase):
     motores_db = listar_motores(supabase)
     motores = buscar_motores(motores_db, search_query)
     
-    st.caption(f"Motores encontrados: {len(motores)} / {len(motores_db)}")
+    st.caption(f"Motores encontrados: {len(motores)}")
 
     for m in motores:
         id_m = m.get("id")
         key_det = f"vis_{id_m}"
         
-        # Montamos o conteúdo visual que irá DENTRO do botão
-        conteudo_botao = f"""
-            <div class="btn-text">
-                <div class="btn-header">REGISTRO TÉCNICO ID: #{id_m}</div>
-                <div class="btn-title">{(m.get('marca') or '---').upper()} {m.get('modelo') or ''}</div>
-                <div style="font-size: 0.65rem; color: #8b949e;">MOTOR {str(m.get('fases','')).upper()}</div>
-                <div class="btn-grid">
-                    <div class="btn-col"><div class="btn-label">POTÊNCIA</div><div class="btn-val">{m.get('potencia_hp_cv','-')}</div></div>
-                    <div class="btn-col"><div class="btn-label">ROTAÇÃO</div><div class="btn-val" style="color:#10b981;">{m.get('rpm_nominal','-')} RPM</div></div>
-                    <div class="btn-col"><div class="btn-label">TENSÃO</div><div class="btn-val" style="color:#a855f7;">{m.get('tensao_v','-')}V</div></div>
-                </div>
-            </div>
-        """
-
-        # O botão agora contém o HTML (usamos unsafe_allow_html não funciona direto no label do st.button, 
-        # então usamos um truque de CSS para injetar o visual no botão)
-        if st.button(f"{m.get('marca')} {m.get('modelo')} #{id_m}", key=f"btn_{id_m}", use_container_width=True):
-            st.session_state.detalhes_visiveis[key_det] = not st.session_state.detalhes_visiveis.get(key_det, False)
-            st.rerun()
-
-        # Injetamos o visual por cima do botão (pointer-events: none permite que o clique passe para o botão abaixo)
+        st_color = "#10b981" # Verde padrão
+        
+        # --- ESTRUTURA DO CARD GRANDE ---
+        # Usamos uma div relativa para que o botão invisível fique por cima dela
         st.markdown(f"""
-            <div style="margin-top: -120px; margin-bottom: 25px; pointer-events: none;">
-                {conteudo_botao}
+            <div style="position: relative; margin-bottom: 20px;">
+                <div style="
+                    background: rgba(0, 40, 60, 0.5); 
+                    border: 1px solid rgba(0, 255, 255, 0.2); 
+                    border-left: 6px solid {st_color}; 
+                    border-radius: 10px; 
+                    padding: 20px;
+                    height: 160px;
+                ">
+                    <div style="display: flex; justify-content: space-between;">
+                        <div>
+                            <small style="color: #00ffff; font-family: monospace; letter-spacing: 2px;">REGISTRO TÉCNICO ID: #{id_m}</small>
+                            <div style="font-size: 1.4rem; color: white; font-weight: bold; margin: 5px 0;">
+                                {(m.get('marca') or '---').upper()} <span style="font-weight: 300; color: #ccc;">{m.get('modelo') or ''}</span>
+                            </div>
+                            <div style="font-size: 0.75rem; color: #8b949e; letter-spacing: 1px;">MOTOR {str(m.get('fases','')).upper()}</div>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 0.65rem; color: #8b949e; margin-bottom: 4px;">POTÊNCIA</div>
+                            <div style="font-size: 1.1rem; font-weight: bold; color: #00f2ff;">{m.get('potencia_hp_cv','-')}</div>
+                        </div>
+                        <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.05); border-right: 1px solid rgba(255,255,255,0.05);">
+                            <div style="font-size: 0.65rem; color: #8b949e; margin-bottom: 4px;">ROTAÇÃO</div>
+                            <div style="font-size: 1.1rem; font-weight: bold; color: #10b981;">{m.get('rpm_nominal','-')} <small>RPM</small></div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 0.65rem; color: #8b949e; margin-bottom: 4px;">TENSÃO</div>
+                            <div style="font-size: 1.1rem; font-weight: bold; color: #a855f7;">{m.get('tensao_v','-')}V</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         """, unsafe_allow_html=True)
 
-        # SEÇÃO EXPANDIDA
+        # Botão Invisível por cima de tudo
+        # O margin-top negativo "puxa" o botão para cima do HTML anterior
+        st.markdown('<div style="margin-top: -180px;">', unsafe_allow_html=True)
+        if st.button("", key=f"overlay_{id_m}", use_container_width=True):
+            st.session_state.detalhes_visiveis[key_det] = not st.session_state.detalhes_visiveis.get(key_det, False)
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Espaçador para o próximo card não grudar
+        st.markdown('<div style="margin-top: 20px;"></div>', unsafe_allow_html=True)
+
+        # --- SEÇÃO EXPANDIDA ---
         if st.session_state.detalhes_visiveis.get(key_det):
-            st.markdown("<div style='background: rgba(0,30,45,0.9); border: 1px solid #00ffff44; border-radius: 8px; padding: 15px; margin-bottom: 20px;'>", unsafe_allow_html=True)
+            st.markdown("<div style='background: rgba(0,20,30,0.9); border: 1px solid #00ffff44; border-radius: 8px; padding: 20px; margin-bottom: 30px;'>", unsafe_allow_html=True)
             
-            c_ed, c_ex = st.columns(2)
-            if c_ed.button("✏️ EDITAR", key=f"ed_{id_m}", use_container_width=True):
+            c1, c2 = st.columns(2)
+            if c1.button("✏️ EDITAR", key=f"ed_{id_m}", use_container_width=True):
                 st.session_state.motor_editando = m
                 st.session_state.abrir_edit = True
                 st.rerun()
-            if c_ex.button("🗑️ EXCLUIR", key=f"ex_{id_m}", use_container_width=True):
+            if c2.button("🗑️ EXCLUIR", key=f"ex_{id_m}", use_container_width=True):
                 if excluir_motor(supabase, id_m): st.rerun()
 
-            t1, t2, t3 = st.tabs(["📋 PLACA", "🌀 BOBINAGEM", "⚙️ MECÂNICA"])
+            t1, t2, t3 = st.tabs(["📋 CONEXÃO", "🌀 REBOBINAGEM", "⚙️ MECÂNICA"])
             with t1:
-                st.markdown("<p style='font-size:0.6rem; color:#8b949e;'>MAPA DE SAÍDAS</p>", unsafe_allow_html=True)
-                # Mapa de cores simplificado para carregar rápido
-                st.code("1:AZ | 2:BR | 3:LA | 4:AM | 5:PR | 6:VM", language="")
+                st.code("MAPA: 1:AZ | 2:BR | 3:LA | 4:AM | 5:PR | 6:VM", language="")
                 render_dado("Amperagem Nominal", m.get("corrente_nominal_a"), "A")
                 render_dado("Capacitores", f"{m.get('capacitor_permanente') or ''} / {m.get('capacitor_partida') or ''}")
 
             with t2:
-                col1, col2 = st.columns(2)
-                with col1:
+                col_p, col_a = st.columns(2)
+                with col_p:
                     render_dado("Passo (P)", limpar_passo(m.get("passo_principal")))
                     render_dado("Fio (P)", m.get("bitola_fio_principal"))
-                with col2:
+                with col_a:
                     render_dado("Passo (A)", limpar_passo(m.get("passo_auxiliar")))
                     render_dado("Fio (A)", m.get("bitola_fio_auxiliar"))
                 render_dado("Ligação Interna", m.get("ligacao_interna"), highlight=True)
