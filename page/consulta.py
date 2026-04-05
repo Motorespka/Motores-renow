@@ -75,31 +75,23 @@ def buscar_motores(motores_db, search_query):
 # ------------------------------
 # COMPONENTES DE UI TECH (HUD MINI)
 # ------------------------------
-def render_dado(label, valor, unidade=""):
+def render_dado(label, valor, unidade="", highlight=False):
+    color = "#00ffff" if not highlight else "#f59e0b"
+    val = valor if valor and str(valor).lower() not in ["none", "nan", ""] else "---"
     st.markdown(f"""
         <div style="background: rgba(0, 255, 255, 0.03); border: 1px solid rgba(0, 255, 255, 0.1); border-radius: 6px; padding: 10px; margin-bottom: 5px;">
             <div style="font-size: 0.65rem; color: #8b949e; text-transform: uppercase; letter-spacing: 1px;">{label}</div>
-            <div style="font-size: 1rem; color: white; font-family: monospace; font-weight: bold;">{valor} <span style="color: #00ffff; font-size: 0.8rem;">{unidade}</span></div>
+            <div style="font-size: 1rem; color: white; font-family: monospace; font-weight: bold;">{val} <span style="color: {color}; font-size: 0.8rem;">{unidade}</span></div>
         </div>
     """, unsafe_allow_html=True)
 
-def render_fio_tech(bitola_raw):
-    """Formata a bitola do fio removendo redundâncias e destacando o material."""
-    if not bitola_raw: return "---"
-    
-    # Limpa o texto (remove 'fio principal', etc.)
-    text = str(bitola_raw).lower().replace("fio principal", "").strip()
-    
-    # Extrai o material (entre parênteses)
-    material = ""
-    match_mat = re.search(r"\((.*?)\)", text)
-    if match_mat:
-        material = match_mat.group(1).upper()
-        text = text.replace(match_mat.group(0), "").strip()
-
-    # Formatação final
-    html_material = f" <span style='color: #f59e0b; font-size: 0.7rem; font-weight: bold;'>({material})</span>" if material else ""
-    return f"{text.upper()}{html_material}"
+def render_fio_tech(bitola, material_tipo=""):
+    """Formata bitola e material com destaque visual."""
+    if not bitola: return "---"
+    # Remove textos repetitivos caso existam no banco
+    clean_bitola = str(bitola).upper().replace("AWG", "").replace("FIO", "").strip()
+    mat = f" <span style='color: #f59e0b; font-size: 0.7rem;'>({str(material_tipo).upper()})</span>" if material_tipo else ""
+    return f"{clean_bitola} AWG{mat}"
 
 # ------------------------------
 # TELA PRINCIPAL
@@ -112,21 +104,23 @@ def show(supabase):
         "Amarelo": "4", "Preto": "5", "Vermelho": "6", "Verde": "Terra",
     }
 
+    if "detalhes_visiveis" not in st.session_state: st.session_state.detalhes_visiveis = {}
     if "motor_editando" not in st.session_state: st.session_state.motor_editando = None
     if "abrir_edit" not in st.session_state: st.session_state.abrir_edit = False
-    if "detalhes_visiveis" not in st.session_state: st.session_state.detalhes_visiveis = {}
 
+    # Lógica de Navegação para Edição
     if st.session_state.abrir_edit and st.session_state.motor_editando:
         try:
             edit_module = importlib.import_module("page.edit")
             edit_module.show(supabase)
-            if st.button("🔙 Voltar para Lista", use_container_width=True):
+            if st.button("🔙 Cancelar e Voltar", use_container_width=True):
                 st.session_state.abrir_edit = False
                 st.rerun()
             return
-        except: st.error("Erro ao carregar edição.")
+        except Exception as e:
+            st.error(f"Erro ao carregar módulo de edição: {e}")
 
-    search_query = st.text_input("🔎 Pesquisar motor", placeholder="Ex: 1/2, 1750, WEG 10cv...")
+    search_query = st.text_input("🔎 Pesquisar motor", placeholder="Ex: 1/2, 1750, WEG, HERCULES...")
     
     motores_db = listar_motores(supabase)
     if not motores_db:
@@ -140,133 +134,123 @@ def show(supabase):
         id_motor = m.get("id")
         marca = (m.get("marca") or "---").upper()
         modelo = m.get("modelo") or ""
-        potencia = m.get("potencia_hp_cv") or m.get("potencia") or "---"
-        rpm = m.get("rpm_nominal") or m.get("rpm") or "---"
-        tensao = m.get("tensao_v") or m.get("tensao") or "---"
-        fases = m.get("fases") or "---"
-
-        # Identificação de Fases
-        tipo_motor = "Monofásico" if "monof" in fases.lower() else "Trifásico" if "trif" in fases.lower() else phases
-
+        fases = (m.get("fases") or "---").upper()
+        
+        # Alertas de validação
         alertas = alertas_validacao_projeto(m)
-        if any("risco" in a.lower() for a in alertas):
-            st_color = "#ef4444"; label = "🔴 CRÍTICO"
-        elif alertas:
-            st_color = "#f59e0b"; label = "🟡 ATENÇÃO"
-        else:
-            st_color = "#10b981"; label = "🟢 NOMINAL"
+        st_color = "#ef4444" if any("risco" in a.lower() for a in alertas) else "#10b981"
+        label_status = "🔴 CRÍTICO" if st_color == "#ef4444" else "🟢 NOMINAL"
 
-        # Card Principal (Seu CSS)
+        # --- CARD PRINCIPAL (TECH STYLE) ---
         st.markdown(f"""
             <div class="tech-card">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
                     <div>
-                        <small style="color: #00ffff; font-family: monospace;">SYS_ID: {id_motor}</small>
-                        <h3 style="margin:0; color:white;">{marca} <span style="font-weight:300;">{modelo}</span> <span style="font-size: 0.8rem; color: #8b949e; margin-left: 5px;">({tipo_motor})</span></h3>
+                        <small style="color: #00ffff; font-family: monospace;">NODE_ID: #{id_motor}</small>
+                        <h3 style="margin:0; color:white;">{marca} <span style="font-weight:300; font-size:1.1rem;">{modelo}</span></h3>
+                        <span style="font-size: 0.7rem; color: #8b949e; letter-spacing: 1px;">{fases}</span>
                     </div>
-                    <div class="hud-status" style="color: {st_color}; border-color: {st_color}55;">
-                        {label}
+                    <div class="hud-status" style="border-color: {st_color}55; color: {st_color};">
+                        {label_status}
                     </div>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 15px; border-top: 1px solid #00ffff22; padding-top: 15px; text-align: center;">
                     <div>
                         <div style="font-size: 0.6rem; color: #8b949e;">POTÊNCIA</div>
-                        <div style="color: #00f2ff; font-weight: bold;">{potencia} CV</div>
+                        <div style="color: #00f2ff; font-weight: bold;">{m.get('potencia_hp_cv', '---')}</div>
                     </div>
                     <div>
                         <div style="font-size: 0.6rem; color: #8b949e;">ROTAÇÃO</div>
-                        <div style="color: #10b981; font-weight: bold;">{rpm} RPM</div>
+                        <div style="color: #10b981; font-weight: bold;">{m.get('rpm_nominal', '---')} RPM</div>
                     </div>
                     <div>
                         <div style="font-size: 0.6rem; color: #8b949e;">TENSÃO</div>
-                        <div style="color: #a855f7; font-weight: bold;">{tensao}</div>
+                        <div style="color: #a855f7; font-weight: bold;">{m.get('tensao_v', '---')} V</div>
                     </div>
                 </div>
             </div>
         """, unsafe_allow_html=True)
 
-        # Botão de Ação Estilizado (Substitui a seta do expander)
-        key_detalhes = f"detalhes_{id_motor}"
-        if key_detalhes not in st.session_state.detalhes_visiveis:
-            st.session_state.detalhes_visiveis[key_detalhes] = False
+        # Controle de visibilidade dos detalhes
+        key_det = f"vis_{id_motor}"
+        if key_det not in st.session_state.detalhes_visiveis:
+            st.session_state.detalhes_visiveis[key_det] = False
 
-        texto_botao = "📊 FECHAR TELEMETRIA" if st.session_state.detalhes_visiveis[key_detalhes] else "🔍 EXIBIR DETALHES TÉCNICOS"
-        if st.button(texto_botao, key=f"btn_det_{id_motor}", use_container_width=True):
-            st.session_state.detalhes_visiveis[key_detalhes] = not st.session_state.detalhes_visiveis[key_detalhes]
+        btn_label = "📊 FECHAR RELATÓRIO" if st.session_state.detalhes_visiveis[key_det] else "🔍 ACESSAR TELEMETRIA TÉCNICA"
+        if st.button(btn_label, key=f"btn_{id_motor}", use_container_width=True):
+            st.session_state.detalhes_visiveis[key_det] = not st.session_state.detalhes_visiveis[key_det]
             st.rerun()
 
-        # Exibição Condicional dos Detalhes (Sem expander padrão)
-        if st.session_state.detalhes_visiveis[key_detalhes]:
-            st.markdown("<div style='background: rgba(0,0,0,0.2); border: 1px solid rgba(0,255,255,0.1); border-radius: 8px; padding: 15px; margin-top: -5px; margin-bottom: 20px;'>", unsafe_allow_html=True)
+        # --- SEÇÃO DE DETALHES EXPANDIDA ---
+        if st.session_state.detalhes_visiveis[key_det]:
+            st.markdown("<div style='background: rgba(0,20,30,0.5); border: 1px solid #00ffff22; border-radius: 8px; padding: 15px; margin-top: -10px; margin-bottom: 25px;'>", unsafe_allow_html=True)
             
             if alertas:
                 for a in alertas: st.warning(a)
 
-            # Botões de Ação de Registro
+            # Ações Rápidas
             ca1, ca2 = st.columns(2)
-            if ca1.button("✏️ EDITAR REGISTRO", key=f"ed_{id_motor}", use_container_width=True):
+            if ca1.button("✏️ EDITAR", key=f"ed_{id_motor}", use_container_width=True):
                 st.session_state.motor_editando = m
                 st.session_state.abrir_edit = True
                 st.rerun()
-            if ca2.button("🗑️ ELIMINAR DADOS", key=f"ex_{id_motor}", use_container_width=True):
+            if ca2.button("🗑️ EXCLUIR", key=f"ex_{id_motor}", use_container_width=True):
                 if excluir_motor(supabase, id_motor): st.rerun()
 
             st.markdown("<br>", unsafe_allow_html=True)
-            t1, t2, t3 = st.tabs(["📋 ESPECIFICAÇÕES", "🛠️ CONSTRUÇÃO", "🚀 PERFORMANCE"])
+            t1, t2, t3 = st.tabs(["📋 DADOS PLACA", "🌀 REBOBINAGEM", "⚙️ MECÂNICA"])
             
             with t1:
-                st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
-                col_pl1, col_pl2 = st.columns(2)
-                with col_pl1:
-                    render_dado("Marca", m.get("marca"))
-                    render_dado("Modelo", m.get("modelo"))
-                    render_dado("Fabricante", m.get("fabricante"))
-                with col_pl2:
-                    render_dado("Tensão", tensao, "V")
-                    render_dado("Corrente", m.get("corrente_nominal_a"), "A")
+                c1, c2 = st.columns(2)
+                with c1:
+                    render_dado("Amperagem (In)", m.get("corrente_nominal_a"), "A")
                     render_dado("Frequência", m.get("frequencia_hz"), "Hz")
+                    render_dado("Polos", m.get("polos"))
+                with c2:
+                    render_dado("Capacitor", m.get("capacitor_permanente") or m.get("capacitor_partida"))
+                    render_dado("Fator de Serviço", m.get("fator_servico"))
+                    render_dado("Amperagem (Vazio)", m.get("corrente_vazio_a"), "A", highlight=True)
 
             with t2:
-                st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
-                col_of1, col_of2 = st.columns(2)
-                with col_of1:
-                    st.markdown("<h5 style='color:#00ffff; font-size:0.8rem;'>🌀 ENROLAMENTO</h5>", unsafe_allow_html=True)
-                    render_dado("Ranhuras", m.get("numero_ranhuras"))
-                    # Uso da NOVA função de formatação de fio
-                    render_dado("Fio Principal", render_fio_tech(m.get("bitola_fio_principal")))
-                    render_dado("Espiras", m.get("espiras_principal"))
-                with col_of2:
-                    st.markdown("<h5 style='color:#00ffff; font-size:0.8rem;'>⚙️ MECÂNICA</h5>", unsafe_allow_html=True)
-                    render_dado("Rol. Dianteiro", m.get("rolamento_dianteiro"))
-                    render_dado("Rol. Traseiro", m.get("rolamento_traseiro"))
-                    render_dado("Carcaça", m.get("carcaca"))
+                st.markdown("<h5 style='color:#00ffff; font-size:0.75rem; margin-bottom:10px;'>ESTRUTURA DO ENROLAMENTO</h5>", unsafe_allow_html=True)
+                c1, c2 = st.columns(2)
+                with c1:
+                    render_dado("Passo Principal", m.get("passo_principal"), " (P)")
+                    render_dado("Fio Principal", render_fio_tech(m.get("bitola_fio_principal"), m.get("tipo_fio")))
+                    render_dado("Espiras (Princ.)", m.get("espiras_principal"))
+                with c2:
+                    render_dado("Passo Auxiliar", m.get("passo_auxiliar"), " (A)")
+                    render_dado("Fio Auxiliar", render_fio_tech(m.get("bitola_fio_auxiliar"), m.get("tipo_fio")))
+                    render_dado("Espiras (Aux.)", m.get("espiras_auxiliar"))
+                
+                render_dado("Esquema de Ligação", m.get("ligacao_interna"), highlight=True)
 
             with t3:
-                st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
-                col_pf1, col_pf2 = st.columns(2)
-                with col_pf1:
-                    render_dado("Rendimento", m.get("rendimento_perc"), "%")
-                    render_dado("Fator de Serviço", m.get("fator_servico"))
-                with col_pf2:
-                    render_dado("Classe Isolação", m.get("classe_isolacao"))
-                    render_dado("Grau Proteção", m.get("grau_protecao_ip"))
+                c1, c2 = st.columns(2)
+                with c1:
+                    render_dado("Ranhuras", m.get("numero_ranhuras"))
+                    render_dado("Pacote (Compr.)", m.get("comprimento_pacote_mm"), "mm")
+                with c2:
+                    render_dado("Rol. Dianteiro", m.get("rolamento_dianteiro"))
+                    render_dado("Rol. Traseiro", m.get("rolamento_traseiro"))
+                render_dado("Carcaça", m.get("carcaca"))
 
-            # Seção de Cores
+            # Mapa de Cores Estilizado
             st.markdown("<hr style='border-color: rgba(0,255,255,0.1);'>", unsafe_allow_html=True)
-            st.markdown("#### ⚡ MAPA DE CONEXÃO (CABOS)")
+            st.markdown("#### ⚡ MAPA DE CABOS")
             cols_c = st.columns(len(TABELA_CORES))
             for i, (cor, num) in enumerate(TABELA_CORES.items()):
                 with cols_c[i]:
                     st.markdown(f"""
-                        <div style="text-align: center; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 5px; background: rgba(255,255,255,0.02);">
-                            <div style="font-size: 0.6rem; color: #8b949e;">{cor.upper()}</div>
-                            <div style="font-size: 1.1rem; color: #00ffff; font-weight: bold;">{num}</div>
+                        <div style="text-align: center; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 5px; background: rgba(0,0,0,0.3);">
+                            <div style="font-size: 0.55rem; color: #8b949e;">{cor[:3].upper()}</div>
+                            <div style="font-size: 1rem; color: #00ffff; font-weight: bold;">{num}</div>
                         </div>
                     """, unsafe_allow_html=True)
             
             if m.get("observacoes"):
                 st.markdown("<br>", unsafe_allow_html=True)
-                st.info(f"📝 **NOTAS DE CAMPO:** {m.get('observacoes')}")
+                st.info(f"📝 **OBSERVAÇÕES:** {m.get('observacoes')}")
             
-            st.markdown("</div>", unsafe_allow_html=True) # Fecha o container customizado
+            st.markdown("</div>", unsafe_allow_html=True)
 
