@@ -10,7 +10,8 @@ try:
     from core.engenheiro_ia import engenheiro_busca_v4
     from core.aprendizado import aprender
     from core.ligacoes_motor import gerar_ligacoes_motor
-    import diagnostico
+    # AJUSTE: Como diagnostico.py está na pasta 'page', importamos assim:
+    from page import diagnostico 
 except Exception as e:
     # Caso alguma dependência falhe, o app não quebra
     pass
@@ -57,7 +58,7 @@ def render_dado(label, valor, unidade="", highlight=False):
 # 4. TELA PRINCIPAL (EXECUTADA PELO APP.PY)
 # =================================================================
 def show(supabase):
-    # Carregamento do CSS (ajuste de caminho para subpasta)
+    # Carregamento do CSS
     if os.path.exists("style.css"):
         with open("style.css") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
@@ -75,7 +76,6 @@ def show(supabase):
         try:
             motores, sugestoes = engenheiro_busca_v4(motores_db, busca)
         except:
-            # Fallback caso a IA falhe: busca manual nos campos do seu cadastro
             motores = [m for m in motores_db if busca.lower() in 
                       f"{m.get('marca','')} {m.get('modelo','')} {m.get('potencia_hp_cv','')}".lower()]
     else:
@@ -114,12 +114,10 @@ def show(supabase):
         id_m = m.get("id")
         key_det = f"vis_{id_m}"
 
-        # Botão de ativação do card
         if st.button(" ", key=f"btn_m_{id_m}", use_container_width=True):
             st.session_state.detalhes_visiveis[key_det] = not st.session_state.detalhes_visiveis.get(key_det, False)
             st.rerun()
 
-        # Visual do Card HUD (Nomes das colunas do seu Cadastro.py)
         st.markdown(f"""
         <div style="margin-top:-165px; margin-bottom:20px; padding:18px; pointer-events:none; position:relative; z-index:5;">
             <small style="color:#00ffff; font-family:monospace;">REGISTRO TÉCNICO ID: #{id_m}</small>
@@ -144,7 +142,6 @@ def show(supabase):
         </div>
         """, unsafe_allow_html=True)
 
-        # --- CONTEÚDO EXPANDIDO (DETALHES) ---
         if st.session_state.detalhes_visiveis.get(key_det):
             if busca: 
                 try: aprender(busca, m)
@@ -152,7 +149,6 @@ def show(supabase):
 
             st.markdown("<div style='padding:20px;'>", unsafe_allow_html=True)
             
-            # Botões de Ação
             c_edit, c_del = st.columns(2)
             if c_edit.button("✏️ EDITAR", key=f"ed_{id_m}"):
                 st.session_state.motor_editando = m
@@ -162,13 +158,11 @@ def show(supabase):
             if c_del.button("🗑️ EXCLUIR", key=f"ex_{id_m}"):
                 if excluir_motor(supabase, id_m): st.rerun()
 
-            # Dados Técnicos (Chaves do seu Cadastro.py)
             render_dado("Amperagem", m.get("corrente_nominal_a"), "A")
             render_dado("Ranhuras", m.get("numero_ranhuras"))
             render_dado("Pacote", m.get("comprimento_pacote_mm"), "mm")
             render_dado("Fio Principal", m.get("bitola_fio_principal"))
 
-            # Seção de Ligações
             st.markdown("### 🔌 Esquemas de Ligação")
             try:
                 ligacoes = gerar_ligacoes_motor(m)
@@ -183,18 +177,16 @@ def show(supabase):
                             </div>
                             """, unsafe_allow_html=True)
             except:
-                st.info("Esquema técnico disponível nas observações abaixo.")
+                st.info("Esquema disponível nas observações.")
 
-            # Diagnóstico
             with st.expander("🧠 Diagnóstico Rápido"):
                 try:
+                    # Chamada correta para a função no seu page/diagnostico.py
                     diagnostico.render_diagnostico()
                 except:
-                    st.write("Verifique a resistência das bobinas e o balanceamento das fases (máx 10%).")
+                    st.write("Verifique a resistência das bobinas.")
 
-            # Observações do Cadastro
             st.divider()
             st.markdown("**📝 Observações Adicionais:**")
             st.write(m.get("observacoes", "Sem observações registradas."))
-
             st.markdown("</div>", unsafe_allow_html=True)
