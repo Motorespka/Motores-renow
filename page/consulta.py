@@ -6,7 +6,7 @@ import re
 from core.engenheiro_ia import engenheiro_busca_v4
 from core.aprendizado import aprender
 
-# ✅ NOVAS IMPORTAÇÕES — LIGAÇÕES E DIAGNÓSTICO
+# ✅ MANTIDO — NOVAS IMPORTAÇÕES (LIGAÇÕES E DIAGNÓSTICO)
 from core.ligacoes_motor import gerar_ligacoes_motor
 import diagnostico
 
@@ -75,7 +75,7 @@ def render_dado(label, valor, unidade="", highlight=False):
 # TELA PRINCIPAL
 # ------------------------------
 def show(supabase):
-    # ✅ NOVO — CARREGAMENTO DO CSS EXTERNO
+    # ✅ ACRESCENTADO — CARREGAMENTO DO CSS EXTERNO PARA O BACKGROUND E GRID
     try:
         with open("style.css") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
@@ -94,7 +94,7 @@ def show(supabase):
 
     motores_db = listar_motores(supabase)
 
-    # ✅ NOVO — BUSCA INTELIGENTE
+    # ✅ MANTIDO — BUSCA INTELIGENTE
     sugestoes = []
     if busca:
         motores, sugestoes = engenheiro_busca_v4(motores_db, busca)
@@ -145,11 +145,13 @@ def show(supabase):
         id_m = m.get("id")
         key_det = f"vis_{id_m}"
 
+        # Botão invisível que recebe o clique
         if st.button(" ", key=f"btn_m_{id_m}", use_container_width=True):
             st.session_state.detalhes_visiveis[key_det] = \
                 not st.session_state.detalhes_visiveis.get(key_det, False)
             st.rerun()
 
+        # Visual do Card (Mantido exatamente igual ao original)
         st.markdown(f"""
         <div style="margin-top:-165px;margin-bottom:20px;
         padding:18px;pointer-events:none;position:relative;z-index:5;">
@@ -214,33 +216,45 @@ def show(supabase):
                 if excluir_motor(supabase, id_m):
                     st.rerun()
 
+            # Renderização dos dados originais
             render_dado("Amperagem", m.get("corrente_nominal_a"), "A")
             render_dado("Ranhuras", m.get("numero_ranhuras"))
             render_dado("Pacote", m.get("comprimento_pacote_mm"), "mm")
 
-            # ✅ ACRESCENTADO: LIGAÇÕES DO MOTOR
+            # --- ✅ ACRESCENTADO: LIGAÇÕES DO MOTOR ---
             st.markdown("### 🔌 Esquemas de Ligação")
             ligacoes = gerar_ligacoes_motor(m)
             if ligacoes:
+                # Criamos colunas dinâmicas conforme a quantidade de ligações
                 cols_lig = st.columns(len(ligacoes))
                 for idx, lig in enumerate(ligacoes):
                     with cols_lig[idx]:
                         st.markdown(f"""
-                        <div style="background: rgba(0,255,255,0.05); border: 1px solid #00ffff33; padding: 10px; border-radius: 8px;">
-                            <b style="color:#00ffff;">{lig['titulo']}</b><br>
-                            <small>{lig['descricao']}</small>
-                            {f"<br><small style='color:#f59e0b;'>Corrente: {lig['corrente']}A</small>" if 'corrente' in lig else ""}
+                        <div style="background: rgba(0,255,255,0.05); border: 1px solid #00ffff33; padding: 12px; border-radius: 8px; min-height: 100px;">
+                            <div style="color:#00ffff; font-weight:bold; font-size:0.9rem;">{lig['titulo']}</div>
+                            <div style="color:#e0e0e0; font-size:0.75rem; margin-top:5px;">{lig['descricao']}</div>
+                            {f"<div style='color:#f59e0b; font-size:0.8rem; margin-top:8px; font-family:monospace;'>AMP: {lig['corrente']}A</div>" if 'corrente' in lig and lig['corrente'] != "-" else ""}
                         </div>
                         """, unsafe_allow_html=True)
             
-            # ✅ ACRESCENTADO: DIAGNÓSTICO RÁPIDO
+            # --- ✅ ACRESCENTADO: DIAGNÓSTICO RÁPIDO ---
+            st.markdown("---")
             with st.expander("🧠 Guia de Diagnóstico Rápido"):
-                # Chamando a função show do arquivo diagnostico.py (adaptada para não title() de novo)
+                # Conteúdo direto do seu arquivo de diagnóstico para manter agilidade
                 st.markdown("""
-                ✅ **2 polos:** Girou leve | ✅ **4 polos:** Girou firme | ✅ **Pesado:** 6+ polos  
-                ⚡ **Resistência:** Bobinas iguais = OK  
-                ⚡ **Corrente:** Desvio máx. entre fases: **10%**
+                ### ⚡ Identificação rápida
+                ✅ **Girou leve** → 2 polos  
+                ✅ **Girou firme** → 4 polos  
+                ✅ **Pesado** → 6 ou 8 polos  
+
+                ---
+                ### ⚡ Teste de resistência
+                **Bobinas iguais** = OK  
+                **Uma diferente** = defeito  
+
+                ---
+                ### ⚡ Corrente
+                Diferença máxima entre fases: **10%**
                 """)
 
             st.markdown("</div>", unsafe_allow_html=True)
-
