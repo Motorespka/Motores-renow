@@ -8,7 +8,7 @@ from core.calculadora import alertas_validacao_projeto
 # ------------------------------
 def listar_motores(supabase):
     try:
-        res = supabase.table("motores").select("*").order("id", desc=True).execute()
+        res = supabase.table("motores").select("*").order("id", desc=True).limit(1000).execute()
         return res.data if res.data else []
     except Exception as e:
         st.error(f"Erro ao listar motores: {e}")
@@ -23,58 +23,22 @@ def excluir_motor(supabase, id_motor):
         return False
 
 # ------------------------------
-# BUSCA INTELIGENTE CONTEXTUAL
+# BUSCA FLEXÍVEL
 # ------------------------------
 def buscar_motores(motores_db, search_query):
     if not search_query: return motores_db
-    query = search_query.strip().lower().replace(",", ".")
-    
-    valor_numerico = None
-    match_fracao = re.search(r"(\d+)/(\d+)", query)
-    match_decimal = re.search(r"(\d+\.?\d*)", query)
-
-    if match_fracao:
-        valor_numerico = float(match_fracao.group(1)) / float(match_fracao.group(2))
-    elif match_decimal:
-        try: valor_numerico = float(match_decimal.group(1))
-        except: valor_numerico = None
-
-    termos_texto = re.sub(r"(\d+/\d+|\d+\.?\d*)", "", query).strip().split()
-    motores_filtrados = []
-
-    def limpar_num_blindado(val):
-        if val is None: return 0.0
-        try:
-            s = str(val).replace(",", ".")
-            match = re.search(r"(\d+\.?\d*)", s)
-            return float(match.group(1)) if match else 0.0
-        except: return 0.0
-
-    for m in motores_db:
-        match_contexto = False
-        pot_motor = limpar_num_blindado(m.get("potencia_hp_cv") or m.get("potencia"))
-        rpm_motor = limpar_num_blindado(m.get("rpm_nominal") or m.get("rpm"))
-        amp_motor = limpar_num_blindado(m.get("corrente_nominal_a") or m.get("corrente"))
-
-        if valor_numerico is not None:
-            if 800 <= valor_numerico <= 4000:
-                if abs(rpm_motor - valor_numerico) < 50: match_contexto = True
-            elif 0.1 <= valor_numerico <= 500 or match_fracao:
-                if pot_motor == valor_numerico: match_contexto = True
-                elif valor_numerico <= 50.0 and abs(amp_motor - valor_numerico) < 0.1: match_contexto = True
-        
-        texto_motor = f"{str(m.get('marca') or '')} {str(m.get('modelo') or '')}".lower()
-        match_texto = all(termo in texto_motor for termo in termos_texto) if termos_texto else True
-
-        if valor_numerico is not None:
-            if match_contexto and match_texto: motores_filtrados.append(m)
-        elif match_texto: motores_filtrados.append(m)
-
-    return motores_filtrados
+    query = search_query.strip().lower()
+    return [m for m in motores_db if query in f"{m.get('marca','')} {m.get('modelo','')} {m.get('fabricante','')} {m.get('potencia_hp_cv','')}".lower()]
 
 # ------------------------------
-# COMPONENTES DE UI TECH (HUD MINI)
+# FORMATAÇÃO TÉCNICA
 # ------------------------------
+def limpar_passo(passo_raw):
+    if not passo_raw: return "---"
+    s = str(passo_raw).strip()
+    s = re.sub(r"^[1][\s?:\-]*", "", s) # Remove o "1:" inicial
+    return s.replace(":", " ").replace("-", " ").strip()
+
 def render_dado(label, valor, unidade="", highlight=False):
     color = "#00ffff" if not highlight else "#f59e0b"
     val = valor if valor and str(valor).lower() not in ["none", "nan", ""] else "---"
@@ -86,11 +50,9 @@ def render_dado(label, valor, unidade="", highlight=False):
     """, unsafe_allow_html=True)
 
 def render_fio_tech(bitola, material_tipo=""):
-    """Formata bitola e material com destaque visual."""
     if not bitola: return "---"
-    # Remove textos repetitivos caso existam no banco
-    clean_bitola = str(bitola).upper().replace("AWG", "").replace("FIO", "").strip()
     mat = f" <span style='color: #f59e0b; font-size: 0.7rem;'>({str(material_tipo).upper()})</span>" if material_tipo else ""
+    clean_bitola = str(bitola).upper().replace("AWG", "").replace("FIO", "").strip()
     return f"{clean_bitola} AWG{mat}"
 
 # ------------------------------
@@ -99,158 +61,123 @@ def render_fio_tech(bitola, material_tipo=""):
 def show(supabase):
     st.markdown("## 🔍 Consulta de Motores")
 
-    TABELA_CORES = {
-        "Azul": "1", "Branco": "2", "Laranja": "3",
-        "Amarelo": "4", "Preto": "5", "Vermelho": "6", "Verde": "Terra",
-    }
+    TABELA_CORES = {"Azul": "1", "Branco": "2", "Laranja": "3", "Amarelo": "4", "Preto": "5", "Vermelho": "6", "Verde": "Terra"}
 
     if "detalhes_visiveis" not in st.session_state: st.session_state.detalhes_visiveis = {}
     if "motor_editando" not in st.session_state: st.session_state.motor_editando = None
     if "abrir_edit" not in st.session_state: st.session_state.abrir_edit = False
 
-    # Lógica de Navegação para Edição
+    # Lógica de Edição
     if st.session_state.abrir_edit and st.session_state.motor_editando:
         try:
             edit_module = importlib.import_module("page.edit")
             edit_module.show(supabase)
-            if st.button("🔙 Cancelar e Voltar", use_container_width=True):
+            if st.button("🔙 Voltar para Lista", use_container_width=True):
                 st.session_state.abrir_edit = False
                 st.rerun()
             return
-        except Exception as e:
-            st.error(f"Erro ao carregar módulo de edição: {e}")
+        except: st.error("Erro ao carregar editor.")
 
-    search_query = st.text_input("🔎 Pesquisar motor", placeholder="Ex: 1/2, 1750, WEG, HERCULES...")
+    search_query = st.text_input("🔎 Pesquisar", placeholder="Marca, modelo ou potência...")
     
     motores_db = listar_motores(supabase)
-    if not motores_db:
-        st.info("Nenhum motor cadastrado.")
-        return
-
     motores = buscar_motores(motores_db, search_query)
-    st.caption(f"Sistemas detectados: {len(motores)}")
+    
+    st.caption(f"Registros ativos: {len(motores)} de {len(motores_db)}")
 
     for m in motores:
         id_motor = m.get("id")
+        key_det = f"vis_{id_motor}"
+        if key_det not in st.session_state.detalhes_visiveis: st.session_state.detalhes_visiveis[key_det] = False
+
         marca = (m.get("marca") or "---").upper()
         modelo = m.get("modelo") or ""
         fases = (m.get("fases") or "---").upper()
         
-        # Alertas de validação
         alertas = alertas_validacao_projeto(m)
         st_color = "#ef4444" if any("risco" in a.lower() for a in alertas) else "#10b981"
-        label_status = "🔴 CRÍTICO" if st_color == "#ef4444" else "🟢 NOMINAL"
 
-        # --- CARD PRINCIPAL (TECH STYLE) ---
+        # --- CSS PARA O CARD CLICÁVEL ---
+        # Criamos um botão que envolve o conteúdo visual do card
+        if st.button(f"", key=f"card_btn_{id_motor}", help=f"Abrir detalhes de {marca}", use_container_width=True):
+            st.session_state.detalhes_visiveis[key_det] = not st.session_state.detalhes_visiveis[key_det]
+            st.rerun()
+
+        # O conteúdo visual fica logo abaixo do botão (simulando que o botão é o card)
         st.markdown(f"""
-            <div class="tech-card">
-                <div style="display: flex; justify-content: space-between; align-items: start;">
-                    <div>
-                        <small style="color: #00ffff; font-family: monospace;">NODE_ID: #{id_motor}</small>
-                        <h3 style="margin:0; color:white;">{marca} <span style="font-weight:300; font-size:1.1rem;">{modelo}</span></h3>
-                        <span style="font-size: 0.7rem; color: #8b949e; letter-spacing: 1px;">{fases}</span>
+            <div style="margin-top: -55px; pointer-events: none;">
+                <div class="tech-card" style="border-left: 4px solid {st_color};">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div>
+                            <small style="color: #00ffff; font-family: monospace; letter-spacing: 2px;">REG_DATA_SET: #{id_motor}</small>
+                            <h3 style="margin:0; color:white;">{marca} <span style="font-weight:300;">{modelo}</span></h3>
+                            <span style="font-size: 0.7rem; color: #8b949e;">SISTEMA {fases}</span>
+                        </div>
+                        <div style="font-size: 0.6rem; color: {st_color}; border: 1px solid {st_color}44; padding: 2px 8px; border-radius: 10px;">
+                            { "ESTÁVEL" if st_color == "#10b981" else "ALERTA" }
+                        </div>
                     </div>
-                    <div class="hud-status" style="border-color: {st_color}55; color: {st_color};">
-                        {label_status}
-                    </div>
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 15px; border-top: 1px solid #00ffff22; padding-top: 15px; text-align: center;">
-                    <div>
-                        <div style="font-size: 0.6rem; color: #8b949e;">POTÊNCIA</div>
-                        <div style="color: #00f2ff; font-weight: bold;">{m.get('potencia_hp_cv', '---')}</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 0.6rem; color: #8b949e;">ROTAÇÃO</div>
-                        <div style="color: #10b981; font-weight: bold;">{m.get('rpm_nominal', '---')} RPM</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 0.6rem; color: #8b949e;">TENSÃO</div>
-                        <div style="color: #a855f7; font-weight: bold;">{m.get('tensao_v', '---')} V</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 15px; border-top: 1px solid #00ffff11; padding-top: 10px; text-align: center;">
+                        <div><small style="color:#8b949e;">POT</small><br><b style="color:#00f2ff; font-size:0.9rem;">{m.get('potencia_hp_cv','-')}</b></div>
+                        <div><small style="color:#8b949e;">RPM</small><br><b style="color:#10b981; font-size:0.9rem;">{m.get('rpm_nominal','-')}</b></div>
+                        <div><small style="color:#8b949e;">VOLTS</small><br><b style="color:#a855f7; font-size:0.9rem;">{m.get('tensao_v','-')}V</b></div>
                     </div>
                 </div>
             </div>
         """, unsafe_allow_html=True)
 
-        # Controle de visibilidade dos detalhes
-        key_det = f"vis_{id_motor}"
-        if key_det not in st.session_state.detalhes_visiveis:
-            st.session_state.detalhes_visiveis[key_det] = False
-
-        btn_label = "📊 FECHAR RELATÓRIO" if st.session_state.detalhes_visiveis[key_det] else "🔍 ACESSAR TELEMETRIA TÉCNICA"
-        if st.button(btn_label, key=f"btn_{id_motor}", use_container_width=True):
-            st.session_state.detalhes_visiveis[key_det] = not st.session_state.detalhes_visiveis[key_det]
-            st.rerun()
-
-        # --- SEÇÃO DE DETALHES EXPANDIDA ---
+        # --- SEÇÃO EXPANDIDA ---
         if st.session_state.detalhes_visiveis[key_det]:
-            st.markdown("<div style='background: rgba(0,20,30,0.5); border: 1px solid #00ffff22; border-radius: 8px; padding: 15px; margin-top: -10px; margin-bottom: 25px;'>", unsafe_allow_html=True)
+            st.markdown("<div style='background: rgba(0,30,40,0.6); border: 1px solid #00ffff33; border-radius: 0 0 8px 8px; padding: 20px; margin-top: -15px; margin-bottom: 30px;'>", unsafe_allow_html=True)
             
-            if alertas:
-                for a in alertas: st.warning(a)
-
-            # Ações Rápidas
-            ca1, ca2 = st.columns(2)
-            if ca1.button("✏️ EDITAR", key=f"ed_{id_motor}", use_container_width=True):
+            # Botões de Manutenção do Registro
+            col_m1, col_m2 = st.columns(2)
+            if col_m1.button("✏️ EDITAR REGISTRO", key=f"ed_{id_motor}", use_container_width=True):
                 st.session_state.motor_editando = m
                 st.session_state.abrir_edit = True
                 st.rerun()
-            if ca2.button("🗑️ EXCLUIR", key=f"ex_{id_motor}", use_container_width=True):
+            if col_m2.button("🗑️ EXCLUIR REGISTRO", key=f"ex_{id_motor}", use_container_width=True):
                 if excluir_motor(supabase, id_motor): st.rerun()
 
-            st.markdown("<br>", unsafe_allow_html=True)
-            t1, t2, t3 = st.tabs(["📋 DADOS PLACA", "🌀 REBOBINAGEM", "⚙️ MECÂNICA"])
+            t1, t2, t3 = st.tabs(["📋 CONEXÃO / PLACA", "🌀 REBOBINAGEM", "⚙️ MECÂNICA"])
             
             with t1:
+                # Mapa de Cabos (Agora apenas aqui)
+                st.markdown("<p style='font-size:0.65rem; color:#8b949e; letter-spacing:2px; margin-bottom:10px;'>MAPA TÉCNICO DE CORES (SAÍDAS)</p>", unsafe_allow_html=True)
+                cols_c = st.columns(len(TABELA_CORES))
+                for i, (cor, num) in enumerate(TABELA_CORES.items()):
+                    cols_c[i].markdown(f"<div style='text-align:center; background:#000; border-radius:4px; padding:4px;'><small style='color:#8b949e; font-size:0.5rem;'>{cor[:3].upper()}</small><br><b style='color:#00ffff; font-size:0.8rem;'>{num}</b></div>", unsafe_allow_html=True)
+                
+                st.markdown("<br>", unsafe_allow_html=True)
                 c1, c2 = st.columns(2)
                 with c1:
-                    render_dado("Amperagem (In)", m.get("corrente_nominal_a"), "A")
-                    render_dado("Frequência", m.get("frequencia_hz"), "Hz")
-                    render_dado("Polos", m.get("polos"))
+                    render_dado("Amperagem Nominal", m.get("corrente_nominal_a"), "A")
+                    render_dado("Amperagem de Teste", m.get("corrente_vazio_a"), "A", highlight=True)
                 with c2:
-                    render_dado("Capacitor", m.get("capacitor_permanente") or m.get("capacitor_partida"))
-                    render_dado("Fator de Serviço", m.get("fator_servico"))
-                    render_dado("Amperagem (Vazio)", m.get("corrente_vazio_a"), "A", highlight=True)
+                    cap = f"{m.get('capacitor_permanente') or ''} {m.get('capacitor_partida') or ''}".strip()
+                    render_dado("Capacitores", cap if cap else "N/A")
+                    render_dado("Frequência", m.get("frequencia_hz"), "Hz")
 
             with t2:
-                st.markdown("<h5 style='color:#00ffff; font-size:0.75rem; margin-bottom:10px;'>ESTRUTURA DO ENROLAMENTO</h5>", unsafe_allow_html=True)
                 c1, c2 = st.columns(2)
                 with c1:
-                    render_dado("Passo Principal", m.get("passo_principal"), " (P)")
+                    render_dado("Passo Principal", limpar_passo(m.get("passo_principal")))
                     render_dado("Fio Principal", render_fio_tech(m.get("bitola_fio_principal"), m.get("tipo_fio")))
-                    render_dado("Espiras (Princ.)", m.get("espiras_principal"))
+                    render_dado("Espiras (P)", m.get("espiras_principal"))
                 with c2:
-                    render_dado("Passo Auxiliar", m.get("passo_auxiliar"), " (A)")
+                    render_dado("Passo Auxiliar", limpar_passo(m.get("passo_auxiliar")))
                     render_dado("Fio Auxiliar", render_fio_tech(m.get("bitola_fio_auxiliar"), m.get("tipo_fio")))
-                    render_dado("Espiras (Aux.)", m.get("espiras_auxiliar"))
-                
-                render_dado("Esquema de Ligação", m.get("ligacao_interna"), highlight=True)
+                    render_dado("Espiras (A)", m.get("espiras_auxiliar"))
+                render_dado("Ligação Interna", m.get("ligacao_interna"), highlight=True)
 
             with t3:
                 c1, c2 = st.columns(2)
                 with c1:
                     render_dado("Ranhuras", m.get("numero_ranhuras"))
-                    render_dado("Pacote (Compr.)", m.get("comprimento_pacote_mm"), "mm")
+                    render_dado("Comprimento Pacote", m.get("comprimento_pacote_mm"), "mm")
                 with c2:
-                    render_dado("Rol. Dianteiro", m.get("rolamento_dianteiro"))
-                    render_dado("Rol. Traseiro", m.get("rolamento_traseiro"))
+                    render_dado("Rolamento (D)", m.get("rolamento_dianteiro"))
+                    render_dado("Rolamento (T)", m.get("rolamento_traseiro"))
                 render_dado("Carcaça", m.get("carcaca"))
 
-            # Mapa de Cores Estilizado
-            st.markdown("<hr style='border-color: rgba(0,255,255,0.1);'>", unsafe_allow_html=True)
-            st.markdown("#### ⚡ MAPA DE CABOS")
-            cols_c = st.columns(len(TABELA_CORES))
-            for i, (cor, num) in enumerate(TABELA_CORES.items()):
-                with cols_c[i]:
-                    st.markdown(f"""
-                        <div style="text-align: center; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 5px; background: rgba(0,0,0,0.3);">
-                            <div style="font-size: 0.55rem; color: #8b949e;">{cor[:3].upper()}</div>
-                            <div style="font-size: 1rem; color: #00ffff; font-weight: bold;">{num}</div>
-                        </div>
-                    """, unsafe_allow_html=True)
-            
-            if m.get("observacoes"):
-                st.markdown("<br>", unsafe_allow_html=True)
-                st.info(f"📝 **OBSERVAÇÕES:** {m.get('observacoes')}")
-            
             st.markdown("</div>", unsafe_allow_html=True)
-
