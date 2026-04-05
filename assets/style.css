@@ -1,26 +1,28 @@
 /* =============================
    🌌 BACKGROUND TECNOLÓGICO
 ============================= */
-/* Forçamos o Streamlit a aceitar o fundo transparente para ver o seu grid */
+
+/* Streamlit container */
 .stApp {
     background: transparent !important;
 }
 
+/* Fundo geral */
 body {
     background:
-    radial-gradient(circle at 20% 20%, #00ffff11 0%, transparent 40%),
-    radial-gradient(circle at 80% 60%, #0099ff11 0%, transparent 40%),
-    #05070d !important;
+        radial-gradient(circle at 20% 20%, #00ffff11 0%, transparent 40%),
+        radial-gradient(circle at 80% 60%, #0099ff11 0%, transparent 40%),
+        #05070d !important;
+
     color: white !important;
+    overflow-x: hidden;
 }
 
 /* GRID FUTURISTA ANIMADO */
 body::before {
     content: "";
     position: fixed;
-    top: 0; left: 0;
-    width: 100%;
-    height: 100%;
+    inset: 0;
     background-image:
         linear-gradient(#00ffff11 1px, transparent 1px),
         linear-gradient(90deg, #00ffff11 1px, transparent 1px);
@@ -36,15 +38,16 @@ body::before {
 }
 
 /* =============================
-   🔥 TECH CARDS & HUD
+   🔥 TECH CARDS
 ============================= */
+
 .tech-card {
     background: linear-gradient(145deg, #081018, #05070d);
     border: 1px solid #00ffff33;
     border-radius: 14px;
     padding: 25px;
     box-shadow: 0 0 20px #00ffff22;
-    transition: 0.4s;
+    transition: all 0.35s ease;
     margin-bottom: 20px;
 }
 
@@ -54,6 +57,10 @@ body::before {
     border-color: #00ffff;
 }
 
+/* =============================
+   🧠 HUD STATUS
+============================= */
+
 .hud-status {
     border: 1px solid #00ffff55;
     padding: 5px 15px;
@@ -61,7 +68,7 @@ body::before {
     background: rgba(0, 255, 255, 0.05);
     box-shadow: 0 0 15px #00ffff22 inset;
     animation: pulseHUD 3s infinite;
-    font-family: 'Courier New', monospace;
+    font-family: "Courier New", monospace;
     font-size: 0.8rem;
     font-weight: bold;
 }
@@ -72,9 +79,107 @@ body::before {
     100% { box-shadow: 0 0 5px #00ffff22 inset; }
 }
 
-/* Estilização de Inputs para combinar */
-.stTextInput input {
+/* =============================
+   ✨ INPUTS STREAMLIT
+============================= */
+
+.stTextInput input,
+.stTextArea textarea,
+.stSelectbox div[data-baseweb="select"] {
     background-color: rgba(0, 255, 255, 0.05) !important;
     border: 1px solid #00ffff33 !important;
     color: #00ffff !important;
+    border-radius: 8px !important;
+}
+
+/* Placeholder */
+input::placeholder,
+textarea::placeholder {
+    color: #00ffff77 !important;
+}
+
+/* =============================
+   ⚡ BOTÕES FUTURISTAS
+============================= */
+
+.stButton > button {
+    background: linear-gradient(135deg,#001c2b,#000f1a);
+    border: 1px solid #00ffff55;
+    color: #00ffff;
+    border-radius: 10px;
+    transition: 0.3s;
+    font-weight: bold;
+}
+
+.stButton > button:hover {
+    border-color: #00ffff;
+    box-shadow: 0 0 18px #00ffff55;
+    transform: translateY(-1px);
+}
+
+/* =============================
+   📊 METRICS (CARDS NUMÉRICOS)
+============================= */
+
+[data-testid="stMetric"] {
+    background: linear-gradient(145deg,#081018,#05070d);
+    border: 1px solid #00ffff22;
+    padding: 12px;
+    border-radius: 12px;
+    box-shadow: 0 0 12px #00ffff22 inset;
+}
+
+[data-testid="stMetricLabel"] {
+    color: #8b949e !important;
+}
+
+[data-testid="stMetricValue"] {
+    color: #00ffff !important;
+    font-family: monospace;
+}
+
+/* =============================
+   📦 EXPANDERS
+============================= */
+
+.streamlit-expanderHeader {
+    background: rgba(0,255,255,0.05);
+    border-radius: 8px;
+    border: 1px solid #00ffff22;
+}
+
+/* =============================
+   🧾 SCROLLBAR TECH
+============================= */
+
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #05070d;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #00ffff33;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #00ffff88;
+}
+
+/* =============================
+   📱 RESPONSIVO MOBILE
+============================= */
+
+@media (max-width: 768px) {
+
+    .tech-card {
+        padding: 15px;
+    }
+
+    body::before {
+        background-size: 40px 40px;
+    }
 }
