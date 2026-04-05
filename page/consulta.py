@@ -36,7 +36,7 @@ def buscar_motores(motores_db, search_query):
 def limpar_passo(passo_raw):
     if not passo_raw: return "---"
     s = str(passo_raw).strip()
-    s = re.sub(r"^[1][\s?:\-]*", "", s) # Remove o "1:" inicial
+    s = re.sub(r"^[1][\s?:\-]*", "", s) 
     return s.replace(":", " ").replace("-", " ").strip()
 
 def render_dado(label, valor, unidade="", highlight=False):
@@ -71,7 +71,7 @@ def show(supabase):
         try:
             edit_module = importlib.import_module("page.edit")
             edit_module.show(supabase)
-            if st.button("🔙 Voltar", use_container_width=True):
+            if st.button("🔙 Voltar para Lista", use_container_width=True):
                 st.session_state.abrir_edit = False
                 st.rerun()
             return
@@ -92,48 +92,71 @@ def show(supabase):
         marca = (m.get("marca") or "---").upper()
         modelo = m.get("modelo") or ""
         fases = (m.get("fases") or "---").upper()
+        pot = m.get('potencia_hp_cv','---')
+        rpm = m.get('rpm_nominal','---')
+        tensao = m.get('tensao_v','---')
         
         alertas = alertas_validacao_projeto(m)
         st_color = "#ef4444" if any("risco" in a.lower() for a in alertas) else "#10b981"
+        status_txt = "ALERTA" if st_color == "#ef4444" else "ESTÁVEL"
 
-        # --- CONTAINER DO CARD CLICÁVEL ---
-        with st.container():
-            # 1. O Visual (Exatamente como estava)
-            st.markdown(f"""
-                <div class="tech-card" style="border-left: 4px solid {st_color}; position: relative; margin-bottom: -45px;">
-                    <div style="display: flex; justify-content: space-between; align-items: start;">
-                        <div>
-                            <small style="color: #00ffff; font-family: monospace; letter-spacing: 2px;">REGISTRO TÉCNICO ID: #{id_motor}</small>
-                            <h3 style="margin:0; color:white;">{marca} <span style="font-weight:300;">{modelo}</span></h3>
-                            <span style="font-size: 0.7rem; color: #8b949e;">MOTORES {fases}</span>
-                        </div>
-                        <div style="font-size: 0.6rem; color: {st_color}; border: 1px solid {st_color}44; padding: 2px 8px; border-radius: 10px;">
-                            { "ESTÁVEL" if st_color == "#10b981" else "ALERTA" }
-                        </div>
+        # --- CSS PARA INJETAR ESTILO NO BOTÃO (CARD) ---
+        st.markdown(f"""
+            <style>
+                div[data-testid="stButton"] > button[key*="card_btn_{id_motor}"] {{
+                    height: auto;
+                    padding: 0px !important;
+                    background-color: transparent !important;
+                    border: none !important;
+                    color: inherit !important;
+                    text-align: left !important;
+                    display: block !important;
+                }}
+            </style>
+        """, unsafe_allow_html=True)
+
+        # --- O CARD INTEIRO É O CONTEÚDO DO BOTÃO ---
+        # Definimos o HTML que será o visual do card
+        card_visual = f"""
+            <div class="tech-card" style="border-left: 4px solid {st_color}; margin-bottom: 5px; width: 100%;">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div>
+                        <small style="color: #00ffff; font-family: monospace; letter-spacing: 2px; font-size: 0.6rem;">REGISTRO TÉCNICO ID: #{id_motor}</small>
+                        <h3 style="margin:0; color:white; font-size: 1.1rem;">{marca} <span style="font-weight:300;">{modelo}</span></h3>
+                        <span style="font-size: 0.65rem; color: #8b949e;">MOTORES {fases}</span>
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 15px; border-top: 1px solid #00ffff11; padding-top: 10px; text-align: center;">
-                        <div><small style="color:#8b949e;">POT</small><br><b style="color:#00f2ff; font-size:0.9rem;">{m.get('potencia_hp_cv','-')}</b></div>
-                        <div><small style="color:#8b949e;">RPM</small><br><b style="color:#10b981; font-size:0.9rem;">{m.get('rpm_nominal','-')}</b></div>
-                        <div><small style="color:#8b949e;">VOLTS</small><br><b style="color:#a855f7; font-size:0.9rem;">{m.get('tensao_v','-')}V</b></div>
+                    <div style="font-size: 0.6rem; color: {st_color}; border: 1px solid {st_color}44; padding: 2px 8px; border-radius: 10px;">
+                        {status_txt}
                     </div>
                 </div>
-            """, unsafe_allow_html=True)
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 15px; border-top: 1px solid #00ffff11; padding-top: 10px; text-align: center;">
+                    <div><small style="color:#8b949e; font-size: 0.55rem;">POTÊNCIA</small><br><b style="color:#00f2ff; font-size:0.85rem;">{pot}</b></div>
+                    <div><small style="color:#8b949e; font-size: 0.55rem;">ROTAÇÃO</small><br><b style="color:#10b981; font-size:0.85rem;">{rpm} RPM</b></div>
+                    <div><small style="color:#8b949e; font-size: 0.55rem;">TENSÃO</small><br><b style="color:#a855f7; font-size:0.85rem;">{tensao}V</b></div>
+                </div>
+            </div>
+        """
 
-            # 2. O Botão Transparente que cobre tudo (Faz o card ser clicável)
-            if st.button("", key=f"overlay_{id_motor}", use_container_width=True):
-                st.session_state.detalhes_visiveis[key_det] = not st.session_state.detalhes_visiveis[key_det]
-                st.rerun()
+        # Renderizamos o botão com o HTML dentro (Hack de Streamlit para clique total)
+        if st.button(label_card := f"{marca}_{id_motor}", key=f"card_btn_{id_motor}", use_container_width=True):
+            st.session_state.detalhes_visiveis[key_det] = not st.session_state.detalhes_visiveis[key_det]
+            st.rerun()
+        
+        # Colocamos o visual por cima para garantir que os nomes (POTÊNCIA, RPM) apareçam
+        st.markdown(f'<div style="margin-top: -125px; pointer-events: none;">{card_visual}</div>', unsafe_allow_html=True)
+        st.markdown('<div style="margin-top: 20px;"></div>', unsafe_allow_html=True) # Espaçador
 
-        # --- SEÇÃO EXPANDIDA (TELEMETRIA) ---
+        # --- SEÇÃO EXPANDIDA ---
         if st.session_state.detalhes_visiveis[key_det]:
-            st.markdown("<div style='background: rgba(0,25,35,0.8); border: 1px solid #00ffff33; border-top:none; border-radius: 0 0 8px 8px; padding: 20px; margin-top: -10px; margin-bottom: 30px;'>", unsafe_allow_html=True)
+            st.markdown("<div style='background: rgba(0,30,40,0.85); border: 1px solid #00ffff33; border-radius: 8px; padding: 20px; margin-top: -10px; margin-bottom: 30px;'>", unsafe_allow_html=True)
             
-            col_act1, col_act2 = st.columns(2)
-            if col_act1.button("✏️ EDITAR", key=f"ed_{id_motor}", use_container_width=True):
+            # Ações do Registro
+            col_a1, col_a2 = st.columns(2)
+            if col_a1.button("✏️ EDITAR REGISTRO", key=f"ed_{id_motor}", use_container_width=True):
                 st.session_state.motor_editando = m
                 st.session_state.abrir_edit = True
                 st.rerun()
-            if col_act2.button("🗑️ EXCLUIR", key=f"ex_{id_motor}", use_container_width=True):
+            if col_a2.button("🗑️ EXCLUIR REGISTRO", key=f"ex_{id_motor}", use_container_width=True):
                 if excluir_motor(supabase, id_motor): st.rerun()
 
             tabs = st.tabs(["📋 CONEXÃO / PLACA", "🌀 REBOBINAGEM", "⚙️ MECÂNICA"])
@@ -177,4 +200,3 @@ def show(supabase):
                 render_dado("Carcaça", m.get("carcaca"))
 
             st.markdown("</div>", unsafe_allow_html=True)
-
