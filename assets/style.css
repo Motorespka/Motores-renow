@@ -1,75 +1,80 @@
 /* =============================
    🌌 BACKGROUND TECNOLÓGICO
 ============================= */
+/* Forçamos o Streamlit a aceitar o fundo transparente para ver o seu grid */
+.stApp {
+    background: transparent !important;
+}
 
 body {
     background:
     radial-gradient(circle at 20% 20%, #00ffff11 0%, transparent 40%),
     radial-gradient(circle at 80% 60%, #0099ff11 0%, transparent 40%),
-    #05070d;
-    color:white;
+    #05070d !important;
+    color: white !important;
 }
 
-/* GRID FUTURISTA */
-body::before{
-    content:"";
-    position:fixed;
-    width:100%;
-    height:100%;
+/* GRID FUTURISTA ANIMADO */
+body::before {
+    content: "";
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
     background-image:
         linear-gradient(#00ffff11 1px, transparent 1px),
-        linear-gradient(90deg,#00ffff11 1px,transparent 1px);
-    background-size:60px 60px;
-    animation:gridMove 25s linear infinite;
-    pointer-events:none;
+        linear-gradient(90deg, #00ffff11 1px, transparent 1px);
+    background-size: 60px 60px;
+    animation: gridMove 25s linear infinite;
+    pointer-events: none;
+    z-index: -1;
 }
 
-@keyframes gridMove{
-    from{transform:translateY(0)}
-    to{transform:translateY(60px)}
-}
-
-/* =============================
-   🔥 CARDS
-============================= */
-
-.tech-card{
-    background:linear-gradient(145deg,#081018,#05070d);
-    border:1px solid #00ffff33;
-    border-radius:14px;
-    padding:25px;
-    box-shadow:0 0 20px #00ffff22;
-    transition:.4s;
-}
-
-.tech-card:hover{
-    transform:scale(1.02);
-    box-shadow:0 0 45px #00ffffaa;
+@keyframes gridMove {
+    from { transform: translateY(0); }
+    to { transform: translateY(60px); }
 }
 
 /* =============================
-   🤖 HUD
+   🔥 TECH CARDS & HUD
 ============================= */
-
-.hud{
-    border:1px solid #00ffff55;
-    padding:15px;
-    border-radius:10px;
-    background:rgba(0,255,255,0.05);
-    box-shadow:0 0 25px #00ffff22 inset;
-    animation:pulse 3s infinite;
+.tech-card {
+    background: linear-gradient(145deg, #081018, #05070d);
+    border: 1px solid #00ffff33;
+    border-radius: 14px;
+    padding: 25px;
+    box-shadow: 0 0 20px #00ffff22;
+    transition: 0.4s;
+    margin-bottom: 20px;
 }
 
-@keyframes pulse{
-    0%{box-shadow:0 0 5px #00ffff22 inset;}
-    50%{box-shadow:0 0 35px #00ffff66 inset;}
-    100%{box-shadow:0 0 5px #00ffff22 inset;}
+.tech-card:hover {
+    transform: scale(1.01);
+    box-shadow: 0 0 45px #00ffff44;
+    border-color: #00ffff;
 }
 
-/* BOTÕES */
-.stButton button{
-    background:#00ffff22;
-    border:1px solid #00ffff55;
-    color:white;
-    border-radius:8px;
+.hud-status {
+    border: 1px solid #00ffff55;
+    padding: 5px 15px;
+    border-radius: 10px;
+    background: rgba(0, 255, 255, 0.05);
+    box-shadow: 0 0 15px #00ffff22 inset;
+    animation: pulseHUD 3s infinite;
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+@keyframes pulseHUD {
+    0% { box-shadow: 0 0 5px #00ffff22 inset; }
+    50% { box-shadow: 0 0 20px #00ffff44 inset; }
+    100% { box-shadow: 0 0 5px #00ffff22 inset; }
+}
+
+/* Estilização de Inputs para combinar */
+.stTextInput input {
+    background-color: rgba(0, 255, 255, 0.05) !important;
+    border: 1px solid #00ffff33 !important;
+    color: #00ffff !important;
 }
