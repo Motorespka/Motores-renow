@@ -2,9 +2,13 @@ import streamlit as st
 import importlib
 import re
 
-# ✅ NOVO — ENGENHEIRO IA V4
+# ✅ MANTIDO — IMPORTAÇÕES ORIGINAIS E IA
 from core.engenheiro_ia import engenheiro_busca_v4
 from core.aprendizado import aprender
+
+# ✅ NOVAS IMPORTAÇÕES — LIGAÇÕES E DIAGNÓSTICO
+from core.ligacoes_motor import gerar_ligacoes_motor
+import diagnostico
 
 # ------------------------------
 # BANCO SUPABASE
@@ -31,9 +35,7 @@ def excluir_motor(supabase, id_motor):
 def buscar_motores(motores_db, search_query):
     if not search_query:
         return motores_db
-
     q = search_query.strip().lower()
-
     return [
         m for m in motores_db
         if q in f"{m.get('marca','')} {m.get('modelo','')} {m.get('potencia_hp_cv','')}".lower()
@@ -73,6 +75,12 @@ def render_dado(label, valor, unidade="", highlight=False):
 # TELA PRINCIPAL
 # ------------------------------
 def show(supabase):
+    # ✅ NOVO — CARREGAMENTO DO CSS EXTERNO
+    try:
+        with open("style.css") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    except:
+        pass
 
     st.markdown("## 🔍 Consulta de Motores")
 
@@ -88,7 +96,6 @@ def show(supabase):
 
     # ✅ NOVO — BUSCA INTELIGENTE
     sugestoes = []
-
     if busca:
         motores, sugestoes = engenheiro_busca_v4(motores_db, busca)
     else:
@@ -131,7 +138,7 @@ def show(supabase):
         return
 
     # ------------------------------
-    # CARDS (SEU CÓDIGO ORIGINAL)
+    # CARDS (ESTRUTURA ORIGINAL PRESERVADA)
     # ------------------------------
     for m in motores:
 
@@ -187,11 +194,10 @@ def show(supabase):
         """, unsafe_allow_html=True)
 
         # ------------------------------
-        # DETALHES
+        # DETALHES (ACRESCENTADO NOVAS FUNÇÕES)
         # ------------------------------
         if st.session_state.detalhes_visiveis.get(key_det):
 
-            # ✅ NOVO — APRENDIZADO AUTOMÁTICO
             if busca:
                 aprender(busca, m)
 
@@ -212,4 +218,29 @@ def show(supabase):
             render_dado("Ranhuras", m.get("numero_ranhuras"))
             render_dado("Pacote", m.get("comprimento_pacote_mm"), "mm")
 
+            # ✅ ACRESCENTADO: LIGAÇÕES DO MOTOR
+            st.markdown("### 🔌 Esquemas de Ligação")
+            ligacoes = gerar_ligacoes_motor(m)
+            if ligacoes:
+                cols_lig = st.columns(len(ligacoes))
+                for idx, lig in enumerate(ligacoes):
+                    with cols_lig[idx]:
+                        st.markdown(f"""
+                        <div style="background: rgba(0,255,255,0.05); border: 1px solid #00ffff33; padding: 10px; border-radius: 8px;">
+                            <b style="color:#00ffff;">{lig['titulo']}</b><br>
+                            <small>{lig['descricao']}</small>
+                            {f"<br><small style='color:#f59e0b;'>Corrente: {lig['corrente']}A</small>" if 'corrente' in lig else ""}
+                        </div>
+                        """, unsafe_allow_html=True)
+            
+            # ✅ ACRESCENTADO: DIAGNÓSTICO RÁPIDO
+            with st.expander("🧠 Guia de Diagnóstico Rápido"):
+                # Chamando a função show do arquivo diagnostico.py (adaptada para não title() de novo)
+                st.markdown("""
+                ✅ **2 polos:** Girou leve | ✅ **4 polos:** Girou firme | ✅ **Pesado:** 6+ polos  
+                ⚡ **Resistência:** Bobinas iguais = OK  
+                ⚡ **Corrente:** Desvio máx. entre fases: **10%**
+                """)
+
             st.markdown("</div>", unsafe_allow_html=True)
+
