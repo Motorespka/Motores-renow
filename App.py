@@ -3,16 +3,18 @@ import importlib
 import sys
 from pathlib import Path
 from supabase import create_client
-# NOVO: Import para o menu lateral pro (instale com: pip install streamlit-option-menu)
-try:
-    from streamlit_option_menu import option_menu
-except ImportNotFoundError:
-    st.error("Instale a biblioteca: pip install streamlit-option-menu")
 
 # ================= 0. CORREÇÃO DE PATH =================
 raiz = Path(__file__).resolve().parent
 if str(raiz) not in sys.path:
     sys.path.insert(0, str(raiz))
+
+# NOVO: Import para o menu lateral pro com correção do erro de exceção
+try:
+    from streamlit_option_menu import option_menu
+except ModuleNotFoundError: # <-- CORRIGIDO AQUI (era ImportNotFoundError)
+    st.error("Erro: A biblioteca 'streamlit-option-menu' não está instalada. Execute: pip install streamlit-option-menu")
+    st.stop()
 
 # ================= 1. CONFIGURAÇÃO DA PÁGINA =================
 st.set_page_config(
@@ -39,30 +41,26 @@ def carregar_css():
     # Injetando fundo escuro profundo e ajustes de interface
     st.markdown("""
         <style>
-        /* Fundo principal e containers */
+        /* Fundo principal */
         .stApp {
-            background-color: #0d1117;
-            color: #ffffff;
+            background-color: #0d1117 !important;
+            color: #ffffff !important;
         }
         
-        /* Ajuste de cards e blocos */
-        div[data-testid="stVerticalBlock"] > div:has(div.stMarkdown) {
-            background-color: #161b22;
-            border-radius: 10px;
-            padding: 5px;
-            border: 1px solid #30363d;
+        /* Ajuste do Sidebar */
+        section[data-testid="stSidebar"] {
+            background-color: #0d1117 !important;
+            border-right: 1px solid #30363d;
         }
 
-        /* Esconder header padrão para look mais limpo */
+        /* Estilo para inputs e containers */
+        .stTextInput > div > div > input {
+            background-color: #161b22 !important;
+            color: white !important;
+        }
+        
         header {visibility: hidden;}
         footer {visibility: hidden;}
-        
-        /* Estilo para inputs no dark mode */
-        input {
-            background-color: #0d1117 !important;
-            color: white !important;
-            border: 1px solid #30363d !important;
-        }
         </style>
     """, unsafe_allow_html=True)
     
@@ -96,13 +94,15 @@ except Exception as e:
 
 # ================= 6. SIDEBAR PRO (MENU NAV) =================
 with st.sidebar:
-    # Substituindo o st.radio pelo Option Menu Pro
+    # Definindo o índice baseado no estado atual para o menu não resetar
+    idx_padrao = 0 if st.session_state.get("pagina") == "cadastro" else 1
+    
     escolha = option_menu(
         "Moto-Renow", 
         ["cadastro", "consulta"],
-        icons=['plus-circle', 'search'], # Ícones tecnológicos
+        icons=['plus-circle', 'search'],
         menu_icon="gear", 
-        default_index=0 if st.session_state.pagina == "cadastro" else 1,
+        default_index=idx_padrao,
         styles={
             "container": {"padding": "5!important", "background-color": "#0d1117"},
             "icon": {"color": "#00f2ff", "font-size": "18px"}, 
@@ -111,7 +111,7 @@ with st.sidebar:
         }
     )
 
-    # Lógica de atualização de página mantida
+    # Atualiza o estado da página
     if st.session_state.get("pagina") != "edit":
         st.session_state.pagina = escolha
 
