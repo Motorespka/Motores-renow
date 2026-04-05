@@ -1,225 +1,75 @@
-/*
-  Moto-Renow — estilos globais do Streamlit
-  Dica: ao adicionar regras novas, ACRESCENTE ao final do arquivo em vez de
-  substituir tudo por um snippet curto (evita “sumir” centenas de linhas).
-*/
+/* =============================
+   🌌 BACKGROUND TECNOLÓGICO
+============================= */
 
-/* --------------------------------------------------------------------------
-   Barra escura no topo: cabeçalho nativo do Streamlit
-   [data-testid="stHeader"] — menu (⋮), tema, Deploy, etc.
-   -------------------------------------------------------------------------- */
-
-.block-container {
-    padding-top: 5rem;
-    padding-bottom: 2rem;
+body {
+    background:
+    radial-gradient(circle at 20% 20%, #00ffff11 0%, transparent 40%),
+    radial-gradient(circle at 80% 60%, #0099ff11 0%, transparent 40%),
+    #05070d;
+    color:white;
 }
 
-[data-testid="stHeader"] {
-    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+/* GRID FUTURISTA */
+body::before{
+    content:"";
+    position:fixed;
+    width:100%;
+    height:100%;
+    background-image:
+        linear-gradient(#00ffff11 1px, transparent 1px),
+        linear-gradient(90deg,#00ffff11 1px,transparent 1px);
+    background-size:60px 60px;
+    animation:gridMove 25s linear infinite;
+    pointer-events:none;
 }
 
-/* Espaço opcional logo abaixo do header (use no HTML se precisar) */
-.below-topbar {
-    height: 12px;
+@keyframes gridMove{
+    from{transform:translateY(0)}
+    to{transform:translateY(60px)}
 }
 
-/* --------------------------------------------------------------------------
-   Botões
-   -------------------------------------------------------------------------- */
+/* =============================
+   🔥 CARDS
+============================= */
 
-.stButton > button {
-    border-radius: 10px;
-    transition: 0.2s;
+.tech-card{
+    background:linear-gradient(145deg,#081018,#05070d);
+    border:1px solid #00ffff33;
+    border-radius:14px;
+    padding:25px;
+    box-shadow:0 0 20px #00ffff22;
+    transition:.4s;
 }
 
-.stButton > button:hover {
-    transform: scale(1.05);
+.tech-card:hover{
+    transform:scale(1.02);
+    box-shadow:0 0 45px #00ffffaa;
 }
 
-/* --------------------------------------------------------------------------
-   Consulta — resumo de cada motor (legível em tema claro/escuro)
-   -------------------------------------------------------------------------- */
+/* =============================
+   🤖 HUD
+============================= */
 
-.consulta-motor-resumo {
-    margin: 0.75rem 0 0.25rem 0;
-    padding: 0.75rem 1rem;
-    border-radius: 12px;
-    border: 1px solid rgba(100, 116, 139, 0.35);
-    background: var(--secondary-background-color, #f1f5f9);
+.hud{
+    border:1px solid #00ffff55;
+    padding:15px;
+    border-radius:10px;
+    background:rgba(0,255,255,0.05);
+    box-shadow:0 0 25px #00ffff22 inset;
+    animation:pulse 3s infinite;
 }
 
-.consulta-motor-resumo .titulo {
-    font-size: 1.1rem;
-    font-weight: 800;
-    color: var(--text-color, #0f172a);
-    line-height: 1.3;
-    word-break: break-word;
+@keyframes pulse{
+    0%{box-shadow:0 0 5px #00ffff22 inset;}
+    50%{box-shadow:0 0 35px #00ffff66 inset;}
+    100%{box-shadow:0 0 5px #00ffff22 inset;}
 }
 
-.consulta-motor-resumo .meta {
-    margin-top: 0.25rem;
-    font-size: 0.9rem;
-    color: rgba(51, 65, 85, 0.92);
-}
-
-/* Fallback se o navegador não suportar variáveis do tema */
-@media (prefers-color-scheme: dark) {
-    .consulta-motor-resumo {
-        border-color: rgba(148, 163, 184, 0.25);
-        background: rgba(30, 41, 59, 0.65);
-    }
-    .consulta-motor-resumo .titulo {
-        color: #f8fafc;
-    }
-    .consulta-motor-resumo .meta {
-        color: rgba(203, 213, 225, 0.95);
-    }
-}
-
-/* --------------------------------------------------------------------------
-   Cards genéricos (cadastro / listas)
-   -------------------------------------------------------------------------- */
-
-.motor-card {
-    background: #0f172a;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
-    padding: 14px;
-    margin: 12px 0;
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
-}
-
-.motor-card__header {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-bottom: 10px;
-}
-
-.motor-card__title {
-    font-size: 15px;
-    font-weight: 800;
-    letter-spacing: 0.2px;
-    color: rgba(255, 255, 255, 0.95);
-    line-height: 1.25;
-    word-break: break-word;
-}
-
-.motor-card__meta {
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.75);
-}
-
-.motor-card .stButton > button {
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    background: rgba(255, 255, 255, 0.06);
-    color: rgba(255, 255, 255, 0.92);
-    padding: 10px 12px;
-}
-
-.motor-card [data-testid="stExpander"] {
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.03);
-    overflow: hidden;
-}
-
-.motor-card .stMarkdown p {
-    font-size: 14px;
-    margin-bottom: 6px;
-}
-
-/* --------------------------------------------------------------------------
-   Expanders na consulta (borda suave)
-   -------------------------------------------------------------------------- */
-
-[data-testid="stExpander"] {
-    border-radius: 10px;
-    margin-bottom: 10px;
-}
-
-/* --------------------------------------------------------------------------
-   Tipografia geral em markdown
-   -------------------------------------------------------------------------- */
-
-.stMarkdown p {
-    font-size: 14px;
-    margin-bottom: 5px;
-}
-
-/* --------------------------------------------------------------------------
-   Sidebar (opcional, leve)
-   -------------------------------------------------------------------------- */
-
-[data-testid="stSidebar"] {
-    border-right: 1px solid rgba(128, 128, 128, 0.2);
-}
-
-/* --------------------------------------------------------------------------
-   Mobile: cards um pouco mais confortáveis
-   -------------------------------------------------------------------------- */
-
-@media (max-width: 768px) {
-    .block-container {
-        padding-left: 1rem;
-        padding-right: 1rem;
-    }
-
-    .motor-card {
-        padding: 12px;
-        border-radius: 14px;
-    }
-}
-
-/* --------------------------------------------------------------------------
-   Consulta - Bobinagem (CORRIGIDO: Sem quadrado branco)
-   -------------------------------------------------------------------------- */
-
-.bobinagem-box {
-    border-radius: 12px;
-    padding: 16px;
-    border: 1px solid rgba(128, 128, 128, 0.2);
-    /* Usa a cor secundária do Streamlit, mas garante um fundo escuro legível caso falhe */
-    background: var(--secondary-background-color, #1e293b); 
-    margin-bottom: 10px;
-    color: var(--text-color, #ffffff);
-}
-
-.bobinagem-titulo {
-    font-weight: 800;
-    font-size: 1rem;
-    margin-bottom: 12px;
-    color: #4ade80; /* Verde destaque para o título */
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.bobinagem-linha {
-    display: grid;
-    grid-template-columns: 85px 1fr;
-    gap: 10px;
-    padding: 8px 0;
-    border-top: 1px solid rgba(128, 128, 128, 0.15);
-    align-items: center;
-}
-
-.bobinagem-linha:first-of-type {
-    border-top: none;
-}
-
-.bobinagem-k {
-    font-weight: 700;
-    font-size: 0.8rem;
-    color: rgba(148, 163, 184, 0.85);
-    text-transform: uppercase;
-}
-
-/* Ajuste fino para modo escuro forçado */
-@media (prefers-color-scheme: dark) {
-    .bobinagem-box {
-        background: rgba(30, 41, 59, 0.8) !important;
-        border-color: rgba(255, 255, 255, 0.1);
-    }
+/* BOTÕES */
+.stButton button{
+    background:#00ffff22;
+    border:1px solid #00ffff55;
+    color:white;
+    border-radius:8px;
 }
