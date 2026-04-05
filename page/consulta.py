@@ -54,41 +54,38 @@ def render_dado(label, valor, unidade="", highlight=False):
 def show(supabase):
     st.markdown("## 🔍 Consulta de Motores")
 
-    # CSS REFORÇADO PARA CLIQUE TOTAL E ALINHAMENTO
+    # CSS REFORÇADO PARA TRANSFORMAR O BOTÃO NO CARD
     st.markdown("""
         <style>
-        /* Remove paddings extras do Streamlit no mobile */
-        .block-container { padding-top: 2rem !important; }
-        
-        /* Força o botão a ser uma película invisível perfeita */
-        .stButton > button {
+        /* Estiliza o botão para ele ter a aparência do card */
+        div.stButton > button {
+            background: linear-gradient(135deg, rgba(0,45,65,0.8) 0%, rgba(0,25,40,0.9) 100%) !important;
+            border: 1px solid rgba(0, 255, 255, 0.3) !important;
+            border-left: 6px solid #10b981 !important;
+            border-radius: 12px !important;
+            padding: 0px !important; /* Tiramos o padding do botão para o HTML interno mandar */
             width: 100% !important;
-            height: 170px !important; 
-            background: transparent !important;
-            color: transparent !important;
-            border: none !important;
-            position: absolute !important;
-            z-index: 100 !important;
-            margin-top: 0px !important;
-            top: 0 !important;
-            left: 0 !important;
+            height: auto !important;
+            min-height: 160px !important;
+            transition: all 0.2s ease !important;
+            display: block !important;
+        }
+
+        div.stButton > button:hover {
+            border-color: #00ffff !important;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.1) !important;
         }
         
-        /* Ajuste do container para não deixar o botão "fugir" */
-        .element-container { position: relative !important; }
+        /* Remove o efeito cinza padrão do Streamlit ao clicar */
+        div.stButton > button:active {
+            background: rgba(0, 60, 85, 0.9) !important;
+        }
 
-        .card-container {
-            background: linear-gradient(135deg, rgba(0,45,65,0.8) 0%, rgba(0,25,40,0.9) 100%);
-            border: 1px solid rgba(0, 255, 255, 0.3);
-            border-left: 6px solid #10b981;
-            border-radius: 12px;
+        /* Container interno para organizar o texto dentro do botão */
+        .inner-card {
             padding: 18px;
-            height: 170px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            pointer-events: none; /* Deixa o clique passar para o botão */
-            margin-bottom: 10px;
+            text-align: left;
+            width: 100%;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -112,54 +109,63 @@ def show(supabase):
     motores_db = listar_motores(supabase)
     motores = buscar_motores(motores_db, search_query)
     
-    st.caption(f"Motores na base: {len(motores)}")
+    st.caption(f"Motores encontrados: {len(motores)}")
 
     for m in motores:
         id_m = m.get("id")
         key_det = f"vis_{id_m}"
         
-        # --- ESTRUTURA VISUAL DO CARD ---
-        st.markdown(f"""
-            <div class="card-container">
-                <div>
-                    <small style="color: #00ffff; font-family: monospace; letter-spacing: 2px;">REGISTRO TÉCNICO ID: #{id_m}</small>
-                    <div style="font-size: 1.3rem; color: white; font-weight: bold; margin-top: 4px;">
-                        {(m.get('marca') or '---').upper()} 
-                        <span style="font-weight: 300; color: #aaa; font-size: 1.1rem;">{m.get('modelo') or ''}</span>
-                    </div>
-                    <div style="font-size: 0.7rem; color: #8b949e; margin-top: 2px;">MOTORES {str(m.get('fases','')).upper()}</div>
-                </div>
+        marca = (m.get('marca') or '---').upper()
+        modelo = m.get('modelo') or ''
+        fases = str(m.get('fases','')).upper()
+        pot = m.get('potencia_hp_cv','-')
+        rpm = m.get('rpm_nominal','-')
+        tensao = m.get('tensao_v','-')
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px; margin-top: 5px;">
+        # Criamos o HTML do conteúdo
+        # IMPORTANTE: O clique agora é no botão que envolve este conteúdo
+        card_html = f"""
+            <div class="inner-card">
+                <small style="color: #00ffff; font-family: monospace; letter-spacing: 2px;">REGISTRO TÉCNICO ID: #{id_m}</small>
+                <div style="font-size: 1.3rem; color: white; font-weight: bold; margin-top: 4px;">
+                    {marca} <span style="font-weight: 300; color: #aaa; font-size: 1.1rem;">{modelo}</span>
+                </div>
+                <div style="font-size: 0.7rem; color: #8b949e; margin-top: 2px;">MOTORES {fases}</div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px; margin-top: 12px;">
                     <div style="text-align: center;">
-                        <div style="font-size: 0.55rem; color: #8b949e; text-transform: uppercase; margin-bottom: 3px;">Potência</div>
-                        <div style="font-size: 1rem; font-weight: bold; color: #00f2ff;">{m.get('potencia_hp_cv','-')}</div>
+                        <div style="font-size: 0.55rem; color: #8b949e; text-transform: uppercase;">Potência</div>
+                        <div style="font-size: 1rem; font-weight: bold; color: #00f2ff;">{pot}</div>
                     </div>
                     <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.1); border-right: 1px solid rgba(255,255,255,0.1);">
-                        <div style="font-size: 0.55rem; color: #8b949e; text-transform: uppercase; margin-bottom: 3px;">Rotação</div>
-                        <div style="font-size: 1rem; font-weight: bold; color: #10b981;">{m.get('rpm_nominal','-')} <span style="font-size:0.6rem;">RPM</span></div>
+                        <div style="font-size: 0.55rem; color: #8b949e; text-transform: uppercase;">Rotação</div>
+                        <div style="font-size: 1rem; font-weight: bold; color: #10b981;">{rpm} <span style="font-size:0.6rem;">RPM</span></div>
                     </div>
                     <div style="text-align: center;">
-                        <div style="font-size: 0.55rem; color: #8b949e; text-transform: uppercase; margin-bottom: 3px;">Tensão</div>
-                        <div style="font-size: 1rem; font-weight: bold; color: #a855f7;">{m.get('tensao_v','-')}V</div>
+                        <div style="font-size: 0.55rem; color: #8b949e; text-transform: uppercase;">Tensão</div>
+                        <div style="font-size: 1rem; font-weight: bold; color: #a855f7;">{tensao}V</div>
                     </div>
                 </div>
             </div>
-        """, unsafe_allow_html=True)
+        """
 
-        # BOTÃO INVISÍVEL - Agora ele é renderizado logo após o HTML e "sobe" para cobri-lo
-        st.markdown('<div style="margin-top: -180px; position: relative; z-index: 101;">', unsafe_allow_html=True)
-        if st.button("", key=f"clique_{id_m}", use_container_width=True):
+        # BOTÃO ÚNICO (O card inteiro)
+        # O truque aqui é usar markdown para colocar o visual e o botão no mesmo lugar
+        if st.button(f"Clique para ver detalhes do motor {id_m}", key=f"btn_full_{id_m}", use_container_width=True):
             st.session_state.detalhes_visiveis[key_det] = not st.session_state.detalhes_visiveis.get(key_det, False)
             st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        # Espaçador entre cards
-        st.markdown('<div style="margin-top: 10px;"></div>', unsafe_allow_html=True)
+            
+        # Injetamos o visual por cima do botão
+        st.markdown(f"""
+            <div style="margin-top: -175px; pointer-events: none; position: relative; z-index: 5;">
+                {card_html}
+            </div>
+            <div style="margin-top: 25px;"></div>
+        """, unsafe_allow_html=True)
 
         # --- SEÇÃO DETALHADA ---
         if st.session_state.detalhes_visiveis.get(key_det):
-            st.markdown("<div style='background: rgba(0,25,35,0.98); border: 1px solid #00ffff55; border-radius: 8px; padding: 18px; margin-top: -10px; margin-bottom: 25px;'>", unsafe_allow_html=True)
+            st.markdown("<div style='background: rgba(0,20,30,0.95); border: 1px solid #00ffff44; border-radius: 8px; padding: 18px; margin-bottom: 25px;'>", unsafe_allow_html=True)
             
             c_edit, c_del = st.columns(2)
             if c_edit.button("✏️ EDITAR", key=f"ed_{id_m}", use_container_width=True):
