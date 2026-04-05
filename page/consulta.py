@@ -73,7 +73,7 @@ def buscar_motores(motores_db, search_query):
     return motores_filtrados
 
 # ------------------------------
-# COMPONENTE DE DADO TÉCNICO (HUD MINI)
+# COMPONENTES DE UI TECH (HUD MINI)
 # ------------------------------
 def render_dado(label, valor, unidade=""):
     st.markdown(f"""
@@ -82,6 +82,24 @@ def render_dado(label, valor, unidade=""):
             <div style="font-size: 1rem; color: white; font-family: monospace; font-weight: bold;">{valor} <span style="color: #00ffff; font-size: 0.8rem;">{unidade}</span></div>
         </div>
     """, unsafe_allow_html=True)
+
+def render_fio_tech(bitola_raw):
+    """Formata a bitola do fio removendo redundâncias e destacando o material."""
+    if not bitola_raw: return "---"
+    
+    # Limpa o texto (remove 'fio principal', etc.)
+    text = str(bitola_raw).lower().replace("fio principal", "").strip()
+    
+    # Extrai o material (entre parênteses)
+    material = ""
+    match_mat = re.search(r"\((.*?)\)", text)
+    if match_mat:
+        material = match_mat.group(1).upper()
+        text = text.replace(match_mat.group(0), "").strip()
+
+    # Formatação final
+    html_material = f" <span style='color: #f59e0b; font-size: 0.7rem; font-weight: bold;'>({material})</span>" if material else ""
+    return f"{text.upper()}{html_material}"
 
 # ------------------------------
 # TELA PRINCIPAL
@@ -96,6 +114,7 @@ def show(supabase):
 
     if "motor_editando" not in st.session_state: st.session_state.motor_editando = None
     if "abrir_edit" not in st.session_state: st.session_state.abrir_edit = False
+    if "detalhes_visiveis" not in st.session_state: st.session_state.detalhes_visiveis = {}
 
     if st.session_state.abrir_edit and st.session_state.motor_editando:
         try:
@@ -124,6 +143,10 @@ def show(supabase):
         potencia = m.get("potencia_hp_cv") or m.get("potencia") or "---"
         rpm = m.get("rpm_nominal") or m.get("rpm") or "---"
         tensao = m.get("tensao_v") or m.get("tensao") or "---"
+        fases = m.get("fases") or "---"
+
+        # Identificação de Fases
+        tipo_motor = "Monofásico" if "monof" in fases.lower() else "Trifásico" if "trif" in fases.lower() else phases
 
         alertas = alertas_validacao_projeto(m)
         if any("risco" in a.lower() for a in alertas):
@@ -139,7 +162,7 @@ def show(supabase):
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
                         <small style="color: #00ffff; font-family: monospace;">SYS_ID: {id_motor}</small>
-                        <h3 style="margin:0; color:white;">{marca} <span style="font-weight:300;">{modelo}</span></h3>
+                        <h3 style="margin:0; color:white;">{marca} <span style="font-weight:300;">{modelo}</span> <span style="font-size: 0.8rem; color: #8b949e; margin-left: 5px;">({tipo_motor})</span></h3>
                     </div>
                     <div class="hud-status" style="color: {st_color}; border-color: {st_color}55;">
                         {label}
@@ -162,11 +185,24 @@ def show(supabase):
             </div>
         """, unsafe_allow_html=True)
 
-        with st.expander("📊 TELEMETRIA E DADOS TÉCNICOS"):
+        # Botão de Ação Estilizado (Substitui a seta do expander)
+        key_detalhes = f"detalhes_{id_motor}"
+        if key_detalhes not in st.session_state.detalhes_visiveis:
+            st.session_state.detalhes_visiveis[key_detalhes] = False
+
+        texto_botao = "📊 FECHAR TELEMETRIA" if st.session_state.detalhes_visiveis[key_detalhes] else "🔍 EXIBIR DETALHES TÉCNICOS"
+        if st.button(texto_botao, key=f"btn_det_{id_motor}", use_container_width=True):
+            st.session_state.detalhes_visiveis[key_detalhes] = not st.session_state.detalhes_visiveis[key_detalhes]
+            st.rerun()
+
+        # Exibição Condicional dos Detalhes (Sem expander padrão)
+        if st.session_state.detalhes_visiveis[key_detalhes]:
+            st.markdown("<div style='background: rgba(0,0,0,0.2); border: 1px solid rgba(0,255,255,0.1); border-radius: 8px; padding: 15px; margin-top: -5px; margin-bottom: 20px;'>", unsafe_allow_html=True)
+            
             if alertas:
                 for a in alertas: st.warning(a)
 
-            # Botões de Ação
+            # Botões de Ação de Registro
             ca1, ca2 = st.columns(2)
             if ca1.button("✏️ EDITAR REGISTRO", key=f"ed_{id_motor}", use_container_width=True):
                 st.session_state.motor_editando = m
@@ -196,7 +232,8 @@ def show(supabase):
                 with col_of1:
                     st.markdown("<h5 style='color:#00ffff; font-size:0.8rem;'>🌀 ENROLAMENTO</h5>", unsafe_allow_html=True)
                     render_dado("Ranhuras", m.get("numero_ranhuras"))
-                    render_dado("Fio Principal", m.get("bitola_fio_principal"))
+                    # Uso da NOVA função de formatação de fio
+                    render_dado("Fio Principal", render_fio_tech(m.get("bitola_fio_principal")))
                     render_dado("Espiras", m.get("espiras_principal"))
                 with col_of2:
                     st.markdown("<h5 style='color:#00ffff; font-size:0.8rem;'>⚙️ MECÂNICA</h5>", unsafe_allow_html=True)
@@ -214,7 +251,7 @@ def show(supabase):
                     render_dado("Classe Isolação", m.get("classe_isolacao"))
                     render_dado("Grau Proteção", m.get("grau_protecao_ip"))
 
-            # Seção de Cores (Estilizada)
+            # Seção de Cores
             st.markdown("<hr style='border-color: rgba(0,255,255,0.1);'>", unsafe_allow_html=True)
             st.markdown("#### ⚡ MAPA DE CONEXÃO (CABOS)")
             cols_c = st.columns(len(TABELA_CORES))
@@ -230,3 +267,6 @@ def show(supabase):
             if m.get("observacoes"):
                 st.markdown("<br>", unsafe_allow_html=True)
                 st.info(f"📝 **NOTAS DE CAMPO:** {m.get('observacoes')}")
+            
+            st.markdown("</div>", unsafe_allow_html=True) # Fecha o container customizado
+
