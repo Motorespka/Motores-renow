@@ -1,0 +1,75 @@
+# core/ligacoes_motor.py
+
+def _split(val):
+    if not val:
+        return []
+    return [v.strip() for v in str(val).replace("/", ",").split(",") if v.strip()]
+
+
+def gerar_ligacoes(motor):
+
+    tensoes = _split(motor.get("tensao_v"))
+    correntes = _split(motor.get("corrente_nominal_a"))
+
+    resultado = []
+
+    # ==========================
+    # MONOFÁSICO
+    # ==========================
+    if "mono" in str(motor.get("tipo_enrolamento","")).lower():
+
+        cabos = 6 if len(tensoes) > 1 else 5
+
+        if cabos == 5:
+            resultado.append({
+                "descricao": "Monofásico 5 Cabos",
+                "ligacao": "1-2 principal / 3-4 auxiliar / 5 comum"
+            })
+
+        if cabos == 6:
+            for i, tensao in enumerate(tensoes):
+                corrente = correntes[i] if i < len(correntes) else "-"
+                resultado.append({
+                    "descricao": f"Monofásico 6 Cabos — {tensao}V",
+                    "ligacao": "(1+3+5) / (2+4+6)",
+                    "corrente": corrente
+                })
+
+        return resultado
+
+    # ==========================
+    # TRIFÁSICO
+    # ==========================
+    qtd = len(tensoes)
+
+    if qtd == 1:
+        resultado.append({
+            "descricao": "Trifásico 6 Cabos",
+            "ligacao": "Estrela ou Triângulo fixo"
+        })
+
+    elif qtd == 2:
+        resultado.append({
+            "descricao": f"Baixa tensão {tensoes[0]}V",
+            "ligacao": "Triângulo"
+        })
+        resultado.append({
+            "descricao": f"Alta tensão {tensoes[1]}V",
+            "ligacao": "Estrela"
+        })
+
+    elif qtd >= 3:
+        resultado.append({
+            "descricao": f"{tensoes[0]}V",
+            "ligacao": "Paralelo"
+        })
+        resultado.append({
+            "descricao": f"{tensoes[1]}V",
+            "ligacao": "Série"
+        })
+        resultado.append({
+            "descricao": f"{tensoes[2]}V",
+            "ligacao": "Alta tensão"
+        })
+
+    return resultado
