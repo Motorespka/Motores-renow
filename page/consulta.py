@@ -2,7 +2,7 @@ import streamlit as st
 import re
 
 # =============================
-# 🎨 INJEÇÃO DE CSS
+# 🎨 INJEÇÃO DE CSS (DESIGN ORIGINAL + CLIQUE INTEGRADO)
 # =============================
 def aplicar_estilo():
     st.markdown(f"""
@@ -20,67 +20,54 @@ def aplicar_estilo():
             color: white !important;
             font-family: 'Courier New', monospace;
         }}
-        body::before {{
-            content: "";
-            position: fixed; inset: 0;
-            background-image:
-                linear-gradient(#00ffff11 1px, transparent 1px),
-                linear-gradient(90deg, #00ffff11 1px, transparent 1px);
-            background-size: 60px 60px;
-            animation: gridMove 25s linear infinite;
-            pointer-events: none; z-index: -1;
-        }}
-        @keyframes gridMove {{
-            from {{ transform: translateY(0); }}
-            to {{ transform: translateY(60px); }}
-        }}
         
-        /* Ajuste para o Card abrigar o botão de ponta a ponta */
-        .tech-card-container {{
+        /* SEU CARD ORIGINAL REFORMULADO */
+        .tech-card-wrapper {{
+            position: relative;
             background: linear-gradient(145deg, #081018, #05070d);
             border: 2px solid #00ffff33;
             border-radius: 18px;
+            padding: 25px;
             box-shadow: 0 0 30px #00ffff22;
-            margin: 15px auto;
-            transition: all 0.3s ease;
-            overflow: hidden;
+            margin-bottom: 10px;
+            text-align: center;
+            transition: 0.3s;
         }}
-        .tech-card-container:hover {{
+        
+        .tech-card-wrapper:hover {{
             border-color: #00ffff;
-            box-shadow: 0 0 50px #00ffff44;
+            transform: translateY(-2px);
+            box-shadow: 0 0 40px #00ffff33;
         }}
 
-        /* Estilização do botão para parecer o card */
-        div.stButton > button {{
+        /* TRUQUE: BOTÃO INVISÍVEL QUE COBRE O CARD */
+        div[data-testid="stVerticalBlock"] > div:has(button.card-overlay) {{
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10;
+            opacity: 0;
+        }}
+        
+        button.card-overlay {{
+            width: 100% !important;
+            height: 140px !important; /* Ajuste conforme a altura do seu card */
             background: transparent !important;
             border: none !important;
-            color: white !important;
-            height: auto !important;
-            padding: 25px !important;
-            text-align: center !important;
+            cursor: pointer !important;
         }}
         </style>
     """, unsafe_allow_html=True)
 
 # =============================
-# 🛠️ FUNÇÕES AUXILIARES
+# 🛠️ FUNÇÕES DE APOIO
 # =============================
 def limpar_passo(passo_raw):
     if not passo_raw: return "---"
     s = str(passo_raw).strip()
     return re.sub(r"^[1][\s?:\-]*", "", s).replace(":", " ").replace("-", " ").strip()
 
-def obter_configuracoes_ligacao(m):
-    fases = 3 if "TRI" in str(m.get('fases', '')).upper() else 1
-    tensao = str(m.get('tensao_v', ''))
-    if fases == 3:
-        if "220" in tensao and "380" in tensao:
-            return "⚡ 220V: Triângulo (Δ) | 380V: Estrela (Y)"
-        return f"⚡ Tensão: {tensao}"
-    return "🔌 Monofásico: Verifique esquema Série/Paralelo"
-
 # =============================
-# 🚀 EXECUÇÃO DA PÁGINA
+# 🚀 PÁGINA DE CONSULTA
 # =============================
 def show(supabase):
     aplicar_estilo()
@@ -107,40 +94,39 @@ def show(supabase):
         key_det = f"vis_{id_m}"
         aberto = st.session_state.detalhes_visiveis.get(key_det, False)
 
-        # CARD INTEIRO COMO BOTÃO
-        st.markdown('<div class="tech-card-container">', unsafe_allow_html=True)
-        
-        # O label do botão agora carrega as informações principais
-        label_btn = f"""
-            {m.get('marca','').upper()} 
-            \n {m.get('modelo','-')}
-            \n {m.get('potencia_hp_cv','-')} HP  |  {m.get('rpm_nominal','-')} RPM  |  {m.get('corrente_nominal_a','-')} A
-        """
-        
-        if st.button(label_btn, key=f"btn_{id_m}", use_container_width=True):
-            st.session_state.detalhes_visiveis[key_det] = not aberto
-            st.rerun()
-            
-        st.markdown('</div>', unsafe_allow_html=True)
+        # CONTAINER DO CARD
+        with st.container():
+            # 1. O Visual do Card (Exatamente como você queria)
+            st.markdown(f"""
+            <div class="tech-card-wrapper">
+                <div style="font-size: 1.5rem; color: #00ffff; font-weight: 800; letter-spacing: 2px;">{m.get('marca','---').upper()}</div>
+                <div style="color: #8b949e; margin-bottom: 10px;">ID: {m.get('modelo','-')}</div>
+                <div style="display: flex; justify-content: space-around; font-weight: bold;">
+                    <div style="color: #00ffff;">{m.get('potencia_hp_cv','-')} HP</div>
+                    <div style="color: #10b981;">{m.get('rpm_nominal','-')} RPM</div>
+                    <div style="color: #f59e0b;">{m.get('corrente_nominal_a','-')} A</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
-        # ABA DE INFORMAÇÕES (EXPANSÍVEL)
+            # 2. O Botão Invisível (Sobreposto ao card)
+            # Ele não aparece, mas captura o clique em qualquer lugar do card acima
+            if st.button(" ", key=f"overlay_{id_m}", help=f"Ver detalhes de {m.get('marca')}"):
+                st.session_state.detalhes_visiveis[key_det] = not aberto
+                st.rerun()
+
+        # 3. AREA DE DETALHES (Aparece logo abaixo sem "quebrar" o card)
         if aberto:
-            with st.container():
-                st.markdown('<div style="background: rgba(0,255,255,0.05); border: 2px solid #00ffff44; border-top:none; border-radius: 0 0 15px 15px; padding: 20px; margin: -15px auto 20px auto; max-width: 98%;">', unsafe_allow_html=True)
-                
+            with st.expander("🛠️ DETALHES TÉCNICOS EM EXIBIÇÃO", expanded=True):
                 t1, t2, t3 = st.tabs(["🔌 Ligações", "🌀 Bobinagem", "⚙️ Mecânica"])
-                
                 with t1:
-                    st.info(obter_configuracoes_ligacao(m))
                     st.write(f"**Tensão:** {m.get('tensao_v','-')}")
-                
                 with t2:
                     c1, c2 = st.columns(2)
                     c1.metric("Passo", limpar_passo(m.get("passo_principal")))
                     c2.metric("Fio", m.get("bitola_fio_principal", "---"))
-
                 with t3:
                     st.write(f"**Rolamento Dianteiro:** {m.get('rolamento_dianteiro','-')}")
                     st.write(f"**Rolamento Traseiro:** {m.get('rolamento_traseiro','-')}")
-                
-                st.markdown('</div>', unsafe_allow_html=True)
+        
+        st.markdown("<div style='margin-bottom: 25px;'></div>", unsafe_allow_html=True)
