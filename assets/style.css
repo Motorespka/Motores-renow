@@ -4,6 +4,8 @@
 
 .stApp {
     background: transparent !important;
+    max-width: 1000px; /* Limita a largura do app */
+    margin: 0 auto;
 }
 
 body {
@@ -13,6 +15,7 @@ body {
         #05070d !important;
     color: white !important;
     overflow-x: hidden;
+    font-family: 'Courier New', monospace;
 }
 
 body::before {
@@ -34,56 +37,41 @@ body::before {
 }
 
 /* =============================
-   ⚡ BOTÕES E CARDS
+   ⚡ CARD ÚNICO
 ============================= */
 
 .tech-card {
     background: linear-gradient(145deg, #081018, #05070d);
-    border: 1px solid #00ffff33;
-    border-radius: 14px;
-    padding: 25px;
-    box-shadow: 0 0 20px #00ffff22;
+    border: 2px solid #00ffff33;
+    border-radius: 18px;
+    padding: 35px;
+    box-shadow: 0 0 30px #00ffff22;
     transition: all 0.35s ease;
-    margin-bottom: 20px;
+    margin: 30px auto;
+    width: 90%;
     cursor: pointer;
+    text-align: center;
 }
 
 .tech-card:hover {
-    transform: scale(1.01);
-    box-shadow: 0 0 45px #00ffff44;
+    transform: scale(1.02);
+    box-shadow: 0 0 60px #00ffff44;
     border-color: #00ffff;
 }
 
-/* =============================
-   HUD STATUS & TITULOS
-============================= */
-
-h1, h2, h3 {
-    color: #00ffff !important;
-    text-shadow: 0 0 10px #00ffff44;
-    font-family: 'Courier New', monospace;
+.tech-card h2 {
+    color: #00ffff;
+    margin-bottom: 10px;
 }
 
-.hud-status {
-    border: 1px solid #00ffff55;
-    padding: 5px 15px;
-    border-radius: 10px;
-    background: rgba(0, 255, 255, 0.05);
-    box-shadow: 0 0 15px #00ffff22 inset;
-    animation: pulseHUD 3s infinite;
-    font-family: "Courier New", monospace;
-    font-size: 0.8rem;
-    font-weight: bold;
-}
-
-@keyframes pulseHUD {
-    0% { box-shadow: 0 0 5px #00ffff22 inset; }
-    50% { box-shadow: 0 0 20px #00ffff44 inset; }
-    100% { box-shadow: 0 0 5px #00ffff22 inset; }
+.tech-card p {
+    color: white;
+    font-size: 1rem;
+    margin: 5px 0;
 }
 
 /* =============================
-   INPUTS STREAMLIT
+   INPUTS E BOTÕES
 ============================= */
 
 .stTextInput input,
@@ -94,61 +82,6 @@ h1, h2, h3 {
     color: #00ffff !important;
     border-radius: 8px !important;
 }
-
-input::placeholder,
-textarea::placeholder {
-    color: #00ffff77 !important;
-}
-
-/* =============================
-   METRICS & EXPANDERS
-============================= */
-
-[data-testid="stMetric"] {
-    background: linear-gradient(145deg,#081018,#05070d) !important;
-    border: 1px solid #00ffff22 !important;
-    padding: 12px !important;
-    border-radius: 12px !important;
-    box-shadow: 0 0 12px #00ffff22 inset !important;
-}
-
-.streamlit-expanderHeader {
-    background: rgba(0,255,255,0.05) !important;
-    border-radius: 8px !important;
-    border: 1px solid #00ffff22 !important;
-    color: #00ffff !important;
-}
-
-.streamlit-expanderContent {
-    background: rgba(8, 16, 24, 0.5) !important;
-    border-left: 1px solid #00ffff33 !important;
-    border-right: 1px solid #00ffff33 !important;
-    border-bottom: 1px solid #00ffff33 !important;
-    border-radius: 0 0 8px 8px;
-}
-
-/* =============================
-   SCROLLBAR
-============================= */
-
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: #05070d; }
-::-webkit-scrollbar-thumb { background: #00ffff33; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: #00ffff88; }
-
-/* =============================
-   RESPONSIVO
-============================= */
-
-@media (max-width: 768px) {
-    .tech-card { padding: 15px; }
-    body::before { background-size: 40px 40px; }
-}    color: #00ffff77 !important;
-}
-
-/* =============================
-   ⚡ BOTÕES FUTURISTAS
-============================= */
 
 .stButton > button {
     background: linear-gradient(135deg,#001c2b,#000f1a) !important;
@@ -168,77 +101,9 @@ textarea::placeholder {
 }
 
 /* =============================
-   📊 METRICS (CARDS NUMÉRICOS ORIGINAIS)
-============================= */
-
-[data-testid="stMetric"] {
-    background: linear-gradient(145deg,#081018,#05070d) !important;
-    border: 1px solid #00ffff22 !important;
-    padding: 12px !important;
-    border-radius: 12px !important;
-    box-shadow: 0 0 12px #00ffff22 inset !important;
-}
-
-[data-testid="stMetricLabel"] {
-    color: #8b949e !important;
-}
-
-[data-testid="stMetricValue"] {
-    color: #00ffff !important;
-    font-family: monospace;
-}
-
-/* =============================
-   📦 EXPANDERS (PARA DIAGNÓSTICO)
-============================= */
-
-.streamlit-expanderHeader {
-    background: rgba(0,255,255,0.05) !important;
-    border-radius: 8px !important;
-    border: 1px solid #00ffff22 !important;
-    color: #00ffff !important;
-}
-
-.streamlit-expanderContent {
-    background: rgba(8, 16, 24, 0.5) !important;
-    border-left: 1px solid #00ffff33 !important;
-    border-right: 1px solid #00ffff33 !important;
-    border-bottom: 1px solid #00ffff33 !important;
-    border-radius: 0 0 8px 8px;
-}
-
-/* =============================
-   🧾 SCROLLBAR TECH
-============================= */
-
-::-webkit-scrollbar {
-    width: 8px;
-}
-
-::-webkit-scrollbar-track {
-    background: #05070d;
-}
-
-::-webkit-scrollbar-thumb {
-    background: #00ffff33;
-    border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: #00ffff88;
-}
-
-/* =============================
-   📱 RESPONSIVO MOBILE
+   RESPONSIVO
 ============================= */
 
 @media (max-width: 768px) {
-    .tech-card {
-        padding: 15px;
-    }
-
-    body::before {
-        background-size: 40px 40px;
-    }
+    .tech-card { padding: 20px; width: 95%; }
 }
-
