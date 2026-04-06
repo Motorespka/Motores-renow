@@ -29,7 +29,8 @@ def aplicar_estilo():
             box-shadow: 0 0 30px #00ffff22;
             margin: 15px auto;
             transition: all 0.3s ease;
-            overflow: hidden;
+            position: relative;
+            z-index: 1;
         }}
         .tech-card-container:hover {{
             border-color: #00ffff;
@@ -37,22 +38,33 @@ def aplicar_estilo():
             transform: translateY(-2px);
         }}
 
-        /* Reset do Botão Streamlit para ocupar o card todo */
+        /* Reset do Botão Streamlit para ficar INVISÍVEL e POR CIMA do card */
+        div.stButton {{
+            margin-top: -160px; /* PUXA O BOTÃO PARA CIMA DO HTML */
+            position: relative;
+            z-index: 10;
+        }}
+        
         div.stButton > button {{
             background: transparent !important;
             border: none !important;
-            color: white !important;
+            color: transparent !important; /* Texto invisível */
             width: 100% !important;
-            height: auto !important;
+            height: 145px !important; /* Altura aproximada do seu card */
             padding: 0px !important;
-            margin: 0px !important;
+            cursor: pointer !important;
             display: block !important;
         }}
         
+        div.stButton > button:hover {{
+            background: transparent !important;
+            border: none !important;
+        }}
+
         /* Estilização interna do conteúdo do card */
         .card-content {{
             padding: 25px;
-            pointer-events: none; /* Deixa o clique passar para o botão */
+            text-align: center;
         }}
         .card-title {{ font-size: 1.5rem; color: #00ffff; font-weight: 800; letter-spacing: 2px; margin-bottom: 5px; }}
         .card-subtitle {{ color: #8b949e; font-size: 0.9rem; margin-bottom: 15px; }}
@@ -107,7 +119,6 @@ def show(supabase):
         aberto = st.session_state.detalhes_visiveis.get(key_det, False)
 
         # 1. DESIGN DO CARD (HTML)
-        # O botão do Streamlit será colocado "dentro" dessa estrutura visual
         st.markdown(f"""
         <div class="tech-card-container">
             <div class="card-content">
@@ -119,15 +130,13 @@ def show(supabase):
                     <div style="color: #f59e0b;"><span class="metric-unit">{m.get('corrente_nominal_a','-')}</span> A</div>
                 </div>
             </div>
+        </div>
         """, unsafe_allow_html=True)
         
-        # 2. O BOTÃO INVISÍVEL (OCUPA O CARD TODO)
-        # O texto do botão é apenas um espaço vazio ou ícone discreto, pois o HTML acima já mostra tudo
-        if st.button("⠀", key=f"btn_{id_m}", use_container_width=True):
+        # 2. O BOTÃO INVISÍVEL (Agindo como camada de clique)
+        if st.button("Clique Aqui", key=f"btn_{id_m}", use_container_width=True):
             st.session_state.detalhes_visiveis[key_det] = not aberto
             st.rerun()
-            
-        st.markdown('</div>', unsafe_allow_html=True)
 
         # 3. ÁREA DE INFORMAÇÕES (EXPANSÍVEL)
         if aberto:
