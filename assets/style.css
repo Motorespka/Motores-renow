@@ -4,7 +4,7 @@
 
 .stApp {
     background: transparent !important;
-    max-width: 1000px; /* Limita a largura do app */
+    max-width: 1000px;
     margin: 0 auto;
 }
 
@@ -37,7 +37,7 @@ body::before {
 }
 
 /* =============================
-   ⚡ CARD ÚNICO
+   ⚡ CARD VISUAL
 ============================= */
 
 .tech-card {
@@ -51,9 +51,7 @@ body::before {
     width: 90%;
     cursor: pointer;
     text-align: center;
-    
-    /* 👇 ÚNICAS LINHAS ADICIONADAS AQUI PARA O BOTÃO FUNCIONAR 👇 */
-    position: relative; 
+    position: relative;
     z-index: 1;
 }
 
@@ -63,15 +61,22 @@ body::before {
     border-color: #00ffff;
 }
 
-.tech-card h2 {
+.card-title {
+    font-size: 1.5rem;
     color: #00ffff;
-    margin-bottom: 10px;
+    font-weight: 800;
+    letter-spacing: 2px;
 }
 
-.tech-card p {
-    color: white;
-    font-size: 1rem;
-    margin: 5px 0;
+.card-subtitle {
+    color: #8b949e;
+    font-size: 0.9rem;
+    margin-bottom: 15px;
+}
+
+.metric-unit {
+    font-size: 1.1rem;
+    font-weight: bold;
 }
 
 /* =============================
@@ -113,46 +118,9 @@ body::before {
 }
 
 /* =============================
-   🖱️ CLICK LAYER (ADICIONAL PARA O CARD)
+   CARD TEXTOS IGNORA CLIQUE (ÚTIL PARA BOTÃO)
 ============================= */
 
-/* Localiza o botão que está dentro do card e o expande */
-div.stButton {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 10; /* Fica na frente do texto para capturar o clique */
-}
-
-/* Transforma o botão em um "fantasma" que cobre o card */
-div.stButton > button {
-    background: transparent !important;
-    border: none !important;
-    color: transparent !important;
-    width: 100% !important;
-    height: 100% !important;
-    min-height: 100px;
-    padding: 0 !important;
-    margin: 0 !important;
-    cursor: pointer !important;
-    box-shadow: none !important;
-    transform: none !important; 
-}
-
-/* Remove efeitos do seu botão principal para não piscar no clique do card */
-div.stButton > button:hover, 
-div.stButton > button:active, 
-div.stButton > button:focus {
-    background: transparent !important;
-    border: none !important;
-    color: transparent !important;
-    box-shadow: none !important;
-    outline: none !important;
-}
-
-/* Ajuste para que o título e texto do card não bloqueiem o clique */
-.tech-card h2, .tech-card p, .tech-card div {
-    pointer-events: none;
+.tech-card * {
+    pointer-events: none; /* Faz com que texto não bloqueie clique */
 }
