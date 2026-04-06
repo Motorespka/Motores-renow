@@ -59,7 +59,7 @@ def show(supabase):
                 st.error("❌ Todas as chaves estão sem crédito ou bloqueadas")
                 return None
 
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-2.5-flash')
 
             prompt = """
             Você é um engenheiro sênior de manutenção de motores. Analise a imagem e extraia os dados.
