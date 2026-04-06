@@ -2,8 +2,27 @@ import streamlit as st
 from PIL import Image
 import google.generativeai as genai
 import json
+import random
 
 def show(supabase):
+
+    # 🔐 --- GERENCIADOR DE CHAVES (NOVO) ---
+    def configurar_genai():
+        keys = st.secrets["GEMINI_API_KEY"]
+
+        if "key_status" not in st.session_state:
+            st.session_state.key_status = {k: True for k in keys}
+
+        for key in keys:
+            if st.session_state.key_status[key]:
+                try:
+                    genai.configure(api_key=key)
+                    return True
+                except:
+                    st.session_state.key_status[key] = False
+
+        return False
+
     # --- ESTILO CYBERPUNK ---
     st.markdown("""
         <style>
@@ -30,23 +49,30 @@ def show(supabase):
     # --- FUNÇÃO DE INTELIGÊNCIA ARTIFICIAL (SEGURA) ---
     def processar_plaqueta(foto_arquivo):
         try:
-            # Segurança: Abrir com PIL reconstrói os pixels, matando scripts maliciosos em metadados
             img = Image.open(foto_arquivo)
-            
-            genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+
+            # 🔄 correção de selfie (NOVO)
+            img = img.transpose(Image.FLIP_LEFT_RIGHT)
+
+            # 🔐 usa múltiplas chaves (NOVO)
+            if not configurar_genai():
+                st.error("❌ Todas as chaves estão sem crédito ou bloqueadas")
+                return None
+
             model = genai.GenerativeModel('gemini-1.5-flash')
-            
+
             prompt = """
             Você é um engenheiro sênior de manutenção de motores. Analise a imagem e extraia os dados.
             Retorne APENAS um JSON puro (sem markdown) com estas chaves:
             "marca", "cv", "rpm", "v", "a", "carcaca", "cos_phi", "isol".
             Se não ler algo, coloque "N/D".
             """
-            
+
             response = model.generate_content([prompt, img])
-            # Limpeza de possíveis formatações da IA
+
             limpo = response.text.replace("```json", "").replace("```", "").strip()
             return json.loads(limpo)
+
         except Exception as e:
             st.error(f"⚠️ Falha na varredura: {e}")
             return None
@@ -57,7 +83,15 @@ def show(supabase):
         
         with col_cam:
             st.subheader("📸 Scanner de Plaqueta")
-            foto = st.camera_input("Capture a identidade do motor")
+
+            # 📸 câmera (mantido)
+            foto_camera = st.camera_input("Capture a identidade do motor")
+
+            # 📂 upload (NOVO)
+            foto_upload = st.file_uploader("📂 Ou envie a imagem da plaqueta", type=["jpg", "png", "jpeg"])
+
+            # 🔄 escolha automática (NOVO)
+            foto = foto_camera if foto_camera else foto_upload
         
         with col_ia:
             st.subheader("🤖 Processamento Neural")
@@ -108,7 +142,6 @@ def show(supabase):
             passo = st.text_input("🛤️ Passo", placeholder="Ex: 1-8, 1-10")
 
         with c6:
-            # Dica de mestre: Cálculo automático de pólos sugerido pela RPM
             try:
                 rpm_val = int(''.join(filter(str.isdigit, rpm)))
                 polos = 2 if rpm_val > 3000 else 4 if rpm_val > 1500 else 6 if rpm_val > 900 else 8
@@ -120,7 +153,6 @@ def show(supabase):
 
         defeito = st.text_area("📝 Diagnóstico de Entrada", placeholder="Descreva os danos (ex: curto entre espiras na fase B)...")
 
-        # --- SUBMISSÃO ---
         btn_save = st.form_submit_button("🚀 SINCRONIZAR COM A MATRIZ (SALVAR)")
         
         if btn_save:
