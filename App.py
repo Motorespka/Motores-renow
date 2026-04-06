@@ -7,8 +7,8 @@ from supabase import create_client
 def init_connection():
     try:
         # Garanta que esses nomes existam no seu secrets.toml
-        url = st.secrets["SUPABASE_URL"]
-        key = st.secrets["SUPABASE_KEY"]
+        SUPABASE_URL = st.secrets["SUPABASE_URL"]
+        SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
         return create_client(url, key)
     except Exception as e:
         st.error(f"Erro nas credenciais: {e}")
