@@ -90,9 +90,9 @@ body::before {
 ============================= */
 
 /* Faz o card ignorar clique */
-.tech-card {
-    pointer-events: none;
-}
+#.tech-card {
+ #   pointer-events: none;
+#}
 
 /* Botão só dentro do card */
 .motor-container div.stButton {
