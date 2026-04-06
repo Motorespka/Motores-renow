@@ -2,93 +2,92 @@ import streamlit as st
 import re
 
 # =============================
-# 🎨 INJEÇÃO DE CSS (VERSÃO FINAL)
+# 🎨 INJEÇÃO DE CSS (TURBINADO)
 # =============================
 def aplicar_estilo():
     st.markdown("""
         <style>
-        /* 1. Reset e Fundo */
+        /* BACKGROUND E GRID */
         .stApp {
             background: transparent !important;
             max-width: 1000px;
             margin: 0 auto;
         }
         body {
-            background: #05070d !important;
+            background: 
+                radial-gradient(circle at 20% 20%, #00ffff11 0%, transparent 40%),
+                radial-gradient(circle at 80% 60%, #0099ff11 0%, transparent 40%),
+                #05070d !important;
             color: white !important;
             font-family: 'Courier New', monospace;
         }
 
-        /* 2. Container Relativo (Onde a mágica acontece) */
-        .motor-wrapper {
+        /* CONTAINER DO MOTOR (Agrupa Card + Botão) */
+        .motor-container {
             position: relative;
             margin-bottom: 20px;
         }
 
-        /* 3. O Card Visual */
+        /* CARD VISUAL */
         .tech-card {
             background: linear-gradient(145deg, #081018, #05070d);
             border: 2px solid #00ffff33;
             border-radius: 18px;
-            padding: 25px;
+            padding: 30px;
             text-align: center;
-            box-shadow: 0 0 20px #00ffff11;
+            box-shadow: 0 0 30px #00ffff22;
             transition: all 0.3s ease;
             position: relative;
             z-index: 1; /* Fica atrás do botão */
         }
 
-        .motor-wrapper:hover .tech-card {
+        .motor-container:hover .tech-card {
             border-color: #00ffff;
-            box-shadow: 0 0 40px #00ffff33;
+            box-shadow: 0 0 50px #00ffff44;
             transform: translateY(-2px);
         }
 
-        /* 4. Botão Streamlit Invisível (Cobrindo tudo) */
-        .motor-wrapper div.stButton {
+        /* BOTÃO INVISÍVEL (A CAMADA DE CLIQUE) */
+        /* Ocupa 100% da área do motor-container */
+        div.stButton {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 10; /* Fica na frente de tudo para capturar o clique */
+            z-index: 10; /* Fica na frente para receber o clique */
         }
 
-        .motor-wrapper div.stButton > button {
+        div.stButton > button {
             background: transparent !important;
             border: none !important;
             color: transparent !important;
             width: 100% !important;
-            height: 100% !important; /* Ocupa a altura total do card */
+            height: 160px !important; /* Ajuste para cobrir a altura do card */
             cursor: pointer !important;
             padding: 0 !important;
+            margin: 0 !important;
         }
 
-        /* Remove efeitos de clique padrão do Streamlit */
-        .motor-wrapper div.stButton > button:focus, 
-        .motor-wrapper div.stButton > button:active {
+        /* Remove brilho e bordas ao focar/clicar */
+        div.stButton > button:focus, 
+        div.stButton > button:active,
+        div.stButton > button:hover {
             background: transparent !important;
+            border: none !important;
             box-shadow: none !important;
-            outline: none !important;
+            color: transparent !important;
         }
 
-        /* 5. Estilo dos Textos */
-        .card-title { font-size: 1.6rem; color: #00ffff; font-weight: 800; letter-spacing: 2px; margin: 0; }
-        .card-id { color: #8b949e; font-size: 0.85rem; margin-top: 5px; }
-        .card-metrics { display: flex; justify-content: space-around; margin-top: 20px; }
-        .metric-item { display: flex; flex-direction: column; }
-        .metric-value { font-size: 1.2rem; font-weight: bold; }
-        .metric-label { font-size: 0.7rem; color: #8b949e; text-transform: uppercase; }
+        /* ELEMENTOS INTERNOS */
+        .card-title { font-size: 1.5rem; color: #00ffff; font-weight: 800; letter-spacing: 2px; }
+        .card-subtitle { color: #8b949e; font-size: 0.9rem; margin-bottom: 15px; }
+        .metric-unit { font-size: 1.1rem; font-weight: bold; }
 
-        /* Evita que o conteúdo do card bloqueie o clique */
+        /* Faz o texto ignorar o mouse para não atrapalhar o clique do botão */
         .tech-card * {
             pointer-events: none;
         }
-
-        /* Ajuste das Tabs para o Modo Dark */
-        .stTabs [data-baseweb="tab-list"] { background-color: transparent; }
-        .stTabs [data-baseweb="tab"] { color: #8b949e; }
-        .stTabs [data-baseweb="tab--active"] { color: #00ffff !important; border-bottom-color: #00ffff !important; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -116,16 +115,15 @@ def show(supabase):
     aplicar_estilo()
     
     st.title("🔍 Central de Motores")
-    busca = st.text_input("", placeholder="Ex: Weg 2cv 4 polos", label_visibility="collapsed")
+    busca = st.text_input("", placeholder="Pesquisar por Marca ou Modelo...", label_visibility="collapsed")
     
     try:
         res = supabase.table("motores").select("*").order("id", desc=True).execute()
         motores = res.data if res.data else []
     except Exception:
-        st.error("Erro ao conectar com o banco de dados.")
+        st.error("Falha na conexão com o Banco de Dados.")
         return
 
-    # Filtro de Busca
     if busca:
         q = busca.lower()
         motores = [m for m in motores if q in f"{str(m.get('marca',''))} {str(m.get('modelo',''))} {str(m.get('potencia_hp_cv',''))}".lower()]
@@ -138,72 +136,59 @@ def show(supabase):
         key_det = f"vis_{id_m}"
         aberto = st.session_state.detalhes_visiveis.get(key_det, False)
 
-        # Tratamento de dados nulos (Prevenção do erro 'upper')
+        # Dados seguros (Previne erro de NoneType)
         marca = str(m.get('marca') or "---").upper()
-        modelo = m.get('modelo') or "S/N"
+        modelo = m.get('modelo') or "-"
         potencia = m.get('potencia_hp_cv') or "-"
         rpm = m.get('rpm_nominal') or "-"
         corrente = m.get('corrente_nominal_a') or "-"
 
-        # --- ESTRUTURA DO MOTOR ---
-        # Usamos um container de marcação para agrupar o HTML e o Botão
-        with st.container():
-            st.markdown(f'<div class="motor-wrapper">', unsafe_allow_html=True)
-            
-            # 1. O Design do Card (HTML)
-            st.markdown(f"""
-                <div class="tech-card">
-                    <div class="card-title">{marca}</div>
-                    <div class="card-id">ID: {modelo}</div>
-                    <div class="card-metrics">
-                        <div class="metric-item">
-                            <span class="metric-value" style="color: #00ffff;">{potencia}</span>
-                            <span class="metric-label">CV HP</span>
-                        </div>
-                        <div class="metric-item">
-                            <span class="metric-value" style="color: #10b981;">{rpm}</span>
-                            <span class="metric-label">RPM</span>
-                        </div>
-                        <div class="metric-item">
-                            <span class="metric-value" style="color: #f59e0b;">{corrente}</span>
-                            <span class="metric-label">AMPERES</span>
-                        </div>
-                    </div>
+        # --- ESTRUTURA DO CARD ---
+        # Criamos um container manual para agrupar o HTML e o Botão
+        st.markdown(f'<div class="motor-container">', unsafe_allow_html=True)
+        
+        # 1. O Desenho Visual (HTML)
+        st.markdown(f'''
+            <div class="tech-card">
+                <div class="card-title">{marca}</div>
+                <div class="card-subtitle">ID: {modelo}</div>
+                <div style="display: flex; justify-content: space-around; gap: 10px;">
+                    <div style="color: white;"><span style="color: #00ffff;" class="metric-unit">{potencia}</span> CV HP</div>
+                    <div style="color: white;"><span style="color: #10b981;" class="metric-unit">{rpm}</span> RPM</div>
+                    <div style="color: white;"><span style="color: #f59e0b;" class="metric-unit">{corrente}</span> A</div>
                 </div>
-            """, unsafe_allow_html=True)
+            </div>
+        ''', unsafe_allow_html=True)
 
-            # 2. O Botão Invisível (Captura o clique no card inteiro)
-            if st.button("Abrir", key=f"btn_{id_m}"):
-                st.session_state.detalhes_visiveis[key_det] = not aberto
-                st.rerun()
+        # 2. O Botão (Fica por cima devido ao CSS position: absolute)
+        if st.button(" ", key=f"btn_{id_m}"):
+            st.session_state.detalhes_visiveis[key_det] = not aberto
+            st.rerun()
+        
+        st.markdown('</div>', unsafe_allow_html=True)
 
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        # --- ÁREA DE DETALHES (EXPANSÍVEL) ---
+        # --- ÁREA DE DETALHES (SÓ APARECE SE "ABERTO" FOR TRUE) ---
         if aberto:
             with st.container():
-                st.markdown(f"""
-                    <div style="background: rgba(0,255,255,0.03); border: 2px solid #00ffff44; 
-                                border-top:none; border-radius: 0 0 15px 15px; padding: 20px; 
-                                margin: -25px auto 30px auto; width: 95%;">
+                st.markdown("""
+                <div style="background: rgba(0,255,255,0.03); border: 2px solid #00ffff44; 
+                            border-top:none; border-radius: 0 0 15px 15px; padding: 20px; 
+                            margin: -25px auto 30px auto; max-width: 90%;">
                 """, unsafe_allow_html=True)
                 
                 t1, t2, t3 = st.tabs(["🔌 Ligações", "🌀 Bobinagem", "⚙️ Mecânica"])
                 
                 with t1:
                     st.info(obter_configuracoes_ligacao(m))
-                    st.write(f"**Tensão:** {m.get('tensao_v','-')} V")
-                    st.write(f"**Fases:** {m.get('fases','-')}")
+                    st.write(f"**Fases:** {m.get('fases') or '-'} | **Tensão:** {m.get('tensao_v') or '-'} V")
                 
                 with t2:
-                    col1, col2 = st.columns(2)
-                    col1.metric("Passo Principal", limpar_passo(m.get("passo_principal")))
-                    col2.metric("Bitola Fio", m.get("bitola_fio_principal", "---"))
-                    st.divider()
-                    st.write(f"**Esquema de Ligação:** {m.get('esquema_ligacao','Não informado')}")
-
+                    c1, c2 = st.columns(2)
+                    c1.metric("Passo Principal", limpar_passo(m.get("passo_principal")))
+                    c2.metric("Bitola Fio", m.get("bitola_fio_principal") or "---")
+                
                 with t3:
-                    st.markdown(f"**Rolamento Dianteiro:** `{m.get('rolamento_dianteiro','-')}`")
-                    st.markdown(f"**Rolamento Traseiro:** `{m.get('rolamento_traseiro','-')}`")
+                    st.markdown(f"**Rolamento Dianteiro:** `{m.get('rolamento_dianteiro') or '-'}`")
+                    st.markdown(f"**Rolamento Traseiro:** `{m.get('rolamento_traseiro') or '-'}`")
                 
                 st.markdown('</div>', unsafe_allow_html=True)
