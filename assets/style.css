@@ -1,5 +1,6 @@
 /* =============================
    🌌 BACKGROUND TECNOLÓGICO
+   Mantém o fundo escuro com grade animada
 ============================= */
 
 .stApp {
@@ -18,6 +19,7 @@ body {
     font-family: 'Courier New', monospace;
 }
 
+/* Efeito de grade em movimento no fundo */
 body::before {
     content: "";
     position: fixed;
@@ -37,18 +39,19 @@ body::before {
 }
 
 /* =============================
-   ⚡ CARD VISUAL
+   ⚡ CARD VISUAL (OTIMIZADO)
+   Ajustado para ser mais compacto e clicável
 ============================= */
 
 .tech-card {
     background: linear-gradient(145deg, #081018, #05070d);
     border: 2px solid #00ffff33;
-    border-radius: 18px;
-    padding: 35px;
-    box-shadow: 0 0 30px #00ffff22;
-    transition: all 0.35s ease;
-    margin: 30px auto;
-    width: 90%;
+    border-radius: 15px; /* Bordas um pouco mais suaves */
+    padding: 20px;       /* Reduzido de 35px para ser mais compacto */
+    box-shadow: 0 0 20px #00ffff11;
+    transition: all 0.3s ease;
+    margin: 15px auto;   /* Espaçamento entre cards reduzido */
+    width: 92%;
     cursor: pointer;
     text-align: center;
     position: relative;
@@ -56,31 +59,33 @@ body::before {
 }
 
 .tech-card:hover {
-    transform: scale(1.02);
-    box-shadow: 0 0 60px #00ffff44;
+    transform: scale(1.01); /* Zoom mais sutil no hover */
+    box-shadow: 0 0 40px #00ffff33;
     border-color: #00ffff;
 }
 
 .card-title {
-    font-size: 1.5rem;
+    font-size: 1.3rem; /* Ajuste leve no tamanho da marca */
     color: #00ffff;
     font-weight: 800;
     letter-spacing: 2px;
+    margin-bottom: 2px;
 }
 
 .card-subtitle {
     color: #8b949e;
-    font-size: 0.9rem;
-    margin-bottom: 15px;
+    font-size: 0.85rem;
+    margin-bottom: 12px;
 }
 
 .metric-unit {
-    font-size: 1.1rem;
+    font-size: 1rem; /* Unidades um pouco menores para mobile */
     font-weight: bold;
 }
 
 /* =============================
    INPUTS E BOTÕES
+   Mantém o estilo neon original
 ============================= */
 
 .stTextInput input,
@@ -110,17 +115,25 @@ body::before {
 }
 
 /* =============================
-   RESPONSIVO
+   RESPONSIVO (CELULAR)
 ============================= */
 
 @media (max-width: 768px) {
-    .tech-card { padding: 20px; width: 95%; }
+    .tech-card { 
+        padding: 15px; 
+        width: 95%; 
+    }
+    
+    .card-title {
+        font-size: 1.1rem;
+    }
 }
 
 /* =============================
-   CARD TEXTOS IGNORA CLIQUE (ÚTIL PARA BOTÃO)
+   LÓGICA DE CLIQUE
+   Faz o texto ignorar o mouse para o clique cair no botão invisível
 ============================= */
 
 .tech-card * {
-    pointer-events: none; /* Faz com que texto não bloqueie clique */
+    pointer-events: none; 
 }
