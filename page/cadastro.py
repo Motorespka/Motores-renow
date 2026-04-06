@@ -6,23 +6,6 @@ import random
 
 def show(supabase):
 
-    # 🔐 --- GERENCIADOR DE CHAVES (NOVO) ---
-    def configurar_genai():
-        keys = st.secrets["GEMINI_API_KEY"]
-
-        if "key_status" not in st.session_state:
-            st.session_state.key_status = {k: True for k in keys}
-
-        for key in keys:
-            if st.session_state.key_status[key]:
-                try:
-                    genai.configure(api_key=key)
-                    return True
-                except:
-                    st.session_state.key_status[key] = False
-
-        return False
-
     # --- ESTILO CYBERPUNK ---
     st.markdown("""
         <style>
@@ -46,45 +29,13 @@ def show(supabase):
 
     st.markdown('<h1 class="titulo-cyber">⚡ CADASTRO DE MATRIZ & O.S.</h1>', unsafe_allow_html=True)
 
-    # --- FUNÇÃO DE INTELIGÊNCIA ARTIFICIAL (SEGURA) ---
+    # --- FUNÇÃO DE INTELIGÊNCIA ARTIFICIAL (CORRIGIDA) ---
     def processar_plaqueta(foto_arquivo):
         try:
             img = Image.open(foto_arquivo)
 
-            # 🔄 correção de selfie (NOVO)
+            # 🔄 correção de selfie
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
-
-            # 🔐 usa múltiplas chaves (NOVO)
-            if not configurar_genai():
-                st.error("❌ Todas as chaves estão sem crédito ou bloqueadas")
-                return None
-
-        keys = st.secrets["GEMINI_API_KEY"]
-response = None
-
-for key in keys:
-    try:
-        genai.configure(api_key=key)
-        model = genai.GenerativeModel('gemini-2.5-flash')
-
-        response = model.generate_content([prompt, img])
-        break  # sucesso → sai do loop
-
-    except Exception as e:
-        erro = str(e).lower()
-
-        # se for erro de quota → tenta próxima key
-        if "quota" in erro or "limit" in erro or "429" in erro:
-            continue
-        else:
-            # erro diferente → mostra e para
-            st.error(f"Erro inesperado: {e}")
-            return None
-
-# se nenhuma key funcionou
-if response is None:
-    st.error("❌ Todas as keys atingiram limite")
-    return None
 
             prompt = """
             Você é um engenheiro sênior de manutenção de motores. Analise a imagem e extraia os dados.
@@ -92,6 +43,34 @@ if response is None:
             "marca", "cv", "rpm", "v", "a", "carcaca", "cos_phi", "isol".
             Se não ler algo, coloque "N/D".
             """
+
+            keys = st.secrets["GEMINI_API_KEY"]
+            response = None
+
+            for key in keys:
+                try:
+                    genai.configure(api_key=key)
+                    model = genai.GenerativeModel('gemini-2.5-flash')
+
+                    response = model.generate_content([prompt, img])
+
+                    # debug opcional
+                    # st.write(f"🔑 Usando key: {key[:6]}")
+
+                    break
+
+                except Exception as e:
+                    erro = str(e).lower()
+
+                    if "quota" in erro or "limit" in erro or "429" in erro:
+                        continue
+                    else:
+                        st.error(f"Erro inesperado: {e}")
+                        return None
+
+            if response is None:
+                st.error("❌ Todas as keys atingiram limite")
+                return None
 
             limpo = response.text.replace("```json", "").replace("```", "").strip()
             return json.loads(limpo)
@@ -107,13 +86,9 @@ if response is None:
         with col_cam:
             st.subheader("📸 Scanner de Plaqueta")
 
-            # 📸 câmera (mantido)
             foto_camera = st.camera_input("Capture a identidade do motor")
-
-            # 📂 upload (NOVO)
             foto_upload = st.file_uploader("📂 Ou envie a imagem da plaqueta", type=["jpg", "png", "jpeg"])
 
-            # 🔄 escolha automática (NOVO)
             foto = foto_camera if foto_camera else foto_upload
         
         with col_ia:
@@ -132,7 +107,7 @@ if response is None:
     if "motor_data" not in st.session_state:
         st.session_state.motor_data = {}
 
-    # --- FORMULÁRIO TÉCNICO (O CÉREBRO) ---
+    # --- FORMULÁRIO TÉCNICO ---
     with st.form("os_form"):
         st.markdown("### 🛠️ Ficha Técnica de Alta Precisão")
         
@@ -174,13 +149,13 @@ if response is None:
             
             peso = st.number_input("⚖️ Peso de Cobre (kg)", format="%.3f")
 
-        defeito = st.text_area("📝 Diagnóstico de Entrada", placeholder="Descreva os danos (ex: curto entre espiras na fase B)...")
+        defeito = st.text_area("📝 Diagnóstico de Entrada", placeholder="Descreva os danos...")
 
         btn_save = st.form_submit_button("🚀 SINCRONIZAR COM A MATRIZ (SALVAR)")
         
         if btn_save:
             if not cliente or not marca:
-                st.warning("Preencha ao menos o Cliente e a Marca para gerar a O.S.")
+                st.warning("Preencha ao menos o Cliente e a Marca")
             else:
                 try:
                     payload = {
@@ -191,7 +166,7 @@ if response is None:
                         "diagnostico": defeito, "status": "Em Análise"
                     }
                     supabase.table("ordens_servico").insert(payload).execute()
-                    st.success("🛰️ Dados transmitidos com sucesso! Ordem de Serviço Ativa.")
+                    st.success("🛰️ Dados transmitidos com sucesso!")
                     st.balloons()
                 except Exception as e:
-                    st.error(f"Erro ao acessar banco de dados: {e}")
+                    st.error(f"Erro ao acessar banco: {e}")
