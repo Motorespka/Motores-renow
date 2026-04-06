@@ -1,4 +1,4 @@
-streamlit>=1.29
+streamlit==1.30.0
 pandas
 python-dotenv
 sqlalchemy
