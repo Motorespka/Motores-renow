@@ -2,9 +2,6 @@ streamlit==1.30.0
 pandas
 python-dotenv
 sqlalchemy
-opencv-python-headless>=4.8
-easyocr>=1.7
-torch>=2.2
 pillow
 numpy
 google-generativeai>=0.8.0
