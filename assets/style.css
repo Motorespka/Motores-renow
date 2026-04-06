@@ -18,7 +18,7 @@ body {
     font-family: 'Courier New', monospace;
 }
 
-/* Grade animada ao fundo */
+/* Grade animada */
 body::before {
     content: "";
     position: fixed;
@@ -38,12 +38,11 @@ body::before {
 }
 
 /* =============================
-    ⚡ CARD VISUAL (TECH-CARD)
+    ⚡ CARD VISUAL
 ============================= */
 
 .motor-container {
-    position: relative !important;
-    display: block !important;
+    position: relative;
     width: 100%;
     margin-bottom: 12px;
 }
@@ -60,12 +59,11 @@ body::before {
     z-index: 1;
 }
 
-/* Estado Ativo (Gaveta Aberta) */
+/* Estado ativo */
 .card-ativo {
     border-color: #00ffff !important;
     border-bottom: none !important;
-    border-bottom-left-radius: 0px !important;
-    border-bottom-right-radius: 0px !important;
+    border-radius: 15px 15px 0 0 !important;
     box-shadow: 0 0 30px #00ffff22;
 }
 
@@ -88,38 +86,37 @@ body::before {
 }
 
 /* =============================
-    🖱️ LÓGICA DO BOTÃO INVISÍVEL
+    🖱️ BOTÃO SOBRE O CARD (CORRIGIDO)
 ============================= */
 
-/* Faz o conteúdo do card ignorar o mouse para o clique chegar no botão */
-.tech-card * {
-    pointer-events: none !important;
+/* Faz o card ignorar clique */
+.tech-card {
+    pointer-events: none;
 }
 
-/* O Botão do Streamlit fica 100% transparente por CIMA do card */
-div.stButton {
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    z-index: 10 !important;
+/* Botão só dentro do card */
+.motor-container div.stButton {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
 }
 
-div.stButton > button {
+.motor-container div.stButton > button {
+    width: 100%;
+    height: 100%;
     background: transparent !important;
     border: none !important;
     color: transparent !important;
-    width: 100% !important;
-    height: 120px !important; /* Altura aproximada do card */
-    cursor: pointer !important;
+    cursor: pointer;
     box-shadow: none !important;
 }
 
-/* Remove qualquer efeito visual de clique padrão do Streamlit */
-div.stButton > button:active, 
-div.stButton > button:focus,
-div.stButton > button:hover {
+/* Remove efeitos */
+.motor-container div.stButton > button:hover,
+.motor-container div.stButton > button:active,
+.motor-container div.stButton > button:focus {
     background: transparent !important;
     border: none !important;
     color: transparent !important;
@@ -127,7 +124,7 @@ div.stButton > button:hover {
 }
 
 /* =============================
-    📂 GAVETA DE DETALHES
+    📂 GAVETA
 ============================= */
 
 .gaveta-detalhes {
@@ -149,7 +146,7 @@ div.stButton > button:hover {
 }
 
 /* =============================
-    ⌨️ INPUTS E COMPONENTES
+    INPUTS
 ============================= */
 
 .stTextInput input {
@@ -165,9 +162,11 @@ div.stButton > button:hover {
     box-shadow: 0 0 15px #00ffff33 !important;
 }
 
-/* Responsivo para Celular */
+/* =============================
+    RESPONSIVO
+============================= */
+
 @media (max-width: 768px) {
     .tech-card { padding: 15px; width: 98%; }
     .card-title { font-size: 1.1rem; }
-    div.stButton > button { height: 110px !important; }
 }
