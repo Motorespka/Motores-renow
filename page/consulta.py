@@ -28,7 +28,6 @@ def aplicar_estilo():
             font-size: 1rem; 
         }
 
-        /* Tabs estilo cyber */
         .stTabs [data-baseweb="tab-list"] { gap: 10px; }
 
         .stTabs [data-baseweb="tab"] {
@@ -89,10 +88,10 @@ def show(supabase):
         aberto = st.session_state.card_selecionado == mid
         classe_extra = "card-ativo" if aberto else ""
 
-        # 🔲 CONTAINER REAL DO STREAMLIT
+        # 🔲 CONTAINER STREAMLIT (ESSENCIAL)
         with st.container():
 
-            # HTML do card
+            # 🔳 CARD HTML
             st.markdown(f"""
                 <div class="motor-container">
 
@@ -128,16 +127,13 @@ def show(supabase):
                 </div>
             """, unsafe_allow_html=True)
 
-            # 🔥 BOTÃO SOBRE O CARD (CASA COM CSS)
-            if st.button("abrir_card", key=f"btn_{mid}"):
-                if aberto:
-                    st.session_state.card_selecionado = None
-                else:
-                    st.session_state.card_selecionado = mid
+            # 🔥 BOTÃO (AGORA FUNCIONA DE VERDADE)
+            if st.button("abrir_card", key=f"btn_{mid}", use_container_width=True):
+                st.session_state.card_selecionado = None if aberto else mid
                 st.rerun()
 
         # =============================
-        # 📂 GAVETA
+        # 📂 GAVETA DE DETALHES
         # =============================
         if aberto:
             st.markdown('<div class="gaveta-detalhes">', unsafe_allow_html=True)
