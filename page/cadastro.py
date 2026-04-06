@@ -59,7 +59,32 @@ def show(supabase):
                 st.error("❌ Todas as chaves estão sem crédito ou bloqueadas")
                 return None
 
-            model = genai.GenerativeModel('gemini-2.5-flash')
+        keys = st.secrets["GEMINI_API_KEY"]
+response = None
+
+for key in keys:
+    try:
+        genai.configure(api_key=key)
+        model = genai.GenerativeModel('gemini-2.5-flash')
+
+        response = model.generate_content([prompt, img])
+        break  # sucesso → sai do loop
+
+    except Exception as e:
+        erro = str(e).lower()
+
+        # se for erro de quota → tenta próxima key
+        if "quota" in erro or "limit" in erro or "429" in erro:
+            continue
+        else:
+            # erro diferente → mostra e para
+            st.error(f"Erro inesperado: {e}")
+            return None
+
+# se nenhuma key funcionou
+if response is None:
+    st.error("❌ Todas as keys atingiram limite")
+    return None
 
             prompt = """
             Você é um engenheiro sênior de manutenção de motores. Analise a imagem e extraia os dados.
@@ -67,8 +92,6 @@ def show(supabase):
             "marca", "cv", "rpm", "v", "a", "carcaca", "cos_phi", "isol".
             Se não ler algo, coloque "N/D".
             """
-
-            response = model.generate_content([prompt, img])
 
             limpo = response.text.replace("```json", "").replace("```", "").strip()
             return json.loads(limpo)
