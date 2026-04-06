@@ -38,7 +38,8 @@ def aplicar_estilo():
             box-shadow: 0 0 30px #00ffff22;
             transition: all 0.3s ease;
             position: relative;
-            z-index: 1; /* Fica atrás do botão */
+            z-index: 1;
+            cursor: pointer; /* indica que é clicável */
         }
 
         .motor-container:hover .tech-card {
@@ -47,15 +48,14 @@ def aplicar_estilo():
             transform: translateY(-2px);
         }
 
-        /* BOTÃO INVISÍVEL (A CAMADA DE CLIQUE) */
-        /* Ocupa 100% da área do motor-container */
+        /* BOTÃO INVISÍVEL (cobre todo o card) */
         div.stButton {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 10; /* Fica na frente para receber o clique */
+            z-index: 10;
         }
 
         div.stButton > button {
@@ -63,13 +63,12 @@ def aplicar_estilo():
             border: none !important;
             color: transparent !important;
             width: 100% !important;
-            height: 160px !important; /* Ajuste para cobrir a altura do card */
-            cursor: pointer !important;
+            height: 100% !important;
             padding: 0 !important;
             margin: 0 !important;
+            cursor: pointer !important;
         }
 
-        /* Remove brilho e bordas ao focar/clicar */
         div.stButton > button:focus, 
         div.stButton > button:active,
         div.stButton > button:hover {
@@ -136,18 +135,17 @@ def show(supabase):
         key_det = f"vis_{id_m}"
         aberto = st.session_state.detalhes_visiveis.get(key_det, False)
 
-        # Dados seguros (Previne erro de NoneType)
+        # Dados seguros
         marca = str(m.get('marca') or "---").upper()
         modelo = m.get('modelo') or "-"
         potencia = m.get('potencia_hp_cv') or "-"
         rpm = m.get('rpm_nominal') or "-"
         corrente = m.get('corrente_nominal_a') or "-"
 
-        # --- ESTRUTURA DO CARD ---
-        # Criamos um container manual para agrupar o HTML e o Botão
+        # Container do card
         st.markdown(f'<div class="motor-container">', unsafe_allow_html=True)
-        
-        # 1. O Desenho Visual (HTML)
+
+        # Desenho visual do card
         st.markdown(f'''
             <div class="tech-card">
                 <div class="card-title">{marca}</div>
@@ -160,14 +158,14 @@ def show(supabase):
             </div>
         ''', unsafe_allow_html=True)
 
-        # 2. O Botão (Fica por cima devido ao CSS position: absolute)
+        # Botão invisível cobrindo todo o card
         if st.button(" ", key=f"btn_{id_m}"):
             st.session_state.detalhes_visiveis[key_det] = not aberto
             st.rerun()
         
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # --- ÁREA DE DETALHES (SÓ APARECE SE "ABERTO" FOR TRUE) ---
+        # Área de detalhes
         if aberto:
             with st.container():
                 st.markdown("""
