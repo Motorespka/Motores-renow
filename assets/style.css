@@ -1,6 +1,6 @@
 /* =============================
-   🌌 BACKGROUND TECNOLÓGICO
-   Mantém o fundo escuro com grade animada
+    🌌 BACKGROUND TECNOLÓGICO
+    Mantém o fundo escuro com grade animada
 ============================= */
 
 .stApp {
@@ -39,8 +39,8 @@ body::before {
 }
 
 /* =============================
-   ⚡ CARD VISUAL (OTIMIZADO)
-   Ajustado para ser mais compacto e clicável
+    ⚡ CARD VISUAL (OTIMIZADO)
+    Ajustado para ser mais compacto e clicável
 ============================= */
 
 .tech-card {
@@ -84,8 +84,8 @@ body::before {
 }
 
 /* =============================
-   INPUTS E BOTÕES
-   Mantém o estilo neon original
+    INPUTS E BOTÕES
+    Mantém o estilo neon original
 ============================= */
 
 .stTextInput input,
@@ -115,7 +115,7 @@ body::before {
 }
 
 /* =============================
-   RESPONSIVO (CELULAR)
+    RESPONSIVO (CELULAR)
 ============================= */
 
 @media (max-width: 768px) {
@@ -130,10 +130,29 @@ body::before {
 }
 
 /* =============================
-   LÓGICA DE CLIQUE
-   Faz o texto ignorar o mouse para o clique cair no botão invisível
+    LÓGICA DE CLIQUE (MODIFICADO APENAS AQUI)
 ============================= */
 
 .tech-card * {
     pointer-events: none; 
+}
+
+/* Nova regra para garantir que o botão invisível cubra o card */
+div.stButton {
+    position: absolute !important;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10 !important;
+}
+
+div.stButton > button:first-child {
+    background: transparent !important;
+    border: none !important;
+    color: transparent !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 120px; /* Garante que cubra a altura do retângulo */
+    cursor: pointer !important;
 }
