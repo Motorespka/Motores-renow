@@ -1,6 +1,5 @@
 /* =============================
-    🌌 BACKGROUND TECNOLÓGICO
-    Mantém o fundo escuro com grade animada
+    🌌 BACKGROUND & ESTRUTURA
 ============================= */
 
 .stApp {
@@ -10,7 +9,7 @@
 }
 
 body {
-    background:
+    background: 
         radial-gradient(circle at 20% 20%, #00ffff11 0%, transparent 40%),
         radial-gradient(circle at 80% 60%, #0099ff11 0%, transparent 40%),
         #05070d !important;
@@ -19,12 +18,12 @@ body {
     font-family: 'Courier New', monospace;
 }
 
-/* Efeito de grade em movimento no fundo */
+/* Grade animada ao fundo */
 body::before {
     content: "";
     position: fixed;
     inset: 0;
-    background-image:
+    background-image: 
         linear-gradient(#00ffff11 1px, transparent 1px),
         linear-gradient(90deg, #00ffff11 1px, transparent 1px);
     background-size: 60px 60px;
@@ -39,222 +38,136 @@ body::before {
 }
 
 /* =============================
-    ⚡ CARD VISUAL (OTIMIZADO)
-    Ajustado para ser mais compacto e clicável
+    ⚡ CARD VISUAL (TECH-CARD)
 ============================= */
+
+.motor-container {
+    position: relative !important;
+    display: block !important;
+    width: 100%;
+    margin-bottom: 12px;
+}
 
 .tech-card {
     background: linear-gradient(145deg, #081018, #05070d);
     border: 2px solid #00ffff33;
-    border-radius: 15px; /* Bordas um pouco mais suaves */
-    padding: 20px;       /* Reduzido de 35px para ser mais compacto */
+    border-radius: 15px;
+    padding: 20px;
     box-shadow: 0 0 20px #00ffff11;
     transition: all 0.3s ease;
-    margin: 15px auto;   /* Espaçamento entre cards reduzido */
-    width: 92%;
-    cursor: pointer;
     text-align: center;
     position: relative;
     z-index: 1;
 }
 
+/* Estado Ativo (Gaveta Aberta) */
+.card-ativo {
+    border-color: #00ffff !important;
+    border-bottom: none !important;
+    border-bottom-left-radius: 0px !important;
+    border-bottom-right-radius: 0px !important;
+    box-shadow: 0 0 30px #00ffff22;
+}
+
 .tech-card:hover {
-    transform: scale(1.01); /* Zoom mais sutil no hover */
+    border-color: #00ffffaa;
     box-shadow: 0 0 40px #00ffff33;
-    border-color: #00ffff;
+    transform: scale(1.01);
 }
 
 .card-title {
-    font-size: 1.3rem; /* Ajuste leve no tamanho da marca */
+    font-size: 1.3rem;
     color: #00ffff;
     font-weight: 800;
     letter-spacing: 2px;
-    margin-bottom: 2px;
 }
 
 .card-subtitle {
     color: #8b949e;
     font-size: 0.85rem;
-    margin-bottom: 12px;
-}
-
-.metric-unit {
-    font-size: 1rem; /* Unidades um pouco menores para mobile */
-    font-weight: bold;
 }
 
 /* =============================
-    INPUTS E BOTÕES
-    Mantém o estilo neon original
+    🖱️ LÓGICA DO BOTÃO INVISÍVEL
 ============================= */
 
-.stTextInput input,
-.stTextArea textarea,
-.stSelectbox div[data-baseweb="select"] {
-    background-color: rgba(0, 255, 255, 0.05) !important;
-    border: 1px solid #00ffff33 !important;
-    color: #00ffff !important;
-    border-radius: 8px !important;
-}
-
-.stButton > button {
-    background: linear-gradient(135deg,#001c2b,#000f1a) !important;
-    border: 1px solid #00ffff55 !important;
-    color: #00ffff !important;
-    border-radius: 10px !important;
-    transition: 0.3s !important;
-    font-weight: bold !important;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-.stButton > button:hover {
-    border-color: #00ffff !important;
-    box-shadow: 0 0 18px #00ffff55 !important;
-    transform: translateY(-1px);
-}
-
-/* =============================
-    RESPONSIVO (CELULAR)
-============================= */
-
-@media (max-width: 768px) {
-    .tech-card { 
-        padding: 15px; 
-        width: 95%; 
-    }
-    
-    .card-title {
-        font-size: 1.1rem;
-    }
-}
-
-/* =============================
-    LÓGICA DE CLIQUE (MODIFICADO APENAS AQUI)
-============================= */
-
+/* Faz o conteúdo do card ignorar o mouse para o clique chegar no botão */
 .tech-card * {
-    pointer-events: none; 
+    pointer-events: none !important;
 }
 
-/* Nova regra para garantir que o botão invisível cubra o card */
+/* O Botão do Streamlit fica 100% transparente por CIMA do card */
 div.stButton {
     position: absolute !important;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
     z-index: 10 !important;
 }
 
-div.stButton > button:first-child {
-    background: transparent !important;
-    border: none !important;
-    color: transparent !important;
-    width: 100% !important;
-    height: 100% !important;
-    min-height: 120px; /* Garante que cubra a altura do retângulo */
-    cursor: pointer !important;
-}
-
-/* Isso garante que o container aceite o botão absoluto dentro dele */
-.motor-container {
-    position: relative !important;
-    display: block !important;
-}
-
-/* O Botão do Streamlit fica invisível, mas por CIMA de tudo */
-div.stButton {
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    z-index: 9999 !important; /* Valor muito alto para garantir */
-}
-
 div.stButton > button {
     background: transparent !important;
     border: none !important;
     color: transparent !important;
     width: 100% !important;
-    height: 120px !important; /* Altura aproximada do seu card */
+    height: 120px !important; /* Altura aproximada do card */
     cursor: pointer !important;
     box-shadow: none !important;
 }
 
-/* Evita que o Streamlit mostre qualquer efeito padrão ao clicar */
-div.stButton > button:active, div.stButton > button:focus {
+/* Remove qualquer efeito visual de clique padrão do Streamlit */
+div.stButton > button:active, 
+div.stButton > button:focus,
+div.stButton > button:hover {
     background: transparent !important;
-    color: transparent !important;
     border: none !important;
+    color: transparent !important;
+    box-shadow: none !important;
 }
-
-/* ... mantenha todo o seu código de background e tech-card acima ... */
 
 /* =============================
-    LÓGICA DE CLIQUE (SINCRONIZADA)
+    📂 GAVETA DE DETALHES
 ============================= */
 
-/* Garante que o texto não intercepte o clique, deixando-o passar para o botão */
-.tech-card * {
-    pointer-events: none; 
-}
-
-/* Container do motor como referência para o botão absoluto */
-.motor-container {
-    position: relative !important;
-    display: block !important;
-    width: 100%;
-    margin-bottom: 10px;
-}
-
-/* O Botão do Streamlit fica invisível, mas por CIMA de todo o card */
-div.stButton {
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    z-index: 10 !important; /* Fica acima do card (z-index 1) */
-}
-
-div.stButton > button {
-    background: transparent !important;
-    border: none !important;
-    color: transparent !important;
-    width: 100% !important;
-    height: 120px !important; /* Ajuste para a altura média do seu card */
-    cursor: pointer !important;
-    box-shadow: none !important;
-    display: block !important;
-}
-
-/* Remove efeitos visuais do botão padrão do Streamlit para não estragar o design */
-div.stButton > button:hover, 
-div.stButton > button:active, 
-div.stButton > button:focus {
-    background: transparent !important;
-    color: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-}
-
-/* Gaveta de detalhes (Sub-caixa) */
 .gaveta-detalhes {
-    background: #0d1117;
-    border: 2px solid #00f2ff;
+    background: rgba(8, 16, 24, 0.95);
+    border: 2px solid #00ffff;
     border-top: none;
-    border-radius: 0 0 12px 12px;
+    border-radius: 0 0 15px 15px;
     padding: 20px;
-    margin-top: -15px; /* Cola no card de cima */
-    margin-bottom: 20px;
+    margin-top: -5px;
+    margin-bottom: 25px;
     position: relative;
-    z-index: 5; /* Abaixo do botão de clique mas visível */
+    z-index: 5;
     animation: slideDown 0.3s ease-out;
 }
 
 @keyframes slideDown {
     from { opacity: 0; transform: translateY(-10px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+/* =============================
+    ⌨️ INPUTS E COMPONENTES
+============================= */
+
+.stTextInput input {
+    background-color: rgba(0, 255, 255, 0.05) !important;
+    border: 1px solid #00ffff33 !important;
+    color: #00ffff !important;
+    border-radius: 8px !important;
+    padding: 10px !important;
+}
+
+.stTextInput input:focus {
+    border-color: #00ffff !important;
+    box-shadow: 0 0 15px #00ffff33 !important;
+}
+
+/* Responsivo para Celular */
+@media (max-width: 768px) {
+    .tech-card { padding: 15px; width: 98%; }
+    .card-title { font-size: 1.1rem; }
+    div.stButton > button { height: 110px !important; }
 }
