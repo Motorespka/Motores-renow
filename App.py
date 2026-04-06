@@ -16,11 +16,12 @@ st.set_page_config(
 # 2️⃣ PATH DO PROJETO
 # ===============================
 raiz = Path(__file__).resolve().parent
+
 if str(raiz) not in sys.path:
     sys.path.insert(0, str(raiz))
 
 # ===============================
-# 3️⃣ SESSION STATE (ESSENCIAL)
+# 3️⃣ SESSION STATE
 # ===============================
 if "pagina" not in st.session_state:
     st.session_state.pagina = "cadastro"
@@ -44,7 +45,7 @@ def init_connection():
 supabase = init_connection()
 
 # ===============================
-# 5️⃣ CSS GLOBAL (SEM CONFLITO)
+# 5️⃣ CSS GLOBAL
 # ===============================
 def carregar_css():
     try:
@@ -60,7 +61,7 @@ def carregar_css():
 carregar_css()
 
 # ===============================
-# 6️⃣ UI EXTRA (SE EXISTIR)
+# 6️⃣ UI EXTRA (OPCIONAL)
 # ===============================
 try:
     from ui.theme import aplicar_tema
@@ -71,7 +72,7 @@ except Exception:
     pass
 
 # ===============================
-# 7️⃣ AUTH LOGIN (GATE DO APP)
+# 7️⃣ AUTH LOGIN (GATE)
 # ===============================
 try:
     from auth.login import check_login
@@ -84,7 +85,7 @@ except Exception as e:
     st.stop()
 
 # ===============================
-# 8️⃣ SIDEBAR (NAVEGAÇÃO ESTÁVEL)
+# 8️⃣ SIDEBAR
 # ===============================
 try:
     from streamlit_option_menu import option_menu
@@ -117,6 +118,26 @@ with st.sidebar:
 
     st.divider()
 
-    # ✅ Logout universal
+    # LOGOUT
     if st.button("🚪 Logout", use_container_width=True):
         st.session_state.clear()
+        st.rerun()
+
+# ===============================
+# 9️⃣ ROUTER DE PÁGINAS
+# ===============================
+try:
+
+    if st.session_state.pagina == "cadastro":
+        from page.cadastro import show
+        show(supabase)
+
+    elif st.session_state.pagina == "consulta":
+        from page.consulta import show
+        show(supabase)
+
+except ModuleNotFoundError as e:
+    st.error(f"Página não encontrada: {e}")
+
+except Exception as e:
+    st.error(f"Erro ao carregar página: {e}")
