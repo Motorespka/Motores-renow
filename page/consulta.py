@@ -2,53 +2,37 @@ import streamlit as st
 import re
 
 # =============================
-# 🎨 INJEÇÃO DE CSS (TURBINADO)
+# 🎨 INJEÇÃO DE CSS (COMPACTO)
 # =============================
 def aplicar_estilo():
     st.markdown("""
         <style>
-        /* BACKGROUND E GRID */
-        .stApp {
-            background: transparent !important;
-            max-width: 1000px;
-            margin: 0 auto;
-        }
-        body {
-            background: 
-                radial-gradient(circle at 20% 20%, #00ffff11 0%, transparent 40%),
-                radial-gradient(circle at 80% 60%, #0099ff11 0%, transparent 40%),
-                #05070d !important;
-            color: white !important;
-            font-family: 'Courier New', monospace;
-        }
-
-        /* CONTAINER DO MOTOR (Agrupa Card + Botão) */
+        /* CONTAINER DO MOTOR */
         .motor-container {
             position: relative;
-            margin-bottom: 20px;
+            margin-bottom: 10px; /* Reduzido para aproximar os cards */
         }
 
-        /* CARD VISUAL */
+        /* CARD VISUAL - MAIS COMPACTO */
         .tech-card {
             background: linear-gradient(145deg, #081018, #05070d);
             border: 2px solid #00ffff33;
-            border-radius: 18px;
-            padding: 30px;
+            border-radius: 15px;
+            padding: 18px; /* Reduzido de 30px para ocupar menos espaço */
             text-align: center;
-            box-shadow: 0 0 30px #00ffff22;
+            box-shadow: 0 0 20px #00ffff11;
             transition: all 0.3s ease;
             position: relative;
             z-index: 1;
-            cursor: pointer; /* indica que é clicável */
         }
 
         .motor-container:hover .tech-card {
             border-color: #00ffff;
-            box-shadow: 0 0 50px #00ffff44;
-            transform: translateY(-2px);
+            box-shadow: 0 0 40px #00ffff33;
+            transform: translateY(-1px);
         }
 
-        /* BOTÃO INVISÍVEL (cobre todo o card) */
+        /* BOTÃO INVISÍVEL (Cobre todo o card para clique) */
         div.stButton {
             position: absolute;
             top: 0;
@@ -69,21 +53,12 @@ def aplicar_estilo():
             cursor: pointer !important;
         }
 
-        div.stButton > button:focus, 
-        div.stButton > button:active,
-        div.stButton > button:hover {
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-            color: transparent !important;
-        }
+        /* ELEMENTOS INTERNOS DO CARD */
+        .card-title { font-size: 1.25rem; color: #00ffff; font-weight: 800; letter-spacing: 1.5px; margin-bottom: 2px; }
+        .card-subtitle { color: #8b949e; font-size: 0.8rem; margin-bottom: 10px; }
+        .metric-unit { font-size: 1rem; font-weight: bold; }
 
-        /* ELEMENTOS INTERNOS */
-        .card-title { font-size: 1.5rem; color: #00ffff; font-weight: 800; letter-spacing: 2px; }
-        .card-subtitle { color: #8b949e; font-size: 0.9rem; margin-bottom: 15px; }
-        .metric-unit { font-size: 1.1rem; font-weight: bold; }
-
-        /* Faz o texto ignorar o mouse para não atrapalhar o clique do botão */
+        /* Faz o texto ignorar o mouse para não bloquear o clique no botão */
         .tech-card * {
             pointer-events: none;
         }
@@ -93,6 +68,15 @@ def aplicar_estilo():
 # =============================
 # 🛠️ FUNÇÕES AUXILIARES
 # =============================
+def limpar_unidade(valor, unidade_fixa):
+    """Remove a unidade do texto se ela já existir para evitar duplicação."""
+    if not valor: return "-"
+    valor_str = str(valor).upper()
+    unidade_fixa = unidade_fixa.upper()
+    # Remove a unidade (ex: 'CV') do valor para não ficar 'CV CV HP'
+    limpo = valor_str.replace(unidade_fixa, "").strip()
+    return limpo
+
 def limpar_passo(passo_raw):
     if not passo_raw: return "---"
     s = str(passo_raw).strip()
@@ -117,6 +101,7 @@ def show(supabase):
     busca = st.text_input("", placeholder="Pesquisar por Marca ou Modelo...", label_visibility="collapsed")
     
     try:
+        # Busca direta do banco
         res = supabase.table("motores").select("*").order("id", desc=True).execute()
         motores = res.data if res.data else []
     except Exception:
@@ -135,22 +120,23 @@ def show(supabase):
         key_det = f"vis_{id_m}"
         aberto = st.session_state.detalhes_visiveis.get(key_det, False)
 
-        # Dados seguros
+        # Limpeza de unidades para evitar duplicatas visuais
+        potencia = limpar_unidade(m.get('potencia_hp_cv'), "CV")
+        rpm = limpar_unidade(m.get('rpm_nominal'), "RPM")
+        corrente = limpar_unidade(m.get('corrente_nominal_a'), "A")
+        
         marca = str(m.get('marca') or "---").upper()
         modelo = m.get('modelo') or "-"
-        potencia = m.get('potencia_hp_cv') or "-"
-        rpm = m.get('rpm_nominal') or "-"
-        corrente = m.get('corrente_nominal_a') or "-"
 
         # Container do card
         st.markdown(f'<div class="motor-container">', unsafe_allow_html=True)
 
-        # Desenho visual do card
+        # HTML do card com métricas limpas
         st.markdown(f'''
             <div class="tech-card">
                 <div class="card-title">{marca}</div>
                 <div class="card-subtitle">ID: {modelo}</div>
-                <div style="display: flex; justify-content: space-around; gap: 10px;">
+                <div style="display: flex; justify-content: space-around; gap: 5px;">
                     <div style="color: white;"><span style="color: #00ffff;" class="metric-unit">{potencia}</span> CV HP</div>
                     <div style="color: white;"><span style="color: #10b981;" class="metric-unit">{rpm}</span> RPM</div>
                     <div style="color: white;"><span style="color: #f59e0b;" class="metric-unit">{corrente}</span> A</div>
@@ -158,20 +144,20 @@ def show(supabase):
             </div>
         ''', unsafe_allow_html=True)
 
-        # Botão invisível cobrindo todo o card
+        # Botão invisível que dispara a expansão do card
         if st.button(" ", key=f"btn_{id_m}"):
             st.session_state.detalhes_visiveis[key_det] = not aberto
             st.rerun()
         
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # Área de detalhes
+        # Área de detalhes (aparece quando o card é clicado)
         if aberto:
             with st.container():
                 st.markdown("""
                 <div style="background: rgba(0,255,255,0.03); border: 2px solid #00ffff44; 
-                            border-top:none; border-radius: 0 0 15px 15px; padding: 20px; 
-                            margin: -25px auto 30px auto; max-width: 90%;">
+                            border-top:none; border-radius: 0 0 15px 15px; padding: 15px; 
+                            margin: -15px auto 20px auto; max-width: 92%;">
                 """, unsafe_allow_html=True)
                 
                 t1, t2, t3 = st.tabs(["🔌 Ligações", "🌀 Bobinagem", "⚙️ Mecânica"])
@@ -179,11 +165,13 @@ def show(supabase):
                 with t1:
                     st.info(obter_configuracoes_ligacao(m))
                     st.write(f"**Fases:** {m.get('fases') or '-'} | **Tensão:** {m.get('tensao_v') or '-'} V")
+                    st.write(f"**Nº Série:** {m.get('num_serie') or '-'}")
                 
                 with t2:
                     c1, c2 = st.columns(2)
                     c1.metric("Passo Principal", limpar_passo(m.get("passo_principal")))
                     c2.metric("Bitola Fio", m.get("bitola_fio_principal") or "---")
+                    st.write(f"**Esquema:** {m.get('observacoes') or '-'}")
                 
                 with t3:
                     st.markdown(f"**Rolamento Dianteiro:** `{m.get('rolamento_dianteiro') or '-'}`")
