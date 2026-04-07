@@ -33,6 +33,8 @@ def render_admin_inteligencia_sidebar() -> None:
         st.success("Inteligência técnica atualizada com sucesso.")
         st.caption(f"Motores Supabase: {resumo.get('total_motores_supabase', 0)}")
         st.caption(f"Registros extraídos de pastas/docs: {resumo.get('total_registros_docs', 0)}")
+        st.caption(f"Imagens localizadas: {resumo.get('total_imagens_localizadas', 0)}")
+        st.caption(f"Registros extraídos das imagens: {resumo.get('total_registros_imagens', 0)}")
         st.caption(f"Total analisado: {resumo.get('total_motores_lidos', 0)}")
         st.caption(f"Descobertas encontradas: {resumo.get('total_descobertas', 0)}")
         st.caption(f"Descobertas persistidas: {resumo.get('total_persistidas', 0)}")

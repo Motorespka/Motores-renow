@@ -10,6 +10,9 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 MotorRow = Dict[str, Any]
 
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
+_EASYOCR_READER = None
+
 
 def _strip_html(text: str) -> str:
     text = re.sub(r"<script[\s\S]*?</script>", " ", text, flags=re.IGNORECASE)
@@ -23,6 +26,93 @@ def _extract_value(pattern: str, text: str) -> Optional[str]:
     return m.group(1) if m else None
 
 
+def _inferir_campos_from_texto(text: str, fonte: str) -> MotorRow:
+    return {
+        "fonte_arquivo": fonte,
+        "rpm": _extract_value(r"(\d{3,5})\s*rpm", text),
+        "polos": _extract_value(r"(\d{1,2})\s*polos?", text),
+        "tensao_v": _extract_value(r"(\d{2,4}(?:[\.,]\d+)?)\s*v", text),
+        "corrente_nominal_a": _extract_value(r"(\d{1,3}(?:[\.,]\d+)?)\s*a", text),
+        "potencia_hp_cv": _extract_value(r"(\d{1,3}(?:[\.,]\d+)?)\s*(?:cv|hp|kw)", text),
+        "bitola_fio": _extract_value(r"(?:bitola|fio)\s*(\d{1,3}(?:[\.,]\d+)?)", text),
+        "numero_ranhuras": _extract_value(r"(\d{1,3})\s*ranhuras", text),
+        "tipo_enrolamento": _extract_value(r"(monof[aá]sico|trif[aá]sico|duplo|concentrado|distribu[ií]do)", text),
+    }
+
+
+def _registro_tem_dados(registro: MotorRow) -> bool:
+    return any(registro.get(k) for k in [
+        "rpm",
+        "polos",
+        "tensao_v",
+        "corrente_nominal_a",
+        "potencia_hp_cv",
+        "bitola_fio",
+        "numero_ranhuras",
+        "tipo_enrolamento",
+    ])
+
+
+def _get_easyocr_reader():
+    global _EASYOCR_READER
+    if _EASYOCR_READER is not None:
+        return _EASYOCR_READER
+    import easyocr
+
+    _EASYOCR_READER = easyocr.Reader(["pt", "en"], gpu=False)
+    return _EASYOCR_READER
+
+
+def _ocr_texto_imagem(path: Path) -> str:
+    import cv2
+
+    img = cv2.imread(str(path))
+    if img is None:
+        return ""
+
+    reader = _get_easyocr_reader()
+    partes = reader.readtext(img, detail=0)
+    return " ".join(partes)
+
+
+def carregar_registros_imagens_locais(diretorio_raiz: str = ".") -> Tuple[List[MotorRow], int]:
+    base = Path(diretorio_raiz)
+    if not base.exists() or not base.is_dir():
+        return [], 0
+
+    arquivos_img = [
+        p
+        for p in base.rglob("*")
+        if p.is_file()
+        and p.suffix.lower() in IMAGE_EXTENSIONS
+        and ".git" not in p.parts
+        and "__pycache__" not in p.parts
+    ]
+
+    registros: List[MotorRow] = []
+
+    try:
+        _get_easyocr_reader()
+        import cv2  # noqa: F401
+    except Exception:
+        return [], len(arquivos_img)
+
+    for img_path in arquivos_img:
+        try:
+            texto = _ocr_texto_imagem(img_path)
+        except Exception:
+            continue
+
+        if not texto:
+            continue
+
+        registro = _inferir_campos_from_texto(texto, str(img_path))
+        if _registro_tem_dados(registro):
+            registros.append(registro)
+
+    return registros, len(arquivos_img)
+
+
 def carregar_registros_locais(diretorio_docs: str = "docs") -> List[MotorRow]:
     base = Path(diretorio_docs)
     if not base.exists() or not base.is_dir():
@@ -33,28 +123,8 @@ def carregar_registros_locais(diretorio_docs: str = "docs") -> List[MotorRow]:
         raw = html_file.read_text(encoding="utf-8", errors="ignore")
         text = _strip_html(raw)
 
-        registro: MotorRow = {
-            "fonte_arquivo": str(html_file),
-            "rpm": _extract_value(r"(\d{3,5})\s*rpm", text),
-            "polos": _extract_value(r"(\d{1,2})\s*polos?", text),
-            "tensao_v": _extract_value(r"(\d{2,4}(?:[\.,]\d+)?)\s*v", text),
-            "corrente_nominal_a": _extract_value(r"(\d{1,3}(?:[\.,]\d+)?)\s*a", text),
-            "potencia_hp_cv": _extract_value(r"(\d{1,3}(?:[\.,]\d+)?)\s*(?:cv|hp|kw)", text),
-            "bitola_fio": _extract_value(r"(?:bitola|fio)\s*(\d{1,3}(?:[\.,]\d+)?)", text),
-            "numero_ranhuras": _extract_value(r"(\d{1,3})\s*ranhuras", text),
-            "tipo_enrolamento": _extract_value(r"(monof[aá]sico|trif[aá]sico|duplo|concentrado|distribu[ií]do)", text),
-        }
-
-        if any(registro.get(k) for k in [
-            "rpm",
-            "polos",
-            "tensao_v",
-            "corrente_nominal_a",
-            "potencia_hp_cv",
-            "bitola_fio",
-            "numero_ranhuras",
-            "tipo_enrolamento",
-        ]):
+        registro = _inferir_campos_from_texto(text, str(html_file))
+        if _registro_tem_dados(registro):
             registros.append(registro)
 
     return registros
@@ -297,7 +367,13 @@ def _insert_descoberta(supabase: Any, descoberta: Descoberta) -> None:
     supabase.table("descobertas_ia").insert(payload).execute()
 
 
-def executar_descoberta_automatica(supabase: Any, incluir_docs_locais: bool = True, diretorio_docs: str = "docs") -> Dict[str, Any]:
+def executar_descoberta_automatica(
+    supabase: Any,
+    incluir_docs_locais: bool = True,
+    diretorio_docs: str = "docs",
+    incluir_imagens_locais: bool = True,
+    diretorio_raiz_imagens: str = ".",
+) -> Dict[str, Any]:
     """
     Analisa dados da tabela `motores` e grava padrões recorrentes em `descobertas_ia`.
 
@@ -311,7 +387,10 @@ def executar_descoberta_automatica(supabase: Any, incluir_docs_locais: bool = Tr
     """
     motores_supabase = (supabase.table("motores").select("*").execute().data) or []
     registros_docs = carregar_registros_locais(diretorio_docs) if incluir_docs_locais else []
-    rows = _enriched_rows([*motores_supabase, *registros_docs])
+    registros_imagens, total_imagens_localizadas = (
+        carregar_registros_imagens_locais(diretorio_raiz_imagens) if incluir_imagens_locais else ([], 0)
+    )
+    rows = _enriched_rows([*motores_supabase, *registros_docs, *registros_imagens])
 
     descobertas: List[Descoberta] = []
     descobertas.extend(_discover_polos_rpm(rows))
@@ -335,6 +414,8 @@ def executar_descoberta_automatica(supabase: Any, incluir_docs_locais: bool = Tr
     return {
         "total_motores_supabase": len(motores_supabase),
         "total_registros_docs": len(registros_docs),
+        "total_imagens_localizadas": total_imagens_localizadas,
+        "total_registros_imagens": len(registros_imagens),
         "total_motores_lidos": len(rows),
         "total_descobertas": len(descobertas),
         "total_persistidas": persistidas,
