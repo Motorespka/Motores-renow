@@ -3,11 +3,61 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from statistics import median
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 
 MotorRow = Dict[str, Any]
+
+
+def _strip_html(text: str) -> str:
+    text = re.sub(r"<script[\s\S]*?</script>", " ", text, flags=re.IGNORECASE)
+    text = re.sub(r"<style[\s\S]*?</style>", " ", text, flags=re.IGNORECASE)
+    text = re.sub(r"<[^>]+>", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _extract_value(pattern: str, text: str) -> Optional[str]:
+    m = re.search(pattern, text, flags=re.IGNORECASE)
+    return m.group(1) if m else None
+
+
+def carregar_registros_locais(diretorio_docs: str = "docs") -> List[MotorRow]:
+    base = Path(diretorio_docs)
+    if not base.exists() or not base.is_dir():
+        return []
+
+    registros: List[MotorRow] = []
+    for html_file in sorted(base.glob("*.html")):
+        raw = html_file.read_text(encoding="utf-8", errors="ignore")
+        text = _strip_html(raw)
+
+        registro: MotorRow = {
+            "fonte_arquivo": str(html_file),
+            "rpm": _extract_value(r"(\d{3,5})\s*rpm", text),
+            "polos": _extract_value(r"(\d{1,2})\s*polos?", text),
+            "tensao_v": _extract_value(r"(\d{2,4}(?:[\.,]\d+)?)\s*v", text),
+            "corrente_nominal_a": _extract_value(r"(\d{1,3}(?:[\.,]\d+)?)\s*a", text),
+            "potencia_hp_cv": _extract_value(r"(\d{1,3}(?:[\.,]\d+)?)\s*(?:cv|hp|kw)", text),
+            "bitola_fio": _extract_value(r"(?:bitola|fio)\s*(\d{1,3}(?:[\.,]\d+)?)", text),
+            "numero_ranhuras": _extract_value(r"(\d{1,3})\s*ranhuras", text),
+            "tipo_enrolamento": _extract_value(r"(monof[aá]sico|trif[aá]sico|duplo|concentrado|distribu[ií]do)", text),
+        }
+
+        if any(registro.get(k) for k in [
+            "rpm",
+            "polos",
+            "tensao_v",
+            "corrente_nominal_a",
+            "potencia_hp_cv",
+            "bitola_fio",
+            "numero_ranhuras",
+            "tipo_enrolamento",
+        ]):
+            registros.append(registro)
+
+    return registros
 
 
 @dataclass
@@ -247,7 +297,7 @@ def _insert_descoberta(supabase: Any, descoberta: Descoberta) -> None:
     supabase.table("descobertas_ia").insert(payload).execute()
 
 
-def executar_descoberta_automatica(supabase: Any) -> Dict[str, Any]:
+def executar_descoberta_automatica(supabase: Any, incluir_docs_locais: bool = True, diretorio_docs: str = "docs") -> Dict[str, Any]:
     """
     Analisa dados da tabela `motores` e grava padrões recorrentes em `descobertas_ia`.
 
@@ -259,8 +309,9 @@ def executar_descoberta_automatica(supabase: Any) -> Dict[str, Any]:
 
     Este módulo NÃO altera registros da tabela `motores`.
     """
-    motores = (supabase.table("motores").select("*").execute().data) or []
-    rows = _enriched_rows(motores)
+    motores_supabase = (supabase.table("motores").select("*").execute().data) or []
+    registros_docs = carregar_registros_locais(diretorio_docs) if incluir_docs_locais else []
+    rows = _enriched_rows([*motores_supabase, *registros_docs])
 
     descobertas: List[Descoberta] = []
     descobertas.extend(_discover_polos_rpm(rows))
@@ -282,6 +333,8 @@ def executar_descoberta_automatica(supabase: Any) -> Dict[str, Any]:
             falhas_persistencia.append(str(exc))
 
     return {
+        "total_motores_supabase": len(motores_supabase),
+        "total_registros_docs": len(registros_docs),
         "total_motores_lidos": len(rows),
         "total_descobertas": len(descobertas),
         "total_persistidas": persistidas,

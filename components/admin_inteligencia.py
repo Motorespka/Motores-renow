@@ -31,12 +31,41 @@ def render_admin_inteligencia_sidebar() -> None:
 
         resumo = resultado.get("resumo", {})
         st.success("Inteligência técnica atualizada com sucesso.")
-        st.caption(f"Motores lidos: {resumo.get('total_motores_lidos', 0)}")
+        st.caption(f"Motores Supabase: {resumo.get('total_motores_supabase', 0)}")
+        st.caption(f"Registros extraídos de pastas/docs: {resumo.get('total_registros_docs', 0)}")
+        st.caption(f"Total analisado: {resumo.get('total_motores_lidos', 0)}")
         st.caption(f"Descobertas encontradas: {resumo.get('total_descobertas', 0)}")
         st.caption(f"Descobertas persistidas: {resumo.get('total_persistidas', 0)}")
 
         if resumo.get("tabela_descobertas_ausente"):
             st.warning("Tabela public.descobertas_ia não encontrada no Supabase. A análise foi feita, mas não foi persistida.")
+
+
+        arquivos = resultado.get("arquivos_exportados", {})
+        json_path = arquivos.get("json")
+        csv_path = arquivos.get("csv")
+
+        if json_path:
+            with open(json_path, "rb") as jf:
+                st.download_button(
+                    "Baixar descobertas (JSON)",
+                    data=jf.read(),
+                    file_name=json_path.split("/")[-1],
+                    mime="application/json",
+                    use_container_width=True,
+                    key="download_descobertas_json",
+                )
+
+        if csv_path:
+            with open(csv_path, "rb") as cf:
+                st.download_button(
+                    "Baixar descobertas (CSV)",
+                    data=cf.read(),
+                    file_name=csv_path.split("/")[-1],
+                    mime="text/csv",
+                    use_container_width=True,
+                    key="download_descobertas_csv",
+                )
 
         for item in resumo.get("descobertas", []):
             st.markdown(
