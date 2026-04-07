@@ -84,10 +84,29 @@ def show(supabase):
         col_cam, col_ia = st.columns([1, 1])
         
         with col_cam:
-            st.subheader("📸 Scanner de Plaqueta")
+            st.subheader("Scanner de plaqueta")
 
-            foto_camera = st.camera_input("Capture a identidade do motor")
-            foto_upload = st.file_uploader("📂 Ou envie a imagem da plaqueta", type=["jpg", "png", "jpeg"])
+            if "abrir_camera_placa" not in st.session_state:
+                st.session_state.abrir_camera_placa = False
+
+            cam_col1, cam_col2 = st.columns(2)
+            with cam_col1:
+                if st.button("Abrir camera", key="cadastro_abrir_camera", use_container_width=True):
+                    st.session_state.abrir_camera_placa = True
+            with cam_col2:
+                if st.button("Fechar camera", key="cadastro_fechar_camera", use_container_width=True):
+                    st.session_state.abrir_camera_placa = False
+
+            if st.session_state.abrir_camera_placa:
+                st.info(
+                    "A camera so fica ativa quando aberta. Em celular, selecione a camera traseira no navegador."
+                )
+                foto_camera = st.camera_input("Capture a identidade do motor")
+            else:
+                st.caption("Camera desligada. Clique em Abrir camera para capturar.")
+                foto_camera = None
+
+            foto_upload = st.file_uploader("Ou envie a imagem da plaqueta", type=["jpg", "png", "jpeg"])
 
             foto = foto_camera if foto_camera else foto_upload
         
