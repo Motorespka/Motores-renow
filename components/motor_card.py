@@ -1,80 +1,88 @@
-import streamlit as st
 import re
 
-# Função para limpar a formatação do passo (ex: tira o "1:")
+import streamlit as st
+
+
+# Funcao para limpar a formatacao do passo (ex: tira o "1:")
 def limpar_passo(passo_raw):
-    if not passo_raw: return "---"
+    if not passo_raw:
+        return "---"
     s = str(passo_raw).strip()
     s = re.sub(r"^[1][\s?:\-]*", "", s)
     return s.replace(":", " ").replace("-", " ").strip()
 
-# Função para criar as caixinhas de dados nas abas
+
+# Funcao para criar as caixinhas de dados nas abas
 def render_dado(label, valor, unidade="", highlight=False):
     color = "#00ffff" if not highlight else "#f59e0b"
     val = valor if valor and str(valor).lower() not in ["none", "nan", ""] else "---"
-    st.markdown(f"""
+    st.markdown(
+        f"""
         <div style="background: rgba(0, 255, 255, 0.03); border: 1px solid rgba(0, 255, 255, 0.1); border-radius: 6px; padding: 10px; margin-bottom: 5px;">
             <div style="font-size: 0.65rem; color: #8b949e; text-transform: uppercase; letter-spacing: 1px;">{label}</div>
             <div style="font-size: 1rem; color: white; font-family: monospace; font-weight: bold;">{val} <span style="color: {color}; font-size: 0.8rem;">{unidade}</span></div>
         </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
+
 
 def motor_card(motor):
     id_m = motor.get("id", "S/N")
     key_det = f"vis_{id_m}"
 
-    # Variável de sessão para controlar se a aba deste motor está aberta
     if "detalhes_visiveis" not in st.session_state:
         st.session_state.detalhes_visiveis = {}
 
-    # --- 1. O BOTÃO (QUE SERVE DE FUNDO PARA O CARD) ---
     st.markdown('<div class="card-button-wrapper">', unsafe_allow_html=True)
     clicked = st.button(" ", key=f"btn_{id_m}", use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
     if clicked:
-        # Alterna entre abrir e fechar a aba
         st.session_state.detalhes_visiveis[key_det] = not st.session_state.detalhes_visiveis.get(key_det, False)
 
-    # --- 2. O VISUAL DO CARD (QUE FICA POR CIMA DO BOTÃO) ---
-    # Usamos margin-top negativo para colocar o texto exatamente em cima do botão
-    st.markdown(f"""
+    st.markdown(
+        f"""
         <div style="margin-top: -160px; margin-bottom: 25px; padding: 18px; pointer-events: none; position: relative; z-index: 5;">
-            <small style="color: #00ffff; font-family: monospace; letter-spacing: 2px;">REGISTRO TÉCNICO ID: #{id_m}</small>
+            <small style="color: #00ffff; font-family: monospace; letter-spacing: 2px;">REGISTRO TECNICO ID: #{id_m}</small>
             <div style="font-size: 1.35rem; color: white; font-weight: bold; margin-top: 5px;">
                 {str(motor.get('marca', '---')).upper()} <span style="font-weight: 300; color: #aaa; font-size: 1.1rem;">{motor.get('modelo', '')}</span>
             </div>
             <div style="font-size: 0.7rem; color: #8b949e;">MOTORES {str(motor.get('fases', '')).upper()}</div>
-            
+
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px; margin-top: 12px;">
                 <div style="text-align: center;">
-                    <div style="font-size: 0.6rem; color: #8b949e; text-transform: uppercase;">Potência</div>
-                    <div style="font-size: 1.1rem; font-weight: bold; color: #00f2ff;">{motor.get('potencia_hp_cv','-')}</div>
+                    <div style="font-size: 0.6rem; color: #8b949e; text-transform: uppercase;">Potencia</div>
+                    <div style="font-size: 1.1rem; font-weight: bold; color: #00f2ff;">{motor.get('potencia_hp_cv', '-')}</div>
                 </div>
                 <div style="text-align: center; border-left: 1px solid rgba(255,255,255,0.1); border-right: 1px solid rgba(255,255,255,0.1);">
-                    <div style="font-size: 0.6rem; color: #8b949e; text-transform: uppercase;">Rotação</div>
-                    <div style="font-size: 1.1rem; font-weight: bold; color: #10b981;">{motor.get('rpm_nominal','-')} <small style="font-size:0.6rem;">RPM</small></div>
+                    <div style="font-size: 0.6rem; color: #8b949e; text-transform: uppercase;">Rotacao</div>
+                    <div style="font-size: 1.1rem; font-weight: bold; color: #10b981;">{motor.get('rpm_nominal', '-')} <small style="font-size:0.6rem;">RPM</small></div>
                 </div>
                 <div style="text-align: center;">
-                    <div style="font-size: 0.6rem; color: #8b949e; text-transform: uppercase;">Tensão</div>
-                    <div style="font-size: 1.1rem; font-weight: bold; color: #a855f7;">{motor.get('tensao_v','-')}V</div>
+                    <div style="font-size: 0.6rem; color: #8b949e; text-transform: uppercase;">Tensao</div>
+                    <div style="font-size: 1.1rem; font-weight: bold; color: #a855f7;">{motor.get('tensao_v', '-')}V</div>
                 </div>
             </div>
         </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
-    # --- 3. A ABA EXPANDIDA COM OS DADOS DO CSV ---
     if st.session_state.detalhes_visiveis.get(key_det):
-        st.markdown("<div style='background: rgba(0,25,35,0.95); border: 1px solid #00ffff44; border-radius: 8px; padding: 20px; margin-top: -15px; margin-bottom: 30px;'>", unsafe_allow_html=True)
-        
-        t1, t2, t3 = st.tabs(["📋 CONEXÃO", "🌀 BOBINAGEM", "⚙️ MECÂNICA"])
-        
+        st.markdown(
+            "<div style='background: rgba(0,25,35,0.95); border: 1px solid #00ffff44; border-radius: 8px; padding: 20px; margin-top: -15px; margin-bottom: 30px;'>",
+            unsafe_allow_html=True,
+        )
+
+        t1, t2, t3 = st.tabs(["Conexao", "Bobinagem", "Mecanica"])
+
         with t1:
-            st.markdown("<small style='color:#8b949e;'>LIGAÇÃO DE CABOS PADRÃO</small>", unsafe_allow_html=True)
+            st.markdown("<small style='color:#8b949e;'>LIGACAO DE CABOS PADRAO</small>", unsafe_allow_html=True)
             st.code("1:AZ | 2:BR | 3:LA | 4:AM | 5:PR | 6:VM", language="")
             render_dado("Amperagem Nominal", motor.get("corrente_nominal_a"), "A")
             render_dado("Capacitores", f"{motor.get('capacitor_permanente', '')} / {motor.get('capacitor_partida', '')}")
-            
+
         with t2:
             col_p, col_a = st.columns(2)
             with col_p:
@@ -85,11 +93,11 @@ def motor_card(motor):
                 render_dado("Passo (A)", limpar_passo(motor.get("passo_auxiliar")))
                 render_dado("Fio (A)", motor.get("bitola_fio_auxiliar"))
                 render_dado("Espiras (A)", motor.get("espiras_auxiliar"))
-            render_dado("Ligação Interna", motor.get("ligacao_interna"), highlight=True)
-            
+            render_dado("Ligacao Interna", motor.get("ligacao_interna"), highlight=True)
+
         with t3:
             render_dado("Ranhuras", motor.get("numero_ranhuras"))
             render_dado("Pacote (mm)", motor.get("comprimento_pacote_mm"))
             render_dado("Rolamentos", f"D: {motor.get('rolamento_dianteiro')} / T: {motor.get('rolamento_traseiro')}")
-        
+
         st.markdown("</div>", unsafe_allow_html=True)

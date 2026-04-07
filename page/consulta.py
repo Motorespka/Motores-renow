@@ -1,123 +1,92 @@
 import streamlit as st
-import re
 
-# =============================
-# FUNÇÕES AUXILIARES
-# =============================
-def limpar_passo(passo_raw):
-    if not passo_raw: 
-        return "---"
-    s = str(passo_raw).strip()
-    s = re.sub(r"^[1][\s?:\-]*", "", s)
-    return s.replace(":", " ").replace("-", " ").strip()
+from components.motor_card import motor_card
+from services.supabase_data import fetch_motores_cached
 
-def render_dado(label, valor, unidade="", highlight=False):
-    color = "#00ffff" if not highlight else "#f59e0b"
-    val = valor if valor and str(valor).lower() not in ["none", "nan", ""] else "---"
-    st.markdown(f"""
-        <div style="background: rgba(0,255,255,0.03); border:1px solid rgba(0,255,255,0.1);
-        border-radius:6px; padding:10px; margin-bottom:5px;">
-            <div style="font-size:0.65rem; color:#8b949e; text-transform:uppercase; letter-spacing:1px;">{label}</div>
-            <div style="font-size:0.95rem; color:white; font-family:monospace; font-weight:bold;">
-            {val} <span style="color:{color}; font-size:0.75rem;">{unidade}</span>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
 
-# =============================
-# TELA PRINCIPAL
-# =============================
+def _to_text(value) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _unique_values(rows, keys):
+    values = set()
+    for row in rows:
+        for key in keys:
+            val = _to_text(row.get(key))
+            if val:
+                values.add(val)
+                break
+    return sorted(values)
+
+
 def show(supabase):
-    st.set_page_config(page_title="Consulta Motores", layout="wide")
-    
-    # =============================
-    # SIDEBAR
-    # =============================
-    st.sidebar.title("Menu Moto-Renow")
-    pagina = st.sidebar.radio("Escolha a página:", ["Consulta", "Cadastro"])
-    
-    st.session_state['pagina'] = pagina  # mantém o estado
-    
-    # =============================
-    # BUSCA DE MOTORES
-    # =============================
-    st.title("🔍 Central de Motores")
-    busca = st.text_input("🔎 Pesquisar motor...", placeholder="Ex: Weg 2cv 4 polos")
-    
-    try:
-        res = supabase.table("motores").select("*").order("id", desc=True).execute()
-        motores = res.data if res.data else []
-    except:
-        st.error("Erro ao conectar ao banco.")
-        return
+    st.title("Central de Motores")
+    busca_texto = st.text_input("Pesquisar motor...", placeholder="Ex: Weg 2cv 4 polos")
 
-    if busca:
-        q = busca.lower()
-        motores = [m for m in motores if q in f"{m.get('marca','')} {m.get('modelo','')} {m.get('potencia_hp_cv','')}".lower()]
+    try:
+        motores = fetch_motores_cached(supabase)
+    except Exception as e:
+        st.error(f"Erro ao consultar motores: {e}")
+        return
 
     if not motores:
-        st.info("Nenhum motor encontrado.")
+        st.info("Nenhum motor cadastrado no sistema.")
         return
 
-    if "detalhes_visiveis" not in st.session_state:
-        st.session_state.detalhes_visiveis = {}
+    motores_filtrados = motores
 
-    # =============================
-    # RENDERIZAÇÃO DE CARDS
-    # =============================
-    for m in motores:
-        id_m = m.get("id")
-        key_det = f"vis_{id_m}"
+    if busca_texto:
+        query = busca_texto.lower().strip()
+        motores_filtrados = [
+            m
+            for m in motores_filtrados
+            if query in f"{m.get('marca', '')} {m.get('modelo', '')} {m.get('potencia_hp_cv', '')}".lower()
+        ]
 
-        # BOTÃO INVISÍVEL PARA TOGGLE DO CARD
-        if st.button("", key=f"btn_{id_m}"):
-            st.session_state.detalhes_visiveis[key_det] = not st.session_state.detalhes_visiveis.get(key_det, False)
-            st.experimental_rerun()
+    marcas = _unique_values(motores, ["marca"])
+    potencias = _unique_values(motores, ["potencia_hp_cv"])
+    tensoes = _unique_values(motores, ["tensao_v"])
+    rpms = _unique_values(motores, ["rpm_nominal"])
+    polos = _unique_values(motores, ["polos", "numero_polos"])
 
-        # CARD GRANDE CLICÁVEL
-        card_html = f"""
-        <div style="
-            background: linear-gradient(145deg,#081018,#05070d);
-            border: 2px solid #00ffff33;
-            border-radius:18px; padding:25px;
-            box-shadow:0 0 30px #00ffff22; margin:20px auto;
-            max-width:600px; text-align:center; cursor:pointer;
-            transition: 0.3s; 
-        " 
-        onmouseover="this.style.boxShadow='0 0 60px #00ffff44'" 
-        onmouseout="this.style.boxShadow='0 0 30px #00ffff22'">
-            <div style="font-size:1.5rem; color:#00ffff; font-weight:800;">{m.get('marca','---').upper()}</div>
-            <div style="color:#aaa; font-size:1rem; margin-bottom:10px;">{m.get('modelo','-')}</div>
-            <div style="display:flex; justify-content:space-around; margin-top:15px; font-weight:bold;">
-                <div style="color:#00ffff;">{m.get('potencia_hp_cv','-')} HP</div>
-                <div style="color:#10b981;">{m.get('rpm_nominal','-')} RPM</div>
-                <div style="color:#f59e0b;">{m.get('corrente_nominal_a','-')} A</div>
-            </div>
-        </div>
-        """
-        st.markdown(card_html, unsafe_allow_html=True)
+    st.sidebar.markdown("### Filtros")
 
-        # =============================
-        # DETALHES EXPANDIDOS
-        # =============================
-        if st.session_state.detalhes_visiveis.get(key_det):
-            st.markdown("<div style='background:rgba(0,10,20,0.95); border:1px solid #00ffff44; border-radius:12px; padding:20px; margin-bottom:40px;'>", unsafe_allow_html=True)
-            st.markdown("### 🛠️ Detalhes do Motor")
+    marca_sel = st.sidebar.selectbox("Marca", ["Todas"] + marcas, key="filtro_marca")
+    if marca_sel != "Todas":
+        motores_filtrados = [m for m in motores_filtrados if _to_text(m.get("marca")) == marca_sel]
 
-            fases = str(m.get('fases','')).upper()
-            t_liga, t_bobina, t_mecanica = st.tabs(["🔌 Ligações", "🌀 Bobinagem", "⚙️ Mecânica"])
+    potencia_sel = st.sidebar.selectbox("Potencia", ["Todas"] + potencias, key="filtro_potencia")
+    if potencia_sel != "Todas":
+        motores_filtrados = [m for m in motores_filtrados if _to_text(m.get("potencia_hp_cv")) == potencia_sel]
 
-            with t_liga:
-                if "MONO" in fases:
-                    st.code("5 e 6 cabos monofásicos...", language="text")
-                else:
-                    st.code("6 e 12 cabos trifásicos...", language="text")
+    tensao_sel = st.sidebar.selectbox("Tensao (V)", ["Todas"] + tensoes, key="filtro_tensao")
+    if tensao_sel != "Todas":
+        motores_filtrados = [m for m in motores_filtrados if _to_text(m.get("tensao_v")) == tensao_sel]
 
-            with t_bobina:
-                render_dado("Passo Principal", limpar_passo(m.get("passo_principal")))
-                render_dado("Fio Principal", m.get("bitola_fio_principal"))
+    rpm_sel = st.sidebar.selectbox("RPM", ["Todas"] + rpms, key="filtro_rpm")
+    if rpm_sel != "Todas":
+        motores_filtrados = [m for m in motores_filtrados if _to_text(m.get("rpm_nominal")) == rpm_sel]
 
-            with t_mecanica:
-                render_dado("Rolamentos", f"{m.get('rolamento_dianteiro','-')} / {m.get('rolamento_traseiro','-')}")
+    polos_sel = st.sidebar.selectbox("Polos", ["Todos"] + polos, key="filtro_polos")
+    if polos_sel != "Todos":
+        motores_filtrados = [
+            m
+            for m in motores_filtrados
+            if _to_text(m.get("polos") or m.get("numero_polos")) == polos_sel
+        ]
 
-            st.markdown("</div>", unsafe_allow_html=True)
+    if st.sidebar.button("Limpar filtros", key="limpar_filtros_btn"):
+        for k in ["filtro_marca", "filtro_potencia", "filtro_tensao", "filtro_rpm", "filtro_polos"]:
+            st.session_state.pop(k, None)
+        st.experimental_rerun()
+
+    if not motores_filtrados:
+        st.info("Nenhum motor encontrado com os filtros aplicados.")
+        return
+
+    cols = st.columns(3)
+    for i, motor in enumerate(motores_filtrados):
+        with cols[i % 3]:
+            motor_card(motor)
