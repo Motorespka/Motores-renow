@@ -26,10 +26,11 @@ def _inject_consulta_styles() -> None:
         }
         .stTextInput > div > div > input {
             border: 1px solid rgba(0, 242, 255, 0.25) !important;
-            border-radius: 8px !important;
+            border-radius: 9px !important;
             background: rgba(9, 20, 33, 0.85) !important;
             color: #d9f7ff !important;
             font-size: 0.95rem !important;
+            min-height: 44px !important;
         }
         .stTextInput > div > div > input:focus {
             border-color: rgba(0, 242, 255, 0.65) !important;
@@ -47,8 +48,17 @@ def _inject_consulta_styles() -> None:
             box-shadow: inset 0 0 20px rgba(0,242,255,0.08);
         }
         .consulta-wrap {
-            max-width: 1060px;
+            max-width: 780px;
             margin: 0 auto;
+            padding-bottom: 0.2rem;
+        }
+        .consulta-wrap h1 {
+            margin-bottom: 0.35rem;
+        }
+        @media (max-width: 768px) {
+            .consulta-wrap {
+                max-width: 100%;
+            }
         }
         </style>
         """,

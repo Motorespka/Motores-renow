@@ -1,11 +1,12 @@
 ﻿from __future__ import annotations
 
 from html import escape
+import re
 from typing import Any, Dict, Iterable, List, Sequence, Tuple
 
 import streamlit as st
 
-from utils.motor_view import ALIASES, NOT_INFORMED, display_subtitle, display_title, friendly, pick_value, resolve_motor_image_url
+from utils.motor_view import ALIASES, NOT_INFORMED, friendly, pick_value, resolve_motor_image_url
 
 try:
     from utils.configuracoes_motor import obter_configuracoes_ligacao
@@ -99,6 +100,38 @@ ARQUIVOS_FIELDS: List[FieldSpec] = [
     ("Observacoes", ["observacoes"]),
 ]
 
+BRAND_HINTS = {
+    "WEG",
+    "HERCULES",
+    "SCHNEIDER",
+    "SIEMENS",
+    "TOSHIBA",
+    "ELETROPLAS",
+    "JET",
+    "JETPUMP",
+    "DANCOR",
+    "BOSCH",
+    "TRAMONTINA",
+    "LEAO",
+    "METAL",
+    "BOMBAS",
+}
+
+TITLE_STOPWORDS = {
+    "MOTOR",
+    "MOTORES",
+    "MONOFASICOS",
+    "TRIFASICOS",
+    "DADOS",
+    "BOBINAGEM",
+    "CAPACITOR",
+    "PARTIDA",
+    "ARQUIVO",
+    "REGISTRO",
+    "PDF",
+    "ID",
+}
+
 
 def _inject_styles() -> None:
     if st.session_state.get("_motor_card_styles_loaded"):
@@ -109,37 +142,103 @@ def _inject_styles() -> None:
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Rajdhani:wght@500;700&display=swap');
 
-        .motor-card-btn div[data-testid="stButton"] > button {
-            width: 100%;
-            min-height: 112px;
-            border-radius: 13px;
-            border: 1px solid rgba(0, 242, 255, 0.42) !important;
+        .motor-card-click-wrap {
+            position: relative;
+            margin: 0.95rem 0 1.35rem 0;
+            cursor: pointer;
+        }
+        .motor-card-visual {
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(0, 242, 255, 0.34);
+            border-radius: 14px;
             background:
-                linear-gradient(160deg, rgba(3, 14, 28, 0.95), rgba(3, 10, 20, 0.95)),
-                repeating-linear-gradient(0deg, rgba(0, 242, 255, 0.05) 0px, rgba(0, 242, 255, 0.05) 1px, transparent 1px, transparent 20px);
-            color: #e8f7ff !important;
-            box-shadow: 0 4px 14px rgba(0, 242, 255, 0.14) !important;
-            padding: 0.85rem 0.9rem;
+                radial-gradient(circle at 20% 0%, rgba(0, 242, 255, 0.08), transparent 50%),
+                linear-gradient(160deg, rgba(3, 13, 24, 0.96), rgba(2, 9, 17, 0.96)),
+                repeating-linear-gradient(0deg, rgba(0, 242, 255, 0.03) 0px, rgba(0, 242, 255, 0.03) 1px, transparent 1px, transparent 20px);
+            min-height: 108px;
+            box-shadow: 0 0 0 rgba(0, 242, 255, 0);
+            padding: 0.74rem 0.95rem 0.78rem 0.95rem;
+            transition: all 180ms ease-in-out;
+        }
+        .motor-card-visual::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(0, 242, 255, 0.05), transparent);
+            opacity: 0;
+            transition: opacity 180ms ease-in-out;
+            pointer-events: none;
+        }
+        .motor-card-visual.is-open,
+        .motor-card-click-wrap:hover .motor-card-visual {
+            border-color: rgba(0, 242, 255, 0.92);
+            box-shadow: 0 0 24px rgba(0, 242, 255, 0.24), inset 0 0 16px rgba(0, 242, 255, 0.08);
+        }
+        .motor-card-visual.is-open::before,
+        .motor-card-click-wrap:hover .motor-card-visual::before {
+            opacity: 1;
+        }
+        .motor-card-title {
             text-align: center;
-            white-space: pre-line;
-            line-height: 1.35;
-            font-size: 0.93rem;
-            font-family: "Rajdhani", "Orbitron", "Consolas", monospace !important;
+            color: #00f2ff;
+            font-family: "Orbitron", "Rajdhani", monospace;
+            font-size: 1.04rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-top: 0.06rem;
+            line-height: 1.1;
+        }
+        .motor-card-id {
+            text-align: center;
+            color: #7f9baa;
+            font-family: "Rajdhani", "Consolas", monospace;
+            font-size: 0.67rem;
+            letter-spacing: 0.08em;
+            margin-top: 0.2rem;
+        }
+        .motor-card-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            margin-top: 0.64rem;
+            gap: 0.2rem;
+        }
+        .motor-card-metric {
+            text-align: center;
+            font-family: "Orbitron", "Rajdhani", monospace;
+            font-size: 0.99rem;
+            font-weight: 700;
             letter-spacing: 0.04em;
-            transition: all 150ms ease-in-out;
+            line-height: 1.1;
+            text-transform: uppercase;
         }
-        .motor-card-btn div[data-testid="stButton"] > button:hover {
-            border-color: rgba(0, 242, 255, 0.92) !important;
-            box-shadow: 0 0 16px rgba(0, 242, 255, 0.31) !important;
-            transform: translateY(-1px);
+        .metric-power { color: #53f7ff; }
+        .metric-rpm { color: #4cffb1; }
+        .metric-current { color: #ffba5c; }
+
+        .motor-card-click-wrap div[data-testid="stButton"] {
+            position: absolute;
+            inset: 0;
+            margin: 0 !important;
+            z-index: 3;
         }
-        .motor-card-open div[data-testid="stButton"] > button {
-            border-color: #00f2ff !important;
-            box-shadow: 0 0 24px rgba(0, 242, 255, 0.39) !important;
+        .motor-card-click-wrap div[data-testid="stButton"] > button {
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            border: none !important;
+            background: transparent !important;
+            color: transparent !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            font-size: 0 !important;
+            min-height: 100% !important;
         }
 
         .motor-details-shell {
-            margin-top: 0.12rem;
+            margin-top: 0.05rem;
             margin-bottom: 1.05rem;
             border-radius: 14px;
             border: 1px solid rgba(0, 242, 255, 0.32);
@@ -289,11 +388,13 @@ def _inject_styles() -> None:
         }
 
         @media (max-width: 768px) {
-            .motor-card-btn div[data-testid="stButton"] > button {
+            .motor-card-visual {
                 min-height: 102px;
-                font-size: 0.86rem;
-                padding: 0.78rem 0.72rem;
+                padding: 0.64rem 0.66rem 0.68rem 0.66rem;
             }
+            .motor-card-title { font-size: 0.95rem; }
+            .motor-card-id { font-size: 0.63rem; }
+            .motor-card-metric { font-size: 0.92rem; }
             .motor-metrics {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
@@ -379,8 +480,8 @@ def _render_hologram_panel(motor: Dict[str, Any]) -> None:
 
 
 def _render_header(motor: Dict[str, Any]) -> None:
-    title = display_title(motor)
-    subtitle = display_subtitle(motor)
+    title = _display_title(motor)
+    subtitle = _display_id(motor)
     tipo = _tipo_fase(motor)
     st.markdown(
         f"""
@@ -395,10 +496,10 @@ def _render_header(motor: Dict[str, Any]) -> None:
 
 def _render_kpis(motor: Dict[str, Any]) -> None:
     metrics = [
-        ("Potencia", friendly(pick_value(motor, ["potencia_hp_cv", "potencia_kw"]))),
-        ("RPM", friendly(pick_value(motor, ["rpm_nominal"]))),
+        ("Potencia", _display_power(motor)),
+        ("RPM", _display_rpm(motor)),
         ("Tensao", friendly(pick_value(motor, ["tensao_v"]))),
-        ("Corrente", friendly(pick_value(motor, ["corrente_nominal_a"]))),
+        ("Corrente", _display_current(motor)),
     ]
     items = "".join(
         f'<div class="motor-metric"><div class="k">{escape(k)}</div><div class="v">{escape(v)}</div></div>'
@@ -407,33 +508,203 @@ def _render_kpis(motor: Dict[str, Any]) -> None:
     st.markdown(f'<div class="motor-metrics">{items}</div>', unsafe_allow_html=True)
 
 
+def _blob(motor: Dict[str, Any]) -> str:
+    parts = []
+    for key in [
+        "arquivo",
+        "modelo",
+        "marca",
+        "fabricante",
+        "num_serie",
+        "codigo_interno",
+        "observacoes",
+        "potencia_hp_cv",
+        "potencia_kw",
+        "rpm_nominal",
+        "corrente_nominal_a",
+    ]:
+        raw = motor.get(key)
+        if raw is not None:
+            parts.append(str(raw))
+    return " | ".join(parts)
+
+
+def _regex_first(pattern: str, txt: str) -> str | None:
+    m = re.search(pattern, txt, flags=re.IGNORECASE)
+    if not m:
+        return None
+    return m.group(0).strip()
+
+
+def _compact_text(value: Any) -> str:
+    if value is None:
+        return ""
+    txt = str(value).upper()
+    txt = re.sub(r"\.PDF\b", "", txt, flags=re.IGNORECASE)
+    txt = re.sub(r"[_|]+", " ", txt)
+    txt = re.sub(r"[^A-Z0-9/\-., ]+", " ", txt)
+    txt = re.sub(r"\s+", " ", txt).strip()
+    return txt
+
+
+def _pick_short_candidate(candidates: List[str]) -> str:
+    for raw in candidates:
+        cleaned = _compact_text(raw)
+        if not cleaned:
+            continue
+        if len(cleaned) <= 22 and not re.search(r"\d{2,}.*\d{2,}", cleaned):
+            return cleaned
+    return ""
+
+
+def _detect_brand_token(txt: str) -> str:
+    cleaned = _compact_text(txt)
+    if not cleaned:
+        return ""
+
+    for hint in BRAND_HINTS:
+        if re.search(rf"\b{re.escape(hint)}\b", cleaned):
+            return hint
+
+    for token in cleaned.split():
+        if token in TITLE_STOPWORDS:
+            continue
+        if not re.fullmatch(r"[A-Z0-9/-]{3,18}", token):
+            continue
+        if any(ch.isdigit() for ch in token):
+            continue
+        return token
+    return ""
+
+
+def _clip_metric(value: str, max_chars: int = 14) -> str:
+    txt = re.sub(r"\s+", " ", str(value)).strip()
+    if not txt:
+        return NOT_INFORMED
+    if len(txt) <= max_chars:
+        return txt
+
+    token = re.search(r"\d+(?:[.,]\d+)?(?:/\d+(?:[.,]\d+)?)?", txt)
+    if token:
+        maybe = token.group(0)
+        if "RPM" in txt.upper():
+            return f"{maybe} RPM"
+        if " A" in txt.upper():
+            return f"{maybe} A"
+        if re.search(r"\b(CV|HP|KW)\b", txt.upper()):
+            unit = re.search(r"\b(CV|HP|KW)\b", txt.upper())
+            if unit:
+                return f"{maybe} {unit.group(1)}"
+    return txt[:max_chars].rstrip() + "..."
+
+
+def _display_title(motor: Dict[str, Any]) -> str:
+    raw_candidates: List[str] = []
+    for aliases in (["marca"], ["fabricante"], ["modelo"], ["codigo_interno"], ["arquivo"]):
+        value = pick_value(motor, aliases)
+        if value:
+            raw_candidates.append(str(value))
+
+    direct = _pick_short_candidate(raw_candidates)
+    if direct and direct not in TITLE_STOPWORDS:
+        token = _detect_brand_token(direct)
+        return token if token else direct[:20].rstrip()
+
+    merged = " ".join(raw_candidates + [_blob(motor)])
+    token = _detect_brand_token(merged)
+    if token:
+        return token
+
+    return "MOTOR"
+
+
+def _display_id(motor: Dict[str, Any]) -> str:
+    raw = pick_value(motor, ["codigo_interno", "num_serie"])
+    if raw:
+        return f"ID: {_clip_metric(friendly(raw), max_chars=18)}"
+
+    txt = _blob(motor)
+    m = re.search(r"\bID\s*[:#-]?\s*([A-Za-z0-9.-]+)", txt, flags=re.IGNORECASE)
+    if m:
+        return f"ID: {m.group(1)}"
+
+    return f"ID: {friendly(motor.get('id'))}"
+
+
+def _display_power(motor: Dict[str, Any]) -> str:
+    raw = pick_value(motor, ["potencia_hp_cv", "potencia_kw"])
+    if raw:
+        val = friendly(raw).upper()
+        if re.fullmatch(r"\d+(?:[.,]\d+)?", val):
+            return f"{val} CV"
+        return _clip_metric(val, max_chars=14)
+    txt = _blob(motor)
+    found = _regex_first(r"\b\d+(?:[.,]\d+)?(?:/\d+(?:[.,]\d+)?)?\s*(?:CV|HP|KW)\b", txt)
+    if found:
+        return _clip_metric(found.upper(), max_chars=14)
+    return NOT_INFORMED
+
+
+def _display_rpm(motor: Dict[str, Any]) -> str:
+    raw = pick_value(motor, ["rpm_nominal"])
+    if raw:
+        val = friendly(raw)
+        if re.fullmatch(r"\d{3,5}", val):
+            return f"{val} RPM"
+        rpm_num = _regex_first(r"\d{3,5}", val)
+        if rpm_num:
+            return f"{rpm_num} RPM"
+        return _clip_metric(val.upper(), max_chars=14)
+    txt = _blob(motor)
+    found = _regex_first(r"\b\d{3,5}\s*RPM\b", txt)
+    if found:
+        return _clip_metric(found.upper(), max_chars=14)
+    return NOT_INFORMED
+
+
+def _display_current(motor: Dict[str, Any]) -> str:
+    raw = pick_value(motor, ["corrente_nominal_a"])
+    if raw:
+        val = friendly(raw)
+        if re.fullmatch(r"\d+(?:[.,]\d+)?", val):
+            return f"{val} A"
+        amps = _regex_first(r"\d+(?:[.,]\d+)?(?:/\d+(?:[.,]\d+)?)?", val)
+        if amps:
+            return f"{amps} A"
+        return _clip_metric(val.upper(), max_chars=14)
+    txt = _blob(motor)
+    found = _regex_first(r"\b\d+(?:[.,]\d+)?(?:/\d+(?:[.,]\d+)?)?\s*A\b", txt)
+    if found:
+        return _clip_metric(found.upper(), max_chars=14)
+    return NOT_INFORMED
+
+
 def motor_card(motor: Dict[str, Any], card_id: str, is_expanded: bool) -> bool:
     _inject_styles()
 
-    title_raw = pick_value(motor, ["marca", "fabricante", "codigo_interno"])
-    title = friendly(title_raw).upper() if title_raw else "MOTOR"
-    if len(title) > 22:
-        title = f"{title[:22].rstrip()}..."
+    title = _display_title(motor)
+    subtitle = _display_id(motor)
+    power = _display_power(motor)
+    rpm = _display_rpm(motor)
+    current = _display_current(motor)
 
-    subtitle_raw = pick_value(motor, ["codigo_interno"])
-    if subtitle_raw:
-        subtitle = f"ID: {friendly(subtitle_raw)}"
-    else:
-        subtitle = f"ID: {friendly(motor.get('id'))}"
-
-    potencia = friendly(pick_value(motor, ["potencia_hp_cv", "potencia_kw"]))
-    rpm = friendly(pick_value(motor, ["rpm_nominal"]))
-    corrente = friendly(pick_value(motor, ["corrente_nominal_a"]))
-
-    label = (
-        f"{title}\n"
-        f"{subtitle}\n"
-        f"{potencia}   |   {rpm}   |   {corrente}"
+    visual_cls = "motor-card-visual is-open" if is_expanded else "motor-card-visual"
+    st.markdown('<div class="motor-card-click-wrap">', unsafe_allow_html=True)
+    st.markdown(
+        f"""
+        <div class="{visual_cls}">
+            <div class="motor-card-title">{escape(title)}</div>
+            <div class="motor-card-id">{escape(subtitle)}</div>
+            <div class="motor-card-metrics">
+                <div class="motor-card-metric metric-power">{escape(power)}</div>
+                <div class="motor-card-metric metric-rpm">{escape(rpm)}</div>
+                <div class="motor-card-metric metric-current">{escape(current)}</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
-
-    wrapper_class = "motor-card-btn motor-card-open" if is_expanded else "motor-card-btn"
-    st.markdown(f'<div class="{wrapper_class}">', unsafe_allow_html=True)
-    clicked = st.button(label, key=f"motor_btn_{card_id}", use_container_width=True)
+    clicked = st.button("Abrir detalhes", key=f"motor_btn_{card_id}", use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
     if is_expanded:
@@ -459,7 +730,16 @@ def motor_card(motor: Dict[str, Any], card_id: str, is_expanded: bool) -> bool:
             _render_pairs_grid(motor, BOBINAGEM_FIELDS, columns=2)
             if _is_monofasico(motor):
                 st.markdown("##### Enrolamento auxiliar")
-                _render_pairs_grid(motor, [("Passo auxiliar", ["passo_auxiliar"]), ("Espiras auxiliar", ["espiras_auxiliar"]), ("Bitola auxiliar", ["bitola_fio_auxiliar"]), ("Peso cobre auxiliar", ["peso_cobre_auxiliar_kg"])], columns=2)
+                _render_pairs_grid(
+                    motor,
+                    [
+                        ("Passo auxiliar", ["passo_auxiliar"]),
+                        ("Espiras auxiliar", ["espiras_auxiliar"]),
+                        ("Bitola auxiliar", ["bitola_fio_auxiliar"]),
+                        ("Peso cobre auxiliar", ["peso_cobre_auxiliar_kg"]),
+                    ],
+                    columns=2,
+                )
         with t4:
             _render_pairs_grid(motor, MECANICA_FIELDS, columns=3)
         with t5:

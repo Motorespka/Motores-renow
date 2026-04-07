@@ -4,7 +4,7 @@ import re
 import unicodedata
 from typing import Any, Dict, Iterable
 
-NOT_INFORMED = "Nao informado"
+NOT_INFORMED = "Não informado"
 
 MOTOR_IMAGE_FALLBACKS = [
     "https://images.unsplash.com/photo-1763952626662-419b004e1783?auto=format&fit=crop&fm=jpg&q=55&w=1800",
