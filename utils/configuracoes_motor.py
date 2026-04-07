@@ -1,74 +1,97 @@
-def obter_configuracoes_ligacao(motor_data: dict) -> str:
-    """
-    Retorna uma string descrevendo as configurações de ligação de cabos
-    com base nos dados do motor (tipo, tensões), focando na lógica de ligação.
-    """
-    fases = motor_data.get('fases') # Espera 1 ou 3
-    tensao_v_str = motor_data.get('tensao_v', '') # String com as tensões (ex: "220/380V", "127V", "220/380/440V")
-    
-    configs = []
-    
-    # --- Lógica para Motores Monofásicos (fases == 1) ---
+﻿from __future__ import annotations
+
+from typing import Dict, List
+
+
+def _parse_tensoes(tensao_v: str) -> List[str]:
+    if not tensao_v:
+        return []
+
+    raw = str(tensao_v).replace("V", "").replace("v", "")
+    tokens = raw.replace("/", ",").replace(";", ",").split(",")
+
+    vals: List[str] = []
+    for token in tokens:
+        t = token.strip()
+        if not t:
+            continue
+        if t.isdigit():
+            vals.append(t)
+
+    uniq: List[str] = []
+    seen = set()
+    for val in vals:
+        if val not in seen:
+            uniq.append(val)
+            seen.add(val)
+
+    return sorted(uniq, key=int)
+
+
+def _detectar_fases(raw) -> int | None:
+    if raw is None:
+        return None
+
+    txt = str(raw).strip().lower()
+    if not txt:
+        return None
+
+    if "mono" in txt:
+        return 1
+    if "tri" in txt:
+        return 3
+
+    try:
+        return int(float(txt.replace(",", ".")))
+    except Exception:
+        return None
+
+
+def obter_configuracoes_ligacao(motor_data: Dict) -> str:
+    fases = _detectar_fases(motor_data.get("fases"))
+    tensoes = _parse_tensoes(motor_data.get("tensao_v", ""))
+    origem_tensao = str(motor_data.get("tensao_v", "")).strip() or "nao informada"
+
+    configs: List[str] = []
+
     if fases == 1:
-        tensões_suportadas = sorted([t.strip().replace('v', '').replace('V', '') 
-                                     for t in tensao_v_str.replace('/', ' ').replace(',', ' ').split() 
-                                     if t.strip().isdigit()])
-        
-        if not tensões_suportadas:
-            configs.append(f"Motor Monofásico. Tensão não especificada ('{tensao_v_str}'). Consulte o manual.")
-        elif len(tensões_suportadas) == 1:
-            configs.append(f"Tensão única {tensões_suportadas[0]}V. A ligação interna já está configurada para esta tensão.")
-        elif len(tensões_suportadas) >= 2:
-            configs.append(f"**Para {tensões_suportadas[0]}V:** Ligar enrolamentos em série (consulte o diagrama específico).")
-            configs.append(f"**Para {tensões_suportadas[1]}V:** Ligar enrolamentos em paralelo (consulte o diagrama específico).")
-            if len(tensões_suportadas) > 2:
-                configs.append(f"Tensões adicionais encontradas: {', '.join(tensões_suportadas[2:])}. Verifique o diagrama.")
-        else:
-            configs.append(f"Motor Monofásico com tensões não especificadas ('{tensao_v_str}'). Consulte o manual.")
+        if not tensoes:
+            return f"Motor monofasico. Tensao {origem_tensao}. Consultar placa do fabricante."
 
-    # --- Lógica para Motores Trifásicos (fases == 3) ---
-    elif fases == 3:
-        tensões_suportadas = sorted([t.strip().replace('v', '').replace('V', '') 
-                                     for t in tensao_v_str.replace('/', ' ').replace(',', ' ').split() 
-                                     if t.strip().isdigit()])
+        if len(tensoes) == 1:
+            return f"Tensao unica {tensoes[0]}V. Fechamento conforme placa do fabricante."
 
-        if not tensões_suportadas:
-             configs.append(f"Motor Trifásico. Tensão não especificada ('{tensao_v_str}'). Consulte o manual do fabricante.")
-        else:
-            tensões_ordenadas = sorted(tensões_suportadas, key=int)
+        configs.append(f"Para {tensoes[0]}V: fechamento de baixa tensao (tipicamente paralelo).")
+        configs.append(f"Para {tensoes[1]}V: fechamento de alta tensao (tipicamente serie).")
+        if len(tensoes) > 2:
+            configs.append(f"Tensoes adicionais: {', '.join(tensoes[2:])}. Verificar diagrama especifico.")
+        return "\n".join(configs)
 
-            if "220" in tensões_ordenadas and "380" in tensões_ordenadas:
-                configs.append(f"Para 220V: Ligar em **Triângulo (Δ)**.")
-                configs.append(f"Para 380V: Ligar em **Estrela (Y)**.")
-            
-            if "380" in tensões_ordenadas and "660" in tensões_ordenadas:
-                configs.append(f"Para 380V: Ligar em **Triângulo (Δ)**.")
-                configs.append(f"Para 660V: Ligar em **Estrela (Y)**.")
+    if fases == 3:
+        if not tensoes:
+            return f"Motor trifasico. Tensao {origem_tensao}. Consultar placa do fabricante."
 
-            if "220" in tensões_ordenadas and "380" in tensões_ordenadas and "440" in tensões_ordenadas:
-                configs.append(f"Para 220V: Ligar em **Triângulo (Δ)**.")
-                configs.append(f"Para 380V: Ligar em **Estrela (Y)**.")
-                configs.append(f"Para 440V: Ligar em **Estrela (Y)** (configuração específica para 440V).")
-            
-            tensões_mapadas = set()
-            if "220" in tensões_ordenadas: tensões_mapadas.add("220")
-            if "380" in tensões_ordenadas: tensões_mapadas.add("380")
-            if "440" in tensões_ordenadas: tensões_mapadas.add("440")
-            if "660" in tensões_ordenadas: tensões_mapadas.add("660")
-            
-            tensões_nao_mapeadas = [t for t in tensões_suportadas if t not in tensões_mapadas]
-            if tensões_nao_mapeadas:
-                 configs.append(f"Outras tensões suportadas: {', '.join(tensões_nao_mapeadas)}. Consulte o diagrama para ligações específicas.")
+        tens_set = set(tensoes)
+        if {"220", "380"}.issubset(tens_set):
+            configs.append("220V: Triangulo (Delta).")
+            configs.append("380V: Estrela (Y).")
+        if {"380", "660"}.issubset(tens_set):
+            configs.append("380V: Triangulo (Delta).")
+            configs.append("660V: Estrela (Y).")
 
-            if len(tensões_suportadas) == 1:
-                tensao = tensões_suportadas[0]
-                if tensao == "220": configs.append(f"Tensão única 220V: Geralmente ligado em **Triângulo (Δ)**.")
-                elif tensao == "380": configs.append(f"Tensão única 380V: Geralmente ligado em **Estrela (Y)**.")
-                elif tensao == "440": configs.append(f"Tensão única 440V: Geralmente ligado em **Estrela (Y)**.")
-                elif tensao == "660": configs.append(f"Tensão única 660V: Geralmente ligado em **Estrela (Y)**.")
-                else: configs.append(f"Tensão única {tensao}V. Consulte o diagrama de ligação.")
+        if not configs and len(tensoes) == 1:
+            t = tensoes[0]
+            if t == "220":
+                configs.append("220V: tipicamente Triangulo (Delta).")
+            elif t in {"380", "440", "660"}:
+                configs.append(f"{t}V: tipicamente Estrela (Y).")
+            else:
+                configs.append(f"{t}V: consultar diagrama da placa.")
 
-    else:
-        configs.append(f"Tipo de motor não especificado ou desconhecido (Fases: {fases}). Consulte o manual.")
+        extras = [t for t in tensoes if t not in {"220", "380", "440", "660"}]
+        if extras:
+            configs.append(f"Outras tensoes: {', '.join(extras)}. Verificar diagrama especifico.")
 
-    return "\n".join(configs)
+        return "\n".join(configs) if configs else "Consultar placa para configuracao de ligacao."
+
+    return f"Tipo de motor nao especificado (fases={motor_data.get('fases')}). Consulte o manual."

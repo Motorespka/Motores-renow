@@ -1,35 +1,39 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import re
 import unicodedata
 from typing import Any, Dict, Iterable
 
-NOT_INFORMED = "Não informado"
+NOT_INFORMED = "Nao informado"
 
 MOTOR_IMAGE_FALLBACKS = [
-    "https://images.unsplash.com/photo-1763952626662-419b004e1783?auto=format&fit=crop&fm=jpg&q=60&w=1600",
-    "https://images.unsplash.com/photo-1763952626662-419b004e1783?auto=format&fit=crop&fm=jpg&q=50&w=2000",
+    "https://images.unsplash.com/photo-1763952626662-419b004e1783?auto=format&fit=crop&fm=jpg&q=55&w=1800",
+    "https://images.unsplash.com/photo-1763952626662-419b004e1783?auto=format&fit=crop&fm=jpg&q=45&w=1200",
 ]
 
+# Aliases orientados pelo schema real da tabela public.motores.
 ALIASES = {
-    "marca": ["marca", "fabricante", "brand", "manufacturer", "marca_motor"],
-    "modelo": ["modelo", "modelo_motor", "nome", "linha", "num_serie", "codigo_interno", "codigo"],
-    "potencia": [
-        "potencia_hp_cv",
-        "potencia",
-        "potencia_kw",
-        "potencia_cv",
-        "potencia_hp",
-        "cv",
-        "cavalaria",
-        "horsepower",
-    ],
-    "rpm": ["rpm_nominal", "rpm", "rotacao", "rotacao_nominal", "velocidade_nominal"],
-    "corrente": ["corrente_nominal_a", "corrente", "amperagem", "corrente_nominal", "current"],
-    "polos": ["polos", "numero_polos", "poles", "n_polos", "qtd_polos"],
-    "fases": ["fases", "fase", "tipo_fase", "tipo_enrolamento", "phases"],
+    "marca": ["marca", "fabricante", "brand", "manufacturer"],
+    "modelo": ["modelo", "num_serie", "codigo_interno", "arquivo", "modelo_motor", "nome"],
+    "potencia": ["potencia_hp_cv", "potencia_kw", "potencia", "potencia_cv", "potencia_hp", "cv", "cavalaria"],
+    "rpm": ["rpm_nominal", "rpm", "rotacao", "rotacao_nominal"],
+    "corrente": ["corrente_nominal_a", "corrente", "amperagem", "corrente_nominal"],
+    "polos": ["polos", "numero_polos", "poles", "n_polos"],
+    "fases": ["fases", "fase", "tipo_fase", "tipo_enrolamento"],
     "tensao": ["tensao_v", "tensao", "voltagem", "voltage", "v"],
-    "imagem": ["imagem_url", "image_url", "foto_url", "url_imagem", "motor_image", "photo_url", "imagem", "foto"],
+    "frequencia": ["frequencia_hz", "frequencia", "hz"],
+    "imagem": [
+        "url_foto_placa",
+        "url_desenho_tecnico",
+        "imagem_url",
+        "image_url",
+        "foto_url",
+        "url_imagem",
+        "motor_image",
+        "photo_url",
+        "imagem",
+        "foto",
+    ],
 }
 
 
@@ -92,6 +96,7 @@ def normalize_motor_record(row: Dict[str, Any]) -> Dict[str, Any]:
     motor["polos"] = pick_value(motor, ALIASES["polos"])
     motor["fases"] = pick_value(motor, ALIASES["fases"])
     motor["tensao_v"] = pick_value(motor, ALIASES["tensao"])
+    motor["frequencia_hz"] = pick_value(motor, ALIASES["frequencia"])
     motor["imagem_motor_url"] = resolve_motor_image_url(motor)
 
     if is_empty(motor.get("modelo")):
@@ -110,3 +115,18 @@ def resolve_motor_image_url(motor: Dict[str, Any]) -> str:
     only_digits = "".join(ch for ch in raw_id if ch.isdigit()) or "0"
     idx = int(only_digits) % len(MOTOR_IMAGE_FALLBACKS)
     return MOTOR_IMAGE_FALLBACKS[idx]
+
+
+def display_title(motor: Dict[str, Any]) -> str:
+    for aliases in [ALIASES["marca"], ["codigo_interno"], ["arquivo"], ALIASES["modelo"]]:
+        value = pick_value(motor, aliases)
+        if not is_empty(value):
+            return str(value).strip().upper()
+    return f"REGISTRO #{friendly(motor.get('id'))}"
+
+
+def display_subtitle(motor: Dict[str, Any]) -> str:
+    codigo = pick_value(motor, ["codigo_interno"])
+    if not is_empty(codigo):
+        return f"ID: {friendly(codigo)}"
+    return f"ID: {friendly(motor.get('id'))}"
