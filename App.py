@@ -5,6 +5,7 @@ from supabase import create_client
 
 from auth.login import render_login
 from core.navigation import AppContext, Route, Router, render_navigation_sidebar
+from components.admin_inteligencia import render_admin_inteligencia_sidebar
 from core.session_manager import SessionManager
 from page import cadastro, consulta, diagnostico, edit, motor_detail
 
@@ -46,6 +47,7 @@ def main() -> None:
     router = build_router()
 
     render_navigation_sidebar(session)
+    render_admin_inteligencia_sidebar()
 
     ctx = AppContext(supabase=supabase, session=session, router=router)
     router.dispatch(ctx, session.get_route())
