@@ -11,13 +11,7 @@ from supabase import Client
 
 MotorRow = Dict[str, Any]
 
-
-try:
-    # Reexport para compatibilidade com telas legadas.
-    from utils.configuracoes_motor import obter_configuracoes_ligacao
-except Exception:
-    def obter_configuracoes_ligacao(_motor_data: Dict[str, Any]) -> str:
-        return "Configuracoes de ligacao indisponiveis."
+from utils.configuracoes_motor import obter_configuracoes_ligacao
 
 
 @st.cache_data(
@@ -43,11 +37,5 @@ def fetch_motor_by_id_cached(supabase: Client, motor_id: int) -> MotorRow | None
 
 
 def clear_motores_cache() -> None:
-    try:
-        fetch_motores_cached.clear()
-    except Exception:
-        pass
-    try:
-        fetch_motor_by_id_cached.clear()
-    except Exception:
-        pass
+    fetch_motores_cached.clear()
+    fetch_motor_by_id_cached.clear()

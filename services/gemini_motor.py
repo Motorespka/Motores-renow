@@ -66,8 +66,8 @@ def obter_chave_gemini():
         sec = getattr(st, "secrets", None)
         if sec is not None and "GEMINI_API_KEY" in sec:
             return str(sec["GEMINI_API_KEY"]).strip()
-    except Exception:
-        pass
+    except Exception as exc:
+        raise RuntimeError("Falha ao ler GEMINI_API_KEY em st.secrets") from exc
     return ""
 
 
