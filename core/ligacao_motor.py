@@ -1,93 +1,146 @@
-# core/ligacoes_motor.py
-
-def _split(valor):
-    """Divide strings como '220/380' ou '220, 380' em uma lista de strings limpas."""
-    if not valor:
+def _split_values(value):
+    """Divide strings como '220/380' ou '220, 380' em lista limpa."""
+    if value is None:
         return []
-    return [
-        v.strip()
-        for v in str(valor).replace("/", ",").split(",")
-        if v.strip()
-    ]
+    raw = str(value).replace("V", "").replace("v", "")
+    tokens = raw.replace("/", ",").replace(";", ",").split(",")
+    return [t.strip() for t in tokens if t and t.strip()]
+
+
+def _to_int(value):
+    try:
+        return int(float(str(value).replace(",", ".").strip()))
+    except Exception:
+        return None
+
+
+def _sorted_tensoes(values):
+    unique = []
+    seen = set()
+    for v in values:
+        if v not in seen:
+            unique.append(v)
+            seen.add(v)
+    return sorted(unique, key=lambda x: _to_int(x) if _to_int(x) is not None else 999999)
+
+
+def _corrente_for(correntes, idx):
+    if idx < len(correntes):
+        return correntes[idx]
+    return "-"
+
+
+def _is_monofasico(motor):
+    fases = str(motor.get("fases", "")).strip().lower()
+    tipo = str(motor.get("tipo_enrolamento", "")).strip().lower()
+    if "mono" in fases or fases == "1":
+        return True
+    if "mono" in tipo:
+        return True
+    return False
 
 
 def gerar_ligacoes_motor(motor):
     """
-    Analisa os dados do motor e gera os esquemas de fechamento
-    baseado na quantidade de tensões e tipo de enrolamento.
+    Gera recomendacoes de fechamento por tensao baseada em pratica industrial.
     """
-    tipo = str(motor.get("tipo_enrolamento", "")).lower()
-    tensoes = _split(motor.get("tensao_v"))
-    correntes = _split(motor.get("corrente_nominal_a"))
-
-    # Define a quantidade de opções baseada no que houver mais (tensão ou corrente)
-    qtd = max(len(tensoes), len(correntes))
+    tensoes = _sorted_tensoes(_split_values(motor.get("tensao_v")))
+    correntes = _split_values(motor.get("corrente_nominal_a"))
     ligacoes = []
 
-    # ==================================================
-    # 1. LOGICA PARA MOTORES MONOFÁSICOS
-    # ==================================================
-    if "mono" in tipo:
-        if qtd <= 1:
-            # Padrão para motores monofásicos simples
-            ligacoes.append({
-                "titulo": "Monofásico 5 Cabos",
-                "descricao": "1-2 Principal | 3-4 Auxiliar | 5 Comum",
-                "corrente": correntes[0] if correntes else "-"
-            })
-        else:
-            # Para motores monofásicos de dupla tensão (ex: 110/220V)
-            for i in range(qtd):
-                tensao = tensoes[i] if i < len(tensoes) else "-"
-                corrente = correntes[i] if i < len(correntes) else "-"
-                ligacoes.append({
-                    "titulo": f"Monofásico 6 Cabos — {tensao}V",
-                    "descricao": "Série/Paralelo: (1+3+5) / (2+4+6)",
-                    "corrente": corrente
-                })
+    # 1) Monofasico
+    if _is_monofasico(motor):
+        if not tensoes:
+            ligacoes.append(
+                {
+                    "titulo": "Monofasico",
+                    "descricao": "Consultar diagrama de placa para serie/paralelo.",
+                    "corrente": _corrente_for(correntes, 0),
+                }
+            )
+            return ligacoes
+
+        if len(tensoes) == 1:
+            ligacoes.append(
+                {
+                    "titulo": f"Monofasico {tensoes[0]}V",
+                    "descricao": "Fechamento conforme placa do fabricante.",
+                    "corrente": _corrente_for(correntes, 0),
+                }
+            )
+            return ligacoes
+
+        for i, tensao in enumerate(tensoes):
+            if i == 0:
+                desc = "Tensao baixa: enrolamentos em paralelo (consultar placa)."
+            elif i == 1:
+                desc = "Tensao alta: enrolamentos em serie (consultar placa)."
+            else:
+                desc = "Tensao adicional: consultar diagrama especifico."
+            ligacoes.append(
+                {
+                    "titulo": f"Monofasico {tensao}V",
+                    "descricao": desc,
+                    "corrente": _corrente_for(correntes, i),
+                }
+            )
         return ligacoes
 
-    # ==================================================
-    # 2. LOGICA PARA MOTORES TRIFÁSICOS
-    # ==================================================
-    
-    # Caso 1: Tensão Única (ex: apenas 380V)
-    if qtd == 1:
-        ligacoes.append({
-            "titulo": "Trifásico 6 Cabos",
-            "descricao": "Ligação fixa (Estrela ou Triângulo conforme placa)",
-            "corrente": correntes[0] if correntes else "-"
-        })
+    # 2) Trifasico
+    if not tensoes:
+        ligacoes.append(
+            {
+                "titulo": "Trifasico",
+                "descricao": "Sem tensao informada. Consultar placa do motor.",
+                "corrente": _corrente_for(correntes, 0),
+            }
+        )
+        return ligacoes
 
-    # Caso 2: Duas Tensões (ex: 220/380V ou 380/660V)
-    elif qtd == 2:
-        ligacoes.append({
-            "titulo": f"{tensoes[0]}V (Baixa)",
-            "descricao": "Fechamento em Triângulo (Δ)",
-            "corrente": correntes[0] if correntes else "-"
-        })
-        ligacoes.append({
-            "titulo": f"{tensoes[1]}V (Alta)",
-            "descricao": "Fechamento em Estrela (Y)",
-            "corrente": correntes[1] if len(correntes) > 1 else "-"
-        })
+    if len(tensoes) == 1:
+        ligacoes.append(
+            {
+                "titulo": f"Trifasico {tensoes[0]}V",
+                "descricao": "Fechamento fixo conforme placa (estrela ou triangulo).",
+                "corrente": _corrente_for(correntes, 0),
+            }
+        )
+        return ligacoes
 
-    # Caso 3: Três ou mais Tensões (ex: 220/380/440V)
-    elif qtd >= 3:
-        ligacoes.append({
-            "titulo": f"{tensoes[0]}V",
-            "descricao": "Triângulo Paralelo",
-            "corrente": tensoes[0] if i < len(tensoes) else "-"
-        })
-        ligacoes.append({
-            "titulo": f"{tensoes[1]}V",
-            "descricao": "Estrela Paralelo ou Triângulo Série",
-            "corrente": correntes[1] if len(correntes) > 1 else "-"
-        })
-        ligacoes.append({
-            "titulo": f"{tensoes[2]}V",
-            "descricao": "Estrela Série (Alta Tensão)",
-            "corrente": correntes[2] if len(correntes) > 2 else "-"
-        })
+    if len(tensoes) == 2:
+        ligacoes.append(
+            {
+                "titulo": f"{tensoes[0]}V (Baixa)",
+                "descricao": "Fechamento em Triangulo (Delta).",
+                "corrente": _corrente_for(correntes, 0),
+            }
+        )
+        ligacoes.append(
+            {
+                "titulo": f"{tensoes[1]}V (Alta)",
+                "descricao": "Fechamento em Estrela (Y).",
+                "corrente": _corrente_for(correntes, 1),
+            }
+        )
+        return ligacoes
+
+    # 3) Tres ou mais tensoes (ex.: 220/380/440)
+    for i, tensao in enumerate(tensoes):
+        if i == 0:
+            desc = "Triangulo paralelo (baixa tensao)."
+        elif i == 1:
+            desc = "Estrela paralelo ou triangulo serie."
+        elif i == 2:
+            desc = "Estrela serie (alta tensao)."
+        else:
+            desc = "Tensao adicional: consultar diagrama especifico."
+
+        ligacoes.append(
+            {
+                "titulo": f"{tensao}V",
+                "descricao": desc,
+                "corrente": _corrente_for(correntes, i),
+            }
+        )
 
     return ligacoes
