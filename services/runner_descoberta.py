@@ -35,7 +35,11 @@ def executar_runner_descoberta() -> Dict[str, Any]:
         resumo = executar_descoberta_automatica(supabase)
 
         total = resumo.get("total_descobertas", 0)
-        logger.info("[descoberta_runner] total_descobertas=%s", total)
+        persistidas = resumo.get("total_persistidas", 0)
+        logger.info("[descoberta_runner] total_descobertas=%s | total_persistidas=%s", total, persistidas)
+
+        if resumo.get("tabela_descobertas_ausente"):
+            logger.warning("[descoberta_runner] tabela public.descobertas_ia ausente; descobertas não persistidas")
 
         for item in resumo.get("descobertas", []):
             logger.info(

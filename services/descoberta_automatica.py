@@ -229,6 +229,12 @@ def _discover_enrolamento_ranhuras(rows: List[MotorRow]) -> List[Descoberta]:
     return out
 
 
+
+def _is_missing_descobertas_table_error(exc: Exception) -> bool:
+    txt = str(exc).lower()
+    return "pgrst205" in txt or "could not find the table 'public.descobertas_ia'" in txt
+
+
 def _insert_descoberta(supabase: Any, descoberta: Descoberta) -> None:
     payload = {
         "padrao": descoberta.padrao,
@@ -262,12 +268,25 @@ def executar_descoberta_automatica(supabase: Any) -> Dict[str, Any]:
     descobertas.extend(_discover_potencia_bitola(rows))
     descobertas.extend(_discover_enrolamento_ranhuras(rows))
 
+    persistidas = 0
+    falhas_persistencia = []
+    tabela_descobertas_ausente = False
+
     for d in descobertas:
-        _insert_descoberta(supabase, d)
+        try:
+            _insert_descoberta(supabase, d)
+            persistidas += 1
+        except Exception as exc:
+            if _is_missing_descobertas_table_error(exc):
+                tabela_descobertas_ausente = True
+            falhas_persistencia.append(str(exc))
 
     return {
         "total_motores_lidos": len(rows),
         "total_descobertas": len(descobertas),
+        "total_persistidas": persistidas,
+        "tabela_descobertas_ausente": tabela_descobertas_ausente,
+        "falhas_persistencia": falhas_persistencia[:3],
         "descobertas": [
             {
                 "padrao": d.padrao,

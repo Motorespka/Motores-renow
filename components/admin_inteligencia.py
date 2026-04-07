@@ -33,6 +33,10 @@ def render_admin_inteligencia_sidebar() -> None:
         st.success("Inteligência técnica atualizada com sucesso.")
         st.caption(f"Motores lidos: {resumo.get('total_motores_lidos', 0)}")
         st.caption(f"Descobertas encontradas: {resumo.get('total_descobertas', 0)}")
+        st.caption(f"Descobertas persistidas: {resumo.get('total_persistidas', 0)}")
+
+        if resumo.get("tabela_descobertas_ausente"):
+            st.warning("Tabela public.descobertas_ia não encontrada no Supabase. A análise foi feita, mas não foi persistida.")
 
         for item in resumo.get("descobertas", []):
             st.markdown(
