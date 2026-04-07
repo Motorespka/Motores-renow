@@ -24,6 +24,17 @@ def _inject_consulta_styles() -> None:
         .stTextInput label, .stSidebar label, .stCaption, .stMarkdown, .stInfo, .stWarning {
             font-family: "Rajdhani", "Consolas", monospace !important;
         }
+        .stTextInput > div > div > input {
+            border: 1px solid rgba(0, 242, 255, 0.25) !important;
+            border-radius: 8px !important;
+            background: rgba(9, 20, 33, 0.85) !important;
+            color: #d9f7ff !important;
+            font-size: 0.95rem !important;
+        }
+        .stTextInput > div > div > input:focus {
+            border-color: rgba(0, 242, 255, 0.65) !important;
+            box-shadow: 0 0 0 1px rgba(0, 242, 255, 0.2) !important;
+        }
         .consulta-hud {
             margin: 0.3rem 0 1rem 0;
             border: 1px solid rgba(0, 242, 255, 0.28);
@@ -98,12 +109,8 @@ def _motor_card_id(motor: Dict[str, Any], index: int) -> str:
 def show(supabase):
     _inject_consulta_styles()
     st.markdown('<div class="consulta-wrap">', unsafe_allow_html=True)
-    st.title("Central de Motores")
-    st.markdown(
-        '<div class="consulta-hud">PAINEL TECNICO ONLINE | DADOS SINCRONIZADOS COM SUPABASE</div>',
-        unsafe_allow_html=True,
-    )
-    busca_texto = st.text_input("Pesquisar motor...", placeholder="Pesquisar por marca, modelo, RPM, potencia ou corrente")
+    st.title("🔎 Central de Motores")
+    busca_texto = st.text_input("", placeholder="Pesquisar por Marca ou Modelo...")
 
     try:
         motores_raw = fetch_motores_cached(supabase)

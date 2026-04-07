@@ -111,26 +111,26 @@ def _inject_styles() -> None:
 
         .motor-card-btn div[data-testid="stButton"] > button {
             width: 100%;
-            min-height: 122px;
-            border-radius: 14px;
-            border: 1px solid rgba(0, 242, 255, 0.50) !important;
+            min-height: 112px;
+            border-radius: 13px;
+            border: 1px solid rgba(0, 242, 255, 0.42) !important;
             background:
                 linear-gradient(160deg, rgba(3, 14, 28, 0.95), rgba(3, 10, 20, 0.95)),
                 repeating-linear-gradient(0deg, rgba(0, 242, 255, 0.05) 0px, rgba(0, 242, 255, 0.05) 1px, transparent 1px, transparent 20px);
             color: #e8f7ff !important;
-            box-shadow: 0 6px 16px rgba(0, 242, 255, 0.16) !important;
-            padding: 1rem 1rem;
+            box-shadow: 0 4px 14px rgba(0, 242, 255, 0.14) !important;
+            padding: 0.85rem 0.9rem;
             text-align: center;
             white-space: pre-line;
-            line-height: 1.45;
-            font-size: 0.98rem;
+            line-height: 1.35;
+            font-size: 0.93rem;
             font-family: "Rajdhani", "Orbitron", "Consolas", monospace !important;
-            letter-spacing: 0.03em;
+            letter-spacing: 0.04em;
             transition: all 150ms ease-in-out;
         }
         .motor-card-btn div[data-testid="stButton"] > button:hover {
             border-color: rgba(0, 242, 255, 0.92) !important;
-            box-shadow: 0 0 20px rgba(0, 242, 255, 0.33) !important;
+            box-shadow: 0 0 16px rgba(0, 242, 255, 0.31) !important;
             transform: translateY(-1px);
         }
         .motor-card-open div[data-testid="stButton"] > button {
@@ -290,9 +290,9 @@ def _inject_styles() -> None:
 
         @media (max-width: 768px) {
             .motor-card-btn div[data-testid="stButton"] > button {
-                min-height: 108px;
-                font-size: 0.9rem;
-                padding: 0.85rem 0.8rem;
+                min-height: 102px;
+                font-size: 0.86rem;
+                padding: 0.78rem 0.72rem;
             }
             .motor-metrics {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -419,7 +419,7 @@ def motor_card(motor: Dict[str, Any], card_id: str, is_expanded: bool) -> bool:
     label = (
         f"{title}\n"
         f"{subtitle}\n"
-        f"{potencia} | {rpm} | {corrente}"
+        f"{potencia}      {rpm}      {corrente}"
     )
 
     wrapper_class = "motor-card-btn motor-card-open" if is_expanded else "motor-card-btn"
