@@ -1,16 +1,37 @@
+from __future__ import annotations
+
+from typing import Any, Dict, Iterable, List
+
 import streamlit as st
 
 from components.motor_card import motor_card
 from services.supabase_data import fetch_motores_cached
 
+NOT_INFORMED = "Não informado"
 
-def _to_text(value) -> str:
+
+def _is_empty(value: Any) -> bool:
     if value is None:
+        return True
+    if isinstance(value, str):
+        v = value.strip().lower()
+        return v in {"", "none", "nan", "null"}
+    return False
+
+
+def _to_text(value: Any) -> str:
+    if _is_empty(value):
         return ""
     return str(value).strip()
 
 
-def _unique_values(rows, keys):
+def _friendly(value: Any) -> str:
+    if _is_empty(value):
+        return NOT_INFORMED
+    return str(value).strip()
+
+
+def _unique_values(rows: Iterable[Dict[str, Any]], keys: List[str]) -> List[str]:
     values = set()
     for row in rows:
         for key in keys:
@@ -19,6 +40,13 @@ def _unique_values(rows, keys):
                 values.add(val)
                 break
     return sorted(values)
+
+
+def _motor_card_id(motor: Dict[str, Any], index: int) -> str:
+    raw_id = _to_text(motor.get("id"))
+    if raw_id:
+        return raw_id
+    return f"idx-{index}"
 
 
 def show(supabase):
@@ -42,11 +70,16 @@ def show(supabase):
         motores_filtrados = [
             m
             for m in motores_filtrados
-            if query in f"{m.get('marca', '')} {m.get('modelo', '')} {m.get('potencia_hp_cv', '')}".lower()
+            if query
+            in (
+                f"{_friendly(m.get('marca'))} "
+                f"{_friendly(m.get('modelo'))} "
+                f"{_friendly(m.get('potencia_hp_cv') or m.get('potencia_kw'))}"
+            ).lower()
         ]
 
     marcas = _unique_values(motores, ["marca"])
-    potencias = _unique_values(motores, ["potencia_hp_cv"])
+    potencias = _unique_values(motores, ["potencia_hp_cv", "potencia_kw"])
     tensoes = _unique_values(motores, ["tensao_v"])
     rpms = _unique_values(motores, ["rpm_nominal"])
     polos = _unique_values(motores, ["polos", "numero_polos"])
@@ -57,11 +90,15 @@ def show(supabase):
     if marca_sel != "Todas":
         motores_filtrados = [m for m in motores_filtrados if _to_text(m.get("marca")) == marca_sel]
 
-    potencia_sel = st.sidebar.selectbox("Potencia", ["Todas"] + potencias, key="filtro_potencia")
+    potencia_sel = st.sidebar.selectbox("Potência/CV", ["Todas"] + potencias, key="filtro_potencia")
     if potencia_sel != "Todas":
-        motores_filtrados = [m for m in motores_filtrados if _to_text(m.get("potencia_hp_cv")) == potencia_sel]
+        motores_filtrados = [
+            m
+            for m in motores_filtrados
+            if _to_text(m.get("potencia_hp_cv") or m.get("potencia_kw")) == potencia_sel
+        ]
 
-    tensao_sel = st.sidebar.selectbox("Tensao (V)", ["Todas"] + tensoes, key="filtro_tensao")
+    tensao_sel = st.sidebar.selectbox("Tensão (V)", ["Todas"] + tensoes, key="filtro_tensao")
     if tensao_sel != "Todas":
         motores_filtrados = [m for m in motores_filtrados if _to_text(m.get("tensao_v")) == tensao_sel]
 
@@ -86,7 +123,18 @@ def show(supabase):
         st.info("Nenhum motor encontrado com os filtros aplicados.")
         return
 
-    cols = st.columns(3)
+    if "motor_expandido_id" not in st.session_state:
+        st.session_state.motor_expandido_id = None
+
+    visible_ids = {_motor_card_id(m, i) for i, m in enumerate(motores_filtrados)}
+    if st.session_state.motor_expandido_id not in visible_ids:
+        st.session_state.motor_expandido_id = None
+
     for i, motor in enumerate(motores_filtrados):
-        with cols[i % 3]:
-            motor_card(motor)
+        card_id = _motor_card_id(motor, i)
+        expanded = st.session_state.motor_expandido_id == card_id
+        clicked = motor_card(motor, card_id=card_id, is_expanded=expanded)
+
+        if clicked:
+            st.session_state.motor_expandido_id = None if expanded else card_id
+            st.experimental_rerun()
