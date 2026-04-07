@@ -1,144 +1,55 @@
-import streamlit as st
-import sys
 from pathlib import Path
+
+import streamlit as st
 from supabase import create_client
 
+from auth.login import render_login
+from core.navigation import AppContext, Route, Router, render_navigation_sidebar
+from core.session_manager import SessionManager
+from page import cadastro, consulta, diagnostico, edit, motor_detail
 
-# ===============================
-# 1️⃣ CONFIGURAÇÃO INICIAL
-# ===============================
-st.set_page_config(
-    page_title="Moto-Renow",
-    page_icon="⚙️",
-    layout="wide"
-)
+st.set_page_config(page_title="Moto-Renow", page_icon="⚙️", layout="wide")
 
-# ===============================
-# 2️⃣ PATH DO PROJETO
-# ===============================
-raiz = Path(__file__).resolve().parent
 
-if str(raiz) not in sys.path:
-    sys.path.insert(0, str(raiz))
-
-# ===============================
-# 3️⃣ SESSION STATE
-# ===============================
-if "pagina" not in st.session_state:
-    st.session_state.pagina = "cadastro"
-
-if "logado" not in st.session_state:
-    st.session_state.logado = False
-
-# ===============================
-# 4️⃣ SUPABASE
-# ===============================
 @st.cache_resource
 def init_connection():
-    try:
-        url = st.secrets["SUPABASE_URL"]
-        key = st.secrets["SUPABASE_KEY"]
-        return create_client(url, key)
-    except Exception:
-        st.error("Erro nas credenciais do Supabase.")
-        return None
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    return create_client(url, key)
 
-supabase = init_connection()
 
-# ===============================
-# 5️⃣ CSS GLOBAL
-# ===============================
-def carregar_css():
-    try:
-        css_path = raiz / "assets" / "style.css"
-        if css_path.exists():
-            st.markdown(
-                f"<style>{css_path.read_text(encoding='utf-8')}</style>",
-                unsafe_allow_html=True
-            )
-    except Exception:
-        pass
+def bootstrap_styles() -> None:
+    css_path = Path(__file__).resolve().parent / "assets" / "style.css"
+    st.markdown(f"<style>{css_path.read_text(encoding='utf-8')}</style>", unsafe_allow_html=True)
 
-carregar_css()
 
-# ===============================
-# 6️⃣ UI EXTRA (OPCIONAL)
-# ===============================
-try:
-    from ui.theme import aplicar_tema
-    from ui.animations import iniciar_animacoes
-    aplicar_tema()
-    iniciar_animacoes()
-except Exception:
-    pass
+def build_router() -> Router:
+    router = Router()
+    router.register(Route.CADASTRO, cadastro.render)
+    router.register(Route.CONSULTA, consulta.render)
+    router.register(Route.DETALHE, motor_detail.render)
+    router.register(Route.EDIT, edit.render)
+    router.register(Route.DIAGNOSTICO, diagnostico.render)
+    return router
 
-# ===============================
-# 7️⃣ AUTH LOGIN (GATE)
-# ===============================
-try:
-    from auth.login import check_login
 
-    if not check_login():
+def main() -> None:
+    bootstrap_styles()
+
+    session = SessionManager()
+    session.bootstrap()
+
+    if not render_login(session):
         st.stop()
 
-except Exception as e:
-    st.error(f"Erro no sistema de autenticação: {e}")
-    st.stop()
+    supabase = init_connection()
+    router = build_router()
 
-# ===============================
-# 8️⃣ SIDEBAR
-# ===============================
-try:
-    from streamlit_option_menu import option_menu
-except ModuleNotFoundError:
-    st.error("Instale: pip install streamlit-option-menu")
-    st.stop()
+    render_navigation_sidebar(session)
 
-with st.sidebar:
+    ctx = AppContext(supabase=supabase, session=session, router=router)
+    router.dispatch(ctx, session.get_route())
 
-    idx = 0 if st.session_state.pagina == "cadastro" else 1
 
-    escolha = option_menu(
-        "Moto-Renow",
-        ["cadastro", "consulta"],
-        icons=["plus-circle", "search"],
-        menu_icon="gear",
-        default_index=idx,
-        styles={
-            "container": {"background-color": "#0d1117"},
-            "icon": {"color": "#00f2ff"},
-            "nav-link": {"color": "white"},
-            "nav-link-selected": {
-                "background-color": "#1f2937",
-                "border-left": "4px solid #00f2ff",
-            },
-        },
-    )
-
-    st.session_state.pagina = escolha
-
-    st.divider()
-
-    # LOGOUT
-    if st.button("🚪 Logout", use_container_width=True):
-        st.session_state.clear()
-        st.rerun()
-
-# ===============================
-# 9️⃣ ROUTER DE PÁGINAS
-# ===============================
-try:
-
-    if st.session_state.pagina == "cadastro":
-        from page.cadastro import show
-        show(supabase)
-
-    elif st.session_state.pagina == "consulta":
-        from page.consulta import show
-        show(supabase)
-
-except ModuleNotFoundError as e:
-    st.error(f"Página não encontrada: {e}")
-
-except Exception as e:
-    st.error(f"Erro ao carregar página: {e}")
+if __name__ == "__main__":
+    main()
