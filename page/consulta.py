@@ -35,6 +35,10 @@ def _inject_consulta_styles() -> None:
             letter-spacing: 0.04em;
             box-shadow: inset 0 0 20px rgba(0,242,255,0.08);
         }
+        .consulta-wrap {
+            max-width: 1060px;
+            margin: 0 auto;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -93,12 +97,13 @@ def _motor_card_id(motor: Dict[str, Any], index: int) -> str:
 
 def show(supabase):
     _inject_consulta_styles()
+    st.markdown('<div class="consulta-wrap">', unsafe_allow_html=True)
     st.title("Central de Motores")
     st.markdown(
-        '<div class="consulta-hud">DATABASE LINK: SUPABASE ONLINE | VISUAL CYBER-HUD ATIVO</div>',
+        '<div class="consulta-hud">PAINEL TECNICO ONLINE | DADOS SINCRONIZADOS COM SUPABASE</div>',
         unsafe_allow_html=True,
     )
-    busca_texto = st.text_input("Pesquisar motor...", placeholder="Ex: WEG 5cv 4 polos IP55")
+    busca_texto = st.text_input("Pesquisar motor...", placeholder="Pesquisar por marca, modelo, RPM, potencia ou corrente")
 
     try:
         motores_raw = fetch_motores_cached(supabase)
@@ -177,3 +182,5 @@ def show(supabase):
                     st.session_state.motor_editando = motor
                     st.session_state.pagina = "edit"
                     _rerun()
+
+    st.markdown("</div>", unsafe_allow_html=True)
