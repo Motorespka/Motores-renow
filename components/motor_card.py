@@ -410,8 +410,17 @@ def _render_kpis(motor: Dict[str, Any]) -> None:
 def motor_card(motor: Dict[str, Any], card_id: str, is_expanded: bool) -> bool:
     _inject_styles()
 
-    title = display_title(motor)
-    subtitle = display_subtitle(motor)
+    title_raw = pick_value(motor, ["marca", "fabricante", "codigo_interno"])
+    title = friendly(title_raw).upper() if title_raw else "MOTOR"
+    if len(title) > 22:
+        title = f"{title[:22].rstrip()}..."
+
+    subtitle_raw = pick_value(motor, ["codigo_interno"])
+    if subtitle_raw:
+        subtitle = f"ID: {friendly(subtitle_raw)}"
+    else:
+        subtitle = f"ID: {friendly(motor.get('id'))}"
+
     potencia = friendly(pick_value(motor, ["potencia_hp_cv", "potencia_kw"]))
     rpm = friendly(pick_value(motor, ["rpm_nominal"]))
     corrente = friendly(pick_value(motor, ["corrente_nominal_a"]))
@@ -419,7 +428,7 @@ def motor_card(motor: Dict[str, Any], card_id: str, is_expanded: bool) -> bool:
     label = (
         f"{title}\n"
         f"{subtitle}\n"
-        f"{potencia}      {rpm}      {corrente}"
+        f"{potencia}   |   {rpm}   |   {corrente}"
     )
 
     wrapper_class = "motor-card-btn motor-card-open" if is_expanded else "motor-card-btn"

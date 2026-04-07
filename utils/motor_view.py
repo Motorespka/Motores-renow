@@ -14,7 +14,7 @@ MOTOR_IMAGE_FALLBACKS = [
 # Aliases orientados pelo schema real da tabela public.motores.
 ALIASES = {
     "marca": ["marca", "fabricante", "brand", "manufacturer"],
-    "modelo": ["modelo", "num_serie", "codigo_interno", "arquivo", "modelo_motor", "nome"],
+    "modelo": ["modelo", "num_serie", "codigo_interno", "modelo_motor", "nome"],
     "potencia": ["potencia_hp_cv", "potencia_kw", "potencia", "potencia_cv", "potencia_hp", "cv", "cavalaria"],
     "rpm": ["rpm_nominal", "rpm", "rotacao", "rotacao_nominal"],
     "corrente": ["corrente_nominal_a", "corrente", "amperagem", "corrente_nominal"],
@@ -118,7 +118,7 @@ def resolve_motor_image_url(motor: Dict[str, Any]) -> str:
 
 
 def display_title(motor: Dict[str, Any]) -> str:
-    for aliases in [ALIASES["marca"], ["codigo_interno"], ["arquivo"], ALIASES["modelo"]]:
+    for aliases in [ALIASES["marca"], ["fabricante"], ALIASES["modelo"], ["codigo_interno"]]:
         value = pick_value(motor, aliases)
         if not is_empty(value):
             return str(value).strip().upper()
