@@ -1,175 +1,140 @@
+from __future__ import annotations
+
+from typing import Any, Dict, Iterable, List
+
 import streamlit as st
 
-# =============================
-# 🎨 CSS LOCAL (CYBERPUNK)
-# =============================
-def aplicar_estilo():
-    st.markdown("""
-        <style>
-        /* Grid de resumo */
-        .resumo-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr 1fr;
-            gap: 10px;
-            text-align: center;
-            margin-top: 10px;
-            pointer-events: none;
-        }
+from components.motor_card import motor_card
+from services.supabase_data import fetch_motores_cached
 
-        .label-resumo { 
-            color: #8b949e; 
-            font-size: 0.7rem; 
-            text-transform: uppercase; 
-        }
-
-        .valor-resumo { 
-            color: #00f2ff; 
-            font-weight: bold; 
-            font-size: 1rem; 
-        }
-
-        /* Tabs estilo cyber */
-        .stTabs [data-baseweb="tab-list"] { gap: 10px; }
-
-        .stTabs [data-baseweb="tab"] {
-            background-color: #1f2937;
-            border-radius: 5px 5px 0 0;
-            color: white;
-            padding: 8px 16px;
-        }
-
-        .stTabs [aria-selected="true"] { 
-            background-color: #00f2ff !important; 
-            color: black !important; 
-        }
-        </style>
-    """, unsafe_allow_html=True)
+NOT_INFORMED = "Não informado"
 
 
-# =============================
-# 🚀 MAIN
-# =============================
+def _is_empty(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        v = value.strip().lower()
+        return v in {"", "none", "nan", "null"}
+    return False
+
+
+def _to_text(value: Any) -> str:
+    if _is_empty(value):
+        return ""
+    return str(value).strip()
+
+
+def _friendly(value: Any) -> str:
+    if _is_empty(value):
+        return NOT_INFORMED
+    return str(value).strip()
+
+
+def _unique_values(rows: Iterable[Dict[str, Any]], keys: List[str]) -> List[str]:
+    values = set()
+    for row in rows:
+        for key in keys:
+            val = _to_text(row.get(key))
+            if val:
+                values.add(val)
+                break
+    return sorted(values)
+
+
+def _motor_card_id(motor: Dict[str, Any], index: int) -> str:
+    raw_id = _to_text(motor.get("id"))
+    if raw_id:
+        return raw_id
+    return f"idx-{index}"
+
+
 def show(supabase):
-    aplicar_estilo()
+    st.title("Central de Motores")
+    busca_texto = st.text_input("Pesquisar motor...", placeholder="Ex: Weg 2cv 4 polos")
 
-    st.markdown(
-        '<h2 style="color: #00f2ff; text-align: center;">🔍 Consulta Inteligente</h2>',
-        unsafe_allow_html=True
-    )
-
-    # 🔍 Campo de busca
-    busca = st.text_input(
-        "",
-        placeholder="Pesquisar 5 CV, WEG, Trifásico...",
-        label_visibility="collapsed"
-    )
-
-    # 🔗 Buscar dados
     try:
-        res = supabase.table("motores").select("*").order("id", desc=True).execute()
-        motores = res.data if res.data else []
-    except Exception:
-        st.error("Erro ao conectar com o banco de dados.")
+        motores = fetch_motores_cached(supabase)
+    except Exception as e:
+        st.error(f"Erro ao consultar motores: {e}")
         return
 
-    # 🔎 Filtro
-    if busca:
-        motores = [m for m in motores if busca.lower() in str(m).lower()]
+    if not motores:
+        st.info("Nenhum motor cadastrado no sistema.")
+        return
 
-    # 📌 Estado
-    if "card_selecionado" not in st.session_state:
-        st.session_state.card_selecionado = None
+    motores_filtrados = motores
 
-    # =============================
-    # 🔁 LOOP DOS CARDS
-    # =============================
-    for m in motores:
-        mid = m.get("id")
-        aberto = st.session_state.card_selecionado == mid
-        classe_extra = "card-ativo" if aberto else ""
+    if busca_texto:
+        query = busca_texto.lower().strip()
+        motores_filtrados = [
+            m
+            for m in motores_filtrados
+            if query
+            in (
+                f"{_friendly(m.get('marca'))} "
+                f"{_friendly(m.get('modelo'))} "
+                f"{_friendly(m.get('potencia_hp_cv') or m.get('potencia_kw'))}"
+            ).lower()
+        ]
 
-        # 🔲 Container do card
-        with st.container():
-            # 🔳 Card com estilo
-            st.markdown(f"""
-                <div class="motor-container" style="position: relative;">
-                    <div class="tech-card {classe_extra}" style="position: relative;">
-                        <div style="display: flex; justify-content: space-between;">
-                            <span class="card-title">{str(m.get('marca', 'S/M')).upper()}</span>
-                            <span class="card-subtitle">MODELO: {m.get('modelo', '---')}</span>
-                        </div>
+    marcas = _unique_values(motores, ["marca"])
+    potencias = _unique_values(motores, ["potencia_hp_cv", "potencia_kw"])
+    tensoes = _unique_values(motores, ["tensao_v"])
+    rpms = _unique_values(motores, ["rpm_nominal"])
+    polos = _unique_values(motores, ["polos", "numero_polos"])
 
-                        <div class="resumo-grid">
-                            <div>
-                                <div class="label-resumo">Potência</div>
-                                <div class="valor-resumo">{m.get('potencia_hp_cv', '---')}</div>
-                            </div>
-                            <div>
-                                <div class="label-resumo">RPM</div>
-                                <div class="valor-resumo">{m.get('rpm_nominal', '---')}</div>
-                            </div>
-                            <div>
-                                <div class="label-resumo">Fases</div>
-                                <div class="valor-resumo">{m.get('fases', '---')}</div>
-                            </div>
-                            <div>
-                                <div class="label-resumo">Polos</div>
-                                <div class="valor-resumo">{m.get('polos', '---')}</div>
-                            </div>
-                        </div>
-                    </div>
-            """, unsafe_allow_html=True)
+    st.sidebar.markdown("### Filtros")
 
-            # 🔥 Botão invisível que cobre todo o card
-            if st.button("abrir_card", key=f"btn_{mid}", use_container_width=True):
-                st.session_state.card_selecionado = None if aberto else mid
-                st.rerun()
+    marca_sel = st.sidebar.selectbox("Marca", ["Todas"] + marcas, key="filtro_marca")
+    if marca_sel != "Todas":
+        motores_filtrados = [m for m in motores_filtrados if _to_text(m.get("marca")) == marca_sel]
 
-        # =============================
-        # 📂 GAVETA
-        # =============================
-        if aberto:
-            st.markdown('<div class="gaveta-detalhes">', unsafe_allow_html=True)
+    potencia_sel = st.sidebar.selectbox("Potência/CV", ["Todas"] + potencias, key="filtro_potencia")
+    if potencia_sel != "Todas":
+        motores_filtrados = [
+            m
+            for m in motores_filtrados
+            if _to_text(m.get("potencia_hp_cv") or m.get("potencia_kw")) == potencia_sel
+        ]
 
-            tab_placa, tab_bob, tab_mec, tab_adv = st.tabs([
-                "🏷️ Placa", "🌀 Bobinagem", "⚙️ Mecânica", "🚀 Avançado"
-            ])
+    tensao_sel = st.sidebar.selectbox("Tensão (V)", ["Todas"] + tensoes, key="filtro_tensao")
+    if tensao_sel != "Todas":
+        motores_filtrados = [m for m in motores_filtrados if _to_text(m.get("tensao_v")) == tensao_sel]
 
-            # 🏷️ PLACA
-            with tab_placa:
-                col1, col2 = st.columns(2)
-                col1.write(f"**Cliente:** {m.get('cliente', '---')}")
-                col1.write(f"**Tensão:** {m.get('tensao_v', '---')} V")
-                col1.write(f"**Corrente:** {m.get('corrente_nominal_a', '---')} A")
-                col2.write(f"**Carcaça:** {m.get('carcaca', '---')}")
-                col2.write(f"**Frequência:** {m.get('frequencia_hz', '---')} Hz")
-                col2.write(f"**Fator de Serviço:** {m.get('fator_servico', '---')}")
+    rpm_sel = st.sidebar.selectbox("RPM", ["Todas"] + rpms, key="filtro_rpm")
+    if rpm_sel != "Todas":
+        motores_filtrados = [m for m in motores_filtrados if _to_text(m.get("rpm_nominal")) == rpm_sel]
 
-            # 🌀 BOBINAGEM
-            with tab_bob:
-                col1, col2 = st.columns(2)
-                col1.write("**Principal**")
-                col1.write(f"Bitola: {m.get('bitola_fio_principal', '---')}")
-                col1.write(f"Passo: {m.get('passo_principal', '---')}")
-                col1.write(f"Espiras: {m.get('espiras_principal', '---')}")
-                col2.write("**Auxiliar**")
-                col2.write(f"Bitola: {m.get('bitola_fio_auxiliar', '---')}")
-                col2.write(f"Passo: {m.get('passo_auxiliar', '---')}")
-                col2.write(f"Ligação: {m.get('ligacao_interna', '---')}")
+    polos_sel = st.sidebar.selectbox("Polos", ["Todos"] + polos, key="filtro_polos")
+    if polos_sel != "Todos":
+        motores_filtrados = [
+            m
+            for m in motores_filtrados
+            if _to_text(m.get("polos") or m.get("numero_polos")) == polos_sel
+        ]
 
-            # ⚙️ MECÂNICA
-            with tab_mec:
-                col1, col2 = st.columns(2)
-                col1.write(f"**Rol. Dianteiro:** {m.get('rolamento_dianteiro', '---')}")
-                col1.write(f"**Rol. Traseiro:** {m.get('rolamento_traseiro', '---')}")
-                col2.write(f"**Cap. Partida:** {m.get('capacitor_partida', '---')}")
-                col2.write(f"**Cap. Permanente:** {m.get('capacitor_permanente', '---')}")
+    if st.sidebar.button("Limpar filtros", key="limpar_filtros_btn"):
+        for k in ["filtro_marca", "filtro_potencia", "filtro_tensao", "filtro_rpm", "filtro_polos"]:
+            st.session_state.pop(k, None)
+        st.experimental_rerun()
 
-            # 🚀 AVANÇADO
-            with tab_adv:
-                st.write(f"**Resistência Isolamento:** {m.get('resistencia_isolamento_megohmetro', '---')} MΩ")
-                st.write(f"**Observações:** {m.get('observacoes', 'Nenhuma')}")
-                with st.expander("Dados Técnicos Completos (JSON)"):
-                    st.json(m)
+    if not motores_filtrados:
+        st.info("Nenhum motor encontrado com os filtros aplicados.")
+        return
 
-            st.markdown('</div>', unsafe_allow_html=True)
+    if "motor_expandido_id" not in st.session_state:
+        st.session_state.motor_expandido_id = None
+
+    visible_ids = {_motor_card_id(m, i) for i, m in enumerate(motores_filtrados)}
+    if st.session_state.motor_expandido_id not in visible_ids:
+        st.session_state.motor_expandido_id = None
+
+    for i, motor in enumerate(motores_filtrados):
+        card_id = _motor_card_id(motor, i)
+        expanded = st.session_state.motor_expandido_id == card_id
+        clicked = motor_card(motor, card_id=card_id, is_expanded=expanded)
+
+        if clicked:
+            st.session_state.motor_expandido_id = None if expanded else card_id
+            st.experimental_rerun()
