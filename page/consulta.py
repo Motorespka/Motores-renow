@@ -10,9 +10,6 @@ from utils.motor_view import ALIASES, friendly, is_empty, normalize_motor_record
 
 
 def _inject_consulta_styles() -> None:
-    if st.session_state.get("_consulta_styles_loaded"):
-        return
-
     st.markdown(
         """
         <style>
@@ -64,7 +61,6 @@ def _inject_consulta_styles() -> None:
         """,
         unsafe_allow_html=True,
     )
-    st.session_state["_consulta_styles_loaded"] = True
 
 
 def _rerun() -> None:

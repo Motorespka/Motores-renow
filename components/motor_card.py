@@ -134,9 +134,6 @@ TITLE_STOPWORDS = {
 
 
 def _inject_styles() -> None:
-    if st.session_state.get("_motor_card_styles_loaded"):
-        return
-
     st.markdown(
         """
         <style>
@@ -406,7 +403,6 @@ def _inject_styles() -> None:
         """,
         unsafe_allow_html=True,
     )
-    st.session_state["_motor_card_styles_loaded"] = True
 
 
 def _tipo_fase(motor: Dict[str, Any]) -> str:
@@ -704,7 +700,8 @@ def motor_card(motor: Dict[str, Any], card_id: str, is_expanded: bool) -> bool:
         """,
         unsafe_allow_html=True,
     )
-    clicked = st.button("Abrir detalhes", key=f"motor_btn_{card_id}", use_container_width=True)
+    toggle_label = "Fechar detalhes" if is_expanded else "Abrir detalhes"
+    clicked = st.button(toggle_label, key=f"motor_btn_{card_id}", use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
     if is_expanded:
