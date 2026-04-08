@@ -184,6 +184,60 @@ def _extract_fios_list(text: str) -> List[str]:
     return out
 
 
+def _extract_tensao_list(text: str) -> List[str]:
+    chunks: List[str] = []
+
+    for match in re.finditer(
+        r"(?:tens[aã]o|voltagem)\s*[:=-]?\s*([0-9vV\s/.,-]{2,40})",
+        text,
+        flags=re.IGNORECASE,
+    ):
+        chunks.append(match.group(1))
+
+    # fallback: padrões "220/380V" no texto geral
+    for match in re.finditer(r"(\d{2,4}\s*/\s*\d{2,4}\s*(?:v)?)", text, flags=re.IGNORECASE):
+        chunks.append(match.group(1))
+
+    values: List[str] = []
+    for chunk in chunks:
+        nums = re.findall(r"\d{2,4}(?:[.,]\d+)?", chunk)
+        for raw in nums:
+            num = raw.replace(",", ".")
+            try:
+                val = float(num)
+            except Exception:
+                continue
+            # Faixa ampla para tensão industrial
+            if 80 <= val <= 20000:
+                out = str(int(val)) if val.is_integer() else num
+                if out not in values:
+                    values.append(out)
+    return values
+
+
+def _extract_rpm(text: str) -> str:
+    match = re.search(r"(?:rpm)\s*[:=-]?\s*(\d{3,5})", text, flags=re.IGNORECASE)
+    if match:
+        return match.group(1)
+
+    match = re.search(r"\b(\d{3,5})\s*rpm\b", text, flags=re.IGNORECASE)
+    if match:
+        return match.group(1)
+    return ""
+
+
+def _extract_frequencia(text: str) -> str:
+    match = re.search(r"(\d{2,3})\s*hz\b", text, flags=re.IGNORECASE)
+    return match.group(1) if match else ""
+
+
+def _extract_marca(text: str) -> str:
+    for brand in ["WEG", "ABB", "SIEMENS", "SCHNEIDER", "SEW", "DANCOR"]:
+        if re.search(rf"\b{brand}\b", text, flags=re.IGNORECASE):
+            return brand
+    return ""
+
+
 def _enrich_with_text_heuristics(data: Dict) -> Dict:
     text = _normalize_spaces(
         " ".join(
@@ -210,6 +264,19 @@ def _enrich_with_text_heuristics(data: Dict) -> Dict:
         not potencia_atual or re.fullmatch(r"\d+(?:[.,]\d+)?", potencia_atual)
     ):
         motor["potencia"] = potencia_texto
+
+    tensao_atual = motor.get("tensao")
+    if not tensao_atual:
+        motor["tensao"] = _extract_tensao_list(text)
+
+    if not str(motor.get("rpm") or "").strip():
+        motor["rpm"] = _extract_rpm(text)
+
+    if not str(motor.get("frequencia") or "").strip():
+        motor["frequencia"] = _extract_frequencia(text)
+
+    if not str(motor.get("marca") or "").strip():
+        motor["marca"] = _extract_marca(text)
 
     if not principal.get("passos"):
         principal["passos"] = _extract_numeric_list_after_label(text, r"passos?|passo")
