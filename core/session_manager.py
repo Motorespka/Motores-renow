@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 
 import streamlit as st
 
@@ -42,10 +42,12 @@ class SessionManager:
         return Route(value)
 
     @property
-    def selected_motor_id(self) -> Optional[int]:
+    def selected_motor_id(self) -> Optional[Any]:
         value = st.session_state.get(self.selected_motor_key)
-        return int(value) if value is not None else None
+        if value in (None, ""):
+            return None
+        return value
 
     @selected_motor_id.setter
-    def selected_motor_id(self, value: Optional[int]) -> None:
+    def selected_motor_id(self, value: Optional[Any]) -> None:
         st.session_state[self.selected_motor_key] = value

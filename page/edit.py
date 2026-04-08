@@ -4,7 +4,7 @@ from core.navigation import Route
 from services.supabase_data import clear_motores_cache, fetch_motor_by_id_cached
 
 
-def _update_motor_supabase(supabase, id_motor: int, payload: dict) -> None:
+def _update_motor_supabase(supabase, id_motor, payload: dict) -> None:
     supabase.table("motores").update(payload).eq("id", id_motor).execute()
 
 
