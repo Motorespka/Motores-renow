@@ -1,154 +1,304 @@
-/* =============================
-    🌌 BACKGROUND & ESTRUTURA
-============================= */
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Rajdhani:wght@400;500;600;700&display=swap");
 
-.stApp {
-    background: transparent !important;
-    max-width: 1000px;
-    margin: 0 auto;
+:root {
+    --bg-0: #060b14;
+    --bg-1: #0b1220;
+    --bg-2: #121c2e;
+    --ink: #e8f3ff;
+    --ink-soft: #a9bdd3;
+    --cyan: #20d7ff;
+    --cyan-soft: rgba(32, 215, 255, 0.28);
+    --orange: #ff9f1a;
+    --orange-soft: rgba(255, 159, 26, 0.25);
+    --line: rgba(94, 130, 164, 0.35);
+    --line-strong: rgba(125, 185, 228, 0.45);
+    --card: linear-gradient(165deg, rgba(13, 23, 38, 0.9), rgba(8, 14, 25, 0.92));
+    --shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+}
+
+html,
+body,
+[class*="css"] {
+    font-family: "Rajdhani", "Segoe UI", sans-serif;
 }
 
 body {
-    background: 
-        radial-gradient(circle at 20% 20%, #00ffff11 0%, transparent 40%),
-        radial-gradient(circle at 80% 60%, #0099ff11 0%, transparent 40%),
-        #05070d !important;
-    color: white !important;
-    overflow-x: hidden;
-    font-family: 'Courier New', monospace;
+    color: var(--ink) !important;
+    background:
+        radial-gradient(900px 380px at 15% -5%, rgba(32, 215, 255, 0.12), transparent 58%),
+        radial-gradient(800px 320px at 95% 0%, rgba(255, 159, 26, 0.1), transparent 52%),
+        linear-gradient(160deg, #04070f 0%, #060b14 42%, #050912 100%) !important;
 }
 
-/* Grade animada */
-body::before {
+.stApp {
+    background: transparent !important;
+    max-width: 1320px;
+    margin: 0 auto;
+}
+
+.stApp::before {
     content: "";
     position: fixed;
     inset: 0;
-    background-image: 
-        linear-gradient(#00ffff11 1px, transparent 1px),
-        linear-gradient(90deg, #00ffff11 1px, transparent 1px);
-    background-size: 60px 60px;
-    animation: gridMove 25s linear infinite;
+    background-image:
+        linear-gradient(rgba(39, 91, 130, 0.2) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(39, 91, 130, 0.2) 1px, transparent 1px);
+    background-size: 56px 56px;
+    z-index: -2;
     pointer-events: none;
-    z-index: -1;
 }
 
-@keyframes gridMove {
-    from { transform: translateY(0); }
-    to { transform: translateY(60px); }
-}
-
-/* =============================
-    ⚡ CARD VISUAL
-============================= */
-
-.motor-container {
-    position: relative;
-    width: 100%;
-    margin-bottom: 12px;
-}
-
-.tech-card {
-    background: linear-gradient(145deg, #081018, #05070d);
-    border: 2px solid #00ffff33;
-    border-radius: 15px;
-    padding: 20px;
-    box-shadow: 0 0 20px #00ffff11;
-    transition: all 0.3s ease;
-    text-align: center;
-}
-
-/* Estado ativo */
-.card-ativo {
-    border-color: #00ffff !important;
-    border-bottom: none !important;
-    border-radius: 15px 15px 0 0 !important;
-    box-shadow: 0 0 30px #00ffff22;
-}
-
-.tech-card:hover {
-    border-color: #00ffffaa;
-    box-shadow: 0 0 40px #00ffff33;
-    transform: scale(1.01);
-}
-
-.card-title {
-    font-size: 1.3rem;
-    color: #00ffff;
-    font-weight: 800;
-    letter-spacing: 2px;
-}
-
-.card-subtitle {
-    color: #8b949e;
-    font-size: 0.85rem;
-}
-
-/* =============================
-    🖱️ BOTÃO FUNCIONAL (SEM BUG)
-============================= */
-
-/* Botão ocupa área inteira do container */
-.motor-container button {
-    position: absolute !important;
+.stApp::after {
+    content: "";
+    position: fixed;
     inset: 0;
-    width: 100% !important;
-    height: 100% !important;
-    opacity: 0;
-    cursor: pointer;
-    z-index: 10;
+    background: linear-gradient(transparent 96%, rgba(32, 215, 255, 0.07) 100%);
+    background-size: 100% 5px;
+    animation: scan 14s linear infinite;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.35;
 }
 
-/* Remove qualquer efeito */
-.motor-container button:hover,
-.motor-container button:focus,
-.motor-container button:active {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
+@keyframes scan {
+    from { transform: translateY(0); }
+    to { transform: translateY(120px); }
 }
 
-/* =============================
-    📂 GAVETA
-============================= */
-
-.gaveta-detalhes {
-    background: rgba(8, 16, 24, 0.95);
-    border: 2px solid #00ffff;
-    border-top: none;
-    border-radius: 0 0 15px 15px;
-    padding: 20px;
-    margin-top: -5px;
-    margin-bottom: 25px;
-    animation: slideDown 0.3s ease-out;
+h1, h2, h3 {
+    font-family: "Orbitron", "Rajdhani", sans-serif;
+    letter-spacing: 0.02em;
 }
 
-@keyframes slideDown {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
+p, span, label, li {
+    letter-spacing: 0.01em;
 }
 
-/* =============================
-    INPUTS
-============================= */
-
-.stTextInput input {
-    background-color: rgba(0, 255, 255, 0.05) !important;
-    border: 1px solid #00ffff33 !important;
-    color: #00ffff !important;
-    border-radius: 8px !important;
-    padding: 10px !important;
+[data-testid="stSidebar"] > div {
+    background: linear-gradient(185deg, rgba(11, 17, 30, 0.95), rgba(8, 13, 22, 0.92));
+    border-right: 1px solid var(--line);
+    box-shadow: inset -1px 0 0 rgba(32, 215, 255, 0.14);
 }
 
-.stTextInput input:focus {
-    border-color: #00ffff !important;
-    box-shadow: 0 0 15px #00ffff33 !important;
+[data-testid="stSidebar"] h2 {
+    color: var(--ink);
 }
 
-/* =============================
-    RESPONSIVO
-============================= */
+[data-testid="stSidebar"] .stCaption {
+    color: var(--ink-soft);
+}
 
-@media (max-width: 768px) {
-    .tech-card { padding: 15px; width: 98%; }
-    .card-title { font-size: 1.1rem; }
+div[data-testid="stButton"] > button {
+    border-radius: 12px !important;
+    border: 1px solid var(--line-strong) !important;
+    background:
+        linear-gradient(180deg, rgba(17, 29, 48, 0.95), rgba(10, 16, 29, 0.95)) !important;
+    color: var(--ink) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 8px 22px rgba(0, 0, 0, 0.4);
+    transition: all 0.2s ease;
+    font-weight: 600;
+}
+
+div[data-testid="stButton"] > button:hover {
+    transform: translateY(-1px);
+    border-color: var(--cyan) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        0 10px 25px rgba(0, 0, 0, 0.45),
+        0 0 0 1px rgba(32, 215, 255, 0.22);
+}
+
+div[data-testid="stButton"] > button[kind="primary"] {
+    background:
+        linear-gradient(120deg, rgba(16, 58, 87, 0.96), rgba(12, 86, 125, 0.9)) !important;
+    border-color: rgba(74, 210, 255, 0.75) !important;
+}
+
+div[data-baseweb="input"],
+div[data-baseweb="select"],
+textarea,
+input {
+    border-radius: 10px !important;
+}
+
+.stTextInput input,
+.stTextArea textarea,
+.stNumberInput input,
+[data-baseweb="select"] > div {
+    background: rgba(10, 19, 33, 0.86) !important;
+    color: var(--ink) !important;
+    border: 1px solid rgba(84, 126, 170, 0.42) !important;
+}
+
+.stTextInput input:focus,
+.stTextArea textarea:focus,
+.stNumberInput input:focus,
+[data-baseweb="select"] > div:focus-within {
+    border-color: var(--cyan) !important;
+    box-shadow: 0 0 0 2px rgba(32, 215, 255, 0.18) !important;
+}
+
+div[data-testid="stMarkdownContainer"] code {
+    color: #d9f8ff;
+    background: rgba(10, 25, 40, 0.9);
+    border: 1px solid rgba(71, 131, 168, 0.4);
+}
+
+.stAlert {
+    border-radius: 12px !important;
+    border: 1px solid var(--line) !important;
+}
+
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    border: 1px solid rgba(98, 137, 176, 0.34) !important;
+    border-radius: 16px !important;
+    background: var(--card) !important;
+    box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+    overflow: hidden;
+}
+
+[data-testid="stExpander"] {
+    border: 1px solid rgba(91, 128, 164, 0.34) !important;
+    border-radius: 12px !important;
+    background: rgba(9, 16, 29, 0.78) !important;
+}
+
+/* Consulta - hero */
+.consulta-hero {
+    padding: 18px 18px 8px 18px;
+}
+
+.consulta-hero__tag {
+    display: inline-block;
+    border: 1px solid var(--cyan-soft);
+    background: rgba(10, 37, 58, 0.6);
+    color: #7cecff;
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+.consulta-hero h1 {
+    margin: 10px 0 6px 0;
+    font-size: clamp(1.5rem, 2.8vw, 2.2rem);
+}
+
+.consulta-hero p {
+    margin: 0;
+    color: var(--ink-soft);
+    font-size: 1rem;
+}
+
+.dash-kpi {
+    border: 1px solid rgba(93, 134, 172, 0.34);
+    background: linear-gradient(180deg, rgba(12, 21, 35, 0.94), rgba(9, 15, 27, 0.9));
+    border-radius: 14px;
+    padding: 12px 14px;
+    min-height: 88px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.dash-kpi span {
+    color: var(--ink-soft);
+    font-size: 0.88rem;
+    display: block;
+}
+
+.dash-kpi strong {
+    color: #f2fbff;
+    font-size: 1.75rem;
+    line-height: 1.15;
+    font-family: "Orbitron", "Rajdhani", sans-serif;
+}
+
+.motor-headline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.motor-id {
+    color: #9ec9e7;
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+    margin-bottom: 2px;
+}
+
+.motor-title {
+    font-size: 1.22rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #ebf8ff;
+}
+
+.motor-title span {
+    color: #9cc0db;
+    font-weight: 500;
+}
+
+.motor-chip {
+    border-radius: 999px;
+    border: 1px solid var(--orange-soft);
+    color: #ffd8a6;
+    background: rgba(95, 45, 0, 0.35);
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.metric-tile {
+    border: 1px solid rgba(94, 131, 168, 0.36);
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(13, 24, 40, 0.93), rgba(8, 15, 26, 0.92));
+    padding: 10px 12px;
+    min-height: 76px;
+}
+
+.metric-tile span {
+    display: block;
+    color: #8fb0ca;
+    font-size: 0.84rem;
+    margin-bottom: 2px;
+}
+
+.metric-tile strong {
+    font-size: 1.15rem;
+    color: #dcf5ff;
+    font-weight: 700;
+}
+
+.inline-pill {
+    margin-top: 6px;
+    margin-bottom: 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(87, 126, 164, 0.35);
+    padding: 8px 10px;
+    color: #b7d0e3;
+    background: rgba(7, 16, 28, 0.82);
+}
+
+.inline-pill b {
+    color: #f4fbff;
+}
+
+@media (max-width: 980px) {
+    .stApp {
+        max-width: 100%;
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    .motor-headline {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .motor-chip {
+        align-self: flex-start;
+    }
 }

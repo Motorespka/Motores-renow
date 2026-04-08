@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import json
 from typing import Any, Dict, List
 
@@ -19,6 +20,13 @@ def _to_text(value: Any) -> str:
     if isinstance(value, list):
         return ", ".join(str(v) for v in value if str(v).strip())
     return str(value).strip()
+
+
+def _safe(value: Any, fallback: str = "-") -> str:
+    txt = _to_text(value)
+    if not txt:
+        txt = fallback
+    return html.escape(txt)
 
 
 def _pick_first(row: Dict[str, Any], *keys: str) -> str:
@@ -107,9 +115,26 @@ def _render_expanded_sections(motor: Dict[str, Any]) -> None:
             st.write(f"- {u}")
 
 
-def render(ctx) -> None:
-    st.title("🔎 Consulta Técnica de Motores")
+def _render_consulta_header(total: int, filtrados: int, trifasicos: int, monofasicos: int) -> None:
+    st.markdown(
+        """
+        <div class="consulta-hero">
+            <div class="consulta-hero__tag">PAINEL TÉCNICO</div>
+            <h1>Consulta de Motores</h1>
+            <p>Visual industrial para localizar, comparar e navegar pelos motores com mais clareza.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
+    c1, c2, c3, c4 = st.columns(4)
+    c1.markdown(f'<div class="dash-kpi"><span>Total</span><strong>{total}</strong></div>', unsafe_allow_html=True)
+    c2.markdown(f'<div class="dash-kpi"><span>Filtrados</span><strong>{filtrados}</strong></div>', unsafe_allow_html=True)
+    c3.markdown(f'<div class="dash-kpi"><span>Trifásicos</span><strong>{trifasicos}</strong></div>', unsafe_allow_html=True)
+    c4.markdown(f'<div class="dash-kpi"><span>Monofásicos</span><strong>{monofasicos}</strong></div>', unsafe_allow_html=True)
+
+
+def render(ctx) -> None:
     try:
         raw = fetch_motores_cached(ctx.supabase)
     except Exception as e:
@@ -122,7 +147,10 @@ def render(ctx) -> None:
 
     motores = [_normalize_motor_record(r) for r in raw]
 
-    busca = st.text_input("Busca geral", placeholder="Marca, modelo, potência, rpm, tensão, corrente, polos...").strip().lower()
+    busca = st.text_input(
+        "Busca geral",
+        placeholder="Marca, modelo, potência, rpm, tensão, corrente, polos...",
+    ).strip().lower()
     filtrados = [m for m in motores if busca in _search_blob(m)] if busca else motores
 
     st.sidebar.markdown("### Filtros")
@@ -142,22 +170,38 @@ def render(ctx) -> None:
         filtrados = [m for m in filtrados if _to_text(m.get("fases")) == fases]
     filtrados = [m for m in filtrados if _matches_range(_to_text(m.get("rpm")), rpm_range)]
 
-    st.caption(f"Resultados encontrados: {len(filtrados)}")
+    tri_count = sum(1 for m in filtrados if "tri" in _to_text(m.get("fases")).lower())
+    mono_count = sum(1 for m in filtrados if "mono" in _to_text(m.get("fases")).lower())
+    _render_consulta_header(len(motores), len(filtrados), tri_count, mono_count)
+
     if not filtrados:
         st.warning("Nenhum motor encontrado com os filtros atuais.")
         return
 
     for m in filtrados:
         with st.container(border=True):
-            st.markdown(f"### {m.get('marca') or '-'} | {m.get('modelo') or '-'}")
-            c1, c2, c3, c4 = st.columns(4)
-            c1.write(f"**Potência:** {m.get('potencia') or '-'}")
-            c2.write(f"**RPM:** {m.get('rpm') or '-'}")
-            c3.write(f"**Tensão:** {m.get('tensao') or '-'}")
-            c4.write(f"**Corrente:** {m.get('corrente') or '-'}")
+            st.markdown(
+                f"""
+                <div class="motor-headline">
+                    <div>
+                        <div class="motor-id">#{_safe(m.get('id'))}</div>
+                        <div class="motor-title">{_safe(m.get('marca'))} <span>{_safe(m.get('modelo'))}</span></div>
+                    </div>
+                    <div class="motor-chip">{_safe(m.get('tipo_motor'), fallback='Tipo não informado')}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            k1, k2, k3, k4 = st.columns(4)
+            k1.markdown(f'<div class="metric-tile"><span>Potência</span><strong>{_safe(m.get("potencia"))}</strong></div>', unsafe_allow_html=True)
+            k2.markdown(f'<div class="metric-tile"><span>RPM</span><strong>{_safe(m.get("rpm"))}</strong></div>', unsafe_allow_html=True)
+            k3.markdown(f'<div class="metric-tile"><span>Tensão</span><strong>{_safe(m.get("tensao"))}</strong></div>', unsafe_allow_html=True)
+            k4.markdown(f'<div class="metric-tile"><span>Corrente</span><strong>{_safe(m.get("corrente"))}</strong></div>', unsafe_allow_html=True)
+
             d1, d2 = st.columns(2)
-            d1.write(f"**Polos:** {m.get('polos') or '-'}")
-            d2.write(f"**Tipo:** {m.get('tipo_motor') or '-'}")
+            d1.markdown(f'<div class="inline-pill">Polos: <b>{_safe(m.get("polos"))}</b></div>', unsafe_allow_html=True)
+            d2.markdown(f'<div class="inline-pill">Fases: <b>{_safe(m.get("fases"))}</b></div>', unsafe_allow_html=True)
 
             b1, b2 = st.columns(2)
             with b1:
