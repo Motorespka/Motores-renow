@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import os
+import re
 from typing import Dict, List, Tuple
 
 import google.generativeai as genai
@@ -27,6 +28,11 @@ Objetivo:
 3) Entenda variações de nomenclatura (RPM/rpm, CV/HP/kW, AMP/A, passo/passos, fio/fios, espira/espiras).
 4) Identifique blocos principal e auxiliar quando houver.
 5) Interprete desenho manual como texto técnico resumido.
+6) Mantenha unidade da potência exatamente como estiver (ex.: "230 kVA", "7,5 CV", "5.5 kW").
+7) Em bobinagem, capture sequências de caderno/oficina:
+   - "passos 6 8 10 12" -> passos: ["6","8","10","12"]
+   - "espiras 5 5 5 5" -> espiras: ["5","5","5","5"]
+   - "8x17 e 1x18 fios" -> fios: ["8x17","1x18"]
 
 Responda APENAS JSON válido com o formato:
 {
@@ -116,6 +122,100 @@ def _to_supported_image_bytes(file_name: str, raw_bytes: bytes) -> Tuple[bytes, 
     return out.getvalue(), "image/jpeg"
 
 
+def _normalize_spaces(text: str) -> str:
+    return re.sub(r"\s+", " ", text or "").strip()
+
+
+def _extract_potencia_with_unit(text: str) -> str:
+    match = re.search(
+        r"(\d+(?:[.,]\d+)?)\s*(kva|kv\s*a|kw|cv|hp|w)\b",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return ""
+
+    value = match.group(1).replace(",", ".")
+    unit_raw = match.group(2).lower().replace(" ", "")
+    unit_map = {"kva": "kVA", "kw": "kW", "cv": "CV", "hp": "HP", "w": "W"}
+    unit = unit_map.get(unit_raw, unit_raw.upper())
+    return f"{value} {unit}"
+
+
+def _extract_numeric_list_after_label(text: str, label_pattern: str) -> List[str]:
+    match = re.search(
+        rf"(?:{label_pattern})\s*[:=-]?\s*([0-9\s,;/\\.-]{{2,80}})",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return []
+    nums = re.findall(r"\d+(?:[.,]\d+)?", match.group(1))
+    return [n.replace(",", ".") for n in nums]
+
+
+def _extract_fios_list(text: str) -> List[str]:
+    block_match = re.search(
+        r"(?:fios?|fio)\s*[:=-]?\s*([0-9xX\s,;/\\.+-eE]{2,120})",
+        text,
+        flags=re.IGNORECASE,
+    )
+    scope = block_match.group(1) if block_match else text
+
+    tokens = re.findall(r"\d+\s*[xX]\s*\d+(?:[.,]\d+)?", scope)
+    out: List[str] = []
+    for token in tokens:
+        norm = re.sub(r"\s+", "", token).lower().replace("x", "x")
+        if norm not in out:
+            out.append(norm)
+    return out
+
+
+def _enrich_with_text_heuristics(data: Dict) -> Dict:
+    text = _normalize_spaces(
+        " ".join(
+            [
+                str(data.get("texto_ocr") or ""),
+                str(data.get("texto_normalizado") or ""),
+                str(data.get("observacoes_gerais") or ""),
+            ]
+        )
+    )
+    if not text:
+        return data
+
+    motor = data.get("motor") if isinstance(data.get("motor"), dict) else {}
+    principal = (
+        data.get("bobinagem_principal")
+        if isinstance(data.get("bobinagem_principal"), dict)
+        else {}
+    )
+
+    potencia_atual = str(motor.get("potencia") or "").strip()
+    potencia_texto = _extract_potencia_with_unit(text)
+    if potencia_texto and (
+        not potencia_atual or re.fullmatch(r"\d+(?:[.,]\d+)?", potencia_atual)
+    ):
+        motor["potencia"] = potencia_texto
+
+    if not principal.get("passos"):
+        principal["passos"] = _extract_numeric_list_after_label(text, r"passos?|passo")
+
+    if not principal.get("espiras"):
+        principal["espiras"] = _extract_numeric_list_after_label(
+            text, r"espiras?|espira"
+        )
+
+    if not principal.get("fios"):
+        principal["fios"] = _extract_fios_list(text)
+
+    if motor:
+        data["motor"] = motor
+    if principal:
+        data["bobinagem_principal"] = principal
+    return data
+
+
 def extract_motor_data_with_gemini(files: List[Dict[str, bytes]]) -> Dict:
     keys = _gemini_keys()
     if not keys:
@@ -136,6 +236,7 @@ def extract_motor_data_with_gemini(files: List[Dict[str, bytes]]) -> Dict:
             model = genai.GenerativeModel(model_name)
             response = model.generate_content(parts)
             data = normalize_extracted_data(parse_json_response(response.text or ""))
+            data = normalize_extracted_data(_enrich_with_text_heuristics(data))
             if not data.get("arquivo_origem"):
                 data["arquivo_origem"] = ", ".join(file_names)
             return data

@@ -97,13 +97,26 @@ def _to_list(value: Any) -> List[str]:
     if not text:
         return []
 
-    parts = re.split(r"\s*[;,|/\\]\s*|\s+-\s+", text)
+    parts = re.split(r"\s*[;,|/\\]\s*|\s+-\s+|\s+\be\b\s+", text, flags=re.IGNORECASE)
     values = []
     for p in parts:
         p = p.strip()
         if p:
             values.append(p)
-    return values or [text]
+    if not values:
+        return [text]
+
+    # Caso comum em anotações de bobinagem: "6 8 10 12"
+    if len(values) == 1 and re.fullmatch(r"\d+(?:\s+\d+)+", values[0]):
+        return values[0].split()
+
+    # Caso comum de fio: "8x17 1x18" (se vier sem vírgula)
+    if len(values) == 1 and re.search(r"\d+\s*[xX]\s*\d+", values[0]):
+        fio_tokens = re.findall(r"\d+\s*[xX]\s*\d+(?:[.,]\d+)?", values[0])
+        if len(fio_tokens) > 1:
+            return [t.replace(" ", "").lower().replace("x", "x") for t in fio_tokens]
+
+    return values
 
 
 def normalize_extracted_data(payload: Dict[str, Any]) -> Dict[str, Any]:
