@@ -238,6 +238,22 @@ def _extract_marca(text: str) -> str:
     return ""
 
 
+def _extract_fases(text: str) -> str:
+    # Primeiro tenta por palavras explícitas.
+    if re.search(r"\btri\s*f[aá]sico\b|\btrif[aá]sico\b", text, flags=re.IGNORECASE):
+        return "Trifásico"
+    if re.search(r"\bmono\s*f[aá]sico\b|\bmonof[aá]sico\b", text, flags=re.IGNORECASE):
+        return "Monofásico"
+
+    # Padrões comuns de placa: "3~", "1~", "3-280L", "1 - 90S", "3F", "1F".
+    if re.search(r"(?<!\d)3\s*([~\-]|f\b)", text, flags=re.IGNORECASE):
+        return "Trifásico"
+    if re.search(r"(?<!\d)1\s*([~\-]|f\b)", text, flags=re.IGNORECASE):
+        return "Monofásico"
+
+    return ""
+
+
 def _enrich_with_text_heuristics(data: Dict) -> Dict:
     text = _normalize_spaces(
         " ".join(
@@ -277,6 +293,9 @@ def _enrich_with_text_heuristics(data: Dict) -> Dict:
 
     if not str(motor.get("marca") or "").strip():
         motor["marca"] = _extract_marca(text)
+
+    if not str(motor.get("fases") or "").strip():
+        motor["fases"] = _extract_fases(text)
 
     if not principal.get("passos"):
         principal["passos"] = _extract_numeric_list_after_label(text, r"passos?|passo")
