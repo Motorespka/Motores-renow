@@ -39,10 +39,10 @@ def main() -> None:
     session = SessionManager()
     session.bootstrap()
 
-    if not render_login(session):
-        st.stop()
-
     supabase = init_connection()
+
+    if not render_login(session, supabase):
+        st.stop()
     router = build_router()
 
     render_navigation_sidebar(session)

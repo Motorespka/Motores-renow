@@ -1,15 +1,5 @@
 import streamlit as st
 from postgrest.exceptions import APIError
-from supabase import create_client
-
-
-@st.cache_resource
-def init_connection():
-    url = st.secrets.get("SUPABASE_URL")
-    key = st.secrets.get("SUPABASE_KEY")
-    if not url or not key:
-        raise RuntimeError("SUPABASE_URL/SUPABASE_KEY não encontrados em st.secrets")
-    return create_client(url, key)
 
 
 def _salvar_perfil_usuario(supabase, user_id: str, username: str, nome: str, email: str) -> None:
@@ -22,7 +12,7 @@ def _salvar_perfil_usuario(supabase, user_id: str, username: str, nome: str, ema
         "plan": "free",
         "ativo": True,
     }
-    # upsert evita conflito caso exista trigger automático de criação de perfil
+    # Perfil sempre vinculado ao ID real de auth.users
     supabase.table("usuarios_app").upsert(payload, on_conflict="id").execute()
 
 
@@ -44,11 +34,10 @@ def _carregar_perfil_usuario(supabase, user_id: str, email: str):
     return None
 
 
-def render_login(session) -> bool:
+def render_login(session, supabase) -> bool:
     if session.is_authenticated:
         return True
 
-    supabase = init_connection()
     st.title("🔐 Moto-Renow • Acesso Técnico")
 
     tab_login, tab_cadastro = st.tabs(["Entrar", "Criar Conta"])
@@ -62,18 +51,36 @@ def render_login(session) -> bool:
                 st.warning("Por favor, preencha todos os campos.")
             else:
                 try:
-                    auth_res = supabase.auth.sign_in_with_password({"email": email, "password": senha})
-                    user = getattr(auth_res, "user", None)
-                    if not user:
-                        st.error("Falha no login. Verifique e-mail/senha ou confirmação de e-mail.")
-                    else:
-                        perfil = _carregar_perfil_usuario(supabase, user.id, email)
-                        st.session_state["auth_user_id"] = user.id
-                        st.session_state["auth_user_email"] = email
-                        st.session_state["auth_user_profile"] = perfil
-                        session.login()
-                        st.success("Login realizado!")
-                        st.rerun()
+                    supabase.auth.sign_in_with_password({"email": email, "password": senha})
+
+                    # Garante que o ID vem do contexto autenticado atual
+                    auth_user_res = supabase.auth.get_user()
+                    user = getattr(auth_user_res, "user", None)
+                    if not user or not getattr(user, "id", None):
+                        st.error("Login sem usuário válido retornado pelo Supabase Auth.")
+                        return False
+
+                    user_meta = getattr(user, "user_metadata", {}) or {}
+                    username = user_meta.get("username") or email.split("@")[0]
+                    nome = user_meta.get("nome") or username
+
+                    _salvar_perfil_usuario(
+                        supabase=supabase,
+                        user_id=user.id,
+                        username=username,
+                        nome=nome,
+                        email=email,
+                    )
+
+                    perfil = _carregar_perfil_usuario(supabase, user.id, email)
+                    st.session_state["auth_user_id"] = user.id
+                    st.session_state["auth_user_email"] = email
+                    st.session_state["auth_user_profile"] = perfil
+                    session.login()
+                    st.success("Login realizado!")
+                    st.rerun()
+                except APIError as api_exc:
+                    st.error(f"Erro Supabase (login/perfil): {api_exc}")
                 except Exception as exc:
                     st.error(f"Erro no login: {exc}")
 
@@ -103,22 +110,12 @@ def render_login(session) -> bool:
                     )
 
                     user = getattr(auth_response, "user", None)
-                    if not user or not getattr(user, "id", None):
-                        st.warning(
-                            "Conta criada no Auth, mas o retorno não trouxe user.id. "
-                            "Verifique confirmação de e-mail/configuração do Auth antes de salvar perfil."
-                        )
+                    if not user:
+                        st.warning("Conta criada no Auth. Verifique seu e-mail para confirmar o acesso.")
                     else:
-                        _salvar_perfil_usuario(
-                            supabase=supabase,
-                            user_id=user.id,
-                            username=novo_usuario,
-                            nome=nome,
-                            email=novo_email,
-                        )
-                        st.success("Conta criada com sucesso! Vá na aba 'Entrar'.")
+                        st.success("Conta criada no Auth com sucesso! Agora faça login.")
                 except APIError as api_exc:
-                    st.error(f"Erro ao salvar no Supabase: {api_exc}")
+                    st.error(f"Erro ao cadastrar no Supabase Auth: {api_exc}")
                 except Exception as exc:
                     st.error(f"Erro ao cadastrar no Supabase Auth: {exc}")
 
