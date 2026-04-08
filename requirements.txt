@@ -3,6 +3,7 @@ pandas
 python-dotenv
 sqlalchemy
 pillow
+pillow-heif
 numpy
 google-generativeai>=0.8.0
 st-supabase-connection
