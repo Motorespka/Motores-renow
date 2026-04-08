@@ -42,3 +42,8 @@ def render(ctx) -> None:
         if st.button("Voltar", use_container_width=True):
             ctx.session.set_route(Route.CONSULTA)
             st.rerun()
+
+
+def show(ctx):
+    return render(ctx)
+

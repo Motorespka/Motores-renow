@@ -354,3 +354,7 @@ def render(ctx):
         }
         ctx.supabase.table("ordens_servico").insert(payload).execute()
         st.success("Ordem salva com sucesso.")
+
+
+def show(ctx):
+    return render(ctx)

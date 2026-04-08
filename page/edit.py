@@ -235,3 +235,8 @@ def render(ctx):
         st.success("Alterações salvas com sucesso.")
         ctx.session.set_route(Route.DETALHE)
         st.rerun()
+
+
+def show(ctx):
+    return render(ctx)
+
