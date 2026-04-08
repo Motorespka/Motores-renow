@@ -7,7 +7,7 @@ import time
 from typing import Any, Dict, List
 
 import streamlit as st
-from PIL import Image
+from PIL import Image, ImageOps
 from postgrest.exceptions import APIError
 
 from services.gemini_oficina import HEIF_SUPPORTED, extract_motor_data_with_gemini
@@ -51,9 +51,32 @@ def _show_confidence_warnings(conf: Dict[str, Any]) -> None:
 def _preview_image(uploaded_file):
     raw = uploaded_file.getvalue()
     try:
-        return Image.open(io.BytesIO(raw))
+        img = Image.open(io.BytesIO(raw))
+        img = ImageOps.exif_transpose(img)
+        return img.copy()
     except Exception:
         return None
+
+
+def _is_supported_image_upload(uploaded_file) -> bool:
+    name = (uploaded_file.name or "").lower()
+    mime = (uploaded_file.type or "").lower()
+
+    if mime.startswith("image/"):
+        return True
+
+    if any(name.endswith(f".{ext}") for ext in SUPPORTED_TYPES):
+        return True
+
+    raw = uploaded_file.getvalue()
+    if raw[:3] == b"\xff\xd8\xff":  # JPEG
+        return True
+    if raw[:8] == b"\x89PNG\r\n\x1a\n":  # PNG
+        return True
+    if len(raw) >= 12 and raw[4:8] == b"ftyp":  # HEIF/HEIC/AVIF family
+        return True
+
+    return False
 
 
 def _upload_images_to_supabase(ctx, uploads: List[Any]) -> List[str]:
@@ -111,15 +134,25 @@ def render(ctx):
     st.subheader("1) Upload de imagens")
     uploads = st.file_uploader(
         "Selecione uma ou mais fotos de oficina",
-        type=SUPPORTED_TYPES,
         accept_multiple_files=True,
         key="cadastro_motor_fotos",
-        help="Formatos: jpg, jpeg, png, webp, heic e heif (fotos de iPhone/Android).",
+        help="Fotos de câmera/galeria (JPG/PNG/HEIC/HEIF/WEBP/AVIF).",
     )
 
     if uploads:
-        st.session_state["cadastro_uploads"] = uploads
-        st.session_state["cadastro_status"] = f"{len(uploads)} imagem(ns) carregada(s)"
+        valid_uploads: List[Any] = []
+        invalid_names: List[str] = []
+        for file in uploads:
+            if _is_supported_image_upload(file):
+                valid_uploads.append(file)
+            else:
+                invalid_names.append(file.name or "arquivo sem nome")
+
+        st.session_state["cadastro_uploads"] = valid_uploads
+        st.session_state["cadastro_status"] = f"{len(valid_uploads)} imagem(ns) carregada(s)"
+
+        if invalid_names:
+            st.warning("Alguns arquivos não parecem ser imagem suportada: " + ", ".join(invalid_names))
     current_uploads = st.session_state.get("cadastro_uploads") or []
     has_uploads = len(current_uploads) > 0
 
@@ -138,13 +171,21 @@ def render(ctx):
                 if preview is not None:
                     st.image(preview, caption=file.name, use_container_width=True)
                 else:
-                    st.warning(f"Não foi possível gerar preview de {file.name}")
+                    # fallback para bytes em navegadores móveis
+                    try:
+                        st.image(file.getvalue(), caption=file.name, use_container_width=True)
+                    except Exception:
+                        st.warning(f"Não foi possível gerar preview de {file.name}")
+                st.caption(f"tipo={file.type or 'desconhecido'} | tamanho={len(file.getvalue())} bytes")
 
     if st.button("Ler foto com Gemini", use_container_width=True):
         if not has_uploads:
             st.warning("Envie ao menos uma foto para análise antes de usar o Gemini.")
         else:
-            files_payload = [{"name": f.name, "bytes": f.getvalue()} for f in current_uploads]
+            files_payload = [
+                {"name": f.name, "bytes": f.getvalue(), "mime_type": f.type}
+                for f in current_uploads
+            ]
             st.session_state["cadastro_status"] = "Analisando imagens no Gemini..."
             try:
                 with st.spinner("Extraindo campos técnicos..."):

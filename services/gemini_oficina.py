@@ -96,21 +96,34 @@ def _looks_like_png(raw_bytes: bytes) -> bool:
     return raw_bytes[:8] == b"\x89PNG\r\n\x1a\n"
 
 
-def _to_supported_image_bytes(file_name: str, raw_bytes: bytes) -> Tuple[bytes, str]:
+def _looks_like_heif_family(raw_bytes: bytes) -> bool:
+    if len(raw_bytes) < 12:
+        return False
+    if raw_bytes[4:8] != b"ftyp":
+        return False
+    brand = raw_bytes[8:12]
+    return brand in {b"heic", b"heix", b"hevc", b"hevx", b"mif1", b"msf1", b"avif", b"avis"}
+
+
+def _to_supported_image_bytes(file_name: str, raw_bytes: bytes, mime_type: str = "") -> Tuple[bytes, str]:
     """
     Normaliza imagens para envio ao Gemini.
     Observação importante: fotos de telefone podem chegar com extensão errada
     (ou sem extensão), então priorizamos assinatura binária e fazemos fallback em PIL.
     """
     lower = (file_name or "").lower().strip()
+    mime = (mime_type or "").lower().strip()
 
-    if _looks_like_jpeg(raw_bytes) or lower.endswith((".jpg", ".jpeg", ".jfif")):
+    if _looks_like_jpeg(raw_bytes) or lower.endswith((".jpg", ".jpeg", ".jfif")) or mime in {"image/jpeg", "image/jpg"}:
         return raw_bytes, "image/jpeg"
-    if _looks_like_png(raw_bytes) or lower.endswith(".png"):
+    if _looks_like_png(raw_bytes) or lower.endswith(".png") or mime == "image/png":
         return raw_bytes, "image/png"
 
-    is_heif_name = lower.endswith((".heic", ".heif"))
-    if is_heif_name and not HEIF_SUPPORTED:
+    is_heif_name = lower.endswith((".heic", ".heif", ".avif"))
+    is_heif_mime = mime in {"image/heic", "image/heif", "image/heic-sequence", "image/heif-sequence", "image/avif"}
+    is_heif_bytes = _looks_like_heif_family(raw_bytes)
+
+    if (is_heif_name or is_heif_mime or is_heif_bytes) and not HEIF_SUPPORTED:
         raise RuntimeError(
             "Arquivo HEIC/HEIF enviado, mas suporte HEIF não está disponível neste ambiente. "
             "Instale pillow-heif para habilitar conversão automática."
@@ -224,8 +237,10 @@ def extract_motor_data_with_gemini(files: List[Dict[str, bytes]]) -> Dict:
     parts = [PROMPT_OFICINA]
     file_names = []
     for f in files:
-        normalized_bytes, mime = _to_supported_image_bytes(f["name"], f["bytes"])
-        parts.append({"mime_type": mime, "data": normalized_bytes})
+        normalized_bytes, content_type = _to_supported_image_bytes(
+            f["name"], f["bytes"], f.get("mime_type", "")
+        )
+        parts.append({"mime_type": content_type, "data": normalized_bytes})
         file_names.append(f["name"])
 
     model_name = (os.environ.get("GEMINI_MODEL") or "gemini-2.5-flash").strip()
