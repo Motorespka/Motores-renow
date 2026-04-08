@@ -55,7 +55,17 @@ def render_login(session, supabase) -> bool:
                     st.success("Login realizado!")
                     st.rerun()
                 except APIError as api_exc:
-                    st.error(f"Erro Supabase (login): {api_exc}")
+                    msg = str(api_exc)
+                    if "Invalid login credentials" in msg:
+                        st.error(
+                            "Credenciais inválidas. Verifique e-mail/senha e confirme seu e-mail de cadastro no Supabase Auth."
+                        )
+                        st.info(
+                            "Se você acabou de criar conta, confirme o e-mail antes de tentar login. "
+                            "Sem confirmação, o Supabase pode retornar 'Invalid login credentials'."
+                        )
+                    else:
+                        st.error(f"Erro Supabase (login): {api_exc}")
                 except Exception as exc:
                     st.error(f"Erro no login: {exc}")
 
@@ -93,7 +103,11 @@ def render_login(session, supabase) -> bool:
                     if not user:
                         st.warning("Conta criada no Auth. Verifique seu e-mail para confirmar o acesso.")
                     else:
-                        st.success("Conta criada no Auth com sucesso! Faça login para continuar.")
+                        st.success("Conta criada no Auth com sucesso!")
+                        st.info(
+                            "Se a confirmação de e-mail estiver habilitada no projeto, "
+                            "confirme o e-mail antes de tentar login."
+                        )
                 except APIError as api_exc:
                     st.error(f"Erro ao cadastrar no Supabase Auth: {api_exc}")
                 except Exception as exc:
