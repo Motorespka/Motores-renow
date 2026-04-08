@@ -1,5 +1,9 @@
 """
-Consultas ao Supabase com cache para reduzir roundtrips e manter API unica.
+Consultas ao Supabase com cache para reduzir roundtrips e manter API única.
+Adaptado para a nova estrutura:
+- public.arquivos_motor
+- public.variaveis_motor
+- public.vw_consulta_motores
 """
 
 from __future__ import annotations
@@ -11,6 +15,7 @@ from postgrest.exceptions import APIError
 from supabase import Client
 
 MotorRow = Dict[str, Any]
+VariavelRow = Dict[str, Any]
 
 
 @st.cache_data(
@@ -20,15 +25,21 @@ MotorRow = Dict[str, Any]
 )
 def fetch_motores_cached(supabase: Client) -> List[MotorRow]:
     """
-    Busca motores de forma tolerante a diferenças de schema no Supabase.
+    Busca os registros da view vw_consulta_motores.
 
     Estratégia:
-    1) tenta ordenar por id desc
-    2) fallback para created_at desc
+    1) tenta ordenar por created_at desc
+    2) fallback para updated_at desc
     3) fallback sem ordenação
     """
     try:
-        res = supabase.table("motores").select("*").order("id", desc=True).execute()
+        res = (
+            supabase
+            .table("vw_consulta_motores")
+            .select("*")
+            .order("created_at", desc=True)
+            .execute()
+        )
         return res.data or []
     except APIError:
         pass
@@ -36,7 +47,13 @@ def fetch_motores_cached(supabase: Client) -> List[MotorRow]:
         return []
 
     try:
-        res = supabase.table("motores").select("*").order("created_at", desc=True).execute()
+        res = (
+            supabase
+            .table("vw_consulta_motores")
+            .select("*")
+            .order("updated_at", desc=True)
+            .execute()
+        )
         return res.data or []
     except APIError:
         pass
@@ -44,7 +61,7 @@ def fetch_motores_cached(supabase: Client) -> List[MotorRow]:
         return []
 
     try:
-        res = supabase.table("motores").select("*").execute()
+        res = supabase.table("vw_consulta_motores").select("*").execute()
         return res.data or []
     except Exception:
         return []
@@ -55,12 +72,19 @@ def fetch_motores_cached(supabase: Client) -> List[MotorRow]:
     show_spinner=False,
     hash_funcs={Client: lambda _c: "supabase-client"},
 )
-def fetch_motor_by_id_cached(supabase: Client, motor_id: int) -> MotorRow | None:
+def fetch_motor_by_id_cached(supabase: Client, motor_id: str) -> MotorRow | None:
     """
-    Busca por id com fallback para id_motor em schemas legados.
+    Busca um registro específico na view vw_consulta_motores pelo id (UUID).
     """
     try:
-        res = supabase.table("motores").select("*").eq("id", motor_id).limit(1).execute()
+        res = (
+            supabase
+            .table("vw_consulta_motores")
+            .select("*")
+            .eq("id", motor_id)
+            .limit(1)
+            .execute()
+        )
         if res.data:
             return res.data[0]
     except APIError:
@@ -69,9 +93,81 @@ def fetch_motor_by_id_cached(supabase: Client, motor_id: int) -> MotorRow | None
         return None
 
     try:
-        res = supabase.table("motores").select("*").eq("id_motor", motor_id).limit(1).execute()
+        res = (
+            supabase
+            .table("arquivos_motor")
+            .select("*")
+            .eq("id", motor_id)
+            .limit(1)
+            .execute()
+        )
         if res.data:
             return res.data[0]
+    except Exception:
+        return None
+
+    return None
+
+
+@st.cache_data(
+    ttl=45,
+    show_spinner=False,
+    hash_funcs={Client: lambda _c: "supabase-client"},
+)
+def fetch_variaveis_by_motor_id_cached(supabase: Client, motor_id: str) -> List[VariavelRow]:
+    """
+    Busca todas as variáveis extraídas de um arquivo/motor em variaveis_motor.
+    """
+    try:
+        res = (
+            supabase
+            .table("variaveis_motor")
+            .select("*")
+            .eq("arquivo_id", motor_id)
+            .order("bloco_id", desc=False)
+            .execute()
+        )
+        return res.data or []
+    except APIError:
+        pass
+    except Exception:
+        return []
+
+    try:
+        res = (
+            supabase
+            .table("variaveis_motor")
+            .select("*")
+            .eq("arquivo_id", motor_id)
+            .execute()
+        )
+        return res.data or []
+    except Exception:
+        return []
+
+
+@st.cache_data(
+    ttl=45,
+    show_spinner=False,
+    hash_funcs={Client: lambda _c: "supabase-client"},
+)
+def fetch_arquivo_by_id_cached(supabase: Client, motor_id: str) -> MotorRow | None:
+    """
+    Busca os metadados crus do arquivo na tabela arquivos_motor.
+    """
+    try:
+        res = (
+            supabase
+            .table("arquivos_motor")
+            .select("*")
+            .eq("id", motor_id)
+            .limit(1)
+            .execute()
+        )
+        if res.data:
+            return res.data[0]
+    except APIError:
+        pass
     except Exception:
         return None
 
@@ -81,3 +177,5 @@ def fetch_motor_by_id_cached(supabase: Client, motor_id: int) -> MotorRow | None
 def clear_motores_cache() -> None:
     fetch_motores_cached.clear()
     fetch_motor_by_id_cached.clear()
+    fetch_variaveis_by_motor_id_cached.clear()
+    fetch_arquivo_by_id_cached.clear()
