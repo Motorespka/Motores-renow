@@ -4,7 +4,6 @@ from supabase import create_client
 
 
 @st.cache_resource
-
 def init_connection():
     url = st.secrets.get("SUPABASE_URL")
     key = st.secrets.get("SUPABASE_KEY")
@@ -13,24 +12,18 @@ def init_connection():
     return create_client(url, key)
 
 
-def _salvar_perfil_usuario(supabase, user_id: str, username: str, email: str) -> None:
-    payloads = [
-        {"id": user_id, "username": username, "email": email},
-        {"id": user_id, "username": username},
-        {"id": user_id, "email": email},
-        {"username": username, "email": email},
-    ]
-
-    last_error = None
-    for payload in payloads:
-        try:
-            supabase.table("usuarios_app").insert(payload).execute()
-            return
-        except Exception as exc:
-            last_error = exc
-
-    if last_error is not None:
-        raise last_error
+def _salvar_perfil_usuario(supabase, user_id: str, username: str, nome: str, email: str) -> None:
+    payload = {
+        "id": user_id,
+        "username": username,
+        "nome": nome,
+        "email": email,
+        "role": "user",
+        "plan": "free",
+        "ativo": True,
+    }
+    # upsert evita conflito caso exista trigger automático de criação de perfil
+    supabase.table("usuarios_app").upsert(payload, on_conflict="id").execute()
 
 
 def _carregar_perfil_usuario(supabase, user_id: str, email: str):
@@ -86,44 +79,46 @@ def render_login(session) -> bool:
 
     with tab_cadastro:
         st.info("Crie seu acesso usando Supabase Auth.")
+        nome = st.text_input("Nome", key="reg_nome")
         novo_usuario = st.text_input("Nome de usuário", key="reg_user")
         novo_email = st.text_input("E-mail", key="reg_email")
         nova_senha = st.text_input("Definir Senha", type="password", key="reg_pass")
         confirmar = st.text_input("Confirmar Senha", type="password", key="reg_conf")
 
         if st.button("Cadastrar"):
-            if not novo_usuario or not novo_email or not nova_senha:
-                st.error("Usuário, e-mail e senha não podem estar vazios.")
+            if not nome or not novo_usuario or not novo_email or not nova_senha:
+                st.error("Nome, usuário, e-mail e senha não podem estar vazios.")
             elif nova_senha != confirmar:
                 st.error("As senhas não coincidem.")
             elif len(nova_senha) < 6:
                 st.warning("A senha deve ter pelo menos 6 caracteres.")
             else:
                 try:
-                    auth_res = supabase.auth.sign_up(
+                    auth_response = supabase.auth.sign_up(
                         {
                             "email": novo_email,
                             "password": nova_senha,
-                            "options": {"data": {"username": novo_usuario}},
+                            "options": {"data": {"username": novo_usuario, "nome": nome}},
                         }
                     )
-                    user = getattr(auth_res, "user", None)
-                    if not user:
-                        st.warning("Conta criada no Auth. Verifique seu e-mail para confirmar o acesso.")
+
+                    user = getattr(auth_response, "user", None)
+                    if not user or not getattr(user, "id", None):
+                        st.warning(
+                            "Conta criada no Auth, mas o retorno não trouxe user.id. "
+                            "Verifique confirmação de e-mail/configuração do Auth antes de salvar perfil."
+                        )
                     else:
-                        try:
-                            _salvar_perfil_usuario(supabase, user.id, novo_usuario, novo_email)
-                            st.success("Conta criada com sucesso! Vá na aba 'Entrar'.")
-                        except APIError as api_exc:
-                            st.warning(
-                                "Conta criada no Auth, mas perfil em usuarios_app não foi salvo. "
-                                f"Detalhe: {api_exc}"
-                            )
-                        except Exception as exc:
-                            st.warning(
-                                "Conta criada no Auth, mas perfil em usuarios_app não foi salvo. "
-                                f"Detalhe: {exc}"
-                            )
+                        _salvar_perfil_usuario(
+                            supabase=supabase,
+                            user_id=user.id,
+                            username=novo_usuario,
+                            nome=nome,
+                            email=novo_email,
+                        )
+                        st.success("Conta criada com sucesso! Vá na aba 'Entrar'.")
+                except APIError as api_exc:
+                    st.error(f"Erro ao salvar no Supabase: {api_exc}")
                 except Exception as exc:
                     st.error(f"Erro ao cadastrar no Supabase Auth: {exc}")
 
