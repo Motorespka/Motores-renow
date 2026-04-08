@@ -1,19 +1,18 @@
 from __future__ import annotations
 
-import json
 import io
+import json
 import os
 import time
 from typing import Any, Dict, List
 
 import streamlit as st
-from postgrest.exceptions import APIError
 from PIL import Image
+from postgrest.exceptions import APIError
 
 from services.gemini_oficina import HEIF_SUPPORTED, extract_motor_data_with_gemini
 from services.oficina_parser import DEFAULT_EXTRACTED, normalize_extracted_data, to_supabase_payload
 from services.supabase_data import clear_motores_cache
-
 
 SUPPORTED_TYPES = ["jpg", "jpeg", "png", "heic", "heif", "webp", "jfif"]
 
@@ -50,12 +49,7 @@ def _show_confidence_warnings(conf: Dict[str, Any]) -> None:
 
 
 def _preview_image(uploaded_file):
-    """Preview robusto para imagens de celular (HEIC/HEIF incluído)."""
     raw = uploaded_file.getvalue()
-    try:
-        return Image.open(uploaded_file)
-    except Exception:
-        pass
     try:
         return Image.open(io.BytesIO(raw))
     except Exception:
@@ -63,10 +57,6 @@ def _preview_image(uploaded_file):
 
 
 def _upload_images_to_supabase(ctx, uploads: List[Any]) -> List[str]:
-    """
-    Upload opcional das imagens para Supabase Storage.
-    Se bucket não existir/não houver permissão, segue sem bloquear o cadastro.
-    """
     bucket = (os.environ.get("SUPABASE_MOTORES_BUCKET") or "motores-imagens").strip()
     urls: List[str] = []
     if not uploads:
@@ -85,7 +75,6 @@ def _upload_images_to_supabase(ctx, uploads: List[Any]) -> List[str]:
             if isinstance(public_url, str) and public_url:
                 urls.append(public_url)
         except Exception:
-            # Não quebrar fluxo de cadastro quando storage não estiver configurado.
             continue
     return urls
 
