@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import io
-import json
 import os
 import time
 from typing import Any, Dict, List
@@ -129,7 +128,7 @@ def render(ctx):
     _init_state()
 
     st.title("⚡ Cadastro Técnico de Motores")
-    st.caption("Fluxo: upload de foto → leitura Gemini → revisão manual → salvar no Supabase.")
+    st.caption("Fluxo: upload de foto → leitura Gemini → revisão manual → salvar.")
 
     st.subheader("1) Upload de imagens")
     uploads = st.file_uploader(
@@ -273,24 +272,50 @@ def render(ctx):
         data["mecanica"]["medidas"] = _list_editor("Medidas mecânicas", data["mecanica"].get("medidas", []), "mec_medidas")
         data["mecanica"]["observacoes"] = st.text_area("Notas mecânicas", value=data["mecanica"].get("observacoes", ""), height=90)
 
-        st.markdown("### E. Desenho / esquema técnico")
-        data["esquema"]["descricao_desenho"] = st.text_area("Descrição do desenho", value=data["esquema"].get("descricao_desenho", ""), height=90)
+        st.markdown("### E. Esquema técnico (opcional)")
+        st.caption("Preencha apenas se precisar detalhar ligações e desenho da bobinagem.")
+        data["esquema"]["descricao_desenho"] = st.text_area(
+            "Resumo do desenho / ligação",
+            value=data["esquema"].get("descricao_desenho", ""),
+            height=90,
+        )
         e1, e2 = st.columns(2)
         with e1:
-            data["esquema"]["distribuicao_bobinas"] = st.text_area("Distribuição das bobinas", value=data["esquema"].get("distribuicao_bobinas", ""), height=90)
-            data["esquema"]["ligacao"] = st.text_input("Ligação", value=data["esquema"].get("ligacao", ""))
+            data["esquema"]["distribuicao_bobinas"] = st.text_area(
+                "Distribuição das bobinas",
+                value=data["esquema"].get("distribuicao_bobinas", ""),
+                height=90,
+            )
+            data["esquema"]["ligacao"] = st.text_input(
+                "Ligação do motor (ex.: Delta 380V / Estrela 660V)",
+                value=data["esquema"].get("ligacao", ""),
+            )
         with e2:
-            data["esquema"]["ranhuras"] = st.text_input("Ranhuras", value=data["esquema"].get("ranhuras", ""))
-            data["esquema"]["camadas"] = st.text_input("Camadas", value=data["esquema"].get("camadas", ""))
-            data["esquema"]["observacoes"] = st.text_area("Observações do esquema", value=data["esquema"].get("observacoes", ""), height=90)
+            data["esquema"]["ranhuras"] = st.text_input(
+                "Ranhuras (opcional)",
+                value=data["esquema"].get("ranhuras", ""),
+            )
+            data["esquema"]["camadas"] = st.text_input(
+                "Camadas (opcional)",
+                value=data["esquema"].get("camadas", ""),
+            )
+            data["esquema"]["observacoes"] = st.text_area(
+                "Observações do esquema",
+                value=data["esquema"].get("observacoes", ""),
+                height=90,
+            )
 
-        st.markdown("### F. Dados brutos da leitura")
-        data["texto_ocr"] = st.text_area("Texto bruto extraído", value=data.get("texto_ocr", ""), height=120)
-        data["texto_normalizado"] = st.text_area("Texto normalizado", value=data.get("texto_normalizado", ""), height=120)
-        st.code(json.dumps(data.get("confianca", {}), ensure_ascii=False, indent=2), language="json")
-        st.code(json.dumps(data, ensure_ascii=False, indent=2), language="json")
+        with st.expander("F. Dados avançados da leitura (opcional)", expanded=False):
+            st.caption("Use apenas para conferência técnica da leitura da IA.")
+            data["texto_ocr"] = st.text_area("Texto bruto extraído", value=data.get("texto_ocr", ""), height=120)
+            data["texto_normalizado"] = st.text_area(
+                "Texto normalizado",
+                value=data.get("texto_normalizado", ""),
+                height=120,
+            )
+            st.json(data.get("confianca", {}), expanded=False)
 
-        salvar = st.form_submit_button("Salvar no Supabase", use_container_width=True)
+        salvar = st.form_submit_button("Salvar", use_container_width=True)
 
     if salvar:
         if not data["motor"].get("marca") and not data["motor"].get("modelo"):
