@@ -2,20 +2,6 @@ import streamlit as st
 from postgrest.exceptions import APIError
 
 
-def _salvar_perfil_usuario(supabase, user_id: str, username: str, nome: str, email: str) -> None:
-    payload = {
-        "id": user_id,
-        "username": username,
-        "nome": nome,
-        "email": email,
-        "role": "user",
-        "plan": "free",
-        "ativo": True,
-    }
-    # Perfil sempre vinculado ao ID real de auth.users
-    supabase.table("usuarios_app").upsert(payload, on_conflict="id").execute()
-
-
 def _carregar_perfil_usuario(supabase, user_id: str, email: str):
     try:
         perfil = supabase.table("usuarios_app").select("*").eq("id", user_id).limit(1).execute()
@@ -55,25 +41,11 @@ def render_login(session, supabase) -> bool:
             else:
                 try:
                     supabase.auth.sign_in_with_password({"email": email_norm, "password": senha})
-
-                    # Garante que o ID vem do contexto autenticado atual
                     auth_user_res = supabase.auth.get_user()
                     user = getattr(auth_user_res, "user", None)
                     if not user or not getattr(user, "id", None):
                         st.error("Login sem usuário válido retornado pelo Supabase Auth.")
                         return False
-
-                    user_meta = getattr(user, "user_metadata", {}) or {}
-                    username = user_meta.get("username") or email_norm.split("@")[0]
-                    nome = user_meta.get("nome") or username
-
-                    _salvar_perfil_usuario(
-                        supabase=supabase,
-                        user_id=user.id,
-                        username=username,
-                        nome=nome,
-                        email=email_norm,
-                    )
 
                     perfil = _carregar_perfil_usuario(supabase, user.id, email_norm)
                     st.session_state["auth_user_id"] = user.id
@@ -83,7 +55,7 @@ def render_login(session, supabase) -> bool:
                     st.success("Login realizado!")
                     st.rerun()
                 except APIError as api_exc:
-                    st.error(f"Erro Supabase (login/perfil): {api_exc}")
+                    st.error(f"Erro Supabase (login): {api_exc}")
                 except Exception as exc:
                     st.error(f"Erro no login: {exc}")
 
@@ -117,12 +89,11 @@ def render_login(session, supabase) -> bool:
                             "options": {"data": {"username": username_norm, "nome": nome_norm}},
                         }
                     )
-
                     user = getattr(auth_response, "user", None)
                     if not user:
                         st.warning("Conta criada no Auth. Verifique seu e-mail para confirmar o acesso.")
                     else:
-                        st.success("Conta criada no Auth com sucesso! Agora faça login.")
+                        st.success("Conta criada no Auth com sucesso! Faça login para continuar.")
                 except APIError as api_exc:
                     st.error(f"Erro ao cadastrar no Supabase Auth: {api_exc}")
                 except Exception as exc:
