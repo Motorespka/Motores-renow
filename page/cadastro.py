@@ -1,85 +1,222 @@
+from __future__ import annotations
+
 import json
+from typing import Any, Dict, List
 
-import google.generativeai as genai
 import streamlit as st
-from PIL import Image
+from postgrest.exceptions import APIError
+
+from services.gemini_oficina import HEIF_SUPPORTED, extract_motor_data_with_gemini
+from services.oficina_parser import DEFAULT_EXTRACTED, normalize_extracted_data, to_supabase_payload
+from services.supabase_data import clear_motores_cache
 
 
-def _processar_plaqueta(foto_arquivo):
-    img = Image.open(foto_arquivo).transpose(Image.FLIP_LEFT_RIGHT)
-    prompt = (
-        "Você é um engenheiro de motores. Retorne APENAS JSON com: "
-        '"marca", "cv", "rpm", "v", "a", "carcaca", "cos_phi", "isol".'
+SUPPORTED_TYPES = ["jpg", "jpeg", "png", "heic"]
+
+
+def _init_state() -> None:
+    st.session_state.setdefault("cadastro_extracted", normalize_extracted_data(DEFAULT_EXTRACTED))
+    st.session_state.setdefault("cadastro_uploads", [])
+    st.session_state.setdefault("cadastro_status", "Aguardando imagens")
+
+
+def _list_editor(label: str, values: List[str], key: str, help_text: str = "") -> List[str]:
+    raw = st.text_area(
+        label,
+        value="\n".join(values),
+        key=key,
+        help=help_text or "Uma linha por item. Também aceita valores separados por vírgula.",
+        height=80,
     )
+    out = []
+    for line in raw.splitlines():
+        for part in line.replace(";", ",").split(","):
+            value = part.strip()
+            if value:
+                out.append(value)
+    return out
 
-    keys = st.secrets["GEMINI_API_KEY"]
-    for key in keys:
-        try:
-            genai.configure(api_key=key)
-            model = genai.GenerativeModel("gemini-2.5-flash")
-            response = model.generate_content([prompt, img])
-            limpo = response.text.replace("```json", "").replace("```", "").strip()
-            return json.loads(limpo)
-        except Exception as exc:
-            if any(flag in str(exc).lower() for flag in ["quota", "limit", "429"]):
-                continue
-            raise
-    raise RuntimeError("Todas as keys do Gemini atingiram limite de uso.")
+
+def _show_confidence_warnings(conf: Dict[str, Any]) -> None:
+    if not conf:
+        return
+    low = [f"{k}: {v}" for k, v in conf.items() if isinstance(v, (float, int)) and float(v) < 0.6]
+    if low:
+        st.warning("Campos com baixa confiança: " + " | ".join(low[:8]))
+
+
+def _save_motor(ctx, normalized: Dict[str, Any], image_names: List[str]) -> None:
+    payload = to_supabase_payload(normalized, image_paths=[], image_names=image_names)
+
+    try:
+        ctx.supabase.table("motores").insert(payload).execute()
+    except APIError:
+        fallback = {
+            "marca": payload.get("marca", ""),
+            "modelo": payload.get("modelo", ""),
+            "potencia": payload.get("potencia", ""),
+            "rpm": payload.get("rpm", ""),
+            "tensao": payload.get("tensao", ""),
+            "corrente": payload.get("corrente", ""),
+            "observacoes": payload.get("observacoes", ""),
+        }
+        ctx.supabase.table("motores").insert(fallback).execute()
+        st.info("Salvo com colunas básicas. Campos JSON podem depender de migração no Supabase.")
+
+    clear_motores_cache()
 
 
 def render(ctx):
-    st.title("⚡ Cadastro")
+    _init_state()
 
-    # -----------------------------
-    # CADASTRO DE MOTORES (com IA)
-    # -----------------------------
-    st.subheader("Cadastro de Motores")
+    st.title("⚡ Cadastro Técnico de Motores")
+    st.caption("Fluxo: upload de foto → leitura Gemini → revisão manual → salvar no Supabase.")
 
-    if "cadastro_motor_extraidos" not in st.session_state:
-        st.session_state["cadastro_motor_extraidos"] = {}
-
-    foto_motor = st.file_uploader(
-        "Imagem da plaqueta do motor",
-        type=["jpg", "png", "jpeg"],
-        key="cadastro_motor_foto",
+    st.subheader("1) Upload de imagens")
+    uploads = st.file_uploader(
+        "Selecione uma ou mais fotos de oficina",
+        type=SUPPORTED_TYPES,
+        accept_multiple_files=True,
+        key="cadastro_motor_fotos",
+        help="Formatos: jpg, jpeg, png e heic.",
     )
 
-    if foto_motor and st.button("Extrair dados do motor com IA", use_container_width=True, key="cadastro_motor_ia"):
-        with st.spinner("Analisando imagem do motor..."):
-            st.session_state["cadastro_motor_extraidos"] = _processar_plaqueta(foto_motor)
-            st.success("Dados do motor extraídos.")
+    if uploads:
+        st.session_state["cadastro_uploads"] = uploads
+        st.session_state["cadastro_status"] = f"{len(uploads)} imagem(ns) carregada(s)"
 
-    extraidos_motor = st.session_state.get("cadastro_motor_extraidos", {})
+    cols = st.columns([2, 1])
+    with cols[0]:
+        st.info(f"Status: {st.session_state['cadastro_status']}")
+    with cols[1]:
+        if not HEIF_SUPPORTED:
+            st.caption("ℹ️ HEIC será aceito se a lib pillow-heif estiver instalada.")
 
-    with st.form("motor_form"):
-        marca_motor = st.text_input("Marca", value=extraidos_motor.get("marca", ""), key="motor_marca")
-        potencia_motor = st.text_input("Potência", value=extraidos_motor.get("cv", ""), key="motor_potencia")
-        rpm_motor = st.text_input("RPM", value=extraidos_motor.get("rpm", ""), key="motor_rpm")
-        tensao_motor = st.text_input("Tensão", value=extraidos_motor.get("v", ""), key="motor_tensao")
-        corrente_motor = st.text_input("Corrente", value=extraidos_motor.get("a", ""), key="motor_corrente")
-        salvar_motor = st.form_submit_button("Salvar motor", use_container_width=True)
+    if st.session_state["cadastro_uploads"]:
+        prev_cols = st.columns(3)
+        for idx, file in enumerate(st.session_state["cadastro_uploads"]):
+            with prev_cols[idx % 3]:
+                st.image(file, caption=file.name, use_container_width=True)
 
-    if salvar_motor:
-        if not marca_motor:
-            st.warning("Preencha ao menos a Marca do motor.")
-        else:
-            payload_motor = {
-                "marca": marca_motor,
-                "potencia": potencia_motor,
-                "rpm": rpm_motor,
-                "tensao": tensao_motor,
-                "corrente": corrente_motor,
-            }
-            ctx.supabase.table("motores").insert(payload_motor).execute()
-            st.success("Motor salvo com sucesso.")
-            st.session_state["cadastro_motor_extraidos"] = {}
+    b1, b2 = st.columns(2)
+    with b1:
+        if st.button("Ler foto com Gemini", use_container_width=True, disabled=not st.session_state["cadastro_uploads"]):
+            files_payload = [
+                {"name": f.name, "bytes": f.getvalue()} for f in st.session_state["cadastro_uploads"]
+            ]
+            st.session_state["cadastro_status"] = "Analisando imagens no Gemini..."
+            with st.spinner("Extraindo campos técnicos..."):
+                extracted = extract_motor_data_with_gemini(files_payload)
+            st.session_state["cadastro_extracted"] = normalize_extracted_data(extracted)
+            st.session_state["cadastro_status"] = "Campos extraídos e prontos para revisão"
+            st.success("Leitura finalizada. Revise os campos antes de salvar.")
+
+    with b2:
+        if st.button("Limpar formulário", use_container_width=True):
+            st.session_state["cadastro_extracted"] = normalize_extracted_data(DEFAULT_EXTRACTED)
+            st.session_state["cadastro_status"] = "Aguardando imagens"
+            st.rerun()
+
+    data = st.session_state["cadastro_extracted"]
+    _show_confidence_warnings(data.get("confianca") or {})
+
+    st.subheader("2) Revisão e cadastro")
+
+    with st.form("cadastro_motor_oficina_form"):
+        st.markdown("### A. Identificação do motor")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            data["motor"]["marca"] = st.text_input("Marca", value=data["motor"].get("marca", ""))
+            data["motor"]["modelo"] = st.text_input("Modelo", value=data["motor"].get("modelo", ""))
+            data["motor"]["potencia"] = st.text_input("Potência", value=data["motor"].get("potencia", ""))
+            data["motor"]["cv"] = st.text_input("CV / HP / kW", value=data["motor"].get("cv", ""))
+            data["motor"]["rpm"] = st.text_input("RPM", value=data["motor"].get("rpm", ""))
+        with c2:
+            data["motor"]["polos"] = st.text_input("Polos", value=data["motor"].get("polos", ""))
+            data["motor"]["frequencia"] = st.text_input("Frequência", value=data["motor"].get("frequencia", ""))
+            data["motor"]["isolacao"] = st.text_input("Isolação", value=data["motor"].get("isolacao", ""))
+            data["motor"]["ip"] = st.text_input("IP", value=data["motor"].get("ip", ""))
+            data["motor"]["fator_servico"] = st.text_input("Fator de serviço", value=data["motor"].get("fator_servico", ""))
+        with c3:
+            data["motor"]["tipo_motor"] = st.text_input("Tipo do motor", value=data["motor"].get("tipo_motor", ""))
+            data["motor"]["fases"] = st.selectbox(
+                "Fases",
+                options=["", "Monofásico", "Trifásico"],
+                index=["", "Monofásico", "Trifásico"].index(data["motor"].get("fases", "") if data["motor"].get("fases", "") in ["", "Monofásico", "Trifásico"] else ""),
+            )
+            data["motor"]["numero_serie"] = st.text_input("Número de série", value=data["motor"].get("numero_serie", ""))
+            data["motor"]["data_anotacao"] = st.text_input("Data da anotação", value=data["motor"].get("data_anotacao", ""))
+
+        data["motor"]["tensao"] = _list_editor("Tensão (lista)", data["motor"].get("tensao", []), "motor_tensao_lista")
+        data["motor"]["corrente"] = _list_editor("Corrente (lista)", data["motor"].get("corrente", []), "motor_corrente_lista")
+        data["observacoes_gerais"] = st.text_area("Observações gerais", value=data.get("observacoes_gerais", ""), height=100)
+
+        st.markdown("### B. Bobinagem principal")
+        data["bobinagem_principal"]["passos"] = _list_editor("Passo principal", data["bobinagem_principal"].get("passos", []), "principal_passos")
+        data["bobinagem_principal"]["espiras"] = _list_editor("Espiras principais", data["bobinagem_principal"].get("espiras", []), "principal_espiras")
+        data["bobinagem_principal"]["fios"] = _list_editor("Fio principal", data["bobinagem_principal"].get("fios", []), "principal_fios")
+        pc1, pc2, pc3 = st.columns(3)
+        with pc1:
+            data["bobinagem_principal"]["quantidade_grupos"] = st.text_input("Qtd. grupos", value=data["bobinagem_principal"].get("quantidade_grupos", ""))
+        with pc2:
+            data["bobinagem_principal"]["quantidade_bobinas"] = st.text_input("Qtd. bobinas", value=data["bobinagem_principal"].get("quantidade_bobinas", ""))
+        with pc3:
+            data["bobinagem_principal"]["ligacao"] = st.text_input("Ligação principal", value=data["bobinagem_principal"].get("ligacao", ""))
+        data["bobinagem_principal"]["observacoes"] = st.text_area("Obs. principal", value=data["bobinagem_principal"].get("observacoes", ""), height=80)
+
+        st.markdown("### C. Bobinagem auxiliar")
+        data["bobinagem_auxiliar"]["passos"] = _list_editor("Passo auxiliar", data["bobinagem_auxiliar"].get("passos", []), "aux_passos")
+        data["bobinagem_auxiliar"]["espiras"] = _list_editor("Espiras auxiliares", data["bobinagem_auxiliar"].get("espiras", []), "aux_espiras")
+        data["bobinagem_auxiliar"]["fios"] = _list_editor("Fio auxiliar", data["bobinagem_auxiliar"].get("fios", []), "aux_fios")
+        ac1, ac2 = st.columns(2)
+        with ac1:
+            data["bobinagem_auxiliar"]["capacitor"] = st.text_input("Capacitor", value=data["bobinagem_auxiliar"].get("capacitor", ""))
+        with ac2:
+            data["bobinagem_auxiliar"]["ligacao"] = st.text_input("Ligação auxiliar", value=data["bobinagem_auxiliar"].get("ligacao", ""))
+        data["bobinagem_auxiliar"]["observacoes"] = st.text_area("Obs. auxiliar", value=data["bobinagem_auxiliar"].get("observacoes", ""), height=80)
+
+        st.markdown("### D. Mecânica")
+        data["mecanica"]["rolamentos"] = _list_editor("Rolamentos", data["mecanica"].get("rolamentos", []), "mec_rolamentos")
+        m1, m2, m3 = st.columns(3)
+        with m1:
+            data["mecanica"]["eixo"] = st.text_input("Eixo", value=data["mecanica"].get("eixo", ""))
+        with m2:
+            data["mecanica"]["carcaca"] = st.text_input("Carcaça", value=data["mecanica"].get("carcaca", ""))
+        with m3:
+            data["mecanica"]["comprimento_ponta"] = st.text_input("Comprimento de ponta", value=data["mecanica"].get("comprimento_ponta", ""))
+        data["mecanica"]["medidas"] = _list_editor("Medidas mecânicas", data["mecanica"].get("medidas", []), "mec_medidas")
+        data["mecanica"]["observacoes"] = st.text_area("Notas mecânicas", value=data["mecanica"].get("observacoes", ""), height=90)
+
+        st.markdown("### E. Desenho / esquema técnico")
+        data["esquema"]["descricao_desenho"] = st.text_area("Descrição do desenho", value=data["esquema"].get("descricao_desenho", ""), height=90)
+        e1, e2 = st.columns(2)
+        with e1:
+            data["esquema"]["distribuicao_bobinas"] = st.text_area("Distribuição das bobinas", value=data["esquema"].get("distribuicao_bobinas", ""), height=90)
+            data["esquema"]["ligacao"] = st.text_input("Ligação", value=data["esquema"].get("ligacao", ""))
+        with e2:
+            data["esquema"]["ranhuras"] = st.text_input("Ranhuras", value=data["esquema"].get("ranhuras", ""))
+            data["esquema"]["camadas"] = st.text_input("Camadas", value=data["esquema"].get("camadas", ""))
+            data["esquema"]["observacoes"] = st.text_area("Observações do esquema", value=data["esquema"].get("observacoes", ""), height=90)
+
+        st.markdown("### F. Dados brutos da leitura")
+        data["texto_ocr"] = st.text_area("Texto bruto extraído", value=data.get("texto_ocr", ""), height=120)
+        data["texto_normalizado"] = st.text_area("Texto normalizado", value=data.get("texto_normalizado", ""), height=120)
+        st.code(json.dumps(data.get("confianca", {}), ensure_ascii=False, indent=2), language="json")
+        st.code(json.dumps(data, ensure_ascii=False, indent=2), language="json")
+
+        salvar = st.form_submit_button("Salvar no Supabase", use_container_width=True)
+
+    if salvar:
+        if not data["motor"].get("marca") and not data["motor"].get("modelo"):
+            st.warning("Informe ao menos marca ou modelo antes de salvar.")
+            return
+
+        image_names = [f.name for f in st.session_state.get("cadastro_uploads", [])]
+        _save_motor(ctx, data, image_names=image_names)
+        st.success("Cadastro técnico salvo com sucesso.")
 
     st.divider()
-
-    # -----------------------------
-    # CADASTRO DE O.S. (sem IA)
-    # -----------------------------
-    st.subheader("Cadastro de O.S.")
+    st.subheader("Cadastro de O.S. (mantido)")
 
     with st.form("os_form"):
         cliente = st.text_input("Cliente")
@@ -89,9 +226,9 @@ def render(ctx):
         tensao = st.text_input("Tensão")
         corrente = st.text_input("Corrente")
         diagnostico = st.text_area("Diagnóstico de entrada")
-        salvar = st.form_submit_button("Salvar ordem", use_container_width=True)
+        salvar_os = st.form_submit_button("Salvar ordem", use_container_width=True)
 
-    if salvar:
+    if salvar_os:
         if not cliente or not marca:
             st.warning("Preencha Cliente e Marca.")
             return
