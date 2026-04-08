@@ -1,13 +1,54 @@
-import bcrypt
 import streamlit as st
+from postgrest.exceptions import APIError
 from supabase import create_client
 
 
 @st.cache_resource
+
 def init_connection():
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
+    url = st.secrets.get("SUPABASE_URL")
+    key = st.secrets.get("SUPABASE_KEY")
+    if not url or not key:
+        raise RuntimeError("SUPABASE_URL/SUPABASE_KEY não encontrados em st.secrets")
     return create_client(url, key)
+
+
+def _salvar_perfil_usuario(supabase, user_id: str, username: str, email: str) -> None:
+    payloads = [
+        {"id": user_id, "username": username, "email": email},
+        {"id": user_id, "username": username},
+        {"id": user_id, "email": email},
+        {"username": username, "email": email},
+    ]
+
+    last_error = None
+    for payload in payloads:
+        try:
+            supabase.table("usuarios_app").insert(payload).execute()
+            return
+        except Exception as exc:
+            last_error = exc
+
+    if last_error is not None:
+        raise last_error
+
+
+def _carregar_perfil_usuario(supabase, user_id: str, email: str):
+    try:
+        perfil = supabase.table("usuarios_app").select("*").eq("id", user_id).limit(1).execute()
+        if perfil.data:
+            return perfil.data[0]
+    except Exception:
+        pass
+
+    try:
+        perfil = supabase.table("usuarios_app").select("*").eq("email", email).limit(1).execute()
+        if perfil.data:
+            return perfil.data[0]
+    except Exception:
+        pass
+
+    return None
 
 
 def render_login(session) -> bool:
@@ -20,41 +61,70 @@ def render_login(session) -> bool:
     tab_login, tab_cadastro = st.tabs(["Entrar", "Criar Conta"])
 
     with tab_login:
-        usuario = st.text_input("Usuário", key="login_user")
+        email = st.text_input("E-mail", key="login_email")
         senha = st.text_input("Senha", type="password", key="login_pass")
 
         if st.button("Acessar Sistema"):
-            if not usuario or not senha:
+            if not email or not senha:
                 st.warning("Por favor, preencha todos os campos.")
             else:
-                res = supabase.table("usuarios_app").select("*").eq("username", usuario).execute()
-                if not res.data:
-                    st.error("Usuário não encontrado.")
-                else:
-                    stored_hash = res.data[0]["password_hash"]
-                    if not bcrypt.checkpw(senha.encode("utf-8"), stored_hash.encode("utf-8")):
-                        st.error("Senha incorreta.")
+                try:
+                    auth_res = supabase.auth.sign_in_with_password({"email": email, "password": senha})
+                    user = getattr(auth_res, "user", None)
+                    if not user:
+                        st.error("Falha no login. Verifique e-mail/senha ou confirmação de e-mail.")
                     else:
+                        perfil = _carregar_perfil_usuario(supabase, user.id, email)
+                        st.session_state["auth_user_id"] = user.id
+                        st.session_state["auth_user_email"] = email
+                        st.session_state["auth_user_profile"] = perfil
                         session.login()
                         st.success("Login realizado!")
                         st.rerun()
+                except Exception as exc:
+                    st.error(f"Erro no login: {exc}")
 
     with tab_cadastro:
-        st.info("Crie seu acesso para salvar cálculos de motores.")
-        novo_usuario = st.text_input("Definir Usuário", key="reg_user")
+        st.info("Crie seu acesso usando Supabase Auth.")
+        novo_usuario = st.text_input("Nome de usuário", key="reg_user")
+        novo_email = st.text_input("E-mail", key="reg_email")
         nova_senha = st.text_input("Definir Senha", type="password", key="reg_pass")
         confirmar = st.text_input("Confirmar Senha", type="password", key="reg_conf")
 
         if st.button("Cadastrar"):
-            if not novo_usuario or not nova_senha:
-                st.error("O usuário e a senha não podem estar vazios.")
+            if not novo_usuario or not novo_email or not nova_senha:
+                st.error("Usuário, e-mail e senha não podem estar vazios.")
             elif nova_senha != confirmar:
                 st.error("As senhas não coincidem.")
             elif len(nova_senha) < 6:
                 st.warning("A senha deve ter pelo menos 6 caracteres.")
             else:
-                hashed = bcrypt.hashpw(nova_senha.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-                supabase.table("usuarios_app").insert({"username": novo_usuario, "password_hash": hashed}).execute()
-                st.success("Conta criada! Vá na aba 'Entrar'.")
+                try:
+                    auth_res = supabase.auth.sign_up(
+                        {
+                            "email": novo_email,
+                            "password": nova_senha,
+                            "options": {"data": {"username": novo_usuario}},
+                        }
+                    )
+                    user = getattr(auth_res, "user", None)
+                    if not user:
+                        st.warning("Conta criada no Auth. Verifique seu e-mail para confirmar o acesso.")
+                    else:
+                        try:
+                            _salvar_perfil_usuario(supabase, user.id, novo_usuario, novo_email)
+                            st.success("Conta criada com sucesso! Vá na aba 'Entrar'.")
+                        except APIError as api_exc:
+                            st.warning(
+                                "Conta criada no Auth, mas perfil em usuarios_app não foi salvo. "
+                                f"Detalhe: {api_exc}"
+                            )
+                        except Exception as exc:
+                            st.warning(
+                                "Conta criada no Auth, mas perfil em usuarios_app não foi salvo. "
+                                f"Detalhe: {exc}"
+                            )
+                except Exception as exc:
+                    st.error(f"Erro ao cadastrar no Supabase Auth: {exc}")
 
     return False
