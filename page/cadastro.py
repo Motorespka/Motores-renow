@@ -14,7 +14,7 @@ from services.gemini_oficina import HEIF_SUPPORTED, extract_motor_data_with_gemi
 from services.oficina_parser import DEFAULT_EXTRACTED, normalize_extracted_data, to_supabase_payload
 from services.supabase_data import clear_motores_cache
 
-SUPPORTED_TYPES = ["jpg", "jpeg", "png", "heic", "heif", "webp", "jfif"]
+SUPPORTED_TYPES = ["jpg", "jpeg", "png", "heic", "heif", "webp", "jfif", "avif"]
 
 
 def _init_state() -> None:
@@ -120,6 +120,8 @@ def render(ctx):
     if uploads:
         st.session_state["cadastro_uploads"] = uploads
         st.session_state["cadastro_status"] = f"{len(uploads)} imagem(ns) carregada(s)"
+    current_uploads = st.session_state.get("cadastro_uploads") or []
+    has_uploads = len(current_uploads) > 0
 
     cols = st.columns([2, 1])
     with cols[0]:
@@ -128,9 +130,9 @@ def render(ctx):
         if not HEIF_SUPPORTED:
             st.caption("ℹ️ Para HEIC/HEIF de iPhone, instale pillow-heif no ambiente.")
 
-    if st.session_state["cadastro_uploads"]:
+    if has_uploads:
         prev_cols = st.columns(3)
-        for idx, file in enumerate(st.session_state["cadastro_uploads"]):
+        for idx, file in enumerate(current_uploads):
             with prev_cols[idx % 3]:
                 preview = _preview_image(file)
                 if preview is not None:
@@ -138,24 +140,27 @@ def render(ctx):
                 else:
                     st.warning(f"Não foi possível gerar preview de {file.name}")
 
-    b1, b2 = st.columns(2)
-    with b1:
-        if st.button("Ler foto com Gemini", use_container_width=True, disabled=not st.session_state["cadastro_uploads"]):
-            files_payload = [
-                {"name": f.name, "bytes": f.getvalue()} for f in st.session_state["cadastro_uploads"]
-            ]
+    if st.button("Ler foto com Gemini", use_container_width=True):
+        if not has_uploads:
+            st.warning("Envie ao menos uma foto para análise antes de usar o Gemini.")
+        else:
+            files_payload = [{"name": f.name, "bytes": f.getvalue()} for f in current_uploads]
             st.session_state["cadastro_status"] = "Analisando imagens no Gemini..."
-            with st.spinner("Extraindo campos técnicos..."):
-                extracted = extract_motor_data_with_gemini(files_payload)
-            st.session_state["cadastro_extracted"] = normalize_extracted_data(extracted)
-            st.session_state["cadastro_status"] = "Campos extraídos e prontos para revisão"
-            st.success("Leitura finalizada. Revise os campos antes de salvar.")
+            try:
+                with st.spinner("Extraindo campos técnicos..."):
+                    extracted = extract_motor_data_with_gemini(files_payload)
+                st.session_state["cadastro_extracted"] = normalize_extracted_data(extracted)
+                st.session_state["cadastro_status"] = "Campos extraídos e prontos para revisão"
+                st.success("Leitura finalizada. Revise os campos antes de salvar.")
+            except Exception as exc:
+                st.session_state["cadastro_status"] = "Falha na leitura com Gemini"
+                st.error(f"Falha ao ler foto com Gemini: {exc}")
 
-    with b2:
-        if st.button("Limpar formulário", use_container_width=True):
-            st.session_state["cadastro_extracted"] = normalize_extracted_data(DEFAULT_EXTRACTED)
-            st.session_state["cadastro_status"] = "Aguardando imagens"
-            st.rerun()
+    if st.button("Limpar formulário", use_container_width=True):
+        st.session_state["cadastro_extracted"] = normalize_extracted_data(DEFAULT_EXTRACTED)
+        st.session_state["cadastro_uploads"] = []
+        st.session_state["cadastro_status"] = "Aguardando imagens"
+        st.rerun()
 
     data = st.session_state["cadastro_extracted"]
     _show_confidence_warnings(data.get("confianca") or {})
@@ -251,7 +256,7 @@ def render(ctx):
             st.warning("Informe ao menos marca ou modelo antes de salvar.")
             return
 
-        _save_motor(ctx, data, uploads=st.session_state.get("cadastro_uploads", []))
+        _save_motor(ctx, data, uploads=current_uploads)
         st.success("Cadastro técnico salvo com sucesso.")
 
     st.divider()
