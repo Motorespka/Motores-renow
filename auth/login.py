@@ -47,11 +47,14 @@ def render_login(session, supabase) -> bool:
         senha = st.text_input("Senha", type="password", key="login_pass")
 
         if st.button("Acessar Sistema"):
-            if not email or not senha:
+            email_norm = (email or "").strip().lower()
+            if not email_norm or not senha:
                 st.warning("Por favor, preencha todos os campos.")
+            elif "@" not in email_norm:
+                st.warning("Informe um e-mail válido para login.")
             else:
                 try:
-                    supabase.auth.sign_in_with_password({"email": email, "password": senha})
+                    supabase.auth.sign_in_with_password({"email": email_norm, "password": senha})
 
                     # Garante que o ID vem do contexto autenticado atual
                     auth_user_res = supabase.auth.get_user()
@@ -61,7 +64,7 @@ def render_login(session, supabase) -> bool:
                         return False
 
                     user_meta = getattr(user, "user_metadata", {}) or {}
-                    username = user_meta.get("username") or email.split("@")[0]
+                    username = user_meta.get("username") or email_norm.split("@")[0]
                     nome = user_meta.get("nome") or username
 
                     _salvar_perfil_usuario(
@@ -69,12 +72,12 @@ def render_login(session, supabase) -> bool:
                         user_id=user.id,
                         username=username,
                         nome=nome,
-                        email=email,
+                        email=email_norm,
                     )
 
-                    perfil = _carregar_perfil_usuario(supabase, user.id, email)
+                    perfil = _carregar_perfil_usuario(supabase, user.id, email_norm)
                     st.session_state["auth_user_id"] = user.id
-                    st.session_state["auth_user_email"] = email
+                    st.session_state["auth_user_email"] = email_norm
                     st.session_state["auth_user_profile"] = perfil
                     session.login()
                     st.success("Login realizado!")
@@ -93,8 +96,14 @@ def render_login(session, supabase) -> bool:
         confirmar = st.text_input("Confirmar Senha", type="password", key="reg_conf")
 
         if st.button("Cadastrar"):
-            if not nome or not novo_usuario or not novo_email or not nova_senha:
+            email_reg_norm = (novo_email or "").strip().lower()
+            username_norm = (novo_usuario or "").strip()
+            nome_norm = (nome or "").strip()
+
+            if not nome_norm or not username_norm or not email_reg_norm or not nova_senha:
                 st.error("Nome, usuário, e-mail e senha não podem estar vazios.")
+            elif "@" not in email_reg_norm:
+                st.error("Informe um e-mail válido para cadastro.")
             elif nova_senha != confirmar:
                 st.error("As senhas não coincidem.")
             elif len(nova_senha) < 6:
@@ -103,9 +112,9 @@ def render_login(session, supabase) -> bool:
                 try:
                     auth_response = supabase.auth.sign_up(
                         {
-                            "email": novo_email,
+                            "email": email_reg_norm,
                             "password": nova_senha,
-                            "options": {"data": {"username": novo_usuario, "nome": nome}},
+                            "options": {"data": {"username": username_norm, "nome": nome_norm}},
                         }
                     )
 
