@@ -10,6 +10,28 @@ def _is_local_runtime(client) -> bool:
     return bool(getattr(client, "is_local_runtime", False))
 
 
+def _get_authenticated_user(client):
+    try:
+        auth_user_res = client.auth.get_user()
+        user = getattr(auth_user_res, "user", None)
+        if user and getattr(user, "id", None):
+            return user
+    except Exception:
+        pass
+    return None
+
+
+def _normalized_email(value: str) -> str:
+    return (value or "").strip().lower()
+
+
+def _set_authenticated_state(session, user, email: str, perfil: dict | None) -> None:
+    st.session_state["auth_user_id"] = getattr(user, "id", "")
+    st.session_state["auth_user_email"] = _normalized_email(email)
+    st.session_state["auth_user_profile"] = perfil or {}
+    session.login()
+
+
 def _build_profile(perfil, user, fallback_email: str):
     out = dict(perfil or {}) if isinstance(perfil, dict) else {}
     out.setdefault("email", fallback_email)
@@ -40,6 +62,37 @@ def _carregar_perfil_usuario(client, user_id: str, email: str):
         pass
 
     return None
+
+
+def try_restore_auth_session(session, client) -> bool:
+    if session.is_authenticated or _is_local_runtime(client):
+        return bool(session.is_authenticated)
+
+    user = _get_authenticated_user(client)
+    if not user:
+        return False
+
+    email = _normalized_email(getattr(user, "email", None) or st.session_state.get("auth_user_email") or "")
+    perfil = _carregar_perfil_usuario(client, user.id, email)
+    perfil = _build_profile(perfil, user, email)
+    _set_authenticated_state(session, user, email, perfil)
+    return True
+
+
+def sync_authenticated_profile(session, client) -> None:
+    if not session.is_authenticated or _is_local_runtime(client):
+        return
+
+    user = _get_authenticated_user(client)
+    if not user:
+        return
+
+    email = _normalized_email(getattr(user, "email", None) or st.session_state.get("auth_user_email") or "")
+    perfil = _carregar_perfil_usuario(client, user.id, email)
+    perfil = _build_profile(perfil, user, email)
+    st.session_state["auth_user_profile"] = perfil
+    st.session_state["auth_user_email"] = email
+    st.session_state["auth_user_id"] = getattr(user, "id", st.session_state.get("auth_user_id"))
 
 
 def _render_local_login(session) -> bool:
@@ -76,6 +129,9 @@ def render_login(session, client) -> bool:
     if _is_local_runtime(client):
         return _render_local_login(session)
 
+    if try_restore_auth_session(session, client):
+        return True
+
     st.title("Moto-Renow - Acesso Tecnico")
 
     tab_login, tab_cadastro = st.tabs(["Entrar", "Criar Conta"])
@@ -93,18 +149,14 @@ def render_login(session, client) -> bool:
             else:
                 try:
                     client.auth.sign_in_with_password({"email": email_norm, "password": senha})
-                    auth_user_res = client.auth.get_user()
-                    user = getattr(auth_user_res, "user", None)
+                    user = _get_authenticated_user(client)
                     if not user or not getattr(user, "id", None):
                         st.error("Login sem usuario valido retornado pelo Supabase Auth.")
                         return False
 
                     perfil = _carregar_perfil_usuario(client, user.id, email_norm)
                     perfil = _build_profile(perfil, user, email_norm)
-                    st.session_state["auth_user_id"] = user.id
-                    st.session_state["auth_user_email"] = email_norm
-                    st.session_state["auth_user_profile"] = perfil
-                    session.login()
+                    _set_authenticated_state(session, user, email_norm, perfil)
                     st.success("Login realizado!")
                     st.rerun()
                 except APIError as api_exc:

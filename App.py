@@ -6,7 +6,7 @@ try:
 except Exception:
     create_client = None
 
-from auth.login import render_login
+from auth.login import render_login, sync_authenticated_profile
 from core.access_control import is_admin_user
 from core.navigation import AppContext, Route, Router, render_navigation_sidebar
 from core.session_manager import SessionManager
@@ -94,6 +94,8 @@ def main() -> None:
 
     if not render_login(session, client):
         st.stop()
+
+    sync_authenticated_profile(session, client)
 
     current_route = session.get_route()
     if not is_admin_user() and current_route in {Route.CADASTRO, Route.EDIT}:

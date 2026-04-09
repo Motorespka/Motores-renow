@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Iterable, Set
+from typing import Any, Set
 
 import streamlit as st
 
@@ -68,7 +68,10 @@ def is_admin_user() -> bool:
     if _to_bool(profile.get("is_admin")):
         return True
 
-    role = _to_text(profile.get("role") or profile.get("perfil") or profile.get("tipo")).lower()
+    if _to_bool(profile.get("admin")):
+        return True
+
+    role = _to_text(profile.get("role") or profile.get("perfil") or profile.get("tipo") or profile.get("admin")).lower()
     if role in ADMIN_ROLES:
         return True
 
@@ -94,6 +97,5 @@ def require_admin_access(feature_name: str) -> bool:
     if is_admin_user():
         return True
     st.error(f"Acesso restrito: apenas administrador pode usar '{feature_name}'.")
-    st.info("Se esta conta deve ter permissao, configure role/is_admin no perfil ou ADMIN_EMAILS/ADMIN_USER_IDS.")
+    st.info("Se esta conta deve ter permissao, configure admin/role/is_admin no perfil ou ADMIN_EMAILS/ADMIN_USER_IDS.")
     return False
-
