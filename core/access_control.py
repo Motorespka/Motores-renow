@@ -114,7 +114,7 @@ def _query_admin_with_client(client: Any, user_id: str, email: str) -> bool:
                 continue
 
             ativo = row.get("ativo")
-            is_active = True if ativo is None else bool(ativo)
+            is_active = True if ativo is None else _to_bool(ativo)
             role = _to_text(row.get("role")).lower()
             is_admin = is_active and role in ADMIN_ROLES
             if role:
@@ -130,8 +130,10 @@ def _is_admin_from_database(user_id: str, email: str) -> bool:
     cache_key = f"{user_id}|{email}"
     if st.session_state.get("_admin_cache_key") == cache_key:
         cached = st.session_state.get("_admin_cache_value")
-        if isinstance(cached, bool):
-            return cached
+        # Cache apenas positivo: evita ficar preso em "nao admin"
+        # depois de uma promocao no banco (role -> admin).
+        if cached is True:
+            return True
 
     result = False
 
@@ -150,7 +152,10 @@ def _is_admin_from_database(user_id: str, email: str) -> bool:
                 pass
 
     st.session_state["_admin_cache_key"] = cache_key
-    st.session_state["_admin_cache_value"] = bool(result)
+    if result:
+        st.session_state["_admin_cache_value"] = True
+    else:
+        st.session_state.pop("_admin_cache_value", None)
     return bool(result)
 
 

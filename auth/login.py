@@ -43,6 +43,9 @@ def _set_authenticated_state(session, user, email: str, perfil: dict | None) -> 
     st.session_state["auth_user_email"] = _normalized_email(email)
     st.session_state["auth_user_profile"] = perfil or {}
     st.session_state["auth_force_logged_out"] = False
+    # Evita manter status de permissao desatualizado entre logins.
+    st.session_state.pop("_admin_cache_key", None)
+    st.session_state.pop("_admin_cache_value", None)
     session.login()
 
 
@@ -260,6 +263,8 @@ def sync_authenticated_profile(session, client) -> None:
     st.session_state["auth_user_profile"] = perfil
     st.session_state["auth_user_email"] = email
     st.session_state["auth_user_id"] = getattr(user, "id", st.session_state.get("auth_user_id"))
+    st.session_state.pop("_admin_cache_key", None)
+    st.session_state.pop("_admin_cache_value", None)
 
 
 def _render_local_login(session) -> bool:

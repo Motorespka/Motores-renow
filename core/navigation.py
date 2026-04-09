@@ -46,7 +46,13 @@ def _perform_logout(session, supabase_client=None) -> None:
     except Exception:
         pass
 
-    for key in ["auth_user_id", "auth_user_email", "auth_user_profile"]:
+    for key in [
+        "auth_user_id",
+        "auth_user_email",
+        "auth_user_profile",
+        "_admin_cache_key",
+        "_admin_cache_value",
+    ]:
         st.session_state.pop(key, None)
 
     session.logout()
