@@ -1,4 +1,4 @@
-from pathlib import Path
+﻿from pathlib import Path
 import os
 
 import streamlit as st
@@ -17,6 +17,20 @@ from services.database import bootstrap_database, build_local_runtime_client
 st.set_page_config(page_title="Moto-Renow", page_icon="⚙️", layout="wide")
 
 
+def _read_secret_or_env(*names: str) -> str:
+    for name in names:
+        try:
+            value = st.secrets.get(name)
+            if value:
+                return str(value).strip()
+        except Exception:
+            pass
+        value = os.environ.get(name)
+        if value:
+            return str(value).strip()
+    return ""
+
+
 @st.cache_resource
 def init_connection(mode: str):
     if mode == "DEV":
@@ -24,8 +38,12 @@ def init_connection(mode: str):
 
     if create_client is None:
         raise RuntimeError("SDK do Supabase indisponivel neste ambiente.")
-    url = st.secrets["SUPABASE_URL"]
-    key = st.secrets["SUPABASE_KEY"]
+
+    url = _read_secret_or_env("SUPABASE_URL")
+    key = _read_secret_or_env("SUPABASE_KEY", "SUPABASE_ANON_KEY")
+    if not url or not key:
+        raise RuntimeError("SUPABASE_URL/SUPABASE_KEY (ou SUPABASE_ANON_KEY) nao configurados.")
+
     return create_client(url, key)
 
 
@@ -78,10 +96,9 @@ def resolve_runtime_mode() -> str:
     if env:
         return env
 
-    try:
-        has_supabase = bool(st.secrets.get("SUPABASE_URL")) and bool(st.secrets.get("SUPABASE_KEY"))
-    except Exception:
-        has_supabase = False
+    has_supabase = bool(_read_secret_or_env("SUPABASE_URL")) and bool(
+        _read_secret_or_env("SUPABASE_KEY", "SUPABASE_ANON_KEY")
+    )
 
     if not has_supabase:
         return "DEV"

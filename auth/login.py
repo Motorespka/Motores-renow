@@ -29,6 +29,15 @@ def _normalized_email(value: str) -> str:
     return (value or "").strip().lower()
 
 
+def _default_username(email: str, user_id: str) -> str:
+    base = _normalized_email(email).split("@")[0]
+    base = "".join(ch for ch in base if ch.isalnum() or ch == "_")
+    if not base:
+        base = "user"
+    suffix = (user_id or "").replace("-", "")[:6]
+    return f"{base}_{suffix}" if suffix else base
+
+
 def _set_authenticated_state(session, user, email: str, perfil: dict | None) -> None:
     st.session_state["auth_user_id"] = getattr(user, "id", "")
     st.session_state["auth_user_email"] = _normalized_email(email)
@@ -51,7 +60,7 @@ def _build_profile(perfil, user, fallback_email: str):
     return out
 
 
-def _carregar_perfil_usuario(client, user_id: str, email: str):
+def _carregar_perfil_usuario(client, user_id: str, email: str, user_metadata: dict | None = None):
     perfil = None
     try:
         res = client.table("usuarios_app").select("*").eq("id", user_id).limit(1).execute()
@@ -154,6 +163,40 @@ def _carregar_perfil_usuario(client, user_id: str, email: str):
                         except Exception:
                             continue
 
+                if not perfil and user_id:
+                    try:
+                        username = ""
+                        nome = None
+                        if isinstance(user_metadata, dict):
+                            username = str(user_metadata.get("username") or "").strip()
+                            nome = str(user_metadata.get("nome") or "").strip() or None
+                        if not username:
+                            username = _default_username(email=email, user_id=user_id)
+
+                        payload = {
+                            "id": user_id,
+                            "username": username,
+                            "nome": nome,
+                            "email": email or None,
+                            "role": "user",
+                            "plan": "free",
+                            "ativo": True,
+                        }
+                        svc.table("usuarios_app").insert(payload).execute()
+                    except Exception:
+                        pass
+
+                    for col, value in [("id", user_id), ("email", email)]:
+                        if not value:
+                            continue
+                        try:
+                            res = svc.table("usuarios_app").select("*").eq(col, value).limit(1).execute()
+                            if res.data:
+                                perfil = res.data[0]
+                                break
+                        except Exception:
+                            continue
+
                 if email and (not perfil or str(perfil.get("role", "")).strip().lower() != "admin"):
                     try:
                         res = svc.table("usuarios_app").select("*").ilike("email", email).limit(1).execute()
@@ -197,7 +240,7 @@ def try_restore_auth_session(session, client) -> bool:
         return False
 
     email = _normalized_email(getattr(user, "email", None) or st.session_state.get("auth_user_email") or "")
-    perfil = _carregar_perfil_usuario(client, user.id, email)
+    perfil = _carregar_perfil_usuario(client, user.id, email, getattr(user, "user_metadata", None))
     perfil = _build_profile(perfil, user, email)
     _set_authenticated_state(session, user, email, perfil)
     return True
@@ -212,7 +255,7 @@ def sync_authenticated_profile(session, client) -> None:
         return
 
     email = _normalized_email(getattr(user, "email", None) or st.session_state.get("auth_user_email") or "")
-    perfil = _carregar_perfil_usuario(client, user.id, email)
+    perfil = _carregar_perfil_usuario(client, user.id, email, getattr(user, "user_metadata", None))
     perfil = _build_profile(perfil, user, email)
     st.session_state["auth_user_profile"] = perfil
     st.session_state["auth_user_email"] = email
@@ -281,7 +324,7 @@ def render_login(session, client) -> bool:
                         st.error("Login sem usuario valido retornado pelo Supabase Auth.")
                         return False
 
-                    perfil = _carregar_perfil_usuario(client, user.id, email_norm)
+                    perfil = _carregar_perfil_usuario(client, user.id, email_norm, getattr(user, "user_metadata", None))
                     perfil = _build_profile(perfil, user, email_norm)
                     _set_authenticated_state(session, user, email_norm, perfil)
                     st.success("Login realizado!")

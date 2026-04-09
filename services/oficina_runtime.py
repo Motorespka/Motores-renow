@@ -282,7 +282,7 @@ def _calcular_estatistica_assinatura(oficina: Dict[str, Any], assinatura: str) -
         from supabase import create_client
 
         url = st.secrets.get("SUPABASE_URL")
-        key = st.secrets.get("SUPABASE_KEY")
+        key = st.secrets.get("SUPABASE_KEY") or st.secrets.get("SUPABASE_ANON_KEY")
         if url and key:
             supabase = create_client(url, key)
             start = 0
