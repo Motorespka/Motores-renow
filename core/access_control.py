@@ -1,15 +1,12 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import os
-from typing import Any, Set
+from typing import Any, Dict, Set
 
 import streamlit as st
-try:
-    from supabase import create_client
-except Exception:
-    create_client = None
 
 ADMIN_ROLES = {"admin", "owner", "superadmin", "root"}
+DEFAULT_PLAN = "free"
 
 
 def _to_text(value: Any) -> str:
@@ -66,154 +63,127 @@ def _current_profile() -> dict:
     return {}
 
 
-def _upsert_profile_admin(role_value: str, is_admin: bool) -> None:
+def _get_supabase_client() -> Any:
+    return st.session_state.get("_supabase_client")
+
+
+def _get_authenticated_identity() -> tuple[str, str]:
     profile = _current_profile()
-    updated = False
-    if is_admin and not _to_bool(profile.get("is_admin")):
-        profile["is_admin"] = True
-        updated = True
-    if role_value and _to_text(profile.get("role")).lower() != role_value.lower():
-        profile["role"] = role_value
-        updated = True
-    if updated:
-        st.session_state["auth_user_profile"] = profile
-
-
-def _read_secret_or_env(*names: str) -> str:
-    for name in names:
-        value = os.environ.get(name)
-        if value:
-            return str(value).strip()
-        try:
-            secret_value = st.secrets.get(name)
-            if secret_value:
-                return str(secret_value).strip()
-        except Exception:
-            pass
-    return ""
-
-
-def _query_admin_with_client(client: Any, user_id: str, email: str) -> bool:
-    if not client:
-        return False
-
-    attempts = []
-    if user_id:
-        attempts.append(("id", user_id, False))
-    if email:
-        attempts.append(("email", email, False))
-        attempts.append(("email", email, True))
-
-    for col, value, ilike in attempts:
-        try:
-            query = client.table("usuarios_app").select("role,ativo").limit(1)
-            query = query.ilike(col, value) if ilike else query.eq(col, value)
-            res = query.execute()
-            row = (res.data or [None])[0]
-            if not isinstance(row, dict):
-                continue
-
-            ativo = row.get("ativo")
-            is_active = True if ativo is None else _to_bool(ativo)
-            role = _to_text(row.get("role")).lower()
-            is_admin = is_active and role in ADMIN_ROLES
-            if role:
-                _upsert_profile_admin(role, is_admin)
-            if is_admin:
-                return True
-        except Exception:
-            continue
-    return False
-
-
-def _is_admin_from_database(user_id: str, email: str) -> bool:
-    cache_key = f"{user_id}|{email}"
-    if st.session_state.get("_admin_cache_key") == cache_key:
-        cached = st.session_state.get("_admin_cache_value")
-        # Cache apenas positivo: evita ficar preso em "nao admin"
-        # depois de uma promocao no banco (role -> admin).
-        if cached is True:
-            return True
-
-    result = False
-
-    client = st.session_state.get("_supabase_client")
-    if client is not None and not getattr(client, "is_local_runtime", False):
-        result = _query_admin_with_client(client, user_id=user_id, email=email)
-
-    if not result and create_client is not None:
-        url = _read_secret_or_env("SUPABASE_URL")
-        service_key = _read_secret_or_env("SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SERVICE_KEY")
-        if url and service_key:
-            try:
-                svc = create_client(url, service_key)
-                result = _query_admin_with_client(svc, user_id=user_id, email=email)
-            except Exception:
-                pass
-
-    st.session_state["_admin_cache_key"] = cache_key
-    if result:
-        st.session_state["_admin_cache_value"] = True
-    else:
-        st.session_state.pop("_admin_cache_value", None)
-    return bool(result)
-
-
-def is_admin_user() -> bool:
-    profile = _current_profile()
-
-    if _to_bool(profile.get("is_admin")):
-        return True
-
-    if _to_bool(profile.get("admin")):
-        return True
-
-    role = _to_text(profile.get("role") or profile.get("perfil") or profile.get("tipo") or profile.get("admin")).lower()
-    if role in ADMIN_ROLES:
-        return True
-
     user_id = _to_text(st.session_state.get("auth_user_id"))
     email = _normalized_email(st.session_state.get("auth_user_email") or profile.get("email"))
 
-    if not user_id or not email:
-        client = st.session_state.get("_supabase_client")
-        if client is not None and not getattr(client, "is_local_runtime", False):
-            try:
-                auth_user_res = client.auth.get_user()
-                user = getattr(auth_user_res, "user", None)
-                fetched_id = _to_text(getattr(user, "id", ""))
-                fetched_email = _normalized_email(getattr(user, "email", ""))
-                if fetched_id:
-                    user_id = fetched_id
-                    st.session_state["auth_user_id"] = fetched_id
-                if fetched_email:
-                    email = fetched_email
-                    st.session_state["auth_user_email"] = fetched_email
-            except Exception:
-                pass
+    client = _get_supabase_client()
+    if (not user_id or not email) and client is not None and not getattr(client, "is_local_runtime", False):
+        try:
+            auth_user_res = client.auth.get_user()
+            user = getattr(auth_user_res, "user", None)
+            fetched_id = _to_text(getattr(user, "id", ""))
+            fetched_email = _normalized_email(getattr(user, "email", ""))
+            if fetched_id:
+                user_id = fetched_id
+                st.session_state["auth_user_id"] = fetched_id
+            if fetched_email:
+                email = fetched_email
+                st.session_state["auth_user_email"] = fetched_email
+        except Exception:
+            pass
 
-    if user_id or email:
-        if _is_admin_from_database(user_id=user_id, email=email):
-            return True
+    return user_id, email
 
-    admin_ids = _allowlist("ADMIN_USER_IDS")
-    admin_emails = {_normalized_email(v) for v in _allowlist("ADMIN_EMAILS")}
 
-    single_email = _normalized_email(os.environ.get("ADMIN_EMAIL") or _get_secret("ADMIN_EMAIL"))
-    if single_email:
-        admin_emails.add(single_email)
+def _fetch_usuarios_app_profile(user_id: str) -> Dict[str, Any] | None:
+    if not user_id:
+        return None
 
-    if user_id and user_id in admin_ids:
-        return True
-    if email and email in admin_emails:
-        return True
+    client = _get_supabase_client()
+    if client is None or getattr(client, "is_local_runtime", False):
+        return None
 
-    return False
+    try:
+        res = (
+            client
+            .table("usuarios_app")
+            .select("id,email,role,plan,ativo")
+            .eq("id", user_id)
+            .limit(1)
+            .execute()
+        )
+        row = (res.data or [None])[0]
+        if isinstance(row, dict):
+            return row
+    except Exception:
+        return None
+
+    return None
+
+
+def _merge_profile_cache(db_profile: Dict[str, Any] | None, email: str, is_admin: bool) -> None:
+    merged = dict(_current_profile())
+    if isinstance(db_profile, dict):
+        merged.update(db_profile)
+    if email and not _to_text(merged.get("email")):
+        merged["email"] = email
+    merged["is_admin"] = bool(is_admin)
+    st.session_state["auth_user_profile"] = merged
+
+
+def get_access_profile(force_refresh: bool = False) -> Dict[str, Any]:
+    user_id, email = _get_authenticated_identity()
+    cache_key = f"{user_id}|{email}"
+
+    if not force_refresh and st.session_state.get("_access_cache_key") == cache_key:
+        cached = st.session_state.get("_access_cache_value")
+        if isinstance(cached, dict):
+            return cached
+
+    db_profile = _fetch_usuarios_app_profile(user_id)
+    role = _to_text((db_profile or {}).get("role")).lower()
+    plan = _to_text((db_profile or {}).get("plan")) or DEFAULT_PLAN
+    ativo = _to_bool((db_profile or {}).get("ativo")) if db_profile else False
+
+    # Fonte principal: usuarios_app (id + ativo + role)
+    is_admin = bool(db_profile) and ativo and role == "admin"
+    source = "usuarios_app" if db_profile else "none"
+
+    # Fallback opcional por allowlist
+    if not is_admin:
+        admin_ids = _allowlist("ADMIN_USER_IDS")
+        admin_emails = {_normalized_email(v) for v in _allowlist("ADMIN_EMAILS")}
+        single_email = _normalized_email(os.environ.get("ADMIN_EMAIL") or _get_secret("ADMIN_EMAIL"))
+        if single_email:
+            admin_emails.add(single_email)
+
+        if (user_id and user_id in admin_ids) or (email and email in admin_emails):
+            is_admin = True
+            source = "allowlist"
+
+    _merge_profile_cache(db_profile, email=email, is_admin=is_admin)
+
+    access = {
+        "user_id": user_id,
+        "email": email,
+        "perfil_existe": bool(db_profile),
+        "ativo": bool(ativo),
+        "role": role,
+        "plan": plan,
+        "is_admin": bool(is_admin),
+        "source": source,
+    }
+
+    st.session_state["_access_cache_key"] = cache_key
+    st.session_state["_access_cache_value"] = access
+    return access
+
+
+def is_admin_user() -> bool:
+    return bool(get_access_profile().get("is_admin"))
 
 
 def require_admin_access(feature_name: str) -> bool:
-    if is_admin_user():
+    access = get_access_profile()
+    if access.get("is_admin"):
         return True
+
     st.error(f"Acesso restrito: apenas administrador pode usar '{feature_name}'.")
-    st.info("Se esta conta deve ter permissao, configure admin/role/is_admin no perfil ou ADMIN_EMAILS/ADMIN_USER_IDS.")
+    st.info("Regra de acesso: usuarios_app.id = auth.uid(), ativo = true e role = 'admin'.")
     return False

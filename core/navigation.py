@@ -50,8 +50,11 @@ def _perform_logout(session, supabase_client=None) -> None:
         "auth_user_id",
         "auth_user_email",
         "auth_user_profile",
+        "_access_cache_key",
+        "_access_cache_value",
         "_admin_cache_key",
         "_admin_cache_value",
+        "_post_login_route_applied",
     ]:
         st.session_state.pop(key, None)
 
