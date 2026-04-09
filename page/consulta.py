@@ -5,6 +5,7 @@ import json
 import os
 import re
 from typing import Any, Dict, List
+from urllib.parse import quote_plus
 
 import streamlit as st
 
@@ -42,6 +43,44 @@ def _is_path_like(value: str) -> bool:
     if txt.startswith("/") or txt.startswith("\\\\"):
         return True
     return "/users/" in txt.lower() or "\\users\\" in txt.lower()
+
+
+def _read_secret_or_env(*names: str) -> str:
+    for name in names:
+        try:
+            value = st.secrets.get(name)
+            if value:
+                return str(value).strip()
+        except Exception:
+            pass
+        value = os.environ.get(name)
+        if value:
+            return str(value).strip()
+    return ""
+
+
+def _resolve_upgrade_whatsapp() -> tuple[str, str]:
+    raw_phone = _read_secret_or_env(
+        "WHATSAPP_UPGRADE_NUMBER",
+        "UPGRADE_WHATSAPP_NUMBER",
+        "WHATSAPP_NUMBER",
+    ) or "31 994211750"
+    phone = re.sub(r"\D+", "", raw_phone)
+    if phone.startswith("00"):
+        phone = phone[2:]
+    # Conveniencia para numero BR informado sem DDI.
+    if len(phone) == 11 and not phone.startswith("55"):
+        phone = f"55{phone}"
+    if len(phone) < 10:
+        return "", ""
+
+    default_msg = "Oi! Quero ativar o plano pago do Moto-Renow."
+    message = _read_secret_or_env(
+        "WHATSAPP_UPGRADE_MESSAGE",
+        "UPGRADE_WHATSAPP_MESSAGE",
+    ) or default_msg
+    url = f"https://wa.me/{phone}?text={quote_plus(message)}"
+    return url, message
 
 
 def _safe_file_label(value: Any) -> str:
@@ -292,7 +331,7 @@ def _render_consulta_header(total: int, filtrados: int, trifasicos: int, monofas
     c4.markdown(f'<div class="dash-kpi"><span>Monofasicos</span><strong>{monofasicos}</strong></div>', unsafe_allow_html=True)
 
 
-def _render_teaser_consulta(motores: List[Dict[str, Any]]) -> None:
+def _render_teaser_consulta(motores: List[Dict[str, Any]], admin_user: bool = False) -> None:
     st.markdown(
         """
         <div class="consulta-hero">
@@ -313,6 +352,30 @@ def _render_teaser_consulta(motores: List[Dict[str, Any]]) -> None:
 - Acesso ao cadastro tecnico de motores.
         """
     )
+
+    wa_url, wa_message = _resolve_upgrade_whatsapp()
+    if wa_url:
+        c1, c2 = st.columns([1.6, 1.2], gap="small")
+        with c1:
+            try:
+                st.link_button(
+                    "Falar no WhatsApp para liberar plano",
+                    wa_url,
+                    use_container_width=True,
+                )
+            except Exception:
+                st.markdown(f"[Falar no WhatsApp para liberar plano]({wa_url})")
+        with c2:
+            if st.button("Mostrar link para copiar", use_container_width=True, key="teaser_whatsapp_copy_btn"):
+                st.session_state["teaser_whatsapp_show_link"] = True
+        if st.session_state.get("teaser_whatsapp_show_link"):
+            st.text_input("Link de upgrade (copiar e enviar)", value=wa_url, key="teaser_whatsapp_link_field")
+            st.text_area("Mensagem padrao", value=wa_message, key="teaser_whatsapp_message_field", height=80)
+    elif admin_user:
+        st.caption(
+            "Configure WHATSAPP_UPGRADE_NUMBER (com DDI, ex: 5511999999999) em secrets/env para mostrar CTA de upgrade."
+        )
+
     amostra = motores[:8]
     for m in amostra:
         with st.container(border=True):
@@ -347,7 +410,7 @@ def render(ctx) -> None:
     motores = [_normalize_motor_record(r) for r in raw]
 
     if not paid_user:
-        _render_teaser_consulta(motores)
+        _render_teaser_consulta(motores, admin_user=admin_user)
         return
 
     busca = st.text_input(

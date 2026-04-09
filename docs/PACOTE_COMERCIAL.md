@@ -34,6 +34,13 @@
   - Alterar `username`, `nome`, `role`, `plan` e `ativo`.
   - Liberar/remover permissao manual de cadastro.
 
+## CTA de upgrade (WhatsApp) no teaser
+
+- O teaser da consulta pode mostrar botao de upgrade por WhatsApp.
+- Configure no `secrets.toml` (ou variavel de ambiente):
+  - `WHATSAPP_UPGRADE_NUMBER` (ex.: `5511999999999`)
+  - `WHATSAPP_UPGRADE_MESSAGE` (texto da mensagem)
+
 ## SQL rapido para liberar plano pago
 
 ```sql

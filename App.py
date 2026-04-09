@@ -32,7 +32,6 @@ def _read_secret_or_env(*names: str) -> str:
     return ""
 
 
-@st.cache_resource
 def init_connection(mode: str):
     if mode == "DEV":
         return build_local_runtime_client(mode="DEV")
@@ -110,11 +109,21 @@ def resolve_runtime_mode() -> str:
 
 
 def connect_runtime_client(mode: str):
-    if mode == "DEV":
-        return init_connection("DEV")
+    target_mode = "DEV" if str(mode).upper() == "DEV" else "PROD"
 
-    runtime = init_connection("PROD")
-    validate_database_schema(runtime)
+    cached_client = st.session_state.get("_runtime_client")
+    cached_mode = st.session_state.get("_runtime_client_mode")
+    if cached_client is not None and cached_mode == target_mode:
+        return cached_client
+
+    if target_mode == "DEV":
+        runtime = init_connection("DEV")
+    else:
+        runtime = init_connection("PROD")
+        validate_database_schema(runtime)
+
+    st.session_state["_runtime_client"] = runtime
+    st.session_state["_runtime_client_mode"] = target_mode
     return runtime
 
 
