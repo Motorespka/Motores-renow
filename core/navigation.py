@@ -136,9 +136,9 @@ def render_navigation_sidebar(session, supabase_client=None) -> None:
                     st.caption("Nenhum usuario encontrado.")
                 selected_user_id = ""
                 if matches:
-                    options = [f"{m.get('label', '')} | id:{m.get('user_id', '')[:8]}" for m in matches]
+                    options = [f"{m.get('label', '')} | id:{m.get('user_id', '')}" for m in matches]
                     selected_label = st.selectbox("Resultados", options, key="nav_cadastro_user_pick")
-                    selected = next((m for m in matches if f"{m.get('label', '')} | id:{m.get('user_id', '')[:8]}" == selected_label), None)
+                    selected = next((m for m in matches if f"{m.get('label', '')} | id:{m.get('user_id', '')}" == selected_label), None)
                     selected_user_id = str((selected or {}).get("user_id") or "")
 
                 if st.button("Adicionar usuario", use_container_width=True, key="nav_cadastro_user_add"):
