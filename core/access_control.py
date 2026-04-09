@@ -7,15 +7,12 @@ from typing import Any, Dict, List, Set
 import streamlit as st
 
 ADMIN_ROLES = {"admin", "owner", "superadmin", "root"}
+PAID_PLANS = {"paid", "pro", "premium", "enterprise", "business"}
 DEFAULT_PLAN = "free"
-CADASTRO_OPEN_FLAG = "CADASTRO_OPEN_TO_AUTHENTICATED"
-APP_SETTINGS_TABLE = "app_settings"
-CADASTRO_OPEN_SETTING_KEY = "cadastro_open_to_authenticated"
-CADASTRO_OPEN_CACHE_KEY = "_cadastro_open_setting_cache"
-CADASTRO_OPEN_CACHE_TTL_SECONDS = 15
 CADASTRO_ACCESS_TABLE = "cadastro_access"
 CADASTRO_USER_ACCESS_CACHE_PREFIX = "_cadastro_user_access_"
 CADASTRO_ACCESS_LIST_CACHE_KEY = "_cadastro_access_list_cache"
+CADASTRO_ACCESS_CACHE_TTL_SECONDS = 15
 
 
 def _to_text(value: Any) -> str:
@@ -65,23 +62,6 @@ def _allowlist(name: str) -> Set[str]:
     return env_values | secret_values
 
 
-def _set_cadastro_open_cache(value: bool) -> None:
-    st.session_state[CADASTRO_OPEN_CACHE_KEY] = {
-        "value": bool(value),
-        "ts": float(time.time()),
-    }
-
-
-def _get_cached_cadastro_open() -> bool | None:
-    cached = st.session_state.get(CADASTRO_OPEN_CACHE_KEY)
-    if not isinstance(cached, dict):
-        return None
-    ts = float(cached.get("ts") or 0.0)
-    if (time.time() - ts) > CADASTRO_OPEN_CACHE_TTL_SECONDS:
-        return None
-    return bool(cached.get("value"))
-
-
 def _user_access_cache_key(user_id: str) -> str:
     return f"{CADASTRO_USER_ACCESS_CACHE_PREFIX}{user_id}"
 
@@ -102,35 +82,9 @@ def _get_cached_cadastro_user_access(user_id: str) -> bool | None:
     if not isinstance(cached, dict):
         return None
     ts = float(cached.get("ts") or 0.0)
-    if (time.time() - ts) > CADASTRO_OPEN_CACHE_TTL_SECONDS:
+    if (time.time() - ts) > CADASTRO_ACCESS_CACHE_TTL_SECONDS:
         return None
     return bool(cached.get("value"))
-
-
-def _fetch_cadastro_open_from_db(client: Any | None = None) -> bool:
-    resolved_client = _resolve_supabase_client(client)
-    if resolved_client is None or getattr(resolved_client, "is_local_runtime", False):
-        return False
-
-    try:
-        res = (
-            resolved_client
-            .table(APP_SETTINGS_TABLE)
-            .select("key,value_bool")
-            .eq("key", CADASTRO_OPEN_SETTING_KEY)
-            .limit(1)
-            .execute()
-        )
-        rows = getattr(res, "data", None) or []
-        if not rows:
-            return False
-        row = rows[0] if isinstance(rows[0], dict) else {}
-        if "value_bool" in row and row.get("value_bool") is not None:
-            return bool(row.get("value_bool"))
-    except Exception:
-        return False
-
-    return False
 
 
 def _current_profile() -> dict:
@@ -366,49 +320,27 @@ def is_admin_user() -> bool:
     return bool(get_access_profile().get("is_admin"))
 
 
-def get_cadastro_open_setting(client: Any | None = None, force_refresh: bool = False) -> bool:
-    # Override opcional por secret/env (util para emergencias).
-    forced_open = _to_bool(os.environ.get(CADASTRO_OPEN_FLAG) or _get_secret(CADASTRO_OPEN_FLAG))
-    if forced_open:
-        _set_cadastro_open_cache(True)
+def has_paid_plan(plan_value: Any) -> bool:
+    plan = _to_text(plan_value).lower()
+    return plan in PAID_PLANS
+
+
+def can_access_paid_features(client: Any | None = None) -> bool:
+    access = get_access_profile(client=client)
+    if not access.get("authenticated"):
+        return False
+    if access.get("is_admin"):
+        return True
+    return has_paid_plan(access.get("plan"))
+
+
+def require_paid_access(feature_name: str, client: Any | None = None) -> bool:
+    if can_access_paid_features(client=client):
         return True
 
-    if not force_refresh:
-        cached = _get_cached_cadastro_open()
-        if cached is not None:
-            return cached
-
-    db_value = _fetch_cadastro_open_from_db(client=client)
-    _set_cadastro_open_cache(db_value)
-    return db_value
-
-
-def set_cadastro_open_setting(enabled: bool, client: Any | None = None) -> tuple[bool, str]:
-    resolved_client = _resolve_supabase_client(client)
-    if resolved_client is None:
-        return False, "Cliente Supabase indisponivel."
-
-    if getattr(resolved_client, "is_local_runtime", False):
-        _set_cadastro_open_cache(bool(enabled))
-        return True, "Permissao atualizada no modo local."
-
-    access = get_access_profile(client=resolved_client)
-    if not access.get("is_admin"):
-        return False, "Apenas admin pode alterar essa permissao."
-
-    payload = {
-        "key": CADASTRO_OPEN_SETTING_KEY,
-        "value_bool": bool(enabled),
-        "updated_by": access.get("user_id"),
-    }
-
-    try:
-        resolved_client.table(APP_SETTINGS_TABLE).upsert(payload, on_conflict="key").execute()
-    except Exception as exc:
-        return False, f"Falha ao salvar permissao no Supabase: {exc}"
-
-    _set_cadastro_open_cache(bool(enabled))
-    return True, "Permissao de cadastro atualizada com sucesso."
+    st.error(f"Recurso pago: '{feature_name}' disponivel somente para plano ativo.")
+    st.info("Seu acesso atual e teaser. Fale com o admin para ativar plano pago.")
+    return False
 
 
 def _fetch_cadastro_user_access_from_db(user_id: str, client: Any | None = None) -> bool:
@@ -459,7 +391,7 @@ def _get_cached_cadastro_access_list() -> List[Dict[str, Any]] | None:
     if not isinstance(cached, dict):
         return None
     ts = float(cached.get("ts") or 0.0)
-    if (time.time() - ts) > CADASTRO_OPEN_CACHE_TTL_SECONDS:
+    if (time.time() - ts) > CADASTRO_ACCESS_CACHE_TTL_SECONDS:
         return None
     rows = cached.get("rows")
     if isinstance(rows, list):
@@ -690,6 +622,9 @@ def can_access_cadastro(client: Any | None = None) -> bool:
     if not access.get("authenticated"):
         return False
 
+    if has_paid_plan(access.get("plan")):
+        return True
+
     user_id = _to_text(access.get("user_id"))
     return has_cadastro_user_access(user_id=user_id, client=client)
 
@@ -699,7 +634,7 @@ def require_cadastro_access(feature_name: str, client: Any | None = None) -> boo
         return True
 
     st.error(f"Acesso restrito: sem permissao para usar '{feature_name}'.")
-    st.info("Regra padrao: apenas admin. O admin pode liberar por usuario no painel de permissoes.")
+    st.info("Acesso permitido para admin, plano pago ou usuario liberado manualmente pelo admin.")
     return False
 
 

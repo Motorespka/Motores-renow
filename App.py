@@ -8,7 +8,7 @@ except Exception:
     create_client = None
 
 from auth.login import render_login, sync_authenticated_profile
-from core.access_control import can_access_cadastro, get_access_profile
+from core.access_control import can_access_cadastro, can_access_paid_features, get_access_profile
 from core.navigation import AppContext, Route, Router, render_navigation_sidebar
 from core.session_manager import SessionManager
 from page import cadastro, consulta, diagnostico, edit, motor_detail
@@ -206,6 +206,7 @@ def main() -> None:
 
     sync_authenticated_profile(session, client)
     access = get_access_profile(client=client)
+    paid_allowed = can_access_paid_features(client=client)
     cadastro_allowed = can_access_cadastro(client=client)
     current_route_before = _read_route_state(session)
     current_route = current_route_before
@@ -217,7 +218,7 @@ def main() -> None:
             if current_route in {"", "login", "consulta"}:
                 _set_route_state(session, "cadastro")
         else:
-            if current_route in {"", "login", "cadastro", "edit"}:
+            if current_route in {"", "login", "cadastro", "edit", "diagnostico", "detalhe"}:
                 _set_route_state(session, "consulta")
 
     current_route_after = _read_route_state(session)
@@ -231,11 +232,15 @@ def main() -> None:
         _set_route_state(session, "cadastro")
         st.rerun()
 
-    if access.get("authenticated") and (not cadastro_allowed) and route in ("cadastro", "edit"):
+    if access.get("authenticated") and (not cadastro_allowed) and route == "cadastro":
         _set_route_state(session, "consulta")
         st.rerun()
 
     if access.get("authenticated") and (not access.get("is_admin")) and route == "edit":
+        _set_route_state(session, "consulta")
+        st.rerun()
+
+    if access.get("authenticated") and (not paid_allowed) and route in ("diagnostico", "detalhe"):
         _set_route_state(session, "consulta")
         st.rerun()
 

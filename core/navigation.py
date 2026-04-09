@@ -8,6 +8,7 @@ import streamlit as st
 
 from core.access_control import (
     can_access_cadastro,
+    can_access_paid_features,
     grant_cadastro_access_for_user,
     is_admin_user,
     list_cadastro_allowed_users,
@@ -90,16 +91,14 @@ def render_navigation_sidebar(session, supabase_client=None) -> None:
         identity = resolve_current_user_identity()
         st.caption(f"Logado como: {identity.get('display_name', 'Usuario')}")
         admin_user = is_admin_user()
+        paid_allowed = can_access_paid_features(supabase_client)
         cadastro_allowed = can_access_cadastro(supabase_client)
         intents = []
         if cadastro_allowed:
             intents.append(("Cadastro", Route.CADASTRO))
-        intents.extend(
-            [
-                ("Consulta", Route.CONSULTA),
-                ("Diagnostico", Route.DIAGNOSTICO),
-            ]
-        )
+        intents.append(("Consulta", Route.CONSULTA))
+        if paid_allowed:
+            intents.append(("Diagnostico", Route.DIAGNOSTICO))
         for item in intents:
             label, route = item
             if st.button(label, use_container_width=True, key=f"nav_{route.value}"):

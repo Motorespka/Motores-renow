@@ -7,7 +7,7 @@ from typing import Any, Dict, List
 
 import streamlit as st
 
-from core.access_control import is_admin_user
+from core.access_control import is_admin_user, require_paid_access
 from services.oficina_parser import (
     build_normalized_from_motor_row,
     normalize_extracted_data,
@@ -248,6 +248,9 @@ def _render_real_diagnosis(ctx) -> None:
 
 
 def render(ctx):
+    if not require_paid_access("Diagnostico tecnico", client=ctx.supabase):
+        return
+
     st.markdown(
         """
         <div class="diag-hero">

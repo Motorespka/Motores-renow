@@ -8,7 +8,7 @@ from typing import Any, Dict, List
 
 import streamlit as st
 
-from core.access_control import is_admin_user
+from core.access_control import can_access_paid_features, is_admin_user
 from core.navigation import Route
 from services.oficina_parser import build_normalized_from_motor_row
 from services.supabase_data import fetch_motores_cached
@@ -292,8 +292,39 @@ def _render_consulta_header(total: int, filtrados: int, trifasicos: int, monofas
     c4.markdown(f'<div class="dash-kpi"><span>Monofasicos</span><strong>{monofasicos}</strong></div>', unsafe_allow_html=True)
 
 
+def _render_teaser_consulta(motores: List[Dict[str, Any]]) -> None:
+    st.markdown(
+        """
+        <div class="consulta-hero">
+            <div class="consulta-hero__tag">MODO TEASER</div>
+            <h1>Catalogo Tecnico (Visualizacao)</h1>
+            <p>Voce esta vendo uma previa. Para liberar detalhes completos e diagnostico, ative o plano pago.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.info("Plano gratuito: visualizacao limitada. Fale com o admin para ativar seu acesso completo.")
+    amostra = motores[:8]
+    for m in amostra:
+        with st.container(border=True):
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.caption("Marca")
+                st.write(_to_text(m.get("marca")) or "-")
+            with c2:
+                st.caption("Modelo")
+                st.write(_to_text(m.get("modelo")) or "-")
+            with c3:
+                st.caption("Potencia")
+                st.write(_to_text(m.get("potencia")) or "-")
+    if len(motores) > len(amostra):
+        st.caption(f"Mostrando {len(amostra)} de {len(motores)} motores no teaser.")
+
+
 def render(ctx) -> None:
     admin_user = is_admin_user()
+    paid_user = can_access_paid_features(ctx.supabase)
 
     try:
         raw = fetch_motores_cached(ctx.supabase)
@@ -306,6 +337,10 @@ def render(ctx) -> None:
         return
 
     motores = [_normalize_motor_record(r) for r in raw]
+
+    if not paid_user:
+        _render_teaser_consulta(motores)
+        return
 
     busca = st.text_input(
         "Busca geral",
