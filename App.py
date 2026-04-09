@@ -8,7 +8,6 @@ except Exception:
     create_client = None
 
 from auth.login import render_login, sync_authenticated_profile
-from core.access_control import is_admin_user
 from core.navigation import AppContext, Route, Router, render_navigation_sidebar
 from core.session_manager import SessionManager
 from page import cadastro, consulta, diagnostico, edit, motor_detail
@@ -140,9 +139,11 @@ def main() -> None:
 
     sync_authenticated_profile(session, client)
 
-    current_route = session.get_route()
-    if not is_admin_user() and current_route in {Route.CADASTRO, Route.EDIT}:
-        session.set_route(Route.CONSULTA)
+    # Nao forcamos redirecionamento de rota aqui:
+    # a propria pagina protegida (cadastro/edit) bloqueia o acesso para nao-admin.
+    # Isso evita "pulo" visual de /?route=cadastro para /?route=consulta
+    # quando a verificacao de perfil oscila por sincronizacao.
+    session.get_route()
 
     router = build_router()
     render_navigation_sidebar(session, client)

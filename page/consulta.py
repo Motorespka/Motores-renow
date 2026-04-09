@@ -173,50 +173,60 @@ def _render_data_panel(label: str, value: Any) -> None:
     )
 
 
-def _render_expanded_sections(motor: Dict[str, Any], admin_user: bool) -> None:
-    data = motor.get("dados_tecnicos_json", {})
+def _count_list_items(value: Any) -> int:
+    if isinstance(value, list):
+        return len([v for v in value if _to_text(v)])
+    text = _to_text(value)
+    if not text:
+        return 0
+    return len([p for p in re.split(r"\s*,\s*", text) if p.strip()])
+
+
+def _render_technical_summary(motor: Dict[str, Any], data: Dict[str, Any]) -> None:
+    motor_info = _section(data, "motor")
     principal = _section(data, "bobinagem_principal")
     auxiliar = _section(data, "bobinagem_auxiliar")
     mecanica = _section(data, "mecanica")
     esquema = _section(data, "esquema")
+    oficina = _section(data, "oficina")
+    diagnostico = oficina.get("diagnostico", {}) if isinstance(oficina, dict) else {}
+    avisos = diagnostico.get("avisos", []) if isinstance(diagnostico, dict) else []
+    if not isinstance(avisos, list):
+        avisos = []
 
-    st.markdown("#### Bobinagem detalhada")
-    c1, c2 = st.columns(2)
-    with c1:
-        _render_data_panel("Passos principais", principal.get("passos"))
-        _render_data_panel("Espiras principais", principal.get("espiras"))
-        _render_data_panel("Fio principal", principal.get("fios"))
-        _render_data_panel("Ligacao principal", principal.get("ligacao"))
-    with c2:
-        _render_data_panel("Passos auxiliares", auxiliar.get("passos"))
-        _render_data_panel("Espiras auxiliares", auxiliar.get("espiras"))
-        _render_data_panel("Fio auxiliar", auxiliar.get("fios"))
-        _render_data_panel("Capacitor", auxiliar.get("capacitor"))
+    resumo_id = (
+        f"{_safe(motor.get('marca'))} {_safe(motor.get('modelo'))} | "
+        f"{_safe(motor.get('tipo_motor'))} | {_safe(motor.get('fases'))} | {_safe(motor.get('polos'))}"
+    )
+    resumo_eletrico = (
+        f"Potencia {_safe(motor.get('potencia'))} | RPM {_safe(motor.get('rpm'))} | "
+        f"Tensao {_safe(motor.get('tensao'))} | Corrente {_safe(motor.get('corrente'))}"
+    )
+    resumo_bobinagem = (
+        f"Principal: {_count_list_items(principal.get('passos'))} passos, "
+        f"{_count_list_items(principal.get('espiras'))} espiras, "
+        f"{_count_list_items(principal.get('fios'))} fios | "
+        f"Auxiliar: {_count_list_items(auxiliar.get('passos'))} passos, "
+        f"{_count_list_items(auxiliar.get('espiras'))} espiras, "
+        f"{_count_list_items(auxiliar.get('fios'))} fios"
+    )
+    resumo_mecanica = (
+        f"Carcaca {_safe(mecanica.get('carcaca') or motor_info.get('carcaca'))} | "
+        f"Eixo {_safe(mecanica.get('eixo'))} | Rolamentos {_safe(mecanica.get('rolamentos'))} | "
+        f"Ranhuras {_safe(esquema.get('ranhuras'))} | Camadas {_safe(esquema.get('camadas'))}"
+    )
+    resumo_ia = f"Alertas da IA: {len(avisos)}"
 
-    st.markdown("#### Mecanica e esquema")
-    c3, c4 = st.columns(2)
-    with c3:
-        _render_data_panel("Rolamentos", mecanica.get("rolamentos"))
-        _render_data_panel("Eixo", mecanica.get("eixo"))
-        _render_data_panel("Carcaca", mecanica.get("carcaca"))
-        _render_data_panel("Medidas", mecanica.get("medidas"))
-    with c4:
-        _render_data_panel("Ligacao do esquema", esquema.get("ligacao"))
-        _render_data_panel("Ranhuras", esquema.get("ranhuras"))
-        _render_data_panel("Camadas", esquema.get("camadas"))
-        _render_data_panel("Distribuicao bobinas", esquema.get("distribuicao_bobinas"))
-
-    _render_data_panel("Observacoes", motor.get("observacoes"))
-
-    if admin_user:
-        with st.expander("Texto OCR (admin)", expanded=False):
-            st.text_area(
-                "Texto bruto extraido",
-                value=motor.get("texto_bruto_extraido") or "",
-                height=120,
-                key=f"ocr_admin_{motor.get('id')}",
-                disabled=True,
-            )
+    st.markdown(
+        f"""
+        <div class="data-panel"><div class="data-label">Identificacao</div><div class="data-value">{resumo_id}</div></div>
+        <div class="data-panel"><div class="data-label">Eletrica</div><div class="data-value">{resumo_eletrico}</div></div>
+        <div class="data-panel"><div class="data-label">Bobinagem</div><div class="data-value">{resumo_bobinagem}</div></div>
+        <div class="data-panel"><div class="data-label">Mecanica</div><div class="data-value">{resumo_mecanica}</div></div>
+        <div class="data-panel"><div class="data-label">IA</div><div class="data-value">{resumo_ia}</div></div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def _render_consulta_header(total: int, filtrados: int, trifasicos: int, monofasicos: int) -> None:
@@ -378,11 +388,15 @@ def render(ctx) -> None:
                     _render_data_panel("Espiras principais", bob_principal.get("espiras"))
                     _render_data_panel("Fio principal", bob_principal.get("fios"))
                     _render_data_panel("Ligacao principal", bob_principal.get("ligacao"))
+                    _render_data_panel("Qtd. grupos", bob_principal.get("quantidade_grupos"))
+                    _render_data_panel("Qtd. bobinas", bob_principal.get("quantidade_bobinas"))
                 with bb2:
                     _render_data_panel("Passos auxiliares", bob_auxiliar.get("passos"))
                     _render_data_panel("Espiras auxiliares", bob_auxiliar.get("espiras"))
                     _render_data_panel("Fio auxiliar", bob_auxiliar.get("fios"))
                     _render_data_panel("Ligacao auxiliar", bob_auxiliar.get("ligacao"))
+                    _render_data_panel("Capacitor", bob_auxiliar.get("capacitor"))
+                    _render_data_panel("Obs. bobinagem", bob_principal.get("observacoes") or bob_auxiliar.get("observacoes"))
 
             with tab3:
                 mc1, mc2 = st.columns(2)
@@ -390,10 +404,14 @@ def render(ctx) -> None:
                     _render_data_panel("Rolamentos", mecanica.get("rolamentos"))
                     _render_data_panel("Eixo", mecanica.get("eixo"))
                     _render_data_panel("Carcaca", mecanica.get("carcaca"))
-                with mc2:
                     _render_data_panel("Comprimento ponta", mecanica.get("comprimento_ponta"))
+                    _render_data_panel("Obs. mecanica", mecanica.get("observacoes"))
+                with mc2:
                     _render_data_panel("Medidas", mecanica.get("medidas"))
                     _render_data_panel("Esquema de ligacao", esquema.get("ligacao"))
+                    _render_data_panel("Ranhuras", esquema.get("ranhuras"))
+                    _render_data_panel("Camadas", esquema.get("camadas"))
+                    _render_data_panel("Distribuicao bobinas", esquema.get("distribuicao_bobinas"))
 
             with tab4:
                 _render_data_panel("Observacoes", m.get("observacoes"))
@@ -406,9 +424,12 @@ def render(ctx) -> None:
                         st.write(f"- {aviso}")
                 else:
                     st.caption("Sem alertas tecnicos registrados pela IA para este motor.")
+                if admin_user:
+                    _render_data_panel("Texto OCR", m.get("texto_bruto_extraido"))
+                _render_data_panel("Esquema (observacoes)", esquema.get("observacoes"))
 
-            with st.expander("Resumo tecnico adicional"):
-                _render_expanded_sections(m, admin_user=admin_user)
+            with st.expander("Resumo tecnico", expanded=False):
+                _render_technical_summary(m, data)
 
 
 def show(ctx) -> None:

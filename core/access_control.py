@@ -174,6 +174,24 @@ def is_admin_user() -> bool:
 
     user_id = _to_text(st.session_state.get("auth_user_id"))
     email = _normalized_email(st.session_state.get("auth_user_email") or profile.get("email"))
+
+    if not user_id or not email:
+        client = st.session_state.get("_supabase_client")
+        if client is not None and not getattr(client, "is_local_runtime", False):
+            try:
+                auth_user_res = client.auth.get_user()
+                user = getattr(auth_user_res, "user", None)
+                fetched_id = _to_text(getattr(user, "id", ""))
+                fetched_email = _normalized_email(getattr(user, "email", ""))
+                if fetched_id:
+                    user_id = fetched_id
+                    st.session_state["auth_user_id"] = fetched_id
+                if fetched_email:
+                    email = fetched_email
+                    st.session_state["auth_user_email"] = fetched_email
+            except Exception:
+                pass
+
     if user_id or email:
         if _is_admin_from_database(user_id=user_id, email=email):
             return True
