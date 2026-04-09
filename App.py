@@ -130,6 +130,7 @@ def main() -> None:
     except Exception as exc:
         st.error(f"Falha ao conectar no banco de producao: {exc}")
         st.stop()
+    st.session_state["_supabase_client"] = client
 
     if runtime_mode == "DEV" or getattr(client, "is_local_runtime", False):
         st.warning("⚠️ MODO DEV ATIVO")
