@@ -250,7 +250,7 @@ def get_access_profile(client: Any | None = None, force_refresh: bool = False) -
     ativo = _to_bool((db_profile or {}).get("ativo")) if db_profile else False
 
     # Fonte principal: usuarios_app (id + ativo + role)
-    is_admin = authenticated and bool(db_profile) and ativo and role == "admin"
+    is_admin = authenticated and bool(db_profile) and ativo and role in ADMIN_ROLES
     source = "usuarios_app" if db_profile else "none"
 
     # Fallback opcional por allowlist
