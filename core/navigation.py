@@ -50,13 +50,27 @@ def _perform_logout(session, supabase_client=None) -> None:
         "auth_user_id",
         "auth_user_email",
         "auth_user_profile",
+        "route",
         "_access_cache_key",
         "_access_cache_value",
         "_admin_cache_key",
         "_admin_cache_value",
         "_post_login_route_applied",
+        "logado",
+        "expira_em",
     ]:
         st.session_state.pop(key, None)
+
+    # Compatibilidade com sessao legada baseada em query param.
+    try:
+        st.query_params.pop("auth", None)
+    except Exception:
+        try:
+            q = st.experimental_get_query_params()
+            q.pop("auth", None)
+            st.experimental_set_query_params(**q)
+        except Exception:
+            pass
 
     session.logout()
     st.rerun()

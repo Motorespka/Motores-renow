@@ -165,7 +165,7 @@ def _save_motor(ctx, normalized: Dict[str, Any], uploads: List[Any]) -> None:
 
 
 def render(ctx):
-    if not require_admin_access("Cadastro tecnico (motor, O.S. e IA Gemini)"):
+    if not require_admin_access("Cadastro tecnico (motor, O.S. e IA Gemini)", client=ctx.supabase):
         if st.button("Ir para Consulta", use_container_width=True):
             ctx.session.set_route(Route.CONSULTA)
             st.rerun()

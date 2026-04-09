@@ -1,17 +1,15 @@
-import streamlit as st
-
-from auth.session import limpar_sessao, sessao_valida
+﻿import streamlit as st
 
 
-def check_login():
+def check_login(session=None):
     """
-    Módulo legado: mantém apenas verificação de sessão + logout.
-    A autenticação principal está em auth/login.py via Supabase Auth.
+    Compatibilidade legada: validacao agora usa a sessao principal (Supabase Auth).
+    Este modulo nao decide mais rota nem permissao.
     """
-    if sessao_valida():
-        if st.sidebar.button("🚪 Sair"):
-            limpar_sessao()
-            st.rerun()
+    if session is not None and bool(getattr(session, "is_authenticated", False)):
+        return True
+
+    if bool(st.session_state.get("auth_is_authenticated", False)):
         return True
 
     st.info("Faça login pela tela principal.")

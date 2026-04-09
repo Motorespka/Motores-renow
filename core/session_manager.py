@@ -63,6 +63,7 @@ class SessionManager:
             except Exception:
                 st.session_state[self.route_key] = Route.CADASTRO.value
         st.session_state[self.legacy_route_key] = st.session_state[self.route_key]
+        st.session_state["route"] = st.session_state[self.route_key]
         self._write_route_to_query(st.session_state[self.route_key])
         if self.selected_motor_key not in st.session_state:
             st.session_state[self.selected_motor_key] = None
@@ -78,12 +79,14 @@ class SessionManager:
         st.session_state[self.auth_key] = False
         st.session_state[self.route_key] = Route.CADASTRO.value
         st.session_state[self.legacy_route_key] = Route.CADASTRO.value
+        st.session_state["route"] = Route.CADASTRO.value
         self._write_route_to_query(Route.CADASTRO.value)
         st.session_state[self.selected_motor_key] = None
 
     def set_route(self, route: Route) -> None:
         st.session_state[self.route_key] = route.value
         st.session_state[self.legacy_route_key] = route.value
+        st.session_state["route"] = route.value
         self._write_route_to_query(route.value)
 
     def get_route(self) -> Route:
@@ -94,6 +97,7 @@ class SessionManager:
             route = Route.CADASTRO
         st.session_state[self.route_key] = route.value
         st.session_state[self.legacy_route_key] = route.value
+        st.session_state["route"] = route.value
         self._write_route_to_query(route.value)
         return route
 

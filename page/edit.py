@@ -150,7 +150,7 @@ def _update_motor_supabase(supabase, id_motor, payload_legacy: dict, payload_sch
 
 
 def render(ctx):
-    if not require_admin_access("Edicao de motor"):
+    if not require_admin_access("Edicao de motor", client=ctx.supabase):
         if st.button("Voltar para Consulta", use_container_width=True):
             ctx.session.set_route(Route.CONSULTA)
             st.rerun()

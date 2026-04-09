@@ -40,6 +40,18 @@ def _set_authenticated_state(session, user, email: str, perfil: dict | None) -> 
     st.session_state["auth_user_profile"] = perfil or {}
     st.session_state["auth_force_logged_out"] = False
     st.session_state["_post_login_route_applied"] = False
+    st.session_state.pop("route", None)
+    st.session_state.pop("logado", None)
+    st.session_state.pop("expira_em", None)
+    try:
+        st.query_params.pop("auth", None)
+    except Exception:
+        try:
+            q = st.experimental_get_query_params()
+            q.pop("auth", None)
+            st.experimental_set_query_params(**q)
+        except Exception:
+            pass
     # Evita manter status de permissao desatualizado entre logins.
     st.session_state.pop("_access_cache_key", None)
     st.session_state.pop("_access_cache_value", None)
@@ -197,6 +209,18 @@ def _render_local_login(session) -> bool:
         session.login()
         st.session_state["auth_force_logged_out"] = False
         st.session_state["_post_login_route_applied"] = False
+        st.session_state.pop("route", None)
+        st.session_state.pop("logado", None)
+        st.session_state.pop("expira_em", None)
+        try:
+            st.query_params.pop("auth", None)
+        except Exception:
+            try:
+                q = st.experimental_get_query_params()
+                q.pop("auth", None)
+                st.experimental_set_query_params(**q)
+            except Exception:
+                pass
         st.success("Login local realizado.")
         st.rerun()
 

@@ -67,12 +67,18 @@ def _get_supabase_client() -> Any:
     return st.session_state.get("_supabase_client")
 
 
-def _get_authenticated_identity() -> tuple[str, str]:
+def _resolve_supabase_client(client: Any | None = None) -> Any:
+    if client is not None:
+        return client
+    return _get_supabase_client()
+
+
+def _get_authenticated_identity(client: Any | None = None) -> tuple[str, str]:
     profile = _current_profile()
     user_id = _to_text(st.session_state.get("auth_user_id"))
     email = _normalized_email(st.session_state.get("auth_user_email") or profile.get("email"))
 
-    client = _get_supabase_client()
+    client = _resolve_supabase_client(client)
     if (not user_id or not email) and client is not None and not getattr(client, "is_local_runtime", False):
         try:
             auth_user_res = client.auth.get_user()
@@ -91,11 +97,11 @@ def _get_authenticated_identity() -> tuple[str, str]:
     return user_id, email
 
 
-def _fetch_usuarios_app_profile(user_id: str) -> Dict[str, Any] | None:
+def _fetch_usuarios_app_profile(user_id: str, client: Any | None = None) -> Dict[str, Any] | None:
     if not user_id:
         return None
 
-    client = _get_supabase_client()
+    client = _resolve_supabase_client(client)
     if client is None or getattr(client, "is_local_runtime", False):
         return None
 
@@ -127,26 +133,29 @@ def _merge_profile_cache(db_profile: Dict[str, Any] | None, email: str, is_admin
     st.session_state["auth_user_profile"] = merged
 
 
-def get_access_profile(force_refresh: bool = False) -> Dict[str, Any]:
-    user_id, email = _get_authenticated_identity()
-    cache_key = f"{user_id}|{email}"
+def get_access_profile(client: Any | None = None, force_refresh: bool = False) -> Dict[str, Any]:
+    resolved_client = _resolve_supabase_client(client)
+    user_id, email = _get_authenticated_identity(resolved_client)
+    auth_flag = bool(st.session_state.get("auth_is_authenticated"))
+    authenticated = bool(user_id) and (auth_flag or bool(email))
+    cache_key = f"{user_id}|{email}|{int(authenticated)}"
 
     if not force_refresh and st.session_state.get("_access_cache_key") == cache_key:
         cached = st.session_state.get("_access_cache_value")
         if isinstance(cached, dict):
             return cached
 
-    db_profile = _fetch_usuarios_app_profile(user_id)
+    db_profile = _fetch_usuarios_app_profile(user_id, resolved_client)
     role = _to_text((db_profile or {}).get("role")).lower()
     plan = _to_text((db_profile or {}).get("plan")) or DEFAULT_PLAN
     ativo = _to_bool((db_profile or {}).get("ativo")) if db_profile else False
 
     # Fonte principal: usuarios_app (id + ativo + role)
-    is_admin = bool(db_profile) and ativo and role == "admin"
+    is_admin = authenticated and bool(db_profile) and ativo and role == "admin"
     source = "usuarios_app" if db_profile else "none"
 
     # Fallback opcional por allowlist
-    if not is_admin:
+    if authenticated and not is_admin:
         admin_ids = _allowlist("ADMIN_USER_IDS")
         admin_emails = {_normalized_email(v) for v in _allowlist("ADMIN_EMAILS")}
         single_email = _normalized_email(os.environ.get("ADMIN_EMAIL") or _get_secret("ADMIN_EMAIL"))
@@ -160,6 +169,7 @@ def get_access_profile(force_refresh: bool = False) -> Dict[str, Any]:
     _merge_profile_cache(db_profile, email=email, is_admin=is_admin)
 
     access = {
+        "authenticated": authenticated,
         "user_id": user_id,
         "email": email,
         "perfil_existe": bool(db_profile),
@@ -179,8 +189,8 @@ def is_admin_user() -> bool:
     return bool(get_access_profile().get("is_admin"))
 
 
-def require_admin_access(feature_name: str) -> bool:
-    access = get_access_profile()
+def require_admin_access(feature_name: str, client: Any | None = None) -> bool:
+    access = get_access_profile(client=client)
     if access.get("is_admin"):
         return True
 

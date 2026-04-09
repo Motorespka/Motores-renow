@@ -8,13 +8,14 @@ except Exception:
     create_client = None
 
 from auth.login import render_login, sync_authenticated_profile
-from core.access_control import is_admin_user
+from core.access_control import get_access_profile
 from core.navigation import AppContext, Route, Router, render_navigation_sidebar
 from core.session_manager import SessionManager
 from page import cadastro, consulta, diagnostico, edit, motor_detail
 from services.database import bootstrap_database, build_local_runtime_client
 
 st.set_page_config(page_title="Moto-Renow", page_icon="⚙️", layout="wide")
+DEBUG_ACCESS = True
 
 
 def _read_secret_or_env(*names: str) -> str:
@@ -116,6 +117,37 @@ def connect_runtime_client(mode: str):
     return runtime
 
 
+def _read_route_state(session: SessionManager) -> str:
+    route = st.session_state.get("route")
+    if isinstance(route, str) and route.strip():
+        return route.strip().lower()
+    try:
+        route = session.get_route().value
+    except Exception:
+        route = ""
+    route = str(route or "").strip().lower()
+    st.session_state["route"] = route
+    return route
+
+
+def _set_route_state(session: SessionManager, route_value: str) -> None:
+    route_value = str(route_value or "").strip().lower()
+    st.session_state["route"] = route_value
+    if route_value in {r.value for r in Route}:
+        session.set_route(Route(route_value))
+
+
+def _debug_access_state(access: dict, current_before: str, current_after: str) -> None:
+    if not DEBUG_ACCESS:
+        return
+    st.write("DEBUG auth_user_id:", st.session_state.get("auth_user_id"))
+    st.write("DEBUG auth_user_email:", st.session_state.get("auth_user_email"))
+    st.write("DEBUG auth_user_profile:", st.session_state.get("auth_user_profile"))
+    st.write("DEBUG access:", access)
+    st.write("DEBUG current_route_before:", current_before)
+    st.write("DEBUG current_route_after:", current_after)
+
+
 def main() -> None:
     session = SessionManager()
     try:
@@ -136,22 +168,37 @@ def main() -> None:
         st.warning("⚠️ MODO DEV ATIVO")
 
     if not render_login(session, client):
+        st.session_state["route"] = "login"
         st.stop()
 
     sync_authenticated_profile(session, client)
+    access = get_access_profile(client=client)
+    current_route_before = _read_route_state(session)
+    current_route = current_route_before
 
-    admin_user = is_admin_user()
-    current_route = session.get_route()
-    if not st.session_state.get("_post_login_route_applied", False):
-        target_route = Route.CADASTRO if admin_user else Route.CONSULTA
-        st.session_state["_post_login_route_applied"] = True
-        if current_route != target_route:
-            session.set_route(target_route)
-            st.rerun()
+    if not access.get("authenticated"):
+        st.session_state["route"] = "login"
+    else:
+        if access.get("is_admin"):
+            if current_route in {"", "login", "consulta"}:
+                _set_route_state(session, "cadastro")
+        else:
+            if current_route in {"", "login", "cadastro", "edit"}:
+                _set_route_state(session, "consulta")
 
-    current_route = session.get_route()
-    if not admin_user and current_route in {Route.CADASTRO, Route.EDIT}:
-        session.set_route(Route.CONSULTA)
+    current_route_after = _read_route_state(session)
+    _debug_access_state(access, current_route_before, current_route_after)
+
+    if not access.get("authenticated"):
+        st.stop()
+
+    route = st.session_state.get("route", "login")
+    if access.get("authenticated") and access.get("is_admin") and route == "consulta":
+        _set_route_state(session, "cadastro")
+        st.rerun()
+
+    if access.get("authenticated") and (not access.get("is_admin")) and route in ("cadastro", "edit"):
+        _set_route_state(session, "consulta")
         st.rerun()
 
     router = build_router()
