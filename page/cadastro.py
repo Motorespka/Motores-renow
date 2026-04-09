@@ -39,7 +39,7 @@ def _list_editor(label: str, values: List[str], key: str, help_text: str = "") -
         label,
         value="\n".join(values),
         key=key,
-        help=help_text or "Uma linha por item. TambÃ©m aceita valores separados por vÃ­rgula.",
+        help=help_text or "Uma linha por item. Tambem aceita valores separados por virgula.",
         height=80,
     )
     out = []
@@ -56,7 +56,7 @@ def _show_confidence_warnings(conf: Dict[str, Any]) -> None:
         return
     low = [f"{k}: {v}" for k, v in conf.items() if isinstance(v, (float, int)) and float(v) < 0.6]
     if low:
-        st.warning("Campos com baixa confianÃ§a: " + " | ".join(low[:8]))
+        st.warning("Campos com baixa confianca: " + " | ".join(low[:8]))
 
 
 def _preview_image(uploaded_file):
@@ -173,15 +173,15 @@ def render(ctx):
 
     _init_state()
 
-    st.title("âš¡ Cadastro TÃ©cnico de Motores")
-    st.caption("Fluxo: upload de foto â†’ leitura Gemini â†’ revisÃ£o manual â†’ salvar.")
+    st.title("Cadastro Tecnico de Motores")
+    st.caption("Fluxo: upload de foto -> leitura Gemini -> revisao manual -> salvar.")
 
     st.subheader("1) Upload de imagens")
     uploads = st.file_uploader(
         "Selecione uma ou mais fotos de oficina",
         accept_multiple_files=True,
         key="cadastro_motor_fotos",
-        help="Fotos de cÃ¢mera/galeria (JPG/PNG/HEIC/HEIF/WEBP/AVIF).",
+        help="Fotos de camera/galeria (JPG/PNG/HEIC/HEIF/WEBP/AVIF).",
     )
 
     if uploads:
@@ -197,7 +197,7 @@ def render(ctx):
         st.session_state["cadastro_status"] = f"{len(valid_uploads)} imagem(ns) carregada(s)"
 
         if invalid_names:
-            st.warning("Alguns arquivos nÃ£o parecem ser imagem suportada: " + ", ".join(invalid_names))
+            st.warning("Alguns arquivos nao parecem ser imagem suportada: " + ", ".join(invalid_names))
     current_uploads = st.session_state.get("cadastro_uploads") or []
     has_uploads = len(current_uploads) > 0
 
@@ -206,7 +206,7 @@ def render(ctx):
         st.info(f"Status: {st.session_state['cadastro_status']}")
     with cols[1]:
         if not HEIF_SUPPORTED:
-            st.caption("â„¹ï¸ Para HEIC/HEIF de iPhone, instale pillow-heif no ambiente.")
+            st.caption("Para HEIC/HEIF de iPhone, instale pillow-heif no ambiente.")
 
     if has_uploads:
         prev_cols = st.columns(3)
@@ -216,16 +216,16 @@ def render(ctx):
                 if preview is not None:
                     st.image(preview, caption=file.name, use_container_width=True)
                 else:
-                    # fallback para bytes em navegadores mÃ³veis
+                    # fallback para bytes em navegadores moveis
                     try:
                         st.image(file.getvalue(), caption=file.name, use_container_width=True)
                     except Exception:
-                        st.warning(f"NÃ£o foi possÃ­vel gerar preview de {file.name}")
+                        st.warning(f"Nao foi possivel gerar preview de {file.name}")
                 st.caption(f"tipo={file.type or 'desconhecido'} | tamanho={len(file.getvalue())} bytes")
 
     if st.button("Ler foto com Gemini", use_container_width=True):
         if not has_uploads:
-            st.warning("Envie ao menos uma foto para anÃ¡lise antes de usar o Gemini.")
+            st.warning("Envie ao menos uma foto para analise antes de usar o Gemini.")
         else:
             files_payload = [
                 {"name": f.name, "bytes": f.getvalue(), "mime_type": f.type}
@@ -233,16 +233,16 @@ def render(ctx):
             ]
             st.session_state["cadastro_status"] = "Analisando imagens no Gemini..."
             try:
-                with st.spinner("Extraindo campos tÃ©cnicos..."):
+                with st.spinner("Extraindo campos tecnicos..."):
                     extracted = extract_motor_data_with_gemini(files_payload)
                 st.session_state["cadastro_extracted"] = normalize_extracted_data(extracted)
-                st.session_state["cadastro_status"] = "Campos extraÃ­dos e prontos para revisÃ£o"
+                st.session_state["cadastro_status"] = "Campos extraidos e prontos para revisao"
                 st.success("Leitura finalizada. Revise os campos antes de salvar.")
             except Exception as exc:
                 st.session_state["cadastro_status"] = "Falha na leitura com Gemini"
                 st.error(f"Falha ao ler foto com Gemini: {exc}")
 
-    if st.button("Limpar formulÃ¡rio", use_container_width=True):
+    if st.button("Limpar formulario", use_container_width=True):
         st.session_state["cadastro_extracted"] = normalize_extracted_data(DEFAULT_EXTRACTED)
         st.session_state["cadastro_uploads"] = []
         st.session_state["cadastro_status"] = "Aguardando imagens"
@@ -251,36 +251,36 @@ def render(ctx):
     data = st.session_state["cadastro_extracted"]
     _show_confidence_warnings(data.get("confianca") or {})
 
-    st.subheader("2) RevisÃ£o e cadastro")
+    st.subheader("2) Revisao e cadastro")
 
     with st.form("cadastro_motor_oficina_form"):
-        st.markdown("### A. IdentificaÃ§Ã£o do motor")
+        st.markdown("### A. Identificacao do motor")
         c1, c2, c3 = st.columns(3)
         with c1:
             data["motor"]["marca"] = st.text_input("Marca", value=data["motor"].get("marca", ""))
             data["motor"]["modelo"] = st.text_input("Modelo", value=data["motor"].get("modelo", ""))
-            data["motor"]["potencia"] = st.text_input("PotÃªncia", value=data["motor"].get("potencia", ""))
+            data["motor"]["potencia"] = st.text_input("Potencia", value=data["motor"].get("potencia", ""))
             data["motor"]["cv"] = st.text_input("CV / HP / kW / kVA / kVW", value=data["motor"].get("cv", ""))
             data["motor"]["rpm"] = st.text_input("RPM", value=data["motor"].get("rpm", ""))
         with c2:
             data["motor"]["polos"] = st.text_input("Polos", value=data["motor"].get("polos", ""))
-            data["motor"]["frequencia"] = st.text_input("FrequÃªncia", value=data["motor"].get("frequencia", ""))
-            data["motor"]["isolacao"] = st.text_input("IsolaÃ§Ã£o", value=data["motor"].get("isolacao", ""))
+            data["motor"]["frequencia"] = st.text_input("Frequencia", value=data["motor"].get("frequencia", ""))
+            data["motor"]["isolacao"] = st.text_input("Isolacao", value=data["motor"].get("isolacao", ""))
             data["motor"]["ip"] = st.text_input("IP", value=data["motor"].get("ip", ""))
-            data["motor"]["fator_servico"] = st.text_input("Fator de serviÃ§o", value=data["motor"].get("fator_servico", ""))
+            data["motor"]["fator_servico"] = st.text_input("Fator de servico", value=data["motor"].get("fator_servico", ""))
         with c3:
             data["motor"]["tipo_motor"] = st.text_input("Tipo do motor", value=data["motor"].get("tipo_motor", ""))
             data["motor"]["fases"] = st.selectbox(
                 "Fases",
-                options=["", "MonofÃ¡sico", "TrifÃ¡sico"],
-                index=["", "MonofÃ¡sico", "TrifÃ¡sico"].index(data["motor"].get("fases", "") if data["motor"].get("fases", "") in ["", "MonofÃ¡sico", "TrifÃ¡sico"] else ""),
+                options=["", "Monofasico", "Trifasico"],
+                index=["", "Monofasico", "Trifasico"].index(data["motor"].get("fases", "") if data["motor"].get("fases", "") in ["", "Monofasico", "Trifasico"] else ""),
             )
-            data["motor"]["numero_serie"] = st.text_input("NÃºmero de sÃ©rie", value=data["motor"].get("numero_serie", ""))
-            data["motor"]["data_anotacao"] = st.text_input("Data da anotaÃ§Ã£o", value=data["motor"].get("data_anotacao", ""))
+            data["motor"]["numero_serie"] = st.text_input("Numero de serie", value=data["motor"].get("numero_serie", ""))
+            data["motor"]["data_anotacao"] = st.text_input("Data da anotacao", value=data["motor"].get("data_anotacao", ""))
 
-        data["motor"]["tensao"] = _list_editor("TensÃ£o (lista)", data["motor"].get("tensao", []), "motor_tensao_lista")
+        data["motor"]["tensao"] = _list_editor("Tensao (lista)", data["motor"].get("tensao", []), "motor_tensao_lista")
         data["motor"]["corrente"] = _list_editor("Corrente (lista)", data["motor"].get("corrente", []), "motor_corrente_lista")
-        data["observacoes_gerais"] = st.text_area("ObservaÃ§Ãµes gerais", value=data.get("observacoes_gerais", ""), height=100)
+        data["observacoes_gerais"] = st.text_area("Observacoes gerais", value=data.get("observacoes_gerais", ""), height=100)
 
         st.markdown("### B. Bobinagem principal")
         data["bobinagem_principal"]["passos"] = _list_editor("Passo principal", data["bobinagem_principal"].get("passos", []), "principal_passos")
@@ -292,7 +292,7 @@ def render(ctx):
         with pc2:
             data["bobinagem_principal"]["quantidade_bobinas"] = st.text_input("Qtd. bobinas", value=data["bobinagem_principal"].get("quantidade_bobinas", ""))
         with pc3:
-            data["bobinagem_principal"]["ligacao"] = st.text_input("LigaÃ§Ã£o principal", value=data["bobinagem_principal"].get("ligacao", ""))
+            data["bobinagem_principal"]["ligacao"] = st.text_input("Ligacao principal", value=data["bobinagem_principal"].get("ligacao", ""))
         data["bobinagem_principal"]["observacoes"] = st.text_area("Obs. principal", value=data["bobinagem_principal"].get("observacoes", ""), height=80)
 
         st.markdown("### C. Bobinagem auxiliar")
@@ -303,37 +303,37 @@ def render(ctx):
         with ac1:
             data["bobinagem_auxiliar"]["capacitor"] = st.text_input("Capacitor", value=data["bobinagem_auxiliar"].get("capacitor", ""))
         with ac2:
-            data["bobinagem_auxiliar"]["ligacao"] = st.text_input("LigaÃ§Ã£o auxiliar", value=data["bobinagem_auxiliar"].get("ligacao", ""))
+            data["bobinagem_auxiliar"]["ligacao"] = st.text_input("Ligacao auxiliar", value=data["bobinagem_auxiliar"].get("ligacao", ""))
         data["bobinagem_auxiliar"]["observacoes"] = st.text_area("Obs. auxiliar", value=data["bobinagem_auxiliar"].get("observacoes", ""), height=80)
 
-        st.markdown("### D. MecÃ¢nica")
+        st.markdown("### D. Mecanica")
         data["mecanica"]["rolamentos"] = _list_editor("Rolamentos", data["mecanica"].get("rolamentos", []), "mec_rolamentos")
         m1, m2, m3 = st.columns(3)
         with m1:
             data["mecanica"]["eixo"] = st.text_input("Eixo", value=data["mecanica"].get("eixo", ""))
         with m2:
-            data["mecanica"]["carcaca"] = st.text_input("CarcaÃ§a", value=data["mecanica"].get("carcaca", ""))
+            data["mecanica"]["carcaca"] = st.text_input("Carcaca", value=data["mecanica"].get("carcaca", ""))
         with m3:
             data["mecanica"]["comprimento_ponta"] = st.text_input("Comprimento de ponta", value=data["mecanica"].get("comprimento_ponta", ""))
-        data["mecanica"]["medidas"] = _list_editor("Medidas mecÃ¢nicas", data["mecanica"].get("medidas", []), "mec_medidas")
-        data["mecanica"]["observacoes"] = st.text_area("Notas mecÃ¢nicas", value=data["mecanica"].get("observacoes", ""), height=90)
+        data["mecanica"]["medidas"] = _list_editor("Medidas mecanicas", data["mecanica"].get("medidas", []), "mec_medidas")
+        data["mecanica"]["observacoes"] = st.text_area("Notas mecanicas", value=data["mecanica"].get("observacoes", ""), height=90)
 
-        st.markdown("### E. Esquema tÃ©cnico (opcional)")
-        st.caption("Preencha apenas se precisar detalhar ligaÃ§Ãµes e desenho da bobinagem.")
+        st.markdown("### E. Esquema tecnico (opcional)")
+        st.caption("Preencha apenas se precisar detalhar ligacoes e desenho da bobinagem.")
         data["esquema"]["descricao_desenho"] = st.text_area(
-            "Resumo do desenho / ligaÃ§Ã£o",
+            "Resumo do desenho / ligacao",
             value=data["esquema"].get("descricao_desenho", ""),
             height=90,
         )
         e1, e2 = st.columns(2)
         with e1:
             data["esquema"]["distribuicao_bobinas"] = st.text_area(
-                "DistribuiÃ§Ã£o das bobinas",
+                "Distribuicao das bobinas",
                 value=data["esquema"].get("distribuicao_bobinas", ""),
                 height=90,
             )
             data["esquema"]["ligacao"] = st.text_input(
-                "LigaÃ§Ã£o do motor (ex.: Delta 380V / Estrela 660V)",
+                "Ligacao do motor (ex.: Delta 380V / Estrela 660V)",
                 value=data["esquema"].get("ligacao", ""),
             )
         with e2:
@@ -346,14 +346,14 @@ def render(ctx):
                 value=data["esquema"].get("camadas", ""),
             )
             data["esquema"]["observacoes"] = st.text_area(
-                "ObservaÃ§Ãµes do esquema",
+                "Observacoes do esquema",
                 value=data["esquema"].get("observacoes", ""),
                 height=90,
             )
 
-        with st.expander("F. Dados avanÃ§ados da leitura (opcional)", expanded=False):
-            st.caption("Use apenas para conferÃªncia tÃ©cnica da leitura da IA.")
-            data["texto_ocr"] = st.text_area("Texto bruto extraÃ­do", value=data.get("texto_ocr", ""), height=120)
+        with st.expander("F. Dados avancados da leitura (opcional)", expanded=False):
+            st.caption("Use apenas para conferencia tecnica da leitura da IA.")
+            data["texto_ocr"] = st.text_area("Texto bruto extraido", value=data.get("texto_ocr", ""), height=120)
             data["texto_normalizado"] = st.text_area(
                 "Texto normalizado",
                 value=data.get("texto_normalizado", ""),
@@ -369,7 +369,7 @@ def render(ctx):
             return
 
         _save_motor(ctx, data, uploads=current_uploads)
-        st.success("Cadastro tÃ©cnico salvo com sucesso.")
+        st.success("Cadastro tecnico salvo com sucesso.")
 
     st.divider()
     st.subheader("Cadastro de O.S. (mantido)")
@@ -377,11 +377,11 @@ def render(ctx):
     with st.form("os_form"):
         cliente = st.text_input("Cliente")
         marca = st.text_input("Marca")
-        potencia = st.text_input("PotÃªncia")
+        potencia = st.text_input("Potencia")
         rpm = st.text_input("RPM")
-        tensao = st.text_input("TensÃ£o")
+        tensao = st.text_input("Tensao")
         corrente = st.text_input("Corrente")
-        diagnostico = st.text_area("DiagnÃ³stico de entrada")
+        diagnostico = st.text_area("Diagnostico de entrada")
         salvar_os = st.form_submit_button("Salvar ordem", use_container_width=True)
 
     if salvar_os:
@@ -396,7 +396,7 @@ def render(ctx):
             "tensao": tensao,
             "corrente": corrente,
             "diagnostico": diagnostico,
-            "status": "Em AnÃ¡lise",
+            "status": "Em Analise",
         }
         ctx.supabase.table("ordens_servico").insert(payload).execute()
         st.success("Ordem salva com sucesso.")

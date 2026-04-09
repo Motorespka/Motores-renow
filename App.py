@@ -15,7 +15,7 @@ from page import cadastro, consulta, diagnostico, edit, motor_detail
 from services.database import bootstrap_database, build_local_runtime_client
 
 st.set_page_config(page_title="Moto-Renow", page_icon="⚙️", layout="wide")
-DEBUG_ACCESS = True
+DEBUG_ACCESS = str(os.environ.get("DEBUG_ACCESS", "")).strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _read_secret_or_env(*names: str) -> str:
