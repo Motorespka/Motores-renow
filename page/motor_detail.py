@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import streamlit as st
 
+from core.access_control import is_admin_user
 from core.navigation import Route
 from services.supabase_data import fetch_motor_by_id_cached
 from utils.motor_view import friendly, normalize_motor_record
 
 
 def render(ctx) -> None:
+    admin_user = is_admin_user()
+
     motor_id = ctx.session.selected_motor_id
     if motor_id is None:
         st.warning("Nenhum motor selecionado para detalhe.")
@@ -42,9 +45,12 @@ def render(ctx) -> None:
 
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("Editar motor", use_container_width=True):
-            ctx.session.set_route(Route.EDIT)
-            st.rerun()
+        if admin_user:
+            if st.button("Editar motor", use_container_width=True):
+                ctx.session.set_route(Route.EDIT)
+                st.rerun()
+        else:
+            st.button("Editar motor (Admin)", use_container_width=True, disabled=True)
     with c2:
         if st.button("Voltar", use_container_width=True):
             ctx.session.set_route(Route.CONSULTA)

@@ -6,6 +6,7 @@ from typing import Callable, Dict
 
 import streamlit as st
 
+from core.access_control import is_admin_user
 
 class Route(str, Enum):
     CADASTRO = "cadastro"
@@ -38,16 +39,25 @@ class Router:
 def render_navigation_sidebar(session) -> None:
     with st.sidebar:
         st.markdown("## Moto-Renow")
+        admin_user = is_admin_user()
         intents = [
-            ("Cadastro", Route.CADASTRO),
+            ("Cadastro (Admin)", Route.CADASTRO, True),
             ("Consulta", Route.CONSULTA),
             ("Diagnostico", Route.DIAGNOSTICO),
         ]
-        for label, route in intents:
-            if st.button(label, use_container_width=True, key=f"nav_{route.value}"):
+        for item in intents:
+            if len(item) == 3:
+                label, route, admin_only = item
+            else:
+                label, route = item
+                admin_only = False
+            locked = admin_only and not admin_user
+            if st.button(label, use_container_width=True, key=f"nav_{route.value}", disabled=locked):
                 session.set_route(route)
 
         st.divider()
+        if not admin_user:
+            st.caption("Conta sem permissao de admin para cadastro/edicao.")
         st.caption(f"Rota atual: {session.get_route().value}")
         if st.button("Logout", use_container_width=True, key="nav_logout"):
             session.logout()

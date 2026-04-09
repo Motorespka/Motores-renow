@@ -10,6 +10,20 @@ def _is_local_runtime(client) -> bool:
     return bool(getattr(client, "is_local_runtime", False))
 
 
+def _build_profile(perfil, user, fallback_email: str):
+    out = dict(perfil or {}) if isinstance(perfil, dict) else {}
+    out.setdefault("email", fallback_email)
+    metadata = getattr(user, "user_metadata", None) or {}
+    if isinstance(metadata, dict):
+        if "is_admin" in metadata and "is_admin" not in out:
+            out["is_admin"] = metadata.get("is_admin")
+        if "role" in metadata and "role" not in out:
+            out["role"] = metadata.get("role")
+        if "perfil" in metadata and "perfil" not in out:
+            out["perfil"] = metadata.get("perfil")
+    return out
+
+
 def _carregar_perfil_usuario(client, user_id: str, email: str):
     try:
         perfil = client.table("usuarios_app").select("*").eq("id", user_id).limit(1).execute()
@@ -86,6 +100,7 @@ def render_login(session, client) -> bool:
                         return False
 
                     perfil = _carregar_perfil_usuario(client, user.id, email_norm)
+                    perfil = _build_profile(perfil, user, email_norm)
                     st.session_state["auth_user_id"] = user.id
                     st.session_state["auth_user_email"] = email_norm
                     st.session_state["auth_user_profile"] = perfil

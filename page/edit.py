@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from typing import Any, Dict, List
@@ -10,6 +10,7 @@ except Exception:
     class APIError(Exception):
         pass
 
+from core.access_control import require_admin_access
 from core.navigation import Route
 from services.oficina_parser import DEFAULT_EXTRACTED, normalize_extracted_data, to_supabase_payload
 from services.oficina_runtime import enriquecer_motor_oficina
@@ -52,7 +53,7 @@ def _list_editor(label: str, values: List[str], key: str, help_text: str = "") -
         label,
         value="\n".join(values),
         key=key,
-        help=help_text or "Uma linha por item. Também aceita valores separados por vírgula.",
+        help=help_text or "Uma linha por item. TambÃ©m aceita valores separados por vÃ­rgula.",
         height=80,
     )
     out: List[str] = []
@@ -114,20 +115,26 @@ def _update_motor_supabase(supabase, id_motor, payload: dict) -> None:
 
 
 def render(ctx):
-    st.title("✏️ Editar Motor")
+    if not require_admin_access("Edicao de motor"):
+        if st.button("Voltar para Consulta", use_container_width=True):
+            ctx.session.set_route(Route.CONSULTA)
+            st.rerun()
+        return
+
+    st.title("âœï¸ Editar Motor")
 
     id_motor = ctx.session.selected_motor_id
     if id_motor is None:
-        st.warning("Nenhum motor selecionado para edição.")
-        if st.button("🔙 Voltar para Consulta", use_container_width=True):
+        st.warning("Nenhum motor selecionado para ediÃ§Ã£o.")
+        if st.button("ðŸ”™ Voltar para Consulta", use_container_width=True):
             ctx.session.set_route(Route.CONSULTA)
             st.rerun()
         return
 
     motor = fetch_motor_by_id_cached(ctx.supabase, id_motor)
     if motor is None:
-        st.error("Motor não encontrado.")
-        if st.button("🔙 Voltar para Consulta", use_container_width=True):
+        st.error("Motor nÃ£o encontrado.")
+        if st.button("ðŸ”™ Voltar para Consulta", use_container_width=True):
             ctx.session.set_route(Route.CONSULTA)
             st.rerun()
         return
@@ -142,31 +149,31 @@ def render(ctx):
     k = f"edit_{id_motor}_"
 
     with st.form("edit_motor_form_full"):
-        st.markdown("### A. Identificação do motor")
+        st.markdown("### A. IdentificaÃ§Ã£o do motor")
         c1, c2, c3 = st.columns(3)
         with c1:
             data["motor"]["marca"] = st.text_input("Marca", value=data["motor"].get("marca", ""), key=f"{k}marca")
             data["motor"]["modelo"] = st.text_input("Modelo", value=data["motor"].get("modelo", ""), key=f"{k}modelo")
-            data["motor"]["potencia"] = st.text_input("Potência", value=data["motor"].get("potencia", ""), key=f"{k}potencia")
+            data["motor"]["potencia"] = st.text_input("PotÃªncia", value=data["motor"].get("potencia", ""), key=f"{k}potencia")
             data["motor"]["cv"] = st.text_input("CV / HP / kW", value=data["motor"].get("cv", ""), key=f"{k}cv")
             data["motor"]["rpm"] = st.text_input("RPM", value=data["motor"].get("rpm", ""), key=f"{k}rpm")
         with c2:
             data["motor"]["polos"] = st.text_input("Polos", value=data["motor"].get("polos", ""), key=f"{k}polos")
-            data["motor"]["frequencia"] = st.text_input("Frequência", value=data["motor"].get("frequencia", ""), key=f"{k}frequencia")
-            data["motor"]["isolacao"] = st.text_input("Isolação", value=data["motor"].get("isolacao", ""), key=f"{k}isolacao")
+            data["motor"]["frequencia"] = st.text_input("FrequÃªncia", value=data["motor"].get("frequencia", ""), key=f"{k}frequencia")
+            data["motor"]["isolacao"] = st.text_input("IsolaÃ§Ã£o", value=data["motor"].get("isolacao", ""), key=f"{k}isolacao")
             data["motor"]["ip"] = st.text_input("IP", value=data["motor"].get("ip", ""), key=f"{k}ip")
-            data["motor"]["fator_servico"] = st.text_input("Fator de serviço", value=data["motor"].get("fator_servico", ""), key=f"{k}fator_servico")
+            data["motor"]["fator_servico"] = st.text_input("Fator de serviÃ§o", value=data["motor"].get("fator_servico", ""), key=f"{k}fator_servico")
         with c3:
             data["motor"]["tipo_motor"] = st.text_input("Tipo do motor", value=data["motor"].get("tipo_motor", ""), key=f"{k}tipo_motor")
             fases_atual = data["motor"].get("fases", "")
-            fases_idx = ["", "Monofásico", "Trifásico"].index(fases_atual if fases_atual in ["", "Monofásico", "Trifásico"] else "")
-            data["motor"]["fases"] = st.selectbox("Fases", options=["", "Monofásico", "Trifásico"], index=fases_idx, key=f"{k}fases")
-            data["motor"]["numero_serie"] = st.text_input("Número de série", value=data["motor"].get("numero_serie", ""), key=f"{k}numero_serie")
-            data["motor"]["data_anotacao"] = st.text_input("Data da anotação", value=data["motor"].get("data_anotacao", ""), key=f"{k}data_anotacao")
+            fases_idx = ["", "MonofÃ¡sico", "TrifÃ¡sico"].index(fases_atual if fases_atual in ["", "MonofÃ¡sico", "TrifÃ¡sico"] else "")
+            data["motor"]["fases"] = st.selectbox("Fases", options=["", "MonofÃ¡sico", "TrifÃ¡sico"], index=fases_idx, key=f"{k}fases")
+            data["motor"]["numero_serie"] = st.text_input("NÃºmero de sÃ©rie", value=data["motor"].get("numero_serie", ""), key=f"{k}numero_serie")
+            data["motor"]["data_anotacao"] = st.text_input("Data da anotaÃ§Ã£o", value=data["motor"].get("data_anotacao", ""), key=f"{k}data_anotacao")
 
-        data["motor"]["tensao"] = _list_editor("Tensão (lista)", data["motor"].get("tensao", []), f"{k}motor_tensao_lista")
+        data["motor"]["tensao"] = _list_editor("TensÃ£o (lista)", data["motor"].get("tensao", []), f"{k}motor_tensao_lista")
         data["motor"]["corrente"] = _list_editor("Corrente (lista)", data["motor"].get("corrente", []), f"{k}motor_corrente_lista")
-        data["observacoes_gerais"] = st.text_area("Observações gerais", value=data.get("observacoes_gerais", ""), height=100, key=f"{k}observacoes_gerais")
+        data["observacoes_gerais"] = st.text_area("ObservaÃ§Ãµes gerais", value=data.get("observacoes_gerais", ""), height=100, key=f"{k}observacoes_gerais")
 
         st.markdown("### B. Bobinagem principal")
         data["bobinagem_principal"]["passos"] = _list_editor("Passo principal", data["bobinagem_principal"].get("passos", []), f"{k}principal_passos")
@@ -178,7 +185,7 @@ def render(ctx):
         with pc2:
             data["bobinagem_principal"]["quantidade_bobinas"] = st.text_input("Qtd. bobinas", value=data["bobinagem_principal"].get("quantidade_bobinas", ""), key=f"{k}principal_qtd_bobinas")
         with pc3:
-            data["bobinagem_principal"]["ligacao"] = st.text_input("Ligação principal", value=data["bobinagem_principal"].get("ligacao", ""), key=f"{k}principal_ligacao")
+            data["bobinagem_principal"]["ligacao"] = st.text_input("LigaÃ§Ã£o principal", value=data["bobinagem_principal"].get("ligacao", ""), key=f"{k}principal_ligacao")
         data["bobinagem_principal"]["observacoes"] = st.text_area("Obs. principal", value=data["bobinagem_principal"].get("observacoes", ""), height=80, key=f"{k}principal_observacoes")
 
         st.markdown("### C. Bobinagem auxiliar")
@@ -189,43 +196,43 @@ def render(ctx):
         with ac1:
             data["bobinagem_auxiliar"]["capacitor"] = st.text_input("Capacitor", value=data["bobinagem_auxiliar"].get("capacitor", ""), key=f"{k}aux_capacitor")
         with ac2:
-            data["bobinagem_auxiliar"]["ligacao"] = st.text_input("Ligação auxiliar", value=data["bobinagem_auxiliar"].get("ligacao", ""), key=f"{k}aux_ligacao")
+            data["bobinagem_auxiliar"]["ligacao"] = st.text_input("LigaÃ§Ã£o auxiliar", value=data["bobinagem_auxiliar"].get("ligacao", ""), key=f"{k}aux_ligacao")
         data["bobinagem_auxiliar"]["observacoes"] = st.text_area("Obs. auxiliar", value=data["bobinagem_auxiliar"].get("observacoes", ""), height=80, key=f"{k}aux_observacoes")
 
-        st.markdown("### D. Mecânica")
+        st.markdown("### D. MecÃ¢nica")
         data["mecanica"]["rolamentos"] = _list_editor("Rolamentos", data["mecanica"].get("rolamentos", []), f"{k}mec_rolamentos")
         m1, m2, m3 = st.columns(3)
         with m1:
             data["mecanica"]["eixo"] = st.text_input("Eixo", value=data["mecanica"].get("eixo", ""), key=f"{k}mec_eixo")
         with m2:
-            data["mecanica"]["carcaca"] = st.text_input("Carcaça", value=data["mecanica"].get("carcaca", ""), key=f"{k}mec_carcaca")
+            data["mecanica"]["carcaca"] = st.text_input("CarcaÃ§a", value=data["mecanica"].get("carcaca", ""), key=f"{k}mec_carcaca")
         with m3:
             data["mecanica"]["comprimento_ponta"] = st.text_input("Comprimento de ponta", value=data["mecanica"].get("comprimento_ponta", ""), key=f"{k}mec_comprimento_ponta")
-        data["mecanica"]["medidas"] = _list_editor("Medidas mecânicas", data["mecanica"].get("medidas", []), f"{k}mec_medidas")
-        data["mecanica"]["observacoes"] = st.text_area("Notas mecânicas", value=data["mecanica"].get("observacoes", ""), height=90, key=f"{k}mec_observacoes")
+        data["mecanica"]["medidas"] = _list_editor("Medidas mecÃ¢nicas", data["mecanica"].get("medidas", []), f"{k}mec_medidas")
+        data["mecanica"]["observacoes"] = st.text_area("Notas mecÃ¢nicas", value=data["mecanica"].get("observacoes", ""), height=90, key=f"{k}mec_observacoes")
 
-        st.markdown("### E. Desenho / esquema técnico")
-        data["esquema"]["descricao_desenho"] = st.text_area("Descrição do desenho", value=data["esquema"].get("descricao_desenho", ""), height=90, key=f"{k}esquema_descricao")
+        st.markdown("### E. Desenho / esquema tÃ©cnico")
+        data["esquema"]["descricao_desenho"] = st.text_area("DescriÃ§Ã£o do desenho", value=data["esquema"].get("descricao_desenho", ""), height=90, key=f"{k}esquema_descricao")
         e1, e2 = st.columns(2)
         with e1:
-            data["esquema"]["distribuicao_bobinas"] = st.text_area("Distribuição das bobinas", value=data["esquema"].get("distribuicao_bobinas", ""), height=90, key=f"{k}esquema_distribuicao")
-            data["esquema"]["ligacao"] = st.text_input("Ligação", value=data["esquema"].get("ligacao", ""), key=f"{k}esquema_ligacao")
+            data["esquema"]["distribuicao_bobinas"] = st.text_area("DistribuiÃ§Ã£o das bobinas", value=data["esquema"].get("distribuicao_bobinas", ""), height=90, key=f"{k}esquema_distribuicao")
+            data["esquema"]["ligacao"] = st.text_input("LigaÃ§Ã£o", value=data["esquema"].get("ligacao", ""), key=f"{k}esquema_ligacao")
         with e2:
             data["esquema"]["ranhuras"] = st.text_input("Ranhuras", value=data["esquema"].get("ranhuras", ""), key=f"{k}esquema_ranhuras")
             data["esquema"]["camadas"] = st.text_input("Camadas", value=data["esquema"].get("camadas", ""), key=f"{k}esquema_camadas")
-            data["esquema"]["observacoes"] = st.text_area("Observações do esquema", value=data["esquema"].get("observacoes", ""), height=90, key=f"{k}esquema_observacoes")
+            data["esquema"]["observacoes"] = st.text_area("ObservaÃ§Ãµes do esquema", value=data["esquema"].get("observacoes", ""), height=90, key=f"{k}esquema_observacoes")
 
         st.markdown("### F. Dados brutos da leitura")
-        data["texto_ocr"] = st.text_area("Texto bruto extraído", value=data.get("texto_ocr", ""), height=120, key=f"{k}texto_ocr")
+        data["texto_ocr"] = st.text_area("Texto bruto extraÃ­do", value=data.get("texto_ocr", ""), height=120, key=f"{k}texto_ocr")
         data["texto_normalizado"] = st.text_area("Texto normalizado", value=data.get("texto_normalizado", ""), height=120, key=f"{k}texto_normalizado")
         st.code(json.dumps(data.get("confianca", {}), ensure_ascii=False, indent=2), language="json")
         st.code(json.dumps(data, ensure_ascii=False, indent=2), language="json")
 
         c1, c2 = st.columns(2)
         with c1:
-            salvar = st.form_submit_button("💾 SALVAR ALTERAÇÕES", use_container_width=True)
+            salvar = st.form_submit_button("ðŸ’¾ SALVAR ALTERAÃ‡Ã•ES", use_container_width=True)
         with c2:
-            voltar = st.form_submit_button("🔙 VOLTAR", use_container_width=True)
+            voltar = st.form_submit_button("ðŸ”™ VOLTAR", use_container_width=True)
 
     if voltar:
         ctx.session.set_route(Route.DETALHE)
@@ -238,11 +245,13 @@ def render(ctx):
         payload = to_supabase_payload(data, image_paths=image_urls, image_names=image_names)
         _update_motor_supabase(ctx.supabase, id_motor, payload)
         clear_motores_cache()
-        st.success("Alterações salvas com sucesso.")
+        st.success("AlteraÃ§Ãµes salvas com sucesso.")
         ctx.session.set_route(Route.DETALHE)
         st.rerun()
 
 
 def show(ctx):
     return render(ctx)
+
+
 

@@ -6,6 +6,7 @@ from typing import Any, Dict, List
 
 import streamlit as st
 
+from core.access_control import is_admin_user
 from core.navigation import Route
 from services.supabase_data import fetch_motores_cached
 
@@ -182,6 +183,8 @@ def _render_consulta_header(total: int, filtrados: int, trifasicos: int, monofas
 
 
 def render(ctx) -> None:
+    admin_user = is_admin_user()
+
     try:
         raw = fetch_motores_cached(ctx.supabase)
     except Exception as e:
@@ -273,10 +276,13 @@ def render(ctx) -> None:
 
             b1, b2 = st.columns(2)
             with b1:
-                if st.button("Editar", key=f"edit_{m['id']}", use_container_width=True):
-                    ctx.session.selected_motor_id = m["id"]
-                    ctx.session.set_route(Route.EDIT)
-                    st.rerun()
+                if admin_user:
+                    if st.button("Editar", key=f"edit_{m['id']}", use_container_width=True):
+                        ctx.session.selected_motor_id = m["id"]
+                        ctx.session.set_route(Route.EDIT)
+                        st.rerun()
+                else:
+                    st.button("Editar (Admin)", key=f"edit_{m['id']}_locked", use_container_width=True, disabled=True)
             with b2:
                 if st.button("Detalhes", key=f"detail_{m['id']}", use_container_width=True):
                     ctx.session.selected_motor_id = m["id"]

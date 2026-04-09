@@ -13,6 +13,8 @@ except Exception:
     class APIError(Exception):
         pass
 
+from core.access_control import require_admin_access
+from core.navigation import Route
 from services.gemini_oficina import HEIF_SUPPORTED, extract_motor_data_with_gemini
 from services.oficina_parser import DEFAULT_EXTRACTED, normalize_extracted_data, to_supabase_payload
 from services.oficina_runtime import enriquecer_motor_oficina
@@ -131,6 +133,12 @@ def _save_motor(ctx, normalized: Dict[str, Any], uploads: List[Any]) -> None:
 
 
 def render(ctx):
+    if not require_admin_access("Cadastro tecnico (motor, O.S. e IA Gemini)"):
+        if st.button("Ir para Consulta", use_container_width=True):
+            ctx.session.set_route(Route.CONSULTA)
+            st.rerun()
+        return
+
     _init_state()
 
     st.title("⚡ Cadastro Técnico de Motores")

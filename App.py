@@ -7,6 +7,7 @@ except Exception:
     create_client = None
 
 from auth.login import render_login
+from core.access_control import is_admin_user
 from core.navigation import AppContext, Route, Router, render_navigation_sidebar
 from core.session_manager import SessionManager
 from page import cadastro, consulta, diagnostico, edit, motor_detail
@@ -93,6 +94,10 @@ def main() -> None:
 
     if not render_login(session, client):
         st.stop()
+
+    current_route = session.get_route()
+    if not is_admin_user() and current_route in {Route.CADASTRO, Route.EDIT}:
+        session.set_route(Route.CONSULTA)
 
     router = build_router()
     render_navigation_sidebar(session)
