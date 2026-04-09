@@ -233,7 +233,11 @@ class LocalStorageBucket:
         self.bucket_name = bucket_name
 
     def upload(self, path: str, file: bytes, file_options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        target = os.path.join(STORAGE_ROOT, self.bucket_name, path.replace("/", os.sep))
+        bucket_root = os.path.abspath(os.path.join(STORAGE_ROOT, self.bucket_name))
+        normalized_rel = os.path.normpath(str(path or "").replace("\\", "/")).replace("\\", "/").lstrip("/")
+        target = os.path.abspath(os.path.join(bucket_root, normalized_rel.replace("/", os.sep)))
+        if not target.startswith(bucket_root + os.sep) and target != bucket_root:
+            raise ValueError("Caminho de upload invalido para storage local.")
         os.makedirs(os.path.dirname(target), exist_ok=True)
         payload = file if isinstance(file, (bytes, bytearray)) else bytes(file)
         with open(target, "wb") as fh:

@@ -47,21 +47,44 @@ def _build_profile(perfil, user, fallback_email: str):
 
 
 def _carregar_perfil_usuario(client, user_id: str, email: str):
+    perfil = None
     try:
-        perfil = client.table("usuarios_app").select("*").eq("id", user_id).limit(1).execute()
-        if perfil.data:
-            return perfil.data[0]
+        res = client.table("usuarios_app").select("*").eq("id", user_id).limit(1).execute()
+        if res.data:
+            perfil = res.data[0]
     except Exception:
-        pass
+        perfil = None
 
-    try:
-        perfil = client.table("usuarios_app").select("*").eq("email", email).limit(1).execute()
-        if perfil.data:
-            return perfil.data[0]
-    except Exception:
-        pass
+    if not perfil:
+        try:
+            res = client.table("usuarios_app").select("*").eq("email", email).limit(1).execute()
+            if res.data:
+                perfil = res.data[0]
+        except Exception:
+            perfil = None
 
-    return None
+    if not isinstance(perfil, dict):
+        perfil = {}
+
+    # Compatibilidade opcional com tabela dedicada de administradores.
+    admin_match = False
+    for col, value in [("id", user_id), ("user_id", user_id), ("email", email)]:
+        if not value:
+            continue
+        try:
+            res = client.table("admin").select("*").eq(col, value).limit(1).execute()
+            if res.data:
+                admin_match = True
+                break
+        except Exception:
+            continue
+
+    if admin_match:
+        perfil["is_admin"] = True
+        if "role" not in perfil:
+            perfil["role"] = "admin"
+
+    return perfil or None
 
 
 def try_restore_auth_session(session, client) -> bool:

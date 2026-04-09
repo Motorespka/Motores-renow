@@ -8,7 +8,11 @@ from typing import Any, Dict, List
 import streamlit as st
 
 from core.access_control import is_admin_user
-from services.oficina_parser import normalize_extracted_data
+from services.oficina_parser import (
+    build_normalized_from_motor_row,
+    normalize_extracted_data,
+    to_motores_schema_payload,
+)
 from services.oficina_runtime import diagnostico_motor_oficina_readonly, resumir_diagnostico_oficina
 from services.supabase_data import clear_motores_cache, fetch_motor_by_id_cached, fetch_motores_cached
 
@@ -45,6 +49,8 @@ def _to_text(value: Any) -> str:
 
 def _load_motor_technical_payload(motor_row: Dict[str, Any]) -> Dict[str, Any]:
     data = _to_dict(motor_row.get("dados_tecnicos_json") or motor_row.get("leitura_gemini_json"))
+    if not data:
+        data = build_normalized_from_motor_row(motor_row)
     return normalize_extracted_data(data)
 
 
@@ -106,7 +112,11 @@ def _apply_diagnostico_to_motor(ctx, motor_id: Any, normalized: Dict[str, Any], 
         "dados_tecnicos_json": data,
         "leitura_gemini_json": data,
     }
-    ctx.supabase.table("motores").update(payload).eq("id", motor_id).execute()
+    try:
+        ctx.supabase.table("motores").update(payload).eq("id", motor_id).execute()
+    except Exception:
+        schema_payload = to_motores_schema_payload(data, image_paths=[], image_names=[])
+        ctx.supabase.table("motores").update(schema_payload).eq("id", motor_id).execute()
     clear_motores_cache()
 
 
@@ -125,8 +135,17 @@ def _render_real_diagnosis(ctx) -> None:
 
     options: List[tuple[str, Any]] = []
     for row in motores:
-        label = f"#{row.get('id')} | {_to_text(row.get('marca')) or '-'} | {_to_text(row.get('modelo')) or '-'}"
-        options.append((label, row.get("id")))
+        motor_id = row.get("id") if row.get("id") not in (None, "") else row.get("Id")
+        if motor_id in (None, ""):
+            continue
+        marca = _to_text(row.get("marca") or row.get("Marca")) or "-"
+        modelo = _to_text(row.get("modelo") or row.get("Modelo")) or "-"
+        label = f"#{motor_id} | {marca} | {modelo}"
+        options.append((label, motor_id))
+
+    if not options:
+        st.info("Nenhum motor valido encontrado para diagnostico.")
+        return
 
     current_id = ctx.session.selected_motor_id
     option_ids = [oid for _, oid in options]

@@ -150,6 +150,140 @@ def _to_list(value: Any) -> List[str]:
     return values
 
 
+def _to_list_from_any(value: Any) -> List[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [_to_text(v) for v in value if _to_text(v)]
+    return _to_list(value)
+
+
+def _first_numeric_text(value: Any) -> str:
+    text = _to_text(value)
+    if not text:
+        return ""
+    match = re.search(r"\d+(?:[.,]\d+)?", text)
+    if not match:
+        return ""
+    return match.group(0).replace(",", ".")
+
+
+def _join_slash(values: List[str]) -> str:
+    cleaned = [v.strip() for v in values if _to_text(v)]
+    return "/".join(cleaned)
+
+
+def _normalize_rpm(value: Any) -> str:
+    digits = "".join(ch for ch in _to_text(value) if ch.isdigit())
+    if len(digits) < 3 or len(digits) > 5:
+        return ""
+    return digits
+
+
+def _normalize_polos(value: Any) -> str:
+    text = _to_text(value).upper().replace(" ", "")
+    if not text:
+        return ""
+    if text.endswith("P") and text[:-1].isdigit():
+        base = text[:-1]
+    elif text.isdigit():
+        base = text
+    else:
+        return ""
+    if base not in {"2", "4", "6", "8", "10", "12"}:
+        return ""
+    return f"{base}P"
+
+
+def _normalize_tensao(value: Any) -> str:
+    if isinstance(value, list):
+        text = _join_slash([_first_numeric_text(v) for v in value if _first_numeric_text(v)])
+    else:
+        nums = re.findall(r"\d{2,4}", _to_text(value))
+        text = "/".join(nums[:3]) if nums else ""
+    if not text:
+        return ""
+    return text if re.fullmatch(r"^[0-9]{2,4}(/[0-9]{2,4}){0,2}$", text) else ""
+
+
+def _normalize_corrente(value: Any) -> str:
+    if isinstance(value, list):
+        items = []
+        for v in value:
+            n = _first_numeric_text(v)
+            if n:
+                items.append(n)
+        text = "/".join(items[:2])
+    else:
+        nums = re.findall(r"\d+(?:[.,]\d+)?", _to_text(value))
+        text = "/".join(n.replace(",", ".") for n in nums[:2])
+    if not text:
+        return ""
+    return text if re.fullmatch(r"^[0-9]+([.][0-9]+)?(/[0-9]+([.][0-9]+)?)?$", text) else ""
+
+
+def _normalize_frequencia(value: Any) -> str:
+    text = _to_text(value).lower().replace(" ", "")
+    if not text:
+        return ""
+    if text in {"50", "50hz"}:
+        return "50Hz"
+    if text in {"60", "60hz"}:
+        return "60Hz"
+    if text in {"50/60", "50/60hz"}:
+        return "50/60Hz"
+    return ""
+
+
+def _normalize_potencia(value: Any) -> str:
+    text = _to_text(value)
+    if not text:
+        return ""
+    match = re.search(
+        r"(\d+(?:[.,/]\d+)?)\s*(kva|kv\s*a|kvw|kv\s*w|kw|k\s*w|cv|hp|w)\b",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return ""
+    number = match.group(1).replace(",", ".")
+    unit_raw = match.group(2).lower().replace(" ", "")
+    unit_map = {
+        "kva": "kVA",
+        "kvw": "kVW",
+        "kw": "kW",
+        "cv": "CV",
+        "hp": "HP",
+        "w": "W",
+    }
+    unit = unit_map.get(unit_raw, unit_raw.upper())
+    return f"{number} {unit}"
+
+
+def _confidence_level(conf: Dict[str, Any]) -> str:
+    if not isinstance(conf, dict) or not conf:
+        return "baixa"
+    nums: List[float] = []
+    for value in conf.values():
+        if isinstance(value, (float, int)):
+            nums.append(float(value))
+    if not nums:
+        return "baixa"
+    avg = sum(nums) / len(nums)
+    if avg >= 0.8:
+        return "alta"
+    if avg >= 0.6:
+        return "media"
+    return "baixa"
+
+
+def _pick_row_value(row: Dict[str, Any], *keys: str) -> Any:
+    for key in keys:
+        if key in row and row.get(key) not in (None, ""):
+            return row.get(key)
+    return None
+
+
 def normalize_extracted_data(payload: Dict[str, Any]) -> Dict[str, Any]:
     out = _clone_default()
     if not isinstance(payload, dict):
@@ -235,3 +369,105 @@ def to_supabase_payload(normalized: Dict[str, Any], image_paths: List[str], imag
         "mecanica_json": normalized.get("mecanica", {}),
         "esquema_json": normalized.get("esquema", {}),
     }
+
+
+def to_motores_schema_payload(normalized: Dict[str, Any], image_paths: List[str], image_names: List[str]) -> Dict[str, Any]:
+    motor = normalized.get("motor", {}) if isinstance(normalized.get("motor"), dict) else {}
+    principal = normalized.get("bobinagem_principal", {}) if isinstance(normalized.get("bobinagem_principal"), dict) else {}
+    auxiliar = normalized.get("bobinagem_auxiliar", {}) if isinstance(normalized.get("bobinagem_auxiliar"), dict) else {}
+    mecanica = normalized.get("mecanica", {}) if isinstance(normalized.get("mecanica"), dict) else {}
+    esquema = normalized.get("esquema", {}) if isinstance(normalized.get("esquema"), dict) else {}
+
+    ligacoes = []
+    for item in [principal.get("ligacao"), auxiliar.get("ligacao"), esquema.get("ligacao")]:
+        text = _to_text(item)
+        if text:
+            ligacoes.extend(_to_list(text))
+
+    camadas = _to_list(esquema.get("camadas"))
+    fios = _to_list_from_any(principal.get("fios"))
+    espiras = _to_list_from_any(principal.get("espiras"))
+    passos = _to_list_from_any(principal.get("passos"))
+
+    arquivo_origem = ", ".join([n for n in image_names if _to_text(n)]).strip()
+    if not arquivo_origem:
+        arquivo_origem = _to_text(normalized.get("arquivo_origem")) or "upload_manual"
+
+    payload = {
+        "arquivo_origem": arquivo_origem,
+        "marca": _to_text(motor.get("marca")) or None,
+        "tipo_motor": _to_text(motor.get("tipo_motor")) or None,
+        "potencia": _normalize_potencia(motor.get("potencia") or motor.get("cv")) or None,
+        "rpm": _normalize_rpm(motor.get("rpm")) or None,
+        "tensao": _normalize_tensao(motor.get("tensao")) or None,
+        "corrente": _normalize_corrente(motor.get("corrente")) or None,
+        "frequencia": _normalize_frequencia(motor.get("frequencia")) or None,
+        "polos": _normalize_polos(motor.get("polos")) or None,
+        "carcaca": _to_text(mecanica.get("carcaca")) or None,
+        "ranhuras": _to_text(esquema.get("ranhuras")) or None,
+        "pacote_mm": None,
+        "diametro_mm": None,
+        "capacitor": _to_text(auxiliar.get("capacitor")) or None,
+        "fio": fios,
+        "espiras": espiras,
+        "passo": passos,
+        "ligacao": ligacoes,
+        "camada": camadas,
+        "tem_principal": bool(passos or espiras or fios or _to_text(principal.get("ligacao"))),
+        "tem_auxiliar": bool(
+            _to_list_from_any(auxiliar.get("passos"))
+            or _to_list_from_any(auxiliar.get("espiras"))
+            or _to_list_from_any(auxiliar.get("fios"))
+            or _to_text(auxiliar.get("capacitor"))
+            or _to_text(auxiliar.get("ligacao"))
+        ),
+        "confianca_extracao": _confidence_level(normalized.get("confianca") or {}),
+    }
+
+    return payload
+
+
+def build_normalized_from_motor_row(row: Dict[str, Any]) -> Dict[str, Any]:
+    out = _clone_default()
+    variaveis = _pick_row_value(row, "VariaveisSite", "variaveis_site")
+    if isinstance(variaveis, str):
+        try:
+            variaveis = json.loads(variaveis)
+        except Exception:
+            variaveis = {}
+    if not isinstance(variaveis, dict):
+        variaveis = {}
+
+    out["arquivo_origem"] = _to_text(
+        _pick_row_value(row, "arquivo_origem", "ArquivoOrigem")
+        or variaveis.get("ArquivoOrigem")
+    )
+
+    motor = out["motor"]
+    motor["marca"] = _to_text(_pick_row_value(row, "marca", "Marca") or variaveis.get("Marca"))
+    motor["modelo"] = _to_text(_pick_row_value(row, "modelo", "Modelo") or variaveis.get("Modelo"))
+    motor["potencia"] = _to_text(_pick_row_value(row, "potencia", "Potencia") or variaveis.get("Potencia"))
+    motor["cv"] = motor["potencia"]
+    motor["rpm"] = _to_text(_pick_row_value(row, "rpm", "Rpm") or variaveis.get("Rpm"))
+    motor["tensao"] = _to_list_from_any(_pick_row_value(row, "tensao", "Tensao") or variaveis.get("Tensao"))
+    motor["corrente"] = _to_list_from_any(_pick_row_value(row, "corrente", "Corrente") or variaveis.get("Corrente"))
+    motor["frequencia"] = _to_text(_pick_row_value(row, "frequencia", "Frequencia") or variaveis.get("Frequencia"))
+    polos_raw = _to_text(_pick_row_value(row, "polos", "Polos") or variaveis.get("Polos"))
+    motor["polos"] = polos_raw[:-1] if polos_raw.upper().endswith("P") else polos_raw
+    motor["tipo_motor"] = _to_text(_pick_row_value(row, "tipo_motor", "TipoMotor") or variaveis.get("TipoMotor"))
+    motor["fases"] = _to_text(_pick_row_value(row, "fases", "Fases") or variaveis.get("Fases"))
+
+    out["bobinagem_principal"]["fios"] = _to_list_from_any(_pick_row_value(row, "fio", "Fio"))
+    out["bobinagem_principal"]["espiras"] = _to_list_from_any(_pick_row_value(row, "espiras", "Espiras"))
+    out["bobinagem_principal"]["passos"] = _to_list_from_any(_pick_row_value(row, "passo", "Passo"))
+    ligacoes = _to_list_from_any(_pick_row_value(row, "ligacao", "Ligacao"))
+    out["bobinagem_principal"]["ligacao"] = ", ".join(ligacoes)
+    out["esquema"]["ligacao"] = ", ".join(ligacoes)
+    out["esquema"]["ranhuras"] = _to_text(_pick_row_value(row, "ranhuras", "Ranhuras") or variaveis.get("Ranhuras"))
+    out["esquema"]["camadas"] = ", ".join(_to_list_from_any(_pick_row_value(row, "camada", "Camada")))
+    out["mecanica"]["carcaca"] = _to_text(_pick_row_value(row, "carcaca", "Carcaca") or variaveis.get("Carcaca"))
+    out["bobinagem_auxiliar"]["capacitor"] = _to_text(_pick_row_value(row, "capacitor", "Capacitor") or variaveis.get("Capacitor"))
+
+    out["observacoes_gerais"] = _to_text(_pick_row_value(row, "observacoes", "Observacoes"))
+    out["texto_ocr"] = _to_text(_pick_row_value(row, "texto_bruto_extraido", "TextoBrutoExtraido"))
+    return out

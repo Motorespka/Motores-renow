@@ -50,39 +50,33 @@ def fetch_motores_cached(supabase: Client) -> List[MotorRow]:
     2) fallback para updated_at desc
     3) fallback sem ordenação
     """
-    try:
-        res = (
-            supabase
-            .table("vw_consulta_motores")
-            .select("*")
-            .order("created_at", desc=True)
-            .execute()
-        )
-        return res.data or []
-    except APIError:
-        pass
-    except Exception:
-        return []
+    candidates = [
+        ("vw_consulta_motores", "created_at"),
+        ("vw_consulta_motores", "updated_at"),
+        ("vw_consulta_motores", None),
+        ("vw_motores_para_site", "CreatedAt"),
+        ("vw_motores_para_site", "UpdatedAt"),
+        ("vw_motores_para_site", None),
+        ("motores", "created_at"),
+        ("motores", "updated_at"),
+        ("motores", None),
+    ]
 
-    try:
-        res = (
-            supabase
-            .table("vw_consulta_motores")
-            .select("*")
-            .order("updated_at", desc=True)
-            .execute()
-        )
-        return res.data or []
-    except APIError:
-        pass
-    except Exception:
-        return []
+    for table_name, order_col in candidates:
+        try:
+            query = supabase.table(table_name).select("*")
+            if order_col:
+                query = query.order(order_col, desc=True)
+            res = query.execute()
+            data = res.data or []
+            if data:
+                return data
+        except APIError:
+            continue
+        except Exception:
+            continue
 
-    try:
-        res = supabase.table("vw_consulta_motores").select("*").execute()
-        return res.data or []
-    except Exception:
-        return []
+    return []
 
 
 @st.cache_data(
@@ -94,35 +88,29 @@ def fetch_motor_by_id_cached(supabase: Client, motor_id: str) -> MotorRow | None
     """
     Busca um registro específico na view vw_consulta_motores pelo id (UUID).
     """
-    try:
-        res = (
-            supabase
-            .table("vw_consulta_motores")
-            .select("*")
-            .eq("id", motor_id)
-            .limit(1)
-            .execute()
-        )
-        if res.data:
-            return res.data[0]
-    except APIError:
-        pass
-    except Exception:
-        return None
+    lookups = [
+        ("vw_consulta_motores", "id"),
+        ("vw_motores_para_site", "Id"),
+        ("motores", "id"),
+        ("arquivos_motor", "id"),
+    ]
 
-    try:
-        res = (
-            supabase
-            .table("arquivos_motor")
-            .select("*")
-            .eq("id", motor_id)
-            .limit(1)
-            .execute()
-        )
-        if res.data:
-            return res.data[0]
-    except Exception:
-        return None
+    for table_name, id_col in lookups:
+        try:
+            res = (
+                supabase
+                .table(table_name)
+                .select("*")
+                .eq(id_col, motor_id)
+                .limit(1)
+                .execute()
+            )
+            if res.data:
+                return res.data[0]
+        except APIError:
+            continue
+        except Exception:
+            continue
 
     return None
 
@@ -173,21 +161,28 @@ def fetch_arquivo_by_id_cached(supabase: Client, motor_id: str) -> MotorRow | No
     """
     Busca os metadados crus do arquivo na tabela arquivos_motor.
     """
-    try:
-        res = (
-            supabase
-            .table("arquivos_motor")
-            .select("*")
-            .eq("id", motor_id)
-            .limit(1)
-            .execute()
-        )
-        if res.data:
-            return res.data[0]
-    except APIError:
-        pass
-    except Exception:
-        return None
+    lookups = [
+        ("arquivos_motor", "id"),
+        ("motores", "id"),
+        ("vw_motores_para_site", "Id"),
+    ]
+
+    for table_name, id_col in lookups:
+        try:
+            res = (
+                supabase
+                .table(table_name)
+                .select("*")
+                .eq(id_col, motor_id)
+                .limit(1)
+                .execute()
+            )
+            if res.data:
+                return res.data[0]
+        except APIError:
+            continue
+        except Exception:
+            continue
 
     return None
 

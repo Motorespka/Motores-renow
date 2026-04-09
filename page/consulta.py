@@ -8,6 +8,7 @@ import streamlit as st
 
 from core.access_control import is_admin_user
 from core.navigation import Route
+from services.oficina_parser import build_normalized_from_motor_row
 from services.supabase_data import fetch_motores_cached
 
 
@@ -51,23 +52,36 @@ def _to_dict(value: Any) -> Dict[str, Any]:
 
 def _normalize_motor_record(row: Dict[str, Any]) -> Dict[str, Any]:
     data = _to_dict(row.get("dados_tecnicos_json") or row.get("leitura_gemini_json"))
+    if not data:
+        data = build_normalized_from_motor_row(row)
     motor = data.get("motor", {}) if isinstance(data, dict) else {}
+    imagens = row.get("imagens_urls")
+    if not imagens:
+        imagens = _to_text(row.get("ImagemUrls") or row.get("ArquivoOrigem"))
+    if isinstance(imagens, str):
+        imagens = [v.strip() for v in imagens.replace(";", ",").split(",") if v.strip()]
+    if not isinstance(imagens, list):
+        imagens = []
+
+    motor_id = row.get("id")
+    if motor_id in (None, ""):
+        motor_id = row.get("Id")
 
     return {
-        "id": row.get("id"),
-        "marca": _pick_first(row, "marca") or _to_text(motor.get("marca")),
-        "modelo": _pick_first(row, "modelo_iec", "modelo_nema", "modelo") or _to_text(motor.get("modelo")),
-        "potencia": _pick_first(row, "potencia", "potencia_cv") or _to_text(motor.get("potencia") or motor.get("cv")),
-        "rpm": _pick_first(row, "rpm", "rpm_nominal") or _to_text(motor.get("rpm")),
-        "tensao": _pick_first(row, "tensao", "tensao_v") or _to_text(motor.get("tensao")),
-        "corrente": _pick_first(row, "corrente", "corrente_a") or _to_text(motor.get("corrente")),
-        "polos": _pick_first(row, "polos") or _to_text(motor.get("polos")),
-        "tipo_motor": _pick_first(row, "tipo_motor") or _to_text(motor.get("tipo_motor")),
-        "fases": _pick_first(row, "fases") or _to_text(motor.get("fases")),
+        "id": motor_id,
+        "marca": _pick_first(row, "marca", "Marca") or _to_text(motor.get("marca")),
+        "modelo": _pick_first(row, "modelo_iec", "modelo_nema", "modelo", "Modelo") or _to_text(motor.get("modelo")),
+        "potencia": _pick_first(row, "potencia", "potencia_cv", "Potencia") or _to_text(motor.get("potencia") or motor.get("cv")),
+        "rpm": _pick_first(row, "rpm", "rpm_nominal", "Rpm") or _to_text(motor.get("rpm")),
+        "tensao": _pick_first(row, "tensao", "tensao_v", "Tensao") or _to_text(motor.get("tensao")),
+        "corrente": _pick_first(row, "corrente", "corrente_a", "Corrente") or _to_text(motor.get("corrente")),
+        "polos": _pick_first(row, "polos", "Polos") or _to_text(motor.get("polos")),
+        "tipo_motor": _pick_first(row, "tipo_motor", "TipoMotor") or _to_text(motor.get("tipo_motor")),
+        "fases": _pick_first(row, "fases", "Fases") or _to_text(motor.get("fases")),
         "dados_tecnicos_json": data,
-        "texto_bruto_extraido": _to_text(row.get("texto_bruto_extraido") or data.get("texto_ocr")),
-        "imagens_urls": row.get("imagens_urls") or [],
-        "observacoes": _to_text(row.get("observacoes") or data.get("observacoes_gerais")),
+        "texto_bruto_extraido": _to_text(row.get("texto_bruto_extraido") or row.get("TextoBrutoExtraido") or data.get("texto_ocr")),
+        "imagens_urls": imagens,
+        "observacoes": _to_text(row.get("observacoes") or row.get("Observacoes") or data.get("observacoes_gerais")),
     }
 
 
@@ -144,7 +158,12 @@ def _render_expanded_sections(motor: Dict[str, Any]) -> None:
     st.markdown("#### Observacoes")
     st.write(motor.get("observacoes") or "-")
     st.markdown("#### Texto bruto lido")
-    st.text_area("", value=motor.get("texto_bruto_extraido") or "", height=120, key=f"ocr_{motor.get('id')}")
+    st.text_area(
+        "Texto OCR completo",
+        value=motor.get("texto_bruto_extraido") or "",
+        height=120,
+        key=f"ocr_{motor.get('id')}",
+    )
     urls = motor.get("imagens_urls") or []
     if urls:
         st.markdown("#### Imagens vinculadas")

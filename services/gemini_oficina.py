@@ -25,10 +25,10 @@ Analise uma ou mais fotos de oficina (escrita manual, desenhos técnicos, abrevi
 Objetivo:
 1) Extraia todos os campos técnicos possíveis.
 2) Não invente valores: quando não souber, deixe vazio.
-3) Entenda variações de nomenclatura (RPM/rpm, CV/HP/kW, AMP/A, passo/passos, fio/fios, espira/espiras).
+3) Entenda variações de nomenclatura (RPM/rpm, CV/HP/kW/kVA/kVW, AMP/A, passo/passos, fio/fios, espira/espiras).
 4) Identifique blocos principal e auxiliar quando houver.
 5) Interprete desenho manual como texto técnico resumido.
-6) Mantenha unidade da potência exatamente como estiver (ex.: "230 kVA", "7,5 CV", "5.5 kW").
+6) Mantenha unidade da potência exatamente como estiver (ex.: "230 kVA", "75 kVW", "7,5 CV", "5.5 kW").
 7) Em bobinagem, capture sequências de caderno/oficina:
    - "passos 6 8 10 12" -> passos: ["6","8","10","12"]
    - "espiras 5 5 5 5" -> espiras: ["5","5","5","5"]
@@ -141,7 +141,7 @@ def _normalize_spaces(text: str) -> str:
 
 def _extract_potencia_with_unit(text: str) -> str:
     match = re.search(
-        r"(\d+(?:[.,]\d+)?)\s*(kva|kv\s*a|kw|cv|hp|w)\b",
+        r"(\d+(?:[.,]\d+)?)\s*(kva|kv\s*a|kvw|kv\s*w|kw|k\s*w|cv|hp|w)\b",
         text,
         flags=re.IGNORECASE,
     )
@@ -150,7 +150,7 @@ def _extract_potencia_with_unit(text: str) -> str:
 
     value = match.group(1).replace(",", ".")
     unit_raw = match.group(2).lower().replace(" ", "")
-    unit_map = {"kva": "kVA", "kw": "kW", "cv": "CV", "hp": "HP", "w": "W"}
+    unit_map = {"kva": "kVA", "kvw": "kVW", "kw": "kW", "cv": "CV", "hp": "HP", "w": "W"}
     unit = unit_map.get(unit_raw, unit_raw.upper())
     return f"{value} {unit}"
 

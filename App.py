@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 
 import streamlit as st
 try:
@@ -54,14 +55,38 @@ def bootstrap_system(session: SessionManager) -> None:
 
 
 def validate_database_schema(client) -> None:
-    client.table("motores").select("id").limit(1).execute()
+    try:
+        client.table("motores").select("id").limit(1).execute()
+    except Exception as exc:
+        msg = str(exc).lower()
+        # Em ambientes com RLS estrita para usuarios autenticados,
+        # este teste pode falhar antes do login.
+        if any(token in msg for token in ["permission", "row level", "rls", "jwt", "not authenticated"]):
+            return
+        raise
 
 
 def resolve_runtime_mode() -> str:
+    env_var = str(os.environ.get("ENV", "")).strip().upper()
+    if env_var:
+        return env_var
+
     try:
         env = str(st.secrets.get("ENV", "PROD")).strip().upper()
     except Exception:
-        env = "PROD"
+        env = ""
+    if env:
+        return env
+
+    try:
+        has_supabase = bool(st.secrets.get("SUPABASE_URL")) and bool(st.secrets.get("SUPABASE_KEY"))
+    except Exception:
+        has_supabase = False
+
+    if not has_supabase:
+        return "DEV"
+
+    env = "PROD"
     return env or "PROD"
 
 
@@ -69,13 +94,9 @@ def connect_runtime_client(mode: str):
     if mode == "DEV":
         return init_connection("DEV")
 
-    try:
-        runtime = init_connection("PROD")
-        validate_database_schema(runtime)
-        return runtime
-    except Exception:
-        # Em falha de Supabase, usa fallback local sem parar o app.
-        return build_local_runtime_client(mode="FALLBACK")
+    runtime = init_connection("PROD")
+    validate_database_schema(runtime)
+    return runtime
 
 
 def main() -> None:
@@ -87,7 +108,11 @@ def main() -> None:
         return
 
     runtime_mode = resolve_runtime_mode()
-    client = connect_runtime_client(runtime_mode)
+    try:
+        client = connect_runtime_client(runtime_mode)
+    except Exception as exc:
+        st.error(f"Falha ao conectar no banco de producao: {exc}")
+        st.stop()
 
     if runtime_mode == "DEV" or getattr(client, "is_local_runtime", False):
         st.warning("⚠️ MODO DEV ATIVO")

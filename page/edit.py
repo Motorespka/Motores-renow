@@ -12,7 +12,13 @@ except Exception:
 
 from core.access_control import require_admin_access
 from core.navigation import Route
-from services.oficina_parser import DEFAULT_EXTRACTED, normalize_extracted_data, to_supabase_payload
+from services.oficina_parser import (
+    DEFAULT_EXTRACTED,
+    build_normalized_from_motor_row,
+    normalize_extracted_data,
+    to_motores_schema_payload,
+    to_supabase_payload,
+)
 from services.oficina_runtime import enriquecer_motor_oficina
 from services.supabase_data import clear_motores_cache, fetch_motor_by_id_cached
 
@@ -66,52 +72,81 @@ def _list_editor(label: str, values: List[str], key: str, help_text: str = "") -
 
 
 def _build_initial_data(motor: Dict[str, Any]) -> Dict[str, Any]:
-    source = _to_dict(motor.get("dados_tecnicos_json") or motor.get("leitura_gemini_json")) or DEFAULT_EXTRACTED
+    source = _to_dict(motor.get("dados_tecnicos_json") or motor.get("leitura_gemini_json"))
+    if not source:
+        source = build_normalized_from_motor_row(motor)
+    source = source or DEFAULT_EXTRACTED
     data = normalize_extracted_data(source)
 
     info = data.get("motor", {})
 
     if not info.get("marca"):
-        info["marca"] = _to_text(motor.get("marca"))
+        info["marca"] = _to_text(motor.get("marca") or motor.get("Marca"))
     if not info.get("modelo"):
-        info["modelo"] = _to_text(motor.get("modelo") or motor.get("modelo_iec") or motor.get("modelo_nema"))
+        info["modelo"] = _to_text(
+            motor.get("modelo")
+            or motor.get("Modelo")
+            or motor.get("modelo_iec")
+            or motor.get("modelo_nema")
+        )
     if not info.get("potencia"):
-        info["potencia"] = _to_text(motor.get("potencia") or motor.get("potencia_cv"))
+        info["potencia"] = _to_text(motor.get("potencia") or motor.get("Potencia") or motor.get("potencia_cv"))
     if not info.get("rpm"):
-        info["rpm"] = _to_text(motor.get("rpm") or motor.get("rpm_nominal"))
+        info["rpm"] = _to_text(motor.get("rpm") or motor.get("Rpm") or motor.get("rpm_nominal"))
     if not info.get("polos"):
-        info["polos"] = _to_text(motor.get("polos"))
+        info["polos"] = _to_text(motor.get("polos") or motor.get("Polos"))
     if not info.get("tipo_motor"):
-        info["tipo_motor"] = _to_text(motor.get("tipo_motor"))
+        info["tipo_motor"] = _to_text(motor.get("tipo_motor") or motor.get("TipoMotor"))
     if not info.get("fases"):
-        info["fases"] = _to_text(motor.get("fases"))
+        info["fases"] = _to_text(motor.get("fases") or motor.get("Fases"))
     if not info.get("tensao"):
-        info["tensao"] = _to_list(motor.get("tensao") or motor.get("tensao_v"), split_slash=True)
+        info["tensao"] = _to_list(
+            motor.get("tensao") or motor.get("Tensao") or motor.get("tensao_v"),
+            split_slash=True,
+        )
     if not info.get("corrente"):
-        info["corrente"] = _to_list(motor.get("corrente") or motor.get("corrente_a"), split_slash=True)
+        info["corrente"] = _to_list(
+            motor.get("corrente") or motor.get("Corrente") or motor.get("corrente_a"),
+            split_slash=True,
+        )
 
     if not data.get("observacoes_gerais"):
-        data["observacoes_gerais"] = _to_text(motor.get("observacoes"))
+        data["observacoes_gerais"] = _to_text(motor.get("observacoes") or motor.get("Observacoes"))
     if not data.get("texto_ocr"):
-        data["texto_ocr"] = _to_text(motor.get("texto_bruto_extraido"))
+        data["texto_ocr"] = _to_text(motor.get("texto_bruto_extraido") or motor.get("TextoBrutoExtraido"))
 
     return data
 
 
-def _update_motor_supabase(supabase, id_motor, payload: dict) -> None:
+def _update_motor_supabase(supabase, id_motor, payload_legacy: dict, payload_schema: dict) -> None:
     try:
-        supabase.table("motores").update(payload).eq("id", id_motor).execute()
+        supabase.table("motores").update(payload_legacy).eq("id", id_motor).execute()
+        return
     except APIError:
+        pass
+    except Exception:
+        pass
+
+    try:
+        supabase.table("motores").update(payload_schema).eq("id", id_motor).execute()
+        return
+    except Exception:
+        pass
+
+    try:
         fallback = {
-            "marca": payload.get("marca", ""),
-            "modelo": payload.get("modelo", ""),
-            "potencia": payload.get("potencia", ""),
-            "rpm": payload.get("rpm", ""),
-            "tensao": payload.get("tensao", ""),
-            "corrente": payload.get("corrente", ""),
-            "observacoes": payload.get("observacoes", ""),
+            "marca": payload_legacy.get("marca", ""),
+            "modelo": payload_legacy.get("modelo", ""),
+            "potencia": payload_legacy.get("potencia", ""),
+            "rpm": payload_legacy.get("rpm", ""),
+            "tensao": payload_legacy.get("tensao", ""),
+            "corrente": payload_legacy.get("corrente", ""),
+            "observacoes": payload_legacy.get("observacoes", ""),
         }
         supabase.table("motores").update(fallback).eq("id", id_motor).execute()
+        return
+    except Exception as exc:
+        raise RuntimeError(f"Nao foi possivel atualizar o motor em nenhum schema compativel: {exc}") from exc
 
 
 def render(ctx):
@@ -155,7 +190,7 @@ def render(ctx):
             data["motor"]["marca"] = st.text_input("Marca", value=data["motor"].get("marca", ""), key=f"{k}marca")
             data["motor"]["modelo"] = st.text_input("Modelo", value=data["motor"].get("modelo", ""), key=f"{k}modelo")
             data["motor"]["potencia"] = st.text_input("PotÃªncia", value=data["motor"].get("potencia", ""), key=f"{k}potencia")
-            data["motor"]["cv"] = st.text_input("CV / HP / kW", value=data["motor"].get("cv", ""), key=f"{k}cv")
+            data["motor"]["cv"] = st.text_input("CV / HP / kW / kVA / kVW", value=data["motor"].get("cv", ""), key=f"{k}cv")
             data["motor"]["rpm"] = st.text_input("RPM", value=data["motor"].get("rpm", ""), key=f"{k}rpm")
         with c2:
             data["motor"]["polos"] = st.text_input("Polos", value=data["motor"].get("polos", ""), key=f"{k}polos")
@@ -239,11 +274,12 @@ def render(ctx):
         st.rerun()
 
     if salvar:
-        image_names = _to_list(motor.get("imagens_origem") or motor.get("arquivo_origem"))
+        image_names = _to_list(motor.get("imagens_origem") or motor.get("arquivo_origem") or motor.get("ArquivoOrigem"))
         image_urls = _to_list(motor.get("imagens_urls"))
         data = enriquecer_motor_oficina(data, evento="edicao")
-        payload = to_supabase_payload(data, image_paths=image_urls, image_names=image_names)
-        _update_motor_supabase(ctx.supabase, id_motor, payload)
+        payload_legacy = to_supabase_payload(data, image_paths=image_urls, image_names=image_names)
+        payload_schema = to_motores_schema_payload(data, image_paths=image_urls, image_names=image_names)
+        _update_motor_supabase(ctx.supabase, id_motor, payload_legacy, payload_schema)
         clear_motores_cache()
         st.success("AlteraÃ§Ãµes salvas com sucesso.")
         ctx.session.set_route(Route.DETALHE)
