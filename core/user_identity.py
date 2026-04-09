@@ -40,8 +40,8 @@ def resolve_current_user_identity() -> Dict[str, str]:
         email_local = email.split("@", 1)[0].strip()
 
     display_name = (
-        nome
-        or _humanize_identifier(username)
+        username
+        or nome
         or _humanize_identifier(email_local)
         or _humanize_identifier(user_id)
         or "Usuario"

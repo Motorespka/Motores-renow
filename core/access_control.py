@@ -2,7 +2,7 @@
 
 import os
 import time
-from typing import Any, Dict, Set
+from typing import Any, Dict, List, Set
 
 import streamlit as st
 
@@ -13,6 +13,9 @@ APP_SETTINGS_TABLE = "app_settings"
 CADASTRO_OPEN_SETTING_KEY = "cadastro_open_to_authenticated"
 CADASTRO_OPEN_CACHE_KEY = "_cadastro_open_setting_cache"
 CADASTRO_OPEN_CACHE_TTL_SECONDS = 15
+CADASTRO_ACCESS_TABLE = "cadastro_access"
+CADASTRO_USER_ACCESS_CACHE_PREFIX = "_cadastro_user_access_"
+CADASTRO_ACCESS_LIST_CACHE_KEY = "_cadastro_access_list_cache"
 
 
 def _to_text(value: Any) -> str:
@@ -71,6 +74,31 @@ def _set_cadastro_open_cache(value: bool) -> None:
 
 def _get_cached_cadastro_open() -> bool | None:
     cached = st.session_state.get(CADASTRO_OPEN_CACHE_KEY)
+    if not isinstance(cached, dict):
+        return None
+    ts = float(cached.get("ts") or 0.0)
+    if (time.time() - ts) > CADASTRO_OPEN_CACHE_TTL_SECONDS:
+        return None
+    return bool(cached.get("value"))
+
+
+def _user_access_cache_key(user_id: str) -> str:
+    return f"{CADASTRO_USER_ACCESS_CACHE_PREFIX}{user_id}"
+
+
+def _set_cadastro_user_access_cache(user_id: str, value: bool) -> None:
+    if not user_id:
+        return
+    st.session_state[_user_access_cache_key(user_id)] = {
+        "value": bool(value),
+        "ts": float(time.time()),
+    }
+
+
+def _get_cached_cadastro_user_access(user_id: str) -> bool | None:
+    if not user_id:
+        return None
+    cached = st.session_state.get(_user_access_cache_key(user_id))
     if not isinstance(cached, dict):
         return None
     ts = float(cached.get("ts") or 0.0)
@@ -207,7 +235,7 @@ def _fetch_usuarios_app_profile(user_id: str, email: str, client: Any | None = N
             res = (
                 client
                 .table("usuarios_app")
-                .select("id,email,role,plan,ativo")
+                .select("id,email,username,nome,role,plan,ativo")
                 .eq("id", user_id)
                 .limit(1)
                 .execute()
@@ -228,7 +256,7 @@ def _fetch_usuarios_app_profile(user_id: str, email: str, client: Any | None = N
             res = (
                 client
                 .table("usuarios_app")
-                .select("id,email,role,plan,ativo")
+                .select("id,email,username,nome,role,plan,ativo")
                 .eq("email", email_norm)
                 .limit(1)
                 .execute()
@@ -249,7 +277,7 @@ def _fetch_usuarios_app_profile(user_id: str, email: str, client: Any | None = N
             res = (
                 client
                 .table("usuarios_app")
-                .select("id,email,role,plan,ativo")
+                .select("id,email,username,nome,role,plan,ativo")
                 .ilike("email", email_norm)
                 .limit(1)
                 .execute()
@@ -383,13 +411,291 @@ def set_cadastro_open_setting(enabled: bool, client: Any | None = None) -> tuple
     return True, "Permissao de cadastro atualizada com sucesso."
 
 
+def _fetch_cadastro_user_access_from_db(user_id: str, client: Any | None = None) -> bool:
+    resolved_client = _resolve_supabase_client(client)
+    if resolved_client is None or getattr(resolved_client, "is_local_runtime", False):
+        return False
+    if not user_id:
+        return False
+
+    try:
+        res = (
+            resolved_client
+            .table(CADASTRO_ACCESS_TABLE)
+            .select("user_id")
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+        rows = getattr(res, "data", None) or []
+        return bool(rows)
+    except Exception:
+        return False
+
+
+def has_cadastro_user_access(user_id: str, client: Any | None = None, force_refresh: bool = False) -> bool:
+    if not user_id:
+        return False
+
+    if not force_refresh:
+        cached = _get_cached_cadastro_user_access(user_id)
+        if cached is not None:
+            return cached
+
+    allowed = _fetch_cadastro_user_access_from_db(user_id=user_id, client=client)
+    _set_cadastro_user_access_cache(user_id, allowed)
+    return allowed
+
+
+def _set_cadastro_access_list_cache(rows: List[Dict[str, Any]]) -> None:
+    st.session_state[CADASTRO_ACCESS_LIST_CACHE_KEY] = {
+        "rows": rows,
+        "ts": float(time.time()),
+    }
+
+
+def _get_cached_cadastro_access_list() -> List[Dict[str, Any]] | None:
+    cached = st.session_state.get(CADASTRO_ACCESS_LIST_CACHE_KEY)
+    if not isinstance(cached, dict):
+        return None
+    ts = float(cached.get("ts") or 0.0)
+    if (time.time() - ts) > CADASTRO_OPEN_CACHE_TTL_SECONDS:
+        return None
+    rows = cached.get("rows")
+    if isinstance(rows, list):
+        return rows
+    return None
+
+
+def list_cadastro_allowed_users(client: Any | None = None, force_refresh: bool = False) -> List[Dict[str, Any]]:
+    resolved_client = _resolve_supabase_client(client)
+    if resolved_client is None:
+        return []
+
+    access = get_access_profile(client=resolved_client)
+    if not access.get("is_admin"):
+        return []
+
+    if getattr(resolved_client, "is_local_runtime", False):
+        return []
+
+    if not force_refresh:
+        cached = _get_cached_cadastro_access_list()
+        if cached is not None:
+            return cached
+
+    try:
+        res = (
+            resolved_client
+            .table(CADASTRO_ACCESS_TABLE)
+            .select("user_id,created_at")
+            .order("created_at", desc=True)
+            .limit(200)
+            .execute()
+        )
+        grant_rows = getattr(res, "data", None) or []
+    except Exception:
+        return []
+
+    user_ids = [_to_text(r.get("user_id")) for r in grant_rows if _to_text(r.get("user_id"))]
+    user_ids = list(dict.fromkeys(user_ids))
+    if not user_ids:
+        _set_cadastro_access_list_cache([])
+        return []
+
+    profiles_map: Dict[str, Dict[str, Any]] = {}
+
+    try:
+        res_profiles = (
+            resolved_client
+            .table("usuarios_app")
+            .select("id,username,nome,email,role,ativo")
+            .in_("id", user_ids)
+            .execute()
+        )
+        profile_rows = getattr(res_profiles, "data", None) or []
+        for row in profile_rows:
+            if isinstance(row, dict):
+                uid = _to_text(row.get("id"))
+                if uid:
+                    profiles_map[uid] = row
+    except Exception:
+        for uid in user_ids:
+            try:
+                res_one = (
+                    resolved_client
+                    .table("usuarios_app")
+                    .select("id,username,nome,email,role,ativo")
+                    .eq("id", uid)
+                    .limit(1)
+                    .execute()
+                )
+                rows = getattr(res_one, "data", None) or []
+                if rows and isinstance(rows[0], dict):
+                    profiles_map[uid] = rows[0]
+            except Exception:
+                continue
+
+    output: List[Dict[str, Any]] = []
+    for item in grant_rows:
+        if not isinstance(item, dict):
+            continue
+        uid = _to_text(item.get("user_id"))
+        if not uid:
+            continue
+        profile = profiles_map.get(uid, {})
+        username = _to_text(profile.get("username"))
+        nome = _to_text(profile.get("nome"))
+        email = _to_text(profile.get("email")).lower()
+        display = username or nome or (email.split("@", 1)[0] if email and "@" in email else uid)
+        label = f"{display} ({email or uid})"
+        output.append(
+            {
+                "user_id": uid,
+                "display": display,
+                "label": label,
+                "username": username,
+                "nome": nome,
+                "email": email,
+                "created_at": _to_text(item.get("created_at")),
+            }
+        )
+
+    _set_cadastro_access_list_cache(output)
+    return output
+
+
+def search_usuarios_for_cadastro_access(
+    query_text: str,
+    client: Any | None = None,
+    limit: int = 20,
+) -> List[Dict[str, Any]]:
+    resolved_client = _resolve_supabase_client(client)
+    if resolved_client is None or getattr(resolved_client, "is_local_runtime", False):
+        return []
+
+    access = get_access_profile(client=resolved_client)
+    if not access.get("is_admin"):
+        return []
+
+    query = _to_text(query_text).lower()
+    if len(query) < 2:
+        return []
+
+    merged: Dict[str, Dict[str, Any]] = {}
+    for field in ["username", "nome", "email"]:
+        try:
+            res = (
+                resolved_client
+                .table("usuarios_app")
+                .select("id,username,nome,email,role,ativo")
+                .ilike(field, f"%{query}%")
+                .limit(limit)
+                .execute()
+            )
+            rows = getattr(res, "data", None) or []
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                uid = _to_text(row.get("id"))
+                if uid:
+                    merged[uid] = row
+        except Exception:
+            continue
+
+    output: List[Dict[str, Any]] = []
+    for uid, row in merged.items():
+        username = _to_text(row.get("username"))
+        nome = _to_text(row.get("nome"))
+        email = _to_text(row.get("email")).lower()
+        display = username or nome or (email.split("@", 1)[0] if email and "@" in email else uid)
+        label = f"{display} ({email or uid})"
+        output.append(
+            {
+                "user_id": uid,
+                "display": display,
+                "label": label,
+                "username": username,
+                "nome": nome,
+                "email": email,
+            }
+        )
+
+    output.sort(key=lambda item: (_to_text(item.get("display")).lower(), _to_text(item.get("email")).lower()))
+    return output[:limit]
+
+
+def grant_cadastro_access_for_user(user_id: str, client: Any | None = None) -> tuple[bool, str]:
+    resolved_client = _resolve_supabase_client(client)
+    if resolved_client is None:
+        return False, "Cliente Supabase indisponivel."
+
+    access = get_access_profile(client=resolved_client)
+    if not access.get("is_admin"):
+        return False, "Apenas admin pode adicionar permissao."
+
+    uid = _to_text(user_id)
+    if not uid:
+        return False, "Selecione um usuario valido."
+
+    if getattr(resolved_client, "is_local_runtime", False):
+        _set_cadastro_user_access_cache(uid, True)
+        st.session_state.pop(CADASTRO_ACCESS_LIST_CACHE_KEY, None)
+        return True, "Permissao aplicada em modo local."
+
+    payload = {"user_id": uid, "added_by": access.get("user_id")}
+    try:
+        resolved_client.table(CADASTRO_ACCESS_TABLE).upsert(payload, on_conflict="user_id").execute()
+    except Exception as exc:
+        return False, f"Falha ao conceder permissao: {exc}"
+
+    _set_cadastro_user_access_cache(uid, True)
+    st.session_state.pop(CADASTRO_ACCESS_LIST_CACHE_KEY, None)
+    return True, "Permissao de cadastro concedida."
+
+
+def revoke_cadastro_access_for_user(user_id: str, client: Any | None = None) -> tuple[bool, str]:
+    resolved_client = _resolve_supabase_client(client)
+    if resolved_client is None:
+        return False, "Cliente Supabase indisponivel."
+
+    access = get_access_profile(client=resolved_client)
+    if not access.get("is_admin"):
+        return False, "Apenas admin pode remover permissao."
+
+    uid = _to_text(user_id)
+    if not uid:
+        return False, "Usuario invalido."
+
+    if getattr(resolved_client, "is_local_runtime", False):
+        _set_cadastro_user_access_cache(uid, False)
+        st.session_state.pop(CADASTRO_ACCESS_LIST_CACHE_KEY, None)
+        return True, "Permissao removida em modo local."
+
+    try:
+        resolved_client.table(CADASTRO_ACCESS_TABLE).delete().eq("user_id", uid).execute()
+    except Exception as exc:
+        return False, f"Falha ao remover permissao: {exc}"
+
+    _set_cadastro_user_access_cache(uid, False)
+    st.session_state.pop(CADASTRO_ACCESS_LIST_CACHE_KEY, None)
+    return True, "Permissao de cadastro removida."
+
+
 def can_access_cadastro(client: Any | None = None) -> bool:
     access = get_access_profile(client=client)
     if access.get("is_admin"):
         return True
 
+    if not access.get("authenticated"):
+        return False
+
     open_flag = get_cadastro_open_setting(client=client)
-    return bool(access.get("authenticated")) and open_flag
+    if open_flag:
+        return True
+
+    user_id = _to_text(access.get("user_id"))
+    return has_cadastro_user_access(user_id=user_id, client=client)
 
 
 def require_cadastro_access(feature_name: str, client: Any | None = None) -> bool:
@@ -397,7 +703,7 @@ def require_cadastro_access(feature_name: str, client: Any | None = None) -> boo
         return True
 
     st.error(f"Acesso restrito: sem permissao para usar '{feature_name}'.")
-    st.info("Regra padrao: apenas admin. Para liberar a todos autenticados, defina CADASTRO_OPEN_TO_AUTHENTICATED=true.")
+    st.info("Regra padrao: apenas admin. O admin pode liberar para todos ou por usuario no painel de permissoes.")
     return False
 
 

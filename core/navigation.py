@@ -8,8 +8,12 @@ import streamlit as st
 
 from core.access_control import (
     can_access_cadastro,
+    grant_cadastro_access_for_user,
     get_cadastro_open_setting,
     is_admin_user,
+    list_cadastro_allowed_users,
+    revoke_cadastro_access_for_user,
+    search_usuarios_for_cadastro_access,
     set_cadastro_open_setting,
 )
 from core.user_identity import resolve_current_user_identity
@@ -120,6 +124,49 @@ def render_navigation_sidebar(session, supabase_client=None) -> None:
                     else:
                         st.error(message)
                 st.caption("Quando ligado, qualquer usuario autenticado pode abrir e usar a aba Cadastro.")
+
+                st.markdown("### Liberar por usuario")
+                user_query = st.text_input(
+                    "Buscar por username, nome ou email",
+                    key="nav_cadastro_user_query",
+                    placeholder="Ex.: mickear",
+                ).strip()
+                matches = search_usuarios_for_cadastro_access(user_query, client=supabase_client) if len(user_query) >= 2 else []
+                if len(user_query) >= 2 and not matches:
+                    st.caption("Nenhum usuario encontrado.")
+                selected_user_id = ""
+                if matches:
+                    options = [f"{m.get('label', '')} | id:{m.get('user_id', '')[:8]}" for m in matches]
+                    selected_label = st.selectbox("Resultados", options, key="nav_cadastro_user_pick")
+                    selected = next((m for m in matches if f"{m.get('label', '')} | id:{m.get('user_id', '')[:8]}" == selected_label), None)
+                    selected_user_id = str((selected or {}).get("user_id") or "")
+
+                if st.button("Adicionar usuario", use_container_width=True, key="nav_cadastro_user_add"):
+                    ok, message = grant_cadastro_access_for_user(selected_user_id, client=supabase_client)
+                    if ok:
+                        st.success(message)
+                        st.rerun()
+                    else:
+                        st.error(message)
+
+                st.markdown("### Usuarios com acesso")
+                allowed_users = list_cadastro_allowed_users(client=supabase_client)
+                if not allowed_users:
+                    st.caption("Nenhum usuario liberado manualmente.")
+                for row in allowed_users:
+                    uid = str(row.get("user_id") or "")
+                    label = str(row.get("label") or uid)
+                    c1, c2 = st.columns([3, 1])
+                    with c1:
+                        st.caption(label)
+                    with c2:
+                        if st.button("Remover", key=f"nav_cadastro_rm_{uid}", use_container_width=True):
+                            ok, message = revoke_cadastro_access_for_user(uid, client=supabase_client)
+                            if ok:
+                                st.success(message)
+                                st.rerun()
+                            else:
+                                st.error(message)
 
         st.divider()
         st.caption(f"Rota atual: {session.get_route().value}")
