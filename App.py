@@ -1,5 +1,8 @@
 ﻿from pathlib import Path
+import hashlib
+import json
 import os
+import uuid
 
 import streamlit as st
 try:
@@ -32,7 +35,52 @@ def _read_secret_or_env(*names: str) -> str:
     return ""
 
 
-def init_connection(mode: str):
+def _to_plain_mapping(value) -> dict:
+    try:
+        if value is None:
+            return {}
+        if isinstance(value, dict):
+            return {str(k): str(v) for k, v in value.items()}
+        return {str(k): str(v) for k, v in dict(value).items()}
+    except Exception:
+        return {}
+
+
+def _resolve_browser_cache_key() -> str:
+    cached = st.session_state.get("_browser_cache_key")
+    if isinstance(cached, str) and cached.strip():
+        return cached
+
+    cookies = {}
+    headers = {}
+    try:
+        cookies = _to_plain_mapping(getattr(st.context, "cookies", {}))
+    except Exception:
+        cookies = {}
+    try:
+        headers = _to_plain_mapping(getattr(st.context, "headers", {}))
+    except Exception:
+        headers = {}
+
+    fingerprint = {
+        "cookies": cookies,
+        "user_agent": headers.get("user-agent", ""),
+        "accept_language": headers.get("accept-language", ""),
+        "host": headers.get("host", ""),
+    }
+    serialized = json.dumps(fingerprint, sort_keys=True, ensure_ascii=True)
+    if serialized and serialized != "{}":
+        key = hashlib.sha256(serialized.encode("utf-8")).hexdigest()[:24]
+    else:
+        key = uuid.uuid4().hex[:24]
+
+    st.session_state["_browser_cache_key"] = key
+    return key
+
+
+@st.cache_resource
+def init_connection(mode: str, cache_key: str):
+    _ = cache_key  # separa cache por navegador/sessao
     if mode == "DEV":
         return build_local_runtime_client(mode="DEV")
 
@@ -110,20 +158,17 @@ def resolve_runtime_mode() -> str:
 
 def connect_runtime_client(mode: str):
     target_mode = "DEV" if str(mode).upper() == "DEV" else "PROD"
-
-    cached_client = st.session_state.get("_runtime_client")
-    cached_mode = st.session_state.get("_runtime_client_mode")
-    if cached_client is not None and cached_mode == target_mode:
-        return cached_client
+    cache_key = _resolve_browser_cache_key()
 
     if target_mode == "DEV":
-        runtime = init_connection("DEV")
+        runtime = init_connection("DEV", cache_key)
     else:
-        runtime = init_connection("PROD")
+        runtime = init_connection("PROD", cache_key)
         validate_database_schema(runtime)
 
     st.session_state["_runtime_client"] = runtime
     st.session_state["_runtime_client_mode"] = target_mode
+    st.session_state["_runtime_client_cache_key"] = cache_key
     return runtime
 
 
