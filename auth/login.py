@@ -25,6 +25,29 @@ def _normalized_email(value: str) -> str:
     return (value or "").strip().lower()
 
 
+def _partial_url(url: str) -> str:
+    txt = (url or "").strip()
+    if not txt:
+        return ""
+    if "://" in txt:
+        head, tail = txt.split("://", 1)
+        return f"{head}://{tail[:18]}..."
+    return f"{txt[:24]}..."
+
+
+def _query_debug_payload(table: str, method: str, field: str, value: str) -> dict:
+    return {
+        "table": table,
+        "method": method,
+        "field": field,
+        "value": value,
+        "status": "pending",
+        "row_count": 0,
+        "data": None,
+        "error": None,
+    }
+
+
 def _default_username(email: str, user_id: str) -> str:
     base = _normalized_email(email).split("@")[0]
     base = "".join(ch for ch in base if ch.isalnum() or ch == "_")
@@ -76,28 +99,73 @@ def _build_profile(perfil, user, fallback_email: str):
 
 def _carregar_perfil_usuario(client, user_id: str, email: str, user_metadata: dict | None = None):
     perfil = None
+    email_norm = _normalized_email(email)
+    supabase_url = ""
+    try:
+        supabase_url = str(st.secrets.get("SUPABASE_URL") or "")
+    except Exception:
+        supabase_url = ""
+    if not supabase_url:
+        try:
+            import os
+            supabase_url = str(os.environ.get("SUPABASE_URL") or "")
+        except Exception:
+            supabase_url = ""
+
+    debug = {
+        "table": "usuarios_app",
+        "supabase_url_partial": _partial_url(supabase_url),
+        "is_local_runtime": _is_local_runtime(client),
+        "user_id": user_id,
+        "email": email_norm,
+        "source": "none",
+        "by_id": _query_debug_payload("usuarios_app", "eq", "id", user_id),
+        "by_email": _query_debug_payload("usuarios_app", "eq", "email", email_norm),
+        "by_email_ilike": _query_debug_payload("usuarios_app", "ilike", "email", email_norm),
+    }
+
     try:
         res = client.table("usuarios_app").select("*").eq("id", user_id).limit(1).execute()
-        if res.data:
+        rows = getattr(res, "data", None) or []
+        debug["by_id"]["status"] = "success"
+        debug["by_id"]["row_count"] = len(rows)
+        debug["by_id"]["data"] = rows[0] if rows else None
+        if rows:
             perfil = res.data[0]
-    except Exception:
-        perfil = None
+            debug["source"] = "id"
+    except Exception as exc:
+        debug["by_id"]["status"] = "error"
+        debug["by_id"]["error"] = str(exc)
 
-    if not perfil:
+    if not perfil and email_norm:
         try:
-            res = client.table("usuarios_app").select("*").eq("email", email).limit(1).execute()
-            if res.data:
+            res = client.table("usuarios_app").select("*").eq("email", email_norm).limit(1).execute()
+            rows = getattr(res, "data", None) or []
+            debug["by_email"]["status"] = "success"
+            debug["by_email"]["row_count"] = len(rows)
+            debug["by_email"]["data"] = rows[0] if rows else None
+            if rows:
                 perfil = res.data[0]
-        except Exception:
-            perfil = None
+                debug["source"] = "email"
+        except Exception as exc:
+            debug["by_email"]["status"] = "error"
+            debug["by_email"]["error"] = str(exc)
 
-    if not perfil and email:
+    if not perfil and email_norm:
         try:
-            res = client.table("usuarios_app").select("*").ilike("email", email).limit(1).execute()
-            if res.data:
+            res = client.table("usuarios_app").select("*").ilike("email", email_norm).limit(1).execute()
+            rows = getattr(res, "data", None) or []
+            debug["by_email_ilike"]["status"] = "success"
+            debug["by_email_ilike"]["row_count"] = len(rows)
+            debug["by_email_ilike"]["data"] = rows[0] if rows else None
+            if rows:
                 perfil = res.data[0]
-        except Exception:
-            perfil = None
+                debug["source"] = "email_ilike"
+        except Exception as exc:
+            debug["by_email_ilike"]["status"] = "error"
+            debug["by_email_ilike"]["error"] = str(exc)
+
+    st.session_state["_perfil_debug"] = debug
 
     if not isinstance(perfil, dict):
         perfil = {}
@@ -144,6 +212,9 @@ def _carregar_perfil_usuario(client, user_id: str, email: str, user_metadata: di
         perfil["is_admin"] = True
         if "role" not in perfil or not str(perfil.get("role", "")).strip():
             perfil["role"] = "admin"
+
+    if perfil:
+        perfil["_source"] = debug.get("source", "none")
 
     return perfil or None
 

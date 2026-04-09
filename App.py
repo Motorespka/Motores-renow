@@ -140,10 +140,43 @@ def _set_route_state(session: SessionManager, route_value: str) -> None:
 def _debug_access_state(access: dict, current_before: str, current_after: str) -> None:
     if not DEBUG_ACCESS:
         return
+    supabase_url = _read_secret_or_env("SUPABASE_URL")
+    supabase_key = _read_secret_or_env("SUPABASE_KEY", "SUPABASE_ANON_KEY")
+    project_ref = ""
+    if ".supabase.co" in supabase_url:
+        try:
+            project_ref = supabase_url.split("://", 1)[-1].split(".supabase.co", 1)[0]
+        except Exception:
+            project_ref = ""
+    expected_project_ref = _read_secret_or_env("SUPABASE_PROJECT_REF", "EXPECTED_SUPABASE_PROJECT_REF")
+    project_ref_match = None
+    if expected_project_ref:
+        project_ref_match = project_ref == expected_project_ref
+    masked_key = ""
+    if supabase_key:
+        if len(supabase_key) > 12:
+            masked_key = f"{supabase_key[:6]}...{supabase_key[-4:]}"
+        else:
+            masked_key = f"{supabase_key[:3]}..."
+
     st.write("DEBUG auth_user_id:", st.session_state.get("auth_user_id"))
     st.write("DEBUG auth_user_email:", st.session_state.get("auth_user_email"))
     st.write("DEBUG auth_user_profile:", st.session_state.get("auth_user_profile"))
+    st.write(
+        "DEBUG supabase_env:",
+        {
+            "url_partial": (supabase_url[:28] + "...") if supabase_url else "",
+            "project_ref": project_ref,
+            "expected_project_ref": expected_project_ref,
+            "project_ref_match": project_ref_match,
+            "anon_key_masked": masked_key,
+            "client_initialized": st.session_state.get("_supabase_client") is not None,
+            "is_local_runtime": bool(getattr(st.session_state.get("_supabase_client"), "is_local_runtime", False)),
+        },
+    )
     st.write("DEBUG access:", access)
+    st.write("DEBUG _perfil_debug:", st.session_state.get("_perfil_debug"))
+    st.write("DEBUG _access_profile_debug:", st.session_state.get("_access_profile_debug"))
     st.write("DEBUG current_route_before:", current_before)
     st.write("DEBUG current_route_after:", current_after)
 
