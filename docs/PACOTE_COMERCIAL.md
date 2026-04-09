@@ -16,7 +16,8 @@
 - `Admin` (`role = 'admin'` e `ativo = true`)
   - Tudo do plano pago.
   - Pode abrir `Edit`.
-  - Pode usar painel "Permissao de Cadastro" na sidebar.
+  - Pode abrir `Admin` (painel de configuracao).
+  - Pode liberar/remover permissao manual de cadastro.
 
 ## Fluxo comercial recomendado
 
@@ -24,6 +25,14 @@
 2. Usuario conhece o catalogo em visualizacao limitada.
 3. Quando pagar, admin muda o `plan` para `paid`.
 4. Se quiser teste rapido sem pagar, admin pode liberar apenas `Cadastro` manualmente.
+
+## Painel admin no site
+
+- Menu lateral mostra botao `Admin` apenas para usuario admin.
+- Dentro do painel voce consegue:
+  - Buscar usuario.
+  - Alterar `username`, `nome`, `role`, `plan` e `ativo`.
+  - Liberar/remover permissao manual de cadastro.
 
 ## SQL rapido para liberar plano pago
 
@@ -43,4 +52,3 @@ set plan = 'free',
     updated_at = now()
 where lower(email) = lower('cliente@exemplo.com');
 ```
-

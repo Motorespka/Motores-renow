@@ -11,7 +11,7 @@ from auth.login import render_login, sync_authenticated_profile
 from core.access_control import can_access_cadastro, can_access_paid_features, get_access_profile
 from core.navigation import AppContext, Route, Router, render_navigation_sidebar
 from core.session_manager import SessionManager
-from page import cadastro, consulta, diagnostico, edit, motor_detail
+from page import admin_panel, cadastro, consulta, diagnostico, edit, motor_detail
 from services.database import bootstrap_database, build_local_runtime_client
 
 st.set_page_config(page_title="Moto-Renow", page_icon="⚙️", layout="wide")
@@ -60,6 +60,7 @@ def build_router() -> Router:
     router.register(Route.DETALHE, motor_detail.show)
     router.register(Route.EDIT, edit.show)
     router.register(Route.DIAGNOSTICO, diagnostico.show)
+    router.register(Route.ADMIN, admin_panel.show)
     return router
 
 
@@ -218,7 +219,7 @@ def main() -> None:
             if current_route in {"", "login", "consulta"}:
                 _set_route_state(session, "cadastro")
         else:
-            if current_route in {"", "login", "cadastro", "edit", "diagnostico", "detalhe"}:
+            if current_route in {"", "login", "cadastro", "edit", "diagnostico", "detalhe", "admin"}:
                 _set_route_state(session, "consulta")
 
     current_route_after = _read_route_state(session)
@@ -237,6 +238,10 @@ def main() -> None:
         st.rerun()
 
     if access.get("authenticated") and (not access.get("is_admin")) and route == "edit":
+        _set_route_state(session, "consulta")
+        st.rerun()
+
+    if access.get("authenticated") and (not access.get("is_admin")) and route == "admin":
         _set_route_state(session, "consulta")
         st.rerun()
 

@@ -547,7 +547,7 @@ def search_usuarios_for_cadastro_access(
             res = (
                 resolved_client
                 .table("usuarios_app")
-                .select("id,username,nome,email,role,ativo")
+                .select("id,username,nome,email,role,plan,ativo")
                 .ilike(field, f"%{query}%")
                 .limit(limit)
                 .execute()
@@ -577,11 +577,145 @@ def search_usuarios_for_cadastro_access(
                 "username": username,
                 "nome": nome,
                 "email": email,
+                "role": _to_text(row.get("role")).lower(),
+                "plan": _to_text(row.get("plan")).lower() or DEFAULT_PLAN,
+                "ativo": _to_bool(row.get("ativo")),
             }
         )
 
     output.sort(key=lambda item: (_to_text(item.get("display")).lower(), _to_text(item.get("email")).lower()))
     return output[:limit]
+
+
+def get_usuario_for_admin(user_id: str, client: Any | None = None) -> Dict[str, Any] | None:
+    resolved_client = _resolve_supabase_client(client)
+    if resolved_client is None:
+        return None
+
+    access = get_access_profile(client=resolved_client)
+    if not access.get("is_admin"):
+        return None
+
+    uid = _to_text(user_id)
+    if not uid:
+        return None
+
+    if getattr(resolved_client, "is_local_runtime", False):
+        me = _current_profile()
+        if _to_text(me.get("id")) == uid or _to_text(st.session_state.get("auth_user_id")) == uid:
+            return {
+                "id": uid,
+                "username": _to_text(me.get("username")),
+                "nome": _to_text(me.get("nome")),
+                "email": _normalized_email(me.get("email")),
+                "role": _to_text(me.get("role")).lower() or "admin",
+                "plan": _to_text(me.get("plan")).lower() or DEFAULT_PLAN,
+                "ativo": True,
+            }
+        return None
+
+    try:
+        res = (
+            resolved_client
+            .table("usuarios_app")
+            .select("id,username,nome,email,role,plan,ativo,created_at,updated_at")
+            .eq("id", uid)
+            .limit(1)
+            .execute()
+        )
+        rows = getattr(res, "data", None) or []
+        if not rows or not isinstance(rows[0], dict):
+            return None
+        row = rows[0]
+        return {
+            "id": _to_text(row.get("id")),
+            "username": _to_text(row.get("username")),
+            "nome": _to_text(row.get("nome")),
+            "email": _normalized_email(row.get("email")),
+            "role": _to_text(row.get("role")).lower(),
+            "plan": _to_text(row.get("plan")).lower() or DEFAULT_PLAN,
+            "ativo": _to_bool(row.get("ativo")),
+            "created_at": _to_text(row.get("created_at")),
+            "updated_at": _to_text(row.get("updated_at")),
+        }
+    except Exception:
+        return None
+
+
+def update_usuario_for_admin(
+    user_id: str,
+    *,
+    username: str,
+    nome: str,
+    role: str,
+    plan: str,
+    ativo: bool,
+    client: Any | None = None,
+) -> tuple[bool, str]:
+    resolved_client = _resolve_supabase_client(client)
+    if resolved_client is None:
+        return False, "Cliente Supabase indisponivel."
+
+    access = get_access_profile(client=resolved_client)
+    if not access.get("is_admin"):
+        return False, "Apenas admin pode alterar usuarios."
+
+    uid = _to_text(user_id)
+    if not uid:
+        return False, "Usuario invalido."
+
+    username_norm = _to_text(username).lower()
+    nome_norm = _to_text(nome)
+    role_norm = _to_text(role).lower() or "user"
+    plan_norm = _to_text(plan).lower() or DEFAULT_PLAN
+
+    if role_norm not in {"user", "admin"}:
+        return False, "Role invalida. Use 'user' ou 'admin'."
+    if plan_norm not in (PAID_PLANS | {DEFAULT_PLAN}):
+        return False, f"Plano invalido. Use: {DEFAULT_PLAN}, {', '.join(sorted(PAID_PLANS))}."
+    if not username_norm:
+        return False, "Username nao pode ficar vazio."
+
+    payload = {
+        "username": username_norm,
+        "nome": nome_norm or None,
+        "role": role_norm,
+        "plan": plan_norm,
+        "ativo": bool(ativo),
+    }
+
+    if getattr(resolved_client, "is_local_runtime", False):
+        if uid == _to_text(st.session_state.get("auth_user_id")):
+            profile = dict(_current_profile())
+            profile.update(
+                {
+                    "username": username_norm,
+                    "nome": nome_norm,
+                    "role": role_norm,
+                    "plan": plan_norm,
+                    "ativo": bool(ativo),
+                }
+            )
+            st.session_state["auth_user_profile"] = profile
+            st.session_state.pop("_access_cache_key", None)
+            st.session_state.pop("_access_cache_value", None)
+            return True, "Atualizado em modo local."
+        return False, "Atualizacao de outros usuarios indisponivel em modo local."
+
+    try:
+        resolved_client.table("usuarios_app").update(payload).eq("id", uid).execute()
+    except Exception as exc:
+        msg = _to_text(exc).lower()
+        if any(token in msg for token in ["row level", "rls", "permission", "not authorized", "forbidden"]):
+            return False, "Sem permissao de escrita (RLS). Ajuste as policies de admin na tabela usuarios_app."
+        return False, f"Falha ao atualizar usuario: {exc}"
+
+    st.session_state.pop("_access_cache_key", None)
+    st.session_state.pop("_access_cache_value", None)
+    st.session_state.pop("_admin_cache_key", None)
+    st.session_state.pop("_admin_cache_value", None)
+    _set_cadastro_user_access_cache(uid, has_cadastro_user_access(uid, client=resolved_client, force_refresh=True))
+    return True, "Usuario atualizado com sucesso."
 
 
 def grant_cadastro_access_for_user(user_id: str, client: Any | None = None) -> tuple[bool, str]:

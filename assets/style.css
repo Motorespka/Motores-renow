@@ -499,6 +499,32 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
     letter-spacing: 0.03em;
 }
 
+.admin-hero {
+    padding: 8px 4px 14px 4px;
+}
+
+.admin-hero__tag {
+    display: inline-block;
+    border: 1px solid rgba(36, 215, 255, 0.35);
+    border-radius: 999px;
+    background: rgba(10, 38, 60, 0.68);
+    color: #7deeff;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    font-size: 0.78rem;
+    padding: 4px 12px;
+}
+
+.admin-hero h1 {
+    margin: 10px 0 6px 0;
+    font-size: clamp(1.55rem, 2.5vw, 2.1rem);
+}
+
+.admin-hero p {
+    margin: 0;
+    color: #a9c2d7 !important;
+}
+
 @media (max-width: 990px) {
     [data-testid="stMainBlockContainer"] {
         padding-left: 0.8rem;
