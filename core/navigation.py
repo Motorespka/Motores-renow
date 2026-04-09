@@ -9,12 +9,10 @@ import streamlit as st
 from core.access_control import (
     can_access_cadastro,
     grant_cadastro_access_for_user,
-    get_cadastro_open_setting,
     is_admin_user,
     list_cadastro_allowed_users,
     revoke_cadastro_access_for_user,
     search_usuarios_for_cadastro_access,
-    set_cadastro_open_setting,
 )
 from core.user_identity import resolve_current_user_identity
 
@@ -110,21 +108,6 @@ def render_navigation_sidebar(session, supabase_client=None) -> None:
         if admin_user:
             st.divider()
             with st.expander("Permissao de Cadastro", expanded=False):
-                current_open = get_cadastro_open_setting(supabase_client)
-                desired_open = st.toggle(
-                    "Liberar cadastro para todos os usuarios logados",
-                    value=current_open,
-                    key="nav_cadastro_open_toggle",
-                )
-                if st.button("Salvar permissao", use_container_width=True, key="nav_cadastro_open_save"):
-                    ok, message = set_cadastro_open_setting(desired_open, client=supabase_client)
-                    if ok:
-                        st.success(message)
-                        st.rerun()
-                    else:
-                        st.error(message)
-                st.caption("Quando ligado, qualquer usuario autenticado pode abrir e usar a aba Cadastro.")
-
                 st.markdown("### Liberar por usuario")
                 user_query = st.text_input(
                     "Buscar por username, nome ou email",

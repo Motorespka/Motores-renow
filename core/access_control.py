@@ -690,10 +690,6 @@ def can_access_cadastro(client: Any | None = None) -> bool:
     if not access.get("authenticated"):
         return False
 
-    open_flag = get_cadastro_open_setting(client=client)
-    if open_flag:
-        return True
-
     user_id = _to_text(access.get("user_id"))
     return has_cadastro_user_access(user_id=user_id, client=client)
 
@@ -703,7 +699,7 @@ def require_cadastro_access(feature_name: str, client: Any | None = None) -> boo
         return True
 
     st.error(f"Acesso restrito: sem permissao para usar '{feature_name}'.")
-    st.info("Regra padrao: apenas admin. O admin pode liberar para todos ou por usuario no painel de permissoes.")
+    st.info("Regra padrao: apenas admin. O admin pode liberar por usuario no painel de permissoes.")
     return False
 
 
