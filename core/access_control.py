@@ -1,12 +1,18 @@
 ﻿from __future__ import annotations
 
 import os
+import time
 from typing import Any, Dict, Set
 
 import streamlit as st
 
 ADMIN_ROLES = {"admin", "owner", "superadmin", "root"}
 DEFAULT_PLAN = "free"
+CADASTRO_OPEN_FLAG = "CADASTRO_OPEN_TO_AUTHENTICATED"
+APP_SETTINGS_TABLE = "app_settings"
+CADASTRO_OPEN_SETTING_KEY = "cadastro_open_to_authenticated"
+CADASTRO_OPEN_CACHE_KEY = "_cadastro_open_setting_cache"
+CADASTRO_OPEN_CACHE_TTL_SECONDS = 15
 
 
 def _to_text(value: Any) -> str:
@@ -54,6 +60,49 @@ def _allowlist(name: str) -> Set[str]:
     env_values = _as_tokens(os.environ.get(name))
     secret_values = _as_tokens(_get_secret(name))
     return env_values | secret_values
+
+
+def _set_cadastro_open_cache(value: bool) -> None:
+    st.session_state[CADASTRO_OPEN_CACHE_KEY] = {
+        "value": bool(value),
+        "ts": float(time.time()),
+    }
+
+
+def _get_cached_cadastro_open() -> bool | None:
+    cached = st.session_state.get(CADASTRO_OPEN_CACHE_KEY)
+    if not isinstance(cached, dict):
+        return None
+    ts = float(cached.get("ts") or 0.0)
+    if (time.time() - ts) > CADASTRO_OPEN_CACHE_TTL_SECONDS:
+        return None
+    return bool(cached.get("value"))
+
+
+def _fetch_cadastro_open_from_db(client: Any | None = None) -> bool:
+    resolved_client = _resolve_supabase_client(client)
+    if resolved_client is None or getattr(resolved_client, "is_local_runtime", False):
+        return False
+
+    try:
+        res = (
+            resolved_client
+            .table(APP_SETTINGS_TABLE)
+            .select("key,value_bool")
+            .eq("key", CADASTRO_OPEN_SETTING_KEY)
+            .limit(1)
+            .execute()
+        )
+        rows = getattr(res, "data", None) or []
+        if not rows:
+            return False
+        row = rows[0] if isinstance(rows[0], dict) else {}
+        if "value_bool" in row and row.get("value_bool") is not None:
+            return bool(row.get("value_bool"))
+    except Exception:
+        return False
+
+    return False
 
 
 def _current_profile() -> dict:
@@ -287,6 +336,69 @@ def get_access_profile(client: Any | None = None, force_refresh: bool = False) -
 
 def is_admin_user() -> bool:
     return bool(get_access_profile().get("is_admin"))
+
+
+def get_cadastro_open_setting(client: Any | None = None, force_refresh: bool = False) -> bool:
+    # Override opcional por secret/env (util para emergencias).
+    forced_open = _to_bool(os.environ.get(CADASTRO_OPEN_FLAG) or _get_secret(CADASTRO_OPEN_FLAG))
+    if forced_open:
+        _set_cadastro_open_cache(True)
+        return True
+
+    if not force_refresh:
+        cached = _get_cached_cadastro_open()
+        if cached is not None:
+            return cached
+
+    db_value = _fetch_cadastro_open_from_db(client=client)
+    _set_cadastro_open_cache(db_value)
+    return db_value
+
+
+def set_cadastro_open_setting(enabled: bool, client: Any | None = None) -> tuple[bool, str]:
+    resolved_client = _resolve_supabase_client(client)
+    if resolved_client is None:
+        return False, "Cliente Supabase indisponivel."
+
+    if getattr(resolved_client, "is_local_runtime", False):
+        _set_cadastro_open_cache(bool(enabled))
+        return True, "Permissao atualizada no modo local."
+
+    access = get_access_profile(client=resolved_client)
+    if not access.get("is_admin"):
+        return False, "Apenas admin pode alterar essa permissao."
+
+    payload = {
+        "key": CADASTRO_OPEN_SETTING_KEY,
+        "value_bool": bool(enabled),
+        "updated_by": access.get("user_id"),
+    }
+
+    try:
+        resolved_client.table(APP_SETTINGS_TABLE).upsert(payload, on_conflict="key").execute()
+    except Exception as exc:
+        return False, f"Falha ao salvar permissao no Supabase: {exc}"
+
+    _set_cadastro_open_cache(bool(enabled))
+    return True, "Permissao de cadastro atualizada com sucesso."
+
+
+def can_access_cadastro(client: Any | None = None) -> bool:
+    access = get_access_profile(client=client)
+    if access.get("is_admin"):
+        return True
+
+    open_flag = get_cadastro_open_setting(client=client)
+    return bool(access.get("authenticated")) and open_flag
+
+
+def require_cadastro_access(feature_name: str, client: Any | None = None) -> bool:
+    if can_access_cadastro(client=client):
+        return True
+
+    st.error(f"Acesso restrito: sem permissao para usar '{feature_name}'.")
+    st.info("Regra padrao: apenas admin. Para liberar a todos autenticados, defina CADASTRO_OPEN_TO_AUTHENTICATED=true.")
+    return False
 
 
 def require_admin_access(feature_name: str, client: Any | None = None) -> bool:

@@ -14,7 +14,7 @@ except Exception:
     class APIError(Exception):
         pass
 
-from core.access_control import require_admin_access
+from core.access_control import require_cadastro_access
 from core.navigation import Route
 from core.user_identity import resolve_current_user_identity
 from services.gemini_oficina import HEIF_SUPPORTED, extract_motor_data_with_gemini
@@ -207,7 +207,7 @@ def _with_creator_metadata(normalized: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def render(ctx):
-    if not require_admin_access("Cadastro tecnico (motor, O.S. e IA Gemini)", client=ctx.supabase):
+    if not require_cadastro_access("Cadastro tecnico (motor, O.S. e IA Gemini)", client=ctx.supabase):
         if st.button("Ir para Consulta", use_container_width=True):
             ctx.session.set_route(Route.CONSULTA)
             st.rerun()

@@ -6,7 +6,12 @@ from typing import Callable, Dict
 
 import streamlit as st
 
-from core.access_control import is_admin_user
+from core.access_control import (
+    can_access_cadastro,
+    get_cadastro_open_setting,
+    is_admin_user,
+    set_cadastro_open_setting,
+)
 from core.user_identity import resolve_current_user_identity
 
 class Route(str, Enum):
@@ -83,8 +88,9 @@ def render_navigation_sidebar(session, supabase_client=None) -> None:
         identity = resolve_current_user_identity()
         st.caption(f"Logado como: {identity.get('display_name', 'Usuario')}")
         admin_user = is_admin_user()
+        cadastro_allowed = can_access_cadastro(supabase_client)
         intents = []
-        if admin_user:
+        if cadastro_allowed:
             intents.append(("Cadastro", Route.CADASTRO))
         intents.extend(
             [
@@ -96,6 +102,24 @@ def render_navigation_sidebar(session, supabase_client=None) -> None:
             label, route = item
             if st.button(label, use_container_width=True, key=f"nav_{route.value}"):
                 session.set_route(route)
+
+        if admin_user:
+            st.divider()
+            with st.expander("Permissao de Cadastro", expanded=False):
+                current_open = get_cadastro_open_setting(supabase_client)
+                desired_open = st.toggle(
+                    "Liberar cadastro para todos os usuarios logados",
+                    value=current_open,
+                    key="nav_cadastro_open_toggle",
+                )
+                if st.button("Salvar permissao", use_container_width=True, key="nav_cadastro_open_save"):
+                    ok, message = set_cadastro_open_setting(desired_open, client=supabase_client)
+                    if ok:
+                        st.success(message)
+                        st.rerun()
+                    else:
+                        st.error(message)
+                st.caption("Quando ligado, qualquer usuario autenticado pode abrir e usar a aba Cadastro.")
 
         st.divider()
         st.caption(f"Rota atual: {session.get_route().value}")
