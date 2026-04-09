@@ -2,6 +2,8 @@
 
 import html
 import json
+import os
+import re
 from typing import Any, Dict, List
 
 import streamlit as st
@@ -29,6 +31,26 @@ def _safe(value: Any, fallback: str = "-") -> str:
     if not txt:
         txt = fallback
     return html.escape(txt)
+
+
+def _is_path_like(value: str) -> bool:
+    txt = value.strip()
+    if not txt:
+        return False
+    if re.search(r"^[a-zA-Z]:\\", txt):
+        return True
+    if txt.startswith("/") or txt.startswith("\\\\"):
+        return True
+    return "/users/" in txt.lower() or "\\users\\" in txt.lower()
+
+
+def _safe_file_label(value: Any) -> str:
+    txt = _to_text(value)
+    if not txt:
+        return ""
+    if _is_path_like(txt):
+        return os.path.basename(txt.replace("\\", "/"))
+    return txt
 
 
 def _pick_first(row: Dict[str, Any], *keys: str) -> str:
@@ -62,15 +84,23 @@ def _normalize_motor_record(row: Dict[str, Any]) -> Dict[str, Any]:
         imagens = [v.strip() for v in imagens.replace(";", ",").split(",") if v.strip()]
     if not isinstance(imagens, list):
         imagens = []
+    imagens = [_safe_file_label(v) for v in imagens if _safe_file_label(v)]
 
     motor_id = row.get("id")
     if motor_id in (None, ""):
         motor_id = row.get("Id")
 
+    marca = _pick_first(row, "marca", "Marca") or _to_text(motor.get("marca"))
+    modelo = _pick_first(row, "modelo_iec", "modelo_nema", "modelo", "Modelo") or _to_text(motor.get("modelo"))
+    if not marca:
+        marca = "Motor"
+    if not modelo:
+        modelo = f"Registro {motor_id}" if motor_id not in (None, "") else "Sem modelo"
+
     return {
         "id": motor_id,
-        "marca": _pick_first(row, "marca", "Marca") or _to_text(motor.get("marca")),
-        "modelo": _pick_first(row, "modelo_iec", "modelo_nema", "modelo", "Modelo") or _to_text(motor.get("modelo")),
+        "marca": marca,
+        "modelo": modelo,
         "potencia": _pick_first(row, "potencia", "potencia_cv", "Potencia") or _to_text(motor.get("potencia") or motor.get("cv")),
         "rpm": _pick_first(row, "rpm", "rpm_nominal", "Rpm") or _to_text(motor.get("rpm")),
         "tensao": _pick_first(row, "tensao", "tensao_v", "Tensao") or _to_text(motor.get("tensao")),
@@ -143,43 +173,50 @@ def _render_data_panel(label: str, value: Any) -> None:
     )
 
 
-def _render_expanded_sections(motor: Dict[str, Any]) -> None:
+def _render_expanded_sections(motor: Dict[str, Any], admin_user: bool) -> None:
     data = motor.get("dados_tecnicos_json", {})
-    st.markdown("#### Identificacao")
-    st.json(data.get("motor", {}), expanded=False)
-    st.markdown("#### Bobinagem principal")
-    st.json(data.get("bobinagem_principal", {}), expanded=False)
-    st.markdown("#### Bobinagem auxiliar")
-    st.json(data.get("bobinagem_auxiliar", {}), expanded=False)
-    st.markdown("#### Mecanica")
-    st.json(data.get("mecanica", {}), expanded=False)
-    st.markdown("#### Esquema tecnico")
-    st.json(data.get("esquema", {}), expanded=False)
-    st.markdown("#### Observacoes")
-    st.write(motor.get("observacoes") or "-")
-    st.markdown("#### Texto bruto lido")
-    st.text_area(
-        "Texto OCR completo",
-        value=motor.get("texto_bruto_extraido") or "",
-        height=120,
-        key=f"ocr_{motor.get('id')}",
-    )
-    urls = motor.get("imagens_urls") or []
-    if urls:
-        st.markdown("#### Imagens vinculadas")
-        for u in urls:
-            st.write(f"- {u}")
+    principal = _section(data, "bobinagem_principal")
+    auxiliar = _section(data, "bobinagem_auxiliar")
+    mecanica = _section(data, "mecanica")
+    esquema = _section(data, "esquema")
 
-    oficina = data.get("oficina", {}) if isinstance(data, dict) else {}
-    if isinstance(oficina, dict) and oficina:
-        st.markdown("#### Fluxo da oficina")
-        st.json(oficina.get("fluxo_fechado", []), expanded=False)
-        st.markdown("#### Diagnostico da oficina")
-        st.json(oficina.get("diagnostico", {}), expanded=False)
-        st.markdown("#### Resultado pos-servico")
-        st.json(oficina.get("resultado_pos_servico", {}), expanded=False)
-        st.markdown("#### Historico tecnico acumulado")
-        st.json(oficina.get("historico_tecnico", []), expanded=False)
+    st.markdown("#### Bobinagem detalhada")
+    c1, c2 = st.columns(2)
+    with c1:
+        _render_data_panel("Passos principais", principal.get("passos"))
+        _render_data_panel("Espiras principais", principal.get("espiras"))
+        _render_data_panel("Fio principal", principal.get("fios"))
+        _render_data_panel("Ligacao principal", principal.get("ligacao"))
+    with c2:
+        _render_data_panel("Passos auxiliares", auxiliar.get("passos"))
+        _render_data_panel("Espiras auxiliares", auxiliar.get("espiras"))
+        _render_data_panel("Fio auxiliar", auxiliar.get("fios"))
+        _render_data_panel("Capacitor", auxiliar.get("capacitor"))
+
+    st.markdown("#### Mecanica e esquema")
+    c3, c4 = st.columns(2)
+    with c3:
+        _render_data_panel("Rolamentos", mecanica.get("rolamentos"))
+        _render_data_panel("Eixo", mecanica.get("eixo"))
+        _render_data_panel("Carcaca", mecanica.get("carcaca"))
+        _render_data_panel("Medidas", mecanica.get("medidas"))
+    with c4:
+        _render_data_panel("Ligacao do esquema", esquema.get("ligacao"))
+        _render_data_panel("Ranhuras", esquema.get("ranhuras"))
+        _render_data_panel("Camadas", esquema.get("camadas"))
+        _render_data_panel("Distribuicao bobinas", esquema.get("distribuicao_bobinas"))
+
+    _render_data_panel("Observacoes", motor.get("observacoes"))
+
+    if admin_user:
+        with st.expander("Texto OCR (admin)", expanded=False):
+            st.text_area(
+                "Texto bruto extraido",
+                value=motor.get("texto_bruto_extraido") or "",
+                height=120,
+                key=f"ocr_admin_{motor.get('id')}",
+                disabled=True,
+            )
 
 
 def _render_consulta_header(total: int, filtrados: int, trifasicos: int, monofasicos: int) -> None:
@@ -360,16 +397,18 @@ def render(ctx) -> None:
 
             with tab4:
                 _render_data_panel("Observacoes", m.get("observacoes"))
-                st.text_area(
-                    "OCR",
-                    value=m.get("texto_bruto_extraido") or "",
-                    height=120,
-                    key=f"ocr_tab_{m.get('id')}",
-                    disabled=True,
-                )
+                oficina = _section(data, "oficina")
+                diagnostico = oficina.get("diagnostico", {}) if isinstance(oficina, dict) else {}
+                avisos = diagnostico.get("avisos", []) if isinstance(diagnostico, dict) else []
+                if isinstance(avisos, list) and avisos:
+                    st.markdown("Diagnostico da oficina")
+                    for aviso in avisos[:4]:
+                        st.write(f"- {aviso}")
+                else:
+                    st.caption("Sem alertas tecnicos registrados pela IA para este motor.")
 
-            with st.expander("Expandir dados tecnicos"):
-                _render_expanded_sections(m)
+            with st.expander("Resumo tecnico adicional"):
+                _render_expanded_sections(m, admin_user=admin_user)
 
 
 def show(ctx) -> None:

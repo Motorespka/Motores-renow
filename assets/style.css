@@ -291,12 +291,15 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
 .metric-tile span {
     color: #8eadc7;
     font-size: 0.83rem;
+    display: block;
 }
 
 .metric-tile strong {
     color: #def6ff;
     font-size: 1.13rem;
     font-weight: 700;
+    display: block;
+    margin-top: 4px;
 }
 
 .inline-pill {
