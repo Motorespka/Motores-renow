@@ -4,6 +4,10 @@ try:
 except Exception:
     class APIError(Exception):
         pass
+try:
+    from supabase import create_client
+except Exception:
+    create_client = None
 
 
 def _is_local_runtime(client) -> bool:
@@ -108,6 +112,74 @@ def _carregar_perfil_usuario(client, user_id: str, email: str):
     if admin_match:
         perfil["is_admin"] = True
         if "role" not in perfil:
+            perfil["role"] = "admin"
+
+    # Fallback opcional: consulta via service role para ambientes com RLS estrita.
+    precisa_service_fallback = not perfil or (not admin_match and str(perfil.get("role", "")).strip().lower() != "admin")
+    if precisa_service_fallback and create_client is not None:
+        try:
+            try:
+                url = st.secrets.get("SUPABASE_URL") or ""
+                service_key = (
+                    st.secrets.get("SUPABASE_SERVICE_ROLE_KEY")
+                    or st.secrets.get("SUPABASE_SERVICE_KEY")
+                    or ""
+                )
+            except Exception:
+                url = ""
+                service_key = ""
+
+            if not url:
+                import os
+                url = os.environ.get("SUPABASE_URL", "")
+            if not service_key:
+                import os
+                service_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "") or os.environ.get("SUPABASE_SERVICE_KEY", "")
+
+            if url and service_key:
+                svc = create_client(url, service_key)
+
+                if not perfil:
+                    for table_name, col, value in [
+                        ("usuarios_app", "id", user_id),
+                        ("usuarios_app", "email", email),
+                    ]:
+                        if not value:
+                            continue
+                        try:
+                            res = svc.table(table_name).select("*").eq(col, value).limit(1).execute()
+                            if res.data:
+                                perfil = res.data[0]
+                                break
+                        except Exception:
+                            continue
+
+                if email and (not perfil or str(perfil.get("role", "")).strip().lower() != "admin"):
+                    try:
+                        res = svc.table("usuarios_app").select("*").ilike("email", email).limit(1).execute()
+                        if res.data and not perfil:
+                            perfil = res.data[0]
+                    except Exception:
+                        pass
+
+                if email and not admin_match:
+                    for col in ["email", "user_email"]:
+                        try:
+                            res = svc.table("admin").select("*").ilike(col, email).limit(1).execute()
+                            if res.data:
+                                admin_match = True
+                                break
+                        except Exception:
+                            continue
+        except Exception:
+            pass
+
+    if not isinstance(perfil, dict):
+        perfil = {}
+
+    if admin_match:
+        perfil["is_admin"] = True
+        if "role" not in perfil or not str(perfil.get("role", "")).strip():
             perfil["role"] = "admin"
 
     return perfil or None
