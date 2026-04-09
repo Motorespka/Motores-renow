@@ -40,24 +40,21 @@ def render_navigation_sidebar(session) -> None:
     with st.sidebar:
         st.markdown("## Moto-Renow")
         admin_user = is_admin_user()
-        intents = [
-            ("Cadastro (Admin)", Route.CADASTRO, True),
-            ("Consulta", Route.CONSULTA),
-            ("Diagnostico", Route.DIAGNOSTICO),
-        ]
+        intents = []
+        if admin_user:
+            intents.append(("Cadastro", Route.CADASTRO))
+        intents.extend(
+            [
+                ("Consulta", Route.CONSULTA),
+                ("Diagnostico", Route.DIAGNOSTICO),
+            ]
+        )
         for item in intents:
-            if len(item) == 3:
-                label, route, admin_only = item
-            else:
-                label, route = item
-                admin_only = False
-            locked = admin_only and not admin_user
-            if st.button(label, use_container_width=True, key=f"nav_{route.value}", disabled=locked):
+            label, route = item
+            if st.button(label, use_container_width=True, key=f"nav_{route.value}"):
                 session.set_route(route)
 
         st.divider()
-        if not admin_user:
-            st.caption("Conta sem permissao de admin para cadastro/edicao.")
         st.caption(f"Rota atual: {session.get_route().value}")
         if st.button("Logout", use_container_width=True, key="nav_logout"):
             session.logout()

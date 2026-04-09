@@ -43,15 +43,17 @@ def render(ctx) -> None:
     st.write(f"**Status Oficina:** {friendly(resultado.get('status') if isinstance(resultado, dict) else '')}")
     st.write(f"**Historico Tecnico:** {len(historico) if isinstance(historico, list) else 0} registro(s)")
 
-    c1, c2 = st.columns(2)
-    with c1:
-        if admin_user:
+    if admin_user:
+        c1, c2 = st.columns(2)
+        with c1:
             if st.button("Editar motor", use_container_width=True):
                 ctx.session.set_route(Route.EDIT)
                 st.rerun()
-        else:
-            st.button("Editar motor (Admin)", use_container_width=True, disabled=True)
-    with c2:
+        with c2:
+            if st.button("Voltar", use_container_width=True):
+                ctx.session.set_route(Route.CONSULTA)
+                st.rerun()
+    else:
         if st.button("Voltar", use_container_width=True):
             ctx.session.set_route(Route.CONSULTA)
             st.rerun()

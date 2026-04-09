@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import json
 import math
+from datetime import datetime
 from typing import Any, Dict, List
 
 import streamlit as st
 
+from core.access_control import is_admin_user
 from services.oficina_parser import normalize_extracted_data
 from services.oficina_runtime import diagnostico_motor_oficina_readonly, resumir_diagnostico_oficina
-from services.supabase_data import fetch_motor_by_id_cached, fetch_motores_cached
+from services.supabase_data import clear_motores_cache, fetch_motor_by_id_cached, fetch_motores_cached
 
 
 def _estimate_current(cv: float, tensao: float, rendimento: float, fp: float, fases: str) -> float:
@@ -46,7 +48,70 @@ def _load_motor_technical_payload(motor_row: Dict[str, Any]) -> Dict[str, Any]:
     return normalize_extracted_data(data)
 
 
+def _build_diag_snapshot(motor_id: Any, dados_placa: Dict[str, Any], avisos: List[str], alertas: List[str], calculos: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "data": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        "motor_id": motor_id,
+        "usuario": _to_text(st.session_state.get("auth_user_email") or st.session_state.get("auth_user_id")),
+        "dados_placa": dados_placa or {},
+        "avisos": avisos or [],
+        "alertas_validacao": alertas or [],
+        "calculos_aplicados": calculos or {},
+        "modo": "copia",
+    }
+
+
+def _save_snapshot_copy(snapshot: Dict[str, Any]) -> None:
+    key = "diagnostico_copias"
+    copies = st.session_state.get(key)
+    if not isinstance(copies, list):
+        copies = []
+    copies.append(snapshot)
+    st.session_state[key] = copies[-60:]
+
+
+def _apply_diagnostico_to_motor(ctx, motor_id: Any, normalized: Dict[str, Any], snapshot: Dict[str, Any]) -> None:
+    data = normalize_extracted_data(normalized or {})
+    oficina = data.get("oficina")
+    if not isinstance(oficina, dict):
+        oficina = {}
+
+    oficina["dados_placa"] = snapshot.get("dados_placa") or {}
+    oficina["diagnostico"] = {
+        "avisos": snapshot.get("avisos") or [],
+        "alertas_validacao": snapshot.get("alertas_validacao") or [],
+        "fonte": "diagnostico_manual_admin",
+        "data": snapshot.get("data") or datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    oficina["calculos_aplicados"] = snapshot.get("calculos_aplicados") or {}
+
+    historico = oficina.get("historico_tecnico")
+    if not isinstance(historico, list):
+        historico = []
+    historico.append(
+        {
+            "data": snapshot.get("data") or datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            "evento": "diagnostico_admin_aplicado",
+            "resumo": "Diagnostico aplicado ao motor pelo painel de diagnostico",
+            "payload": {
+                "avisos": snapshot.get("avisos") or [],
+                "alertas_validacao": snapshot.get("alertas_validacao") or [],
+            },
+        }
+    )
+    oficina["historico_tecnico"] = historico[-60:]
+    data["oficina"] = oficina
+
+    payload = {
+        "dados_tecnicos_json": data,
+        "leitura_gemini_json": data,
+    }
+    ctx.supabase.table("motores").update(payload).eq("id", motor_id).execute()
+    clear_motores_cache()
+
+
 def _render_real_diagnosis(ctx) -> None:
+    admin_user = is_admin_user()
     st.markdown("### Motor da Oficina")
     try:
         motores = fetch_motores_cached(ctx.supabase)
@@ -68,7 +133,6 @@ def _render_real_diagnosis(ctx) -> None:
     default_idx = option_ids.index(current_id) if current_id in option_ids else 0
     selected_label = st.selectbox("Selecione o motor para diagnostico", [lbl for lbl, _ in options], index=default_idx)
     selected_id = next(oid for lbl, oid in options if lbl == selected_label)
-    ctx.session.selected_motor_id = selected_id
 
     motor = fetch_motor_by_id_cached(ctx.supabase, selected_id)
     if not motor:
@@ -119,6 +183,49 @@ def _render_real_diagnosis(ctx) -> None:
                 st.write(f"- {data} | {evento} | {resumo_item}")
         else:
             st.write("Sem historico tecnico registrado.")
+
+    snapshot = _build_diag_snapshot(
+        motor_id=selected_id,
+        dados_placa=dados_placa,
+        avisos=avisos,
+        alertas=alertas_validacao,
+        calculos=calculos,
+    )
+
+    st.divider()
+    if admin_user:
+        st.caption("Modo completo: voce pode salvar copia e aplicar diagnostico no motor.")
+    else:
+        st.caption("Modo copia: o diagnostico nao altera motores.")
+
+    if admin_user:
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("Salvar copia do diagnostico", use_container_width=True, key=f"diag_copy_{selected_id}"):
+                _save_snapshot_copy(snapshot)
+                st.success("Copia salva apenas para consulta.")
+        with c2:
+            if st.button("Aplicar diagnostico ao motor", use_container_width=True, key=f"diag_apply_{selected_id}"):
+                try:
+                    _apply_diagnostico_to_motor(ctx, selected_id, normalized, snapshot)
+                    st.success("Diagnostico aplicado ao motor com sucesso.")
+                except Exception as exc:
+                    st.error(f"Nao foi possivel aplicar diagnostico ao motor: {exc}")
+    else:
+        if st.button("Salvar copia do diagnostico", use_container_width=True, key=f"diag_copy_{selected_id}"):
+            _save_snapshot_copy(snapshot)
+            st.success("Copia salva apenas para consulta.")
+
+    with st.expander("Json da copia gerada"):
+        st.json(snapshot, expanded=False)
+        st.download_button(
+            "Baixar copia (JSON)",
+            data=json.dumps(snapshot, ensure_ascii=False, indent=2),
+            file_name=f"diagnostico_copia_motor_{selected_id}.json",
+            mime="application/json",
+            use_container_width=True,
+            key=f"diag_download_{selected_id}",
+        )
 
 
 def render(ctx):

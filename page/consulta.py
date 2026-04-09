@@ -274,16 +274,19 @@ def render(ctx) -> None:
                     unsafe_allow_html=True,
                 )
 
-            b1, b2 = st.columns(2)
-            with b1:
-                if admin_user:
+            if admin_user:
+                b1, b2 = st.columns(2)
+                with b1:
                     if st.button("Editar", key=f"edit_{m['id']}", use_container_width=True):
                         ctx.session.selected_motor_id = m["id"]
                         ctx.session.set_route(Route.EDIT)
                         st.rerun()
-                else:
-                    st.button("Editar (Admin)", key=f"edit_{m['id']}_locked", use_container_width=True, disabled=True)
-            with b2:
+                with b2:
+                    if st.button("Detalhes", key=f"detail_{m['id']}", use_container_width=True):
+                        ctx.session.selected_motor_id = m["id"]
+                        ctx.session.set_route(Route.DETALHE)
+                        st.rerun()
+            else:
                 if st.button("Detalhes", key=f"detail_{m['id']}", use_container_width=True):
                     ctx.session.selected_motor_id = m["id"]
                     ctx.session.set_route(Route.DETALHE)
