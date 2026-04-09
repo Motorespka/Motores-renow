@@ -127,7 +127,7 @@ def main() -> None:
         session.set_route(Route.CONSULTA)
 
     router = build_router()
-    render_navigation_sidebar(session)
+    render_navigation_sidebar(session, client)
 
     ctx = AppContext(supabase=client, session=session, router=router)
     router.dispatch(ctx, session.get_route())

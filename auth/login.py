@@ -29,6 +29,7 @@ def _set_authenticated_state(session, user, email: str, perfil: dict | None) -> 
     st.session_state["auth_user_id"] = getattr(user, "id", "")
     st.session_state["auth_user_email"] = _normalized_email(email)
     st.session_state["auth_user_profile"] = perfil or {}
+    st.session_state["auth_force_logged_out"] = False
     session.login()
 
 
@@ -63,12 +64,27 @@ def _carregar_perfil_usuario(client, user_id: str, email: str):
         except Exception:
             perfil = None
 
+    if not perfil and email:
+        try:
+            res = client.table("usuarios_app").select("*").ilike("email", email).limit(1).execute()
+            if res.data:
+                perfil = res.data[0]
+        except Exception:
+            perfil = None
+
     if not isinstance(perfil, dict):
         perfil = {}
 
     # Compatibilidade opcional com tabela dedicada de administradores.
     admin_match = False
-    for col, value in [("id", user_id), ("user_id", user_id), ("email", email)]:
+    for col, value in [
+        ("id", user_id),
+        ("user_id", user_id),
+        ("usuario_id", user_id),
+        ("auth_user_id", user_id),
+        ("email", email),
+        ("user_email", email),
+    ]:
         if not value:
             continue
         try:
@@ -79,6 +95,16 @@ def _carregar_perfil_usuario(client, user_id: str, email: str):
         except Exception:
             continue
 
+    if not admin_match and email:
+        for col in ["email", "user_email"]:
+            try:
+                res = client.table("admin").select("*").ilike(col, email).limit(1).execute()
+                if res.data:
+                    admin_match = True
+                    break
+            except Exception:
+                continue
+
     if admin_match:
         perfil["is_admin"] = True
         if "role" not in perfil:
@@ -88,6 +114,9 @@ def _carregar_perfil_usuario(client, user_id: str, email: str):
 
 
 def try_restore_auth_session(session, client) -> bool:
+    if st.session_state.get("auth_force_logged_out"):
+        return False
+
     if session.is_authenticated or _is_local_runtime(client):
         return bool(session.is_authenticated)
 
@@ -139,6 +168,7 @@ def _render_local_login(session) -> bool:
             "local_mode": True,
         }
         session.login()
+        st.session_state["auth_force_logged_out"] = False
         st.success("Login local realizado.")
         st.rerun()
 
@@ -156,6 +186,8 @@ def render_login(session, client) -> bool:
         return True
 
     st.title("Moto-Renow - Acesso Tecnico")
+    if st.session_state.get("auth_force_logged_out"):
+        st.info("Sessao encerrada com sucesso. Faca login novamente.")
 
     tab_login, tab_cadastro = st.tabs(["Entrar", "Criar Conta"])
 

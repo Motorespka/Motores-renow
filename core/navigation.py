@@ -36,7 +36,24 @@ class Router:
         self._handlers[route](ctx)
 
 
-def render_navigation_sidebar(session) -> None:
+def _perform_logout(session, supabase_client=None) -> None:
+    # Evita restaurar login automaticamente na proxima execucao.
+    st.session_state["auth_force_logged_out"] = True
+
+    try:
+        if supabase_client is not None and not getattr(supabase_client, "is_local_runtime", False):
+            supabase_client.auth.sign_out()
+    except Exception:
+        pass
+
+    for key in ["auth_user_id", "auth_user_email", "auth_user_profile"]:
+        st.session_state.pop(key, None)
+
+    session.logout()
+    st.rerun()
+
+
+def render_navigation_sidebar(session, supabase_client=None) -> None:
     with st.sidebar:
         st.markdown("## Moto-Renow")
         admin_user = is_admin_user()
@@ -57,5 +74,4 @@ def render_navigation_sidebar(session) -> None:
         st.divider()
         st.caption(f"Rota atual: {session.get_route().value}")
         if st.button("Logout", use_container_width=True, key="nav_logout"):
-            session.logout()
-            st.rerun()
+            _perform_logout(session, supabase_client=supabase_client)

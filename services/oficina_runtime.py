@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import os
 from datetime import datetime
 from typing import Any, Dict, List
 
@@ -55,13 +57,14 @@ def _first_numeric(value: Any) -> str:
 
 def _build_dados_base(normalized: Dict[str, Any]) -> Dict[str, str]:
     motor = normalized.get("motor", {}) if isinstance(normalized.get("motor"), dict) else {}
+
     tensao_list = _to_list(motor.get("tensao"))
     corrente_list = _to_list(motor.get("corrente"))
 
     tensao_text = tensao_list[0] if tensao_list else _to_text(motor.get("tensao"))
     corrente_text = corrente_list[0] if corrente_list else _to_text(motor.get("corrente"))
 
-    return {
+    dados = {
         "marca": _to_text(motor.get("marca")),
         "modelo": _to_text(motor.get("modelo")),
         "potencia": _to_text(motor.get("potencia") or motor.get("cv")),
@@ -71,7 +74,25 @@ def _build_dados_base(normalized: Dict[str, Any]) -> Dict[str, str]:
         "frequencia": _to_text(motor.get("frequencia")),
         "fases": _to_text(motor.get("fases")),
         "tipo_motor": _to_text(motor.get("tipo_motor")),
+        "polos": _to_text(motor.get("polos")),
     }
+
+    assinatura = "|".join(
+        [
+            dados.get("marca", ""),
+            dados.get("modelo", ""),
+            dados.get("potencia", ""),
+            dados.get("rpm", ""),
+            dados.get("tensao", ""),
+            dados.get("fases", ""),
+            dados.get("tipo_motor", ""),
+            dados.get("polos", ""),
+            dados.get("frequencia", ""),
+        ]
+    )
+
+    dados["assinatura_tecnica"] = assinatura.lower().strip("|")
+    return dados
 
 
 def _media_espiras(normalized: Dict[str, Any]) -> int | None:
@@ -172,6 +193,169 @@ def _append_fluxo(oficina: Dict[str, Any], evento: str) -> None:
     oficina["fluxo_fechado"] = fluxo[-30:]
 
 
+def _normalize_status_bucket(status: Any) -> str:
+    txt = _to_text(status).lower()
+    if any(tok in txt for tok in ["ok", "aprov", "conclu", "estavel"]):
+        return "ok"
+    if any(tok in txt for tok in ["falha", "erro", "queim", "reprov"]):
+        return "falha"
+    return "em_analise"
+
+
+def _iter_json_records(path: str):
+    try:
+        if not os.path.exists(path):
+            return []
+        with open(path, "r", encoding="utf-8") as fh:
+            payload = json.load(fh)
+        if isinstance(payload, list):
+            return payload
+    except Exception:
+        return []
+    return []
+
+
+def _calcular_estatistica_assinatura(oficina: Dict[str, Any], assinatura: str) -> Dict[str, Any]:
+    assinatura_norm = _to_text(assinatura).lower().strip("|")
+    if not assinatura_norm:
+        return {"assinatura": "", "casos_encontrados": 0}
+
+    total = 0
+    ok_count = 0
+    falha_count = 0
+    analise_count = 0
+
+    # 1) Historico tecnico local do proprio motor (compativel com dados atuais).
+    hist = oficina.get("historico_tecnico")
+    if isinstance(hist, list):
+        for item in hist:
+            if not isinstance(item, dict):
+                continue
+            payload = item.get("payload")
+            if not isinstance(payload, dict):
+                continue
+            if _to_text(payload.get("assinatura_tecnica")).lower().strip("|") != assinatura_norm:
+                continue
+            total += 1
+            bucket = _normalize_status_bucket(payload.get("resultado_memoria"))
+            if bucket == "ok":
+                ok_count += 1
+            elif bucket == "falha":
+                falha_count += 1
+            else:
+                analise_count += 1
+
+    # 2) Memoria persistida (futuro/retrocompativel). Ignora silenciosamente se nao existir.
+    try:
+        hist_global = _iter_json_records(os.path.join("db", "historico_motores.json"))
+        for row in hist_global:
+            if not isinstance(row, dict):
+                continue
+            if _to_text(row.get("assinatura_tecnica")).lower().strip("|") != assinatura_norm:
+                continue
+            total += 1
+            bucket = _normalize_status_bucket(row.get("resultado"))
+            if bucket == "ok":
+                ok_count += 1
+            elif bucket == "falha":
+                falha_count += 1
+            else:
+                analise_count += 1
+    except Exception:
+        pass
+
+    try:
+        aprendizado_global = _iter_json_records("db_aprendizado.json")
+        for row in aprendizado_global:
+            if not isinstance(row, dict):
+                continue
+            if _to_text(row.get("assinatura_tecnica")).lower().strip("|") != assinatura_norm:
+                continue
+            total += 1
+            analise_count += 1
+    except Exception:
+        pass
+
+    # 3) Complemento via Supabase (quando disponivel).
+    try:
+        import streamlit as st
+        from supabase import create_client
+
+        url = st.secrets.get("SUPABASE_URL")
+        key = st.secrets.get("SUPABASE_KEY")
+        if url and key:
+            supabase = create_client(url, key)
+            start = 0
+            batch_size = 500
+
+            while True:
+                res = (
+                    supabase
+                    .table("motores")
+                    .select("dados_tecnicos_json")
+                    .range(start, start + batch_size - 1)
+                    .execute()
+                )
+                rows = res.data or []
+                if not rows:
+                    break
+
+                for row in rows:
+                    if not isinstance(row, dict):
+                        continue
+                    dados = row.get("dados_tecnicos_json") or {}
+                    if isinstance(dados, str):
+                        try:
+                            dados = json.loads(dados)
+                        except Exception:
+                            dados = {}
+                    if not isinstance(dados, dict):
+                        continue
+
+                    oficina_row = dados.get("oficina") or {}
+                    if not isinstance(oficina_row, dict):
+                        continue
+
+                    assinatura_row = _to_text(oficina_row.get("assinatura_detectada")).lower().strip("|")
+                    if assinatura_row != assinatura_norm:
+                        continue
+
+                    total += 1
+
+                    resultado = (
+                        oficina_row.get("resultado_pos_servico", {}).get("status")
+                        if isinstance(oficina_row.get("resultado_pos_servico"), dict)
+                        else None
+                    )
+                    bucket = _normalize_status_bucket(resultado)
+                    if bucket == "ok":
+                        ok_count += 1
+                    elif bucket == "falha":
+                        falha_count += 1
+                    else:
+                        analise_count += 1
+
+                if len(rows) < batch_size:
+                    break
+                start += batch_size
+    except Exception:
+        pass
+
+    if total == 0:
+        return {"assinatura": assinatura_norm, "casos_encontrados": 0, "taxa_sucesso": 0}
+
+    taxa_sucesso = (ok_count / total) * 100 if total > 0 else 0
+
+    return {
+        "assinatura": assinatura_norm,
+        "casos_encontrados": total,
+        "ok": ok_count,
+        "falha": falha_count,
+        "em_analise": analise_count,
+        "taxa_sucesso": taxa_sucesso,
+    }
+
+
 def enriquecer_motor_oficina(normalized: Dict[str, Any], evento: str = "cadastro") -> Dict[str, Any]:
     data = dict(normalized or {})
     oficina = data.get("oficina")
@@ -179,6 +363,12 @@ def enriquecer_motor_oficina(normalized: Dict[str, Any], evento: str = "cadastro
         oficina = {}
 
     dados_base = _build_dados_base(data)
+    assinatura = dados_base.get("assinatura_tecnica", "")
+
+    if assinatura:
+        oficina["assinatura_detectada"] = assinatura
+    oficina["estatistica_assinatura"] = _calcular_estatistica_assinatura(oficina, assinatura)
+
     engenharia = _build_engenharia(data, dados_base)
     fabrica = analise_fabrica({"tensao": dados_base.get("tensao", ""), "corrente": dados_base.get("corrente", "")}) or {}
     avisos = diagnostico_motor(dados_base, engenharia, fabrica) or []
@@ -266,8 +456,38 @@ def enriquecer_motor_oficina(normalized: Dict[str, Any], evento: str = "cadastro
         evento=evento,
         resumo="Fluxo oficina atualizado",
         payload={
+            "evento_origem": evento,
+            "assinatura_tecnica": dados_base.get("assinatura_tecnica", ""),
+            "dados_placa": {
+                "marca": dados_base.get("marca"),
+                "modelo": dados_base.get("modelo"),
+                "potencia": dados_base.get("potencia"),
+                "rpm": dados_base.get("rpm"),
+                "tensao": dados_base.get("tensao"),
+                "corrente": dados_base.get("corrente"),
+                "fases": dados_base.get("fases"),
+                "tipo_motor": dados_base.get("tipo_motor"),
+                "polos": dados_base.get("polos"),
+                "frequencia": dados_base.get("frequencia"),
+            },
+            "engenharia_resumida": {
+                "media_espiras": engenharia.get("media_espiras"),
+                "fio_original": engenharia.get("fio_original"),
+                "espiras_originais": engenharia.get("espiras_originais", []),
+            },
             "diagnostico": avisos[:4],
             "alertas_validacao": alertas_validacao[:4],
+            "fontes": {
+                "diagnostico": "servicos_oficina_conectados",
+                "engenharia": "engenharia_automatica",
+                "fabrica": "analise_fabrica",
+            },
+            "servico_status": servico_executado.get("status", ""),
+            "resultado_pos_servico": {
+                "status": resultado_pos.get("status", ""),
+                "observacoes": resultado_pos.get("observacoes", ""),
+                "data": resultado_pos.get("data", ""),
+            },
             "resultado_memoria": resultado_memoria,
         },
     )
