@@ -298,13 +298,21 @@ def _render_teaser_consulta(motores: List[Dict[str, Any]]) -> None:
         <div class="consulta-hero">
             <div class="consulta-hero__tag">MODO TEASER</div>
             <h1>Catalogo Tecnico (Visualizacao)</h1>
-            <p>Voce esta vendo uma previa. Para liberar detalhes completos e diagnostico, ative o plano pago.</p>
+            <p>Voce esta vendo uma previa. Para liberar todos os recursos, ative o plano pago.</p>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
     st.info("Plano gratuito: visualizacao limitada. Fale com o admin para ativar seu acesso completo.")
+    st.markdown(
+        """
+**Plano pago libera:**
+- Consulta completa com filtros e detalhes tecnicos.
+- Diagnostico tecnico no painel dedicado.
+- Acesso ao cadastro tecnico de motores.
+        """
+    )
     amostra = motores[:8]
     for m in amostra:
         with st.container(border=True):

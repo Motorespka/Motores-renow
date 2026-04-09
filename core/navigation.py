@@ -9,9 +9,12 @@ import streamlit as st
 from core.access_control import (
     can_access_cadastro,
     can_access_paid_features,
+    describe_access_tier,
+    get_access_profile,
     grant_cadastro_access_for_user,
     is_admin_user,
     list_cadastro_allowed_users,
+    resolve_access_tier,
     revoke_cadastro_access_for_user,
     search_usuarios_for_cadastro_access,
 )
@@ -90,9 +93,15 @@ def render_navigation_sidebar(session, supabase_client=None) -> None:
         st.markdown("## Moto-Renow")
         identity = resolve_current_user_identity()
         st.caption(f"Logado como: {identity.get('display_name', 'Usuario')}")
+        access = get_access_profile(client=supabase_client)
         admin_user = is_admin_user()
         paid_allowed = can_access_paid_features(supabase_client)
         cadastro_allowed = can_access_cadastro(supabase_client)
+        tier = resolve_access_tier(client=supabase_client)
+        plan_label = str(access.get("plan") or "free").strip().lower() or "free"
+        st.caption(f"Plano: {plan_label} | Acesso: {describe_access_tier(tier)}")
+        if tier == "teaser":
+            st.caption("Modo teaser ativo: solicite ao admin para liberar plano pago.")
         intents = []
         if cadastro_allowed:
             intents.append(("Cadastro", Route.CADASTRO))

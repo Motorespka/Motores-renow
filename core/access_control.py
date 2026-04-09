@@ -9,6 +9,13 @@ import streamlit as st
 ADMIN_ROLES = {"admin", "owner", "superadmin", "root"}
 PAID_PLANS = {"paid", "pro", "premium", "enterprise", "business"}
 DEFAULT_PLAN = "free"
+ACCESS_TIER_LABELS = {
+    "anon": "Visitante",
+    "teaser": "Free (teaser)",
+    "cadastro": "Free + cadastro liberado",
+    "paid": "Pago",
+    "admin": "Admin",
+}
 CADASTRO_ACCESS_TABLE = "cadastro_access"
 CADASTRO_USER_ACCESS_CACHE_PREFIX = "_cadastro_user_access_"
 CADASTRO_ACCESS_LIST_CACHE_KEY = "_cadastro_access_list_cache"
@@ -323,6 +330,26 @@ def is_admin_user() -> bool:
 def has_paid_plan(plan_value: Any) -> bool:
     plan = _to_text(plan_value).lower()
     return plan in PAID_PLANS
+
+
+def resolve_access_tier(client: Any | None = None) -> str:
+    access = get_access_profile(client=client)
+    if not access.get("authenticated"):
+        return "anon"
+    if access.get("is_admin"):
+        return "admin"
+    if has_paid_plan(access.get("plan")):
+        return "paid"
+
+    user_id = _to_text(access.get("user_id"))
+    if has_cadastro_user_access(user_id=user_id, client=client):
+        return "cadastro"
+    return "teaser"
+
+
+def describe_access_tier(tier: str) -> str:
+    key = _to_text(tier).lower()
+    return ACCESS_TIER_LABELS.get(key, "Acesso personalizado")
 
 
 def can_access_paid_features(client: Any | None = None) -> bool:

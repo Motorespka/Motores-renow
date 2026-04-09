@@ -309,6 +309,7 @@ def render_login(session, client) -> bool:
         return True
 
     st.title("Moto-Renow - Acesso Tecnico")
+    st.caption("Planos: Free (teaser de consulta) | Pago (consulta completa + cadastro + diagnostico) | Admin (gestao total).")
     if st.session_state.get("auth_force_logged_out"):
         st.info("Sessao encerrada com sucesso. Faca login novamente.")
 
