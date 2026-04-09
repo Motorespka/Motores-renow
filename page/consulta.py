@@ -150,6 +150,17 @@ def _render_expanded_sections(motor: Dict[str, Any]) -> None:
         for u in urls:
             st.write(f"- {u}")
 
+    oficina = data.get("oficina", {}) if isinstance(data, dict) else {}
+    if isinstance(oficina, dict) and oficina:
+        st.markdown("#### Fluxo da oficina")
+        st.json(oficina.get("fluxo_fechado", []), expanded=False)
+        st.markdown("#### Diagnostico da oficina")
+        st.json(oficina.get("diagnostico", {}), expanded=False)
+        st.markdown("#### Resultado pos-servico")
+        st.json(oficina.get("resultado_pos_servico", {}), expanded=False)
+        st.markdown("#### Historico tecnico acumulado")
+        st.json(oficina.get("historico_tecnico", []), expanded=False)
+
 
 def _render_consulta_header(total: int, filtrados: int, trifasicos: int, monofasicos: int) -> None:
     st.markdown(

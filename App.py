@@ -1,7 +1,10 @@
 from pathlib import Path
 
 import streamlit as st
-from supabase import create_client
+try:
+    from supabase import create_client
+except Exception:
+    create_client = None
 
 from auth.login import render_login
 from core.navigation import AppContext, Route, Router, render_navigation_sidebar
@@ -17,6 +20,8 @@ def init_connection(mode: str):
     if mode == "DEV":
         return build_local_runtime_client(mode="DEV")
 
+    if create_client is None:
+        raise RuntimeError("SDK do Supabase indisponivel neste ambiente.")
     url = st.secrets["SUPABASE_URL"]
     key = st.secrets["SUPABASE_KEY"]
     return create_client(url, key)

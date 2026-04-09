@@ -18,20 +18,27 @@ def render(ctx) -> None:
 
     motor = fetch_motor_by_id_cached(ctx.supabase, motor_id)
     if motor is None:
-        st.error(f"Motor {motor_id} não encontrado.")
+        st.error(f"Motor {motor_id} nao encontrado.")
         if st.button("Voltar para consulta", use_container_width=True):
             ctx.session.set_route(Route.CONSULTA)
             st.rerun()
         return
 
     m = normalize_motor_record(motor)
-    st.title(f"🔧 Detalhe do Motor #{motor_id}")
+    st.title(f"Detalhe do Motor #{motor_id}")
     st.write(f"**Marca:** {friendly(m.get('marca'))}")
     st.write(f"**Modelo:** {friendly(m.get('modelo'))}")
-    st.write(f"**Potência:** {friendly(m.get('potencia_hp_cv'))}")
+    st.write(f"**Potencia:** {friendly(m.get('potencia_hp_cv'))}")
     st.write(f"**RPM:** {friendly(m.get('rpm_nominal'))}")
-    st.write(f"**Tensão:** {friendly(m.get('tensao_v'))}")
+    st.write(f"**Tensao:** {friendly(m.get('tensao_v'))}")
     st.write(f"**Corrente:** {friendly(m.get('corrente_nominal_a'))}")
+
+    dados = m.get("dados_tecnicos_json", {}) if isinstance(m, dict) else {}
+    oficina = dados.get("oficina", {}) if isinstance(dados, dict) else {}
+    resultado = oficina.get("resultado_pos_servico", {}) if isinstance(oficina, dict) else {}
+    historico = oficina.get("historico_tecnico", []) if isinstance(oficina, dict) else []
+    st.write(f"**Status Oficina:** {friendly(resultado.get('status') if isinstance(resultado, dict) else '')}")
+    st.write(f"**Historico Tecnico:** {len(historico) if isinstance(historico, list) else 0} registro(s)")
 
     c1, c2 = st.columns(2)
     with c1:
@@ -46,4 +53,3 @@ def render(ctx) -> None:
 
 def show(ctx):
     return render(ctx)
-

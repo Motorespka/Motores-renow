@@ -7,10 +7,15 @@ from typing import Any, Dict, List
 
 import streamlit as st
 from PIL import Image, ImageOps
-from postgrest.exceptions import APIError
+try:
+    from postgrest.exceptions import APIError
+except Exception:
+    class APIError(Exception):
+        pass
 
 from services.gemini_oficina import HEIF_SUPPORTED, extract_motor_data_with_gemini
 from services.oficina_parser import DEFAULT_EXTRACTED, normalize_extracted_data, to_supabase_payload
+from services.oficina_runtime import enriquecer_motor_oficina
 from services.supabase_data import clear_motores_cache
 
 SUPPORTED_TYPES = ["jpg", "jpeg", "png", "heic", "heif", "webp", "jfif", "avif"]
@@ -102,6 +107,7 @@ def _upload_images_to_supabase(ctx, uploads: List[Any]) -> List[str]:
 
 
 def _save_motor(ctx, normalized: Dict[str, Any], uploads: List[Any]) -> None:
+    normalized = enriquecer_motor_oficina(normalized, evento="cadastro")
     image_names = [f.name for f in uploads]
     image_urls = _upload_images_to_supabase(ctx, uploads)
     payload = to_supabase_payload(normalized, image_paths=image_urls, image_names=image_names)

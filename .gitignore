@@ -6,3 +6,6 @@ __pycache__/
 .venv/
 venv/
 data/*.db
+data/dev_storage/
+db/
+db_aprendizado.json

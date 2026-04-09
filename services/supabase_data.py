@@ -11,17 +11,35 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 import streamlit as st
-from postgrest.exceptions import APIError
-from supabase import Client
+try:
+    from postgrest.exceptions import APIError
+except Exception:
+    class APIError(Exception):
+        pass
+
+try:
+    from supabase import Client
+except Exception:
+    class Client:  # type: ignore[no-redef]
+        pass
+
+try:
+    from services.database import LocalRuntimeClient
+except Exception:
+    LocalRuntimeClient = None  # type: ignore[assignment]
 
 MotorRow = Dict[str, Any]
 VariavelRow = Dict[str, Any]
+
+HASH_FUNCS = {Client: lambda _c: "supabase-client"}
+if LocalRuntimeClient is not None:
+    HASH_FUNCS[LocalRuntimeClient] = lambda _c: "local-runtime-client"
 
 
 @st.cache_data(
     ttl=45,
     show_spinner=False,
-    hash_funcs={Client: lambda _c: "supabase-client"},
+    hash_funcs=HASH_FUNCS,
 )
 def fetch_motores_cached(supabase: Client) -> List[MotorRow]:
     """
@@ -70,7 +88,7 @@ def fetch_motores_cached(supabase: Client) -> List[MotorRow]:
 @st.cache_data(
     ttl=45,
     show_spinner=False,
-    hash_funcs={Client: lambda _c: "supabase-client"},
+    hash_funcs=HASH_FUNCS,
 )
 def fetch_motor_by_id_cached(supabase: Client, motor_id: str) -> MotorRow | None:
     """
@@ -112,7 +130,7 @@ def fetch_motor_by_id_cached(supabase: Client, motor_id: str) -> MotorRow | None
 @st.cache_data(
     ttl=45,
     show_spinner=False,
-    hash_funcs={Client: lambda _c: "supabase-client"},
+    hash_funcs=HASH_FUNCS,
 )
 def fetch_variaveis_by_motor_id_cached(supabase: Client, motor_id: str) -> List[VariavelRow]:
     """
@@ -149,7 +167,7 @@ def fetch_variaveis_by_motor_id_cached(supabase: Client, motor_id: str) -> List[
 @st.cache_data(
     ttl=45,
     show_spinner=False,
-    hash_funcs={Client: lambda _c: "supabase-client"},
+    hash_funcs=HASH_FUNCS,
 )
 def fetch_arquivo_by_id_cached(supabase: Client, motor_id: str) -> MotorRow | None:
     """

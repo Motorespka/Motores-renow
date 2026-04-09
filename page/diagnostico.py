@@ -1,6 +1,14 @@
-﻿import math
+from __future__ import annotations
+
+import json
+import math
+from typing import Any, Dict, List
 
 import streamlit as st
+
+from services.oficina_parser import normalize_extracted_data
+from services.oficina_runtime import diagnostico_motor_oficina_readonly, resumir_diagnostico_oficina
+from services.supabase_data import fetch_motor_by_id_cached, fetch_motores_cached
 
 
 def _estimate_current(cv: float, tensao: float, rendimento: float, fp: float, fases: str) -> float:
@@ -16,41 +24,121 @@ def _estimate_current(cv: float, tensao: float, rendimento: float, fp: float, fa
     return watts / (math.sqrt(3) * tensao * rendimento * fp)
 
 
+def _to_dict(value: Any) -> Dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str) and value.strip().startswith("{"):
+        try:
+            return json.loads(value)
+        except Exception:
+            return {}
+    return {}
+
+
+def _to_text(value: Any) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _load_motor_technical_payload(motor_row: Dict[str, Any]) -> Dict[str, Any]:
+    data = _to_dict(motor_row.get("dados_tecnicos_json") or motor_row.get("leitura_gemini_json"))
+    return normalize_extracted_data(data)
+
+
+def _render_real_diagnosis(ctx) -> None:
+    st.markdown("### Motor da Oficina")
+    try:
+        motores = fetch_motores_cached(ctx.supabase)
+    except Exception as exc:
+        st.warning(f"Nao foi possivel carregar motores para diagnostico: {exc}")
+        return
+
+    if not motores:
+        st.info("Nenhum motor cadastrado ainda para diagnostico real.")
+        return
+
+    options: List[tuple[str, Any]] = []
+    for row in motores:
+        label = f"#{row.get('id')} | {_to_text(row.get('marca')) or '-'} | {_to_text(row.get('modelo')) or '-'}"
+        options.append((label, row.get("id")))
+
+    current_id = ctx.session.selected_motor_id
+    option_ids = [oid for _, oid in options]
+    default_idx = option_ids.index(current_id) if current_id in option_ids else 0
+    selected_label = st.selectbox("Selecione o motor para diagnostico", [lbl for lbl, _ in options], index=default_idx)
+    selected_id = next(oid for lbl, oid in options if lbl == selected_label)
+    ctx.session.selected_motor_id = selected_id
+
+    motor = fetch_motor_by_id_cached(ctx.supabase, selected_id)
+    if not motor:
+        st.warning("Motor selecionado nao encontrado.")
+        return
+
+    normalized = _load_motor_technical_payload(motor)
+    resumo = resumir_diagnostico_oficina(normalized)
+    fallback = diagnostico_motor_oficina_readonly(normalized)
+
+    dados_placa = resumo.get("dados_placa") or fallback.get("dados_placa") or {}
+    avisos = resumo.get("avisos") or fallback.get("avisos") or []
+    alertas_validacao = resumo.get("alertas_validacao") or fallback.get("alertas_validacao") or []
+    calculos = normalized.get("oficina", {}).get("calculos_aplicados") if isinstance(normalized.get("oficina"), dict) else {}
+    if not calculos:
+        calculos = fallback.get("calculos_aplicados") or {}
+    resultado_pos = resumo.get("resultado_pos_servico") or {}
+    historico = resumo.get("historico_tecnico") or []
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Marca", _to_text(dados_placa.get("marca")) or "-")
+    c2.metric("Modelo", _to_text(dados_placa.get("modelo")) or "-")
+    c3.metric("Status pos-servico", _to_text(resultado_pos.get("status")) or "Em acompanhamento")
+
+    st.markdown("#### Diagnostico atual")
+    if avisos:
+        for aviso in avisos:
+            st.write(f"- {aviso}")
+    else:
+        st.write("- Sem avisos registrados.")
+
+    st.markdown("#### Alertas de validacao")
+    if alertas_validacao:
+        for alerta in alertas_validacao:
+            st.write(f"- {alerta}")
+    else:
+        st.write("- Sem alertas adicionais.")
+
+    with st.expander("Calculos aplicados"):
+        st.json(calculos or {}, expanded=False)
+
+    with st.expander("Historico tecnico acumulado"):
+        if historico:
+            for item in reversed(historico[-12:]):
+                data = _to_text(item.get("data")) or "-"
+                evento = _to_text(item.get("evento")) or "-"
+                resumo_item = _to_text(item.get("resumo")) or "-"
+                st.write(f"- {data} | {evento} | {resumo_item}")
+        else:
+            st.write("Sem historico tecnico registrado.")
+
+
 def render(ctx):
     st.markdown(
         """
         <div class="diag-hero">
             <div class="diag-hero__tag">LAB TECNICO</div>
             <h1>Diagnostico de Motor</h1>
-            <p>Painel rapido para triagem, leitura de sintomas e previsao de corrente.</p>
+            <p>Painel da oficina para triagem real com base no historico tecnico salvo.</p>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    st.markdown(
-        """
-        <div class="diag-grid">
-            <div class="diag-card">
-                <strong>Identificacao rapida</strong>
-                <p>Giro leve tende a 2 polos, giro firme tende a 4 polos.</p>
-            </div>
-            <div class="diag-card">
-                <strong>Teste de resistencia</strong>
-                <p>Bobinas muito diferentes entre fases sugerem falha.</p>
-            </div>
-            <div class="diag-card">
-                <strong>Regra de corrente</strong>
-                <p>Diferenca entre fases acima de 10% pede investigacao.</p>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    tabs = st.tabs(["Simulador", "Checklist", "Alertas"])
+    tabs = st.tabs(["Motor da oficina", "Simulador", "Checklist", "Alertas"])
 
     with tabs[0]:
+        _render_real_diagnosis(ctx)
+
+    with tabs[1]:
         st.markdown("### Simulador de carga")
         c1, c2, c3, c4 = st.columns(4)
         with c1:
@@ -79,7 +167,7 @@ def render(ctx):
                 unsafe_allow_html=True,
             )
 
-    with tabs[1]:
+    with tabs[2]:
         st.markdown("### Checklist de bancada")
         st.checkbox("Inspecao visual de terminais e isolacao")
         st.checkbox("Medicao de resistencia entre fases")
@@ -87,7 +175,7 @@ def render(ctx):
         st.checkbox("Conferencia de rolamentos e alinhamento")
         st.checkbox("Teste com carga progressiva")
 
-    with tabs[2]:
+    with tabs[3]:
         st.markdown("### Alertas criticos")
         st.markdown(
             """

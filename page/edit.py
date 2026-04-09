@@ -4,10 +4,15 @@ import json
 from typing import Any, Dict, List
 
 import streamlit as st
-from postgrest.exceptions import APIError
+try:
+    from postgrest.exceptions import APIError
+except Exception:
+    class APIError(Exception):
+        pass
 
 from core.navigation import Route
 from services.oficina_parser import DEFAULT_EXTRACTED, normalize_extracted_data, to_supabase_payload
+from services.oficina_runtime import enriquecer_motor_oficina
 from services.supabase_data import clear_motores_cache, fetch_motor_by_id_cached
 
 
@@ -229,6 +234,7 @@ def render(ctx):
     if salvar:
         image_names = _to_list(motor.get("imagens_origem") or motor.get("arquivo_origem"))
         image_urls = _to_list(motor.get("imagens_urls"))
+        data = enriquecer_motor_oficina(data, evento="edicao")
         payload = to_supabase_payload(data, image_paths=image_urls, image_names=image_names)
         _update_motor_supabase(ctx.supabase, id_motor, payload)
         clear_motores_cache()

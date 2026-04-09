@@ -62,6 +62,37 @@ DEFAULT_EXTRACTED: Dict[str, Any] = {
     "observacoes_gerais": "",
     "campos_extras": [],
     "confianca": {},
+    "oficina": {
+        "dados_placa": {},
+        "diagnostico": {
+            "avisos": [],
+            "alertas_validacao": [],
+            "fonte": "",
+            "data": "",
+        },
+        "servico_executado": {
+            "descricao": "",
+            "responsavel": "",
+            "status": "",
+            "data": "",
+        },
+        "calculos_aplicados": {
+            "engenharia_automatica": {},
+            "analise_fabrica": {},
+        },
+        "resultado_pos_servico": {
+            "status": "",
+            "observacoes": "",
+            "data": "",
+        },
+        "aprendizado": {
+            "sugestao_oficina": {},
+            "sugestao_aprendizado": {},
+            "ultima_atualizacao": "",
+        },
+        "historico_tecnico": [],
+        "fluxo_fechado": [],
+    },
 }
 
 
@@ -165,6 +196,20 @@ def normalize_extracted_data(payload: Dict[str, Any]) -> Dict[str, Any]:
             for e in extras
             if isinstance(e, dict)
         ]
+
+    oficina_payload = payload.get("oficina")
+    if isinstance(oficina_payload, dict):
+        default_oficina = out["oficina"]
+        merged = json.loads(json.dumps(default_oficina))
+        for key in default_oficina.keys():
+            src_value = oficina_payload.get(key)
+            if isinstance(default_oficina[key], dict) and isinstance(src_value, dict):
+                merged[key].update(src_value)
+            elif isinstance(default_oficina[key], list) and isinstance(src_value, list):
+                merged[key] = src_value
+            elif src_value is not None:
+                merged[key] = src_value
+        out["oficina"] = merged
 
     return out
 

@@ -1,5 +1,9 @@
 import streamlit as st
-from postgrest.exceptions import APIError
+try:
+    from postgrest.exceptions import APIError
+except Exception:
+    class APIError(Exception):
+        pass
 
 
 def _is_local_runtime(client) -> bool:
