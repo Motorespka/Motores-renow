@@ -72,6 +72,47 @@ def _to_dict(value: Any) -> Dict[str, Any]:
     return {}
 
 
+def _extract_feito_por(row: Dict[str, Any], data: Dict[str, Any]) -> str:
+    direct = _pick_first(
+        row,
+        "cadastrado_por_nome",
+        "cadastrado_por_username",
+        "cadastrado_por_email",
+        "created_by_name",
+        "created_by",
+        "usuario",
+        "autor",
+        "Usuario",
+    )
+    if direct:
+        return direct
+
+    meta = data.get("meta", {}) if isinstance(data, dict) else {}
+    if isinstance(meta, dict):
+        meta_value = (
+            _to_text(meta.get("cadastrado_por_display"))
+            or _to_text(meta.get("cadastrado_por_nome"))
+            or _to_text(meta.get("cadastrado_por_username"))
+            or _to_text(meta.get("cadastrado_por_email"))
+        )
+        if meta_value:
+            return meta_value
+
+    oficina = data.get("oficina", {}) if isinstance(data, dict) else {}
+    servico = oficina.get("servico_executado", {}) if isinstance(oficina, dict) else {}
+    if isinstance(servico, dict):
+        responsavel = _to_text(servico.get("responsavel"))
+        if responsavel:
+            return responsavel
+
+    obs = _to_text(row.get("observacoes") or row.get("Observacoes"))
+    match = re.search(r"feito por\s*:\s*([^\|]+)", obs, flags=re.IGNORECASE)
+    if match:
+        return _to_text(match.group(1))
+
+    return ""
+
+
 def _normalize_motor_record(row: Dict[str, Any]) -> Dict[str, Any]:
     data = _to_dict(row.get("dados_tecnicos_json") or row.get("leitura_gemini_json"))
     if not data:
@@ -97,6 +138,8 @@ def _normalize_motor_record(row: Dict[str, Any]) -> Dict[str, Any]:
     if not modelo:
         modelo = f"Registro {motor_id}" if motor_id not in (None, "") else "Sem modelo"
 
+    feito_por = _extract_feito_por(row, data)
+
     return {
         "id": motor_id,
         "marca": marca,
@@ -112,6 +155,7 @@ def _normalize_motor_record(row: Dict[str, Any]) -> Dict[str, Any]:
         "texto_bruto_extraido": _to_text(row.get("texto_bruto_extraido") or row.get("TextoBrutoExtraido") or data.get("texto_ocr")),
         "imagens_urls": imagens,
         "observacoes": _to_text(row.get("observacoes") or row.get("Observacoes") or data.get("observacoes_gerais")),
+        "feito_por": feito_por,
     }
 
 
@@ -320,6 +364,8 @@ def render(ctx) -> None:
                 d1, d2 = st.columns(2)
                 d1.markdown(f'<div class="inline-pill">Polos: <b>{_safe(m.get("polos"))}</b></div>', unsafe_allow_html=True)
                 d2.markdown(f'<div class="inline-pill">Fases: <b>{_safe(m.get("fases"))}</b></div>', unsafe_allow_html=True)
+                if _to_text(m.get("feito_por")):
+                    st.caption(f"Feito por: {_to_text(m.get('feito_por'))}")
 
             with right:
                 st.markdown(

@@ -15,8 +15,12 @@ class SessionManager:
     legacy_route_key: str = "nav_current_route"
     selected_motor_key: str = "nav_selected_motor_id"
     route_query_key: str = "route"
+    sync_route_query: bool = False
 
     def _read_route_from_query(self) -> Optional[str]:
+        if not self.sync_route_query:
+            return None
+
         # Streamlit >= 1.30
         try:
             value = st.query_params.get(self.route_query_key)
@@ -38,6 +42,18 @@ class SessionManager:
         return None
 
     def _write_route_to_query(self, route_value: str) -> None:
+        if not self.sync_route_query:
+            try:
+                st.query_params.pop(self.route_query_key, None)
+            except Exception:
+                try:
+                    q = st.experimental_get_query_params()
+                    q.pop(self.route_query_key, None)
+                    st.experimental_set_query_params(**q)
+                except Exception:
+                    pass
+            return
+
         # Streamlit >= 1.30
         try:
             st.query_params[self.route_query_key] = route_value

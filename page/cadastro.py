@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 import io
+import json
 import os
 import time
 from typing import Any, Dict, List
@@ -15,6 +16,7 @@ except Exception:
 
 from core.access_control import require_admin_access
 from core.navigation import Route
+from core.user_identity import resolve_current_user_identity
 from services.gemini_oficina import HEIF_SUPPORTED, extract_motor_data_with_gemini
 from services.oficina_parser import (
     DEFAULT_EXTRACTED,
@@ -117,6 +119,8 @@ def _upload_images_to_supabase(ctx, uploads: List[Any]) -> List[str]:
 
 def _save_motor(ctx, normalized: Dict[str, Any], uploads: List[Any]) -> None:
     normalized = enriquecer_motor_oficina(normalized, evento="cadastro")
+    normalized = _with_creator_metadata(normalized)
+    creator = resolve_current_user_identity().get("display_name", "Usuario")
     image_names = [f.name for f in uploads]
     image_urls = _upload_images_to_supabase(ctx, uploads)
     legacy_payload = to_supabase_payload(normalized, image_paths=image_urls, image_names=image_names)
@@ -149,7 +153,7 @@ def _save_motor(ctx, normalized: Dict[str, Any], uploads: List[Any]) -> None:
             "rpm": legacy_payload.get("rpm", ""),
             "tensao": legacy_payload.get("tensao", ""),
             "corrente": legacy_payload.get("corrente", ""),
-            "observacoes": legacy_payload.get("observacoes", ""),
+            "observacoes": f"{legacy_payload.get('observacoes', '')} | Feito por: {creator}".strip(" |"),
         }
         try:
             ctx.supabase.table("motores").insert(fallback).execute()
@@ -162,6 +166,44 @@ def _save_motor(ctx, normalized: Dict[str, Any], uploads: List[Any]) -> None:
         raise RuntimeError(f"Nao foi possivel salvar o motor em nenhum schema compativel: {last_error}")
 
     clear_motores_cache()
+
+
+def _with_creator_metadata(normalized: Dict[str, Any]) -> Dict[str, Any]:
+    identity = resolve_current_user_identity()
+
+    try:
+        enriched = json.loads(json.dumps(normalized or {}))
+    except Exception:
+        enriched = dict(normalized or {})
+
+    meta = enriched.get("meta")
+    if not isinstance(meta, dict):
+        meta = {}
+
+    meta.update(
+        {
+            "cadastrado_por_id": identity.get("user_id", ""),
+            "cadastrado_por_email": identity.get("email", ""),
+            "cadastrado_por_username": identity.get("username", ""),
+            "cadastrado_por_nome": identity.get("nome", ""),
+            "cadastrado_por_display": identity.get("display_name", ""),
+            "cadastrado_em": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()),
+        }
+    )
+    enriched["meta"] = meta
+
+    oficina = enriched.get("oficina")
+    if not isinstance(oficina, dict):
+        oficina = {}
+    servico = oficina.get("servico_executado")
+    if not isinstance(servico, dict):
+        servico = {}
+    if not str(servico.get("responsavel") or "").strip():
+        servico["responsavel"] = identity.get("display_name", "")
+    oficina["servico_executado"] = servico
+    enriched["oficina"] = oficina
+
+    return enriched
 
 
 def render(ctx):

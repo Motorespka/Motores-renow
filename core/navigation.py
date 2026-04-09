@@ -7,6 +7,7 @@ from typing import Callable, Dict
 import streamlit as st
 
 from core.access_control import is_admin_user
+from core.user_identity import resolve_current_user_identity
 
 class Route(str, Enum):
     CADASTRO = "cadastro"
@@ -79,6 +80,8 @@ def _perform_logout(session, supabase_client=None) -> None:
 def render_navigation_sidebar(session, supabase_client=None) -> None:
     with st.sidebar:
         st.markdown("## Moto-Renow")
+        identity = resolve_current_user_identity()
+        st.caption(f"Logado como: {identity.get('display_name', 'Usuario')}")
         admin_user = is_admin_user()
         intents = []
         if admin_user:
