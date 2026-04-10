@@ -17,6 +17,10 @@ from core.session_manager import SessionManager
 from page import admin_panel, cadastro, consulta, diagnostico, edit, motor_detail
 from services.database import bootstrap_database, build_local_runtime_client
 
+        
+st.set_page_config(page_title="Moto-Renow", page_icon="⚙️", layout="wide")
+DEBUG_ACCESS = str(os.environ.get("DEBUG_ACCESS", "")).strip().lower() in {"1", "true", "yes", "on"}
+
 params = st.query_params
 
 if "token" in params and "user" not in 
@@ -27,9 +31,6 @@ st.session_state:
     if usuario:
         st.session_state["user"] = usuario 
         
-st.set_page_config(page_title="Moto-Renow", page_icon="⚙️", layout="wide")
-DEBUG_ACCESS = str(os.environ.get("DEBUG_ACCESS", "")).strip().lower() in {"1", "true", "yes", "on"}
-
 
 def _read_secret_or_env(*names: str) -> str:
     for name in names:
