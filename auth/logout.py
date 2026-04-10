@@ -1,17 +1,8 @@
 import streamlit as st
+from auth.login import logout_and_clear
 
 
-def perform_logout(session, client=None):
-    try:
-        if client is not None:
-            try:
-                client.auth.sign_out()
-            except Exception:
-                pass
-
-        session.logout()
-        st.success("Sessão encerrada com sucesso.")
-        st.rerun()
-
-    except Exception as exc:
-        st.error(f"Erro ao sair: {exc}")
+def perform_logout(session, client):
+    logout_and_clear(session, client)
+    st.success("Sessão encerrada com sucesso.")
+    st.rerun()
