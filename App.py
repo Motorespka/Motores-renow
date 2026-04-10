@@ -421,18 +421,13 @@ def main():
 
     st.session_state["_supabase_client"] = client
 
-    restored = try_restore_auth_session(session, client)
+    # O render_login já tenta restaurar a sessão antes de mostrar a tela de login
+    logged = render_login(session, client)
 
-    if not restored:
-        logged = render_login(session, client)
+    if not logged:
+        st.stop()
+
     sync_authenticated_profile(session, client)
-
-        if not logged:
-            st.stop()
-
-        finalize_authenticated_state(session, client)
-        st.rerun()
-
     finalize_authenticated_state(session, client)
 
     access = st.session_state.get("_access_profile") or get_access_profile(client=client)
@@ -446,9 +441,13 @@ def main():
 
     with st.sidebar:
         if st.button("Sair", use_container_width=True):
-            clear_auth_state()
-            st.session_state["route"] = "consulta"
-            st.rerun()
+            try:
+                from auth.logout import perform_logout
+                perform_logout(session, client)
+            except Exception:
+                clear_auth_state()
+                st.session_state["route"] = "consulta"
+                st.rerun()
 
     ctx = AppContext(
         supabase=client,
