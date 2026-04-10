@@ -10,4 +10,5 @@ st-supabase-connection
 supabase
 bcrypt
 streamlit-option-menu
+extra-streamlit-components
 
