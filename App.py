@@ -230,6 +230,21 @@ def main():
         st.stop()
 
     sync_authenticated_profile(session, client)
+    if "route" not in st.session_state:
+
+        acess =
+    get_acess_profile(client=client)
+        cadastro_allowed = 
+    can_acess_cadastro(client=client)
+
+    if cadastro_allowed:
+        st.session_state["route"] =
+    "cadastro"
+    else:
+        st.session_state["route"] = 
+    "consulta"
+
+    st.rerun()
 
     access = get_access_profile(client=client)
     paid_allowed = can_access_paid_features(client=client)
