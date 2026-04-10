@@ -3,8 +3,14 @@ import hashlib
 import json
 import os
 import uuid
+from datetime import datetime, timedelta, timezone
 
 import streamlit as st
+
+try:
+    import extra_streamlit_components as stx
+except Exception:
+    stx = None
 
 try:
     from supabase import create_client
@@ -35,6 +41,9 @@ DEBUG_ACCESS = str(os.environ.get("DEBUG_ACCESS", "")).strip().lower() in {
     "yes",
     "on",
 }
+
+AUTH_COOKIE_NAME = "moto_renow_auth_v1"
+AUTH_COOKIE_DAYS = 30
 
 
 # =========================================================
@@ -68,8 +77,165 @@ def _to_plain_mapping(value) -> dict:
         return {}
 
 
+def _json_dumps_safe(data: dict) -> str:
+    try:
+        return json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+    except Exception:
+        return "{}"
+
+
+def _json_loads_safe(raw: str) -> dict:
+    try:
+        if not raw:
+            return {}
+        data = json.loads(raw)
+        if isinstance(data, dict):
+            return data
+        return {}
+    except Exception:
+        return {}
+
+
 # =========================================================
-# CORREÇÃO REAL DA SESSÃO
+# COOKIE AUTH
+# =========================================================
+
+@st.cache_resource(show_spinner=False)
+def _get_cookie_manager():
+    if stx is None:
+        return None
+    return stx.CookieManager()
+
+
+def _cookie_available() -> bool:
+    return _get_cookie_manager() is not None
+
+
+def _read_auth_cookie() -> dict:
+    manager = _get_cookie_manager()
+    if manager is None:
+        return {}
+
+    try:
+        raw = manager.get(AUTH_COOKIE_NAME)
+        return _json_loads_safe(raw)
+    except Exception:
+        return {}
+
+
+def _write_auth_cookie(data: dict) -> bool:
+    manager = _get_cookie_manager()
+    if manager is None:
+        return False
+
+    try:
+        expires_at = datetime.now(timezone.utc) + timedelta(days=AUTH_COOKIE_DAYS)
+        manager.set(
+            AUTH_COOKIE_NAME,
+            _json_dumps_safe(data),
+            expires_at=expires_at,
+            key=f"set_cookie_{AUTH_COOKIE_NAME}",
+        )
+        return True
+    except Exception:
+        return False
+
+
+def _clear_auth_cookie():
+    manager = _get_cookie_manager()
+    if manager is None:
+        return
+
+    try:
+        manager.delete(AUTH_COOKIE_NAME, key=f"delete_cookie_{AUTH_COOKIE_NAME}")
+    except Exception:
+        pass
+
+
+def persist_auth_state(client) -> None:
+    """
+    Salva no cookie apenas dados suficientes para restaurar estado visual.
+    A validação real continua vindo do usuário/perfil autenticado.
+    """
+    try:
+        payload = {
+            "auth_user_id": st.session_state.get("auth_user_id", ""),
+            "auth_email": st.session_state.get("auth_email", ""),
+            "authenticated": bool(st.session_state.get("authenticated", False)),
+            "saved_at": datetime.now(timezone.utc).isoformat(),
+        }
+        _write_auth_cookie(payload)
+    except Exception:
+        pass
+
+
+def clear_auth_state():
+    keys = [
+        "auth_user_id",
+        "auth_email",
+        "authenticated",
+        "_access_profile",
+        "_paid_allowed",
+        "_cadastro_allowed",
+    ]
+    for key in keys:
+        st.session_state.pop(key, None)
+
+    _clear_auth_cookie()
+
+
+def try_restore_auth_session(session, client) -> bool:
+    """
+    Restaura o estado de autenticação após F5 a partir do cookie
+    e revalida com sync_authenticated_profile / access_profile.
+    """
+    try:
+        # Se já existe em memória, considera restaurado
+        if st.session_state.get("auth_user_id"):
+            st.session_state["authenticated"] = True
+            return True
+
+        cookie_data = _read_auth_cookie()
+        if not cookie_data:
+            return False
+
+        auth_user_id = str(cookie_data.get("auth_user_id", "")).strip()
+        auth_email = str(cookie_data.get("auth_email", "")).strip()
+        authenticated = bool(cookie_data.get("authenticated", False))
+
+        if not auth_user_id or not authenticated:
+            return False
+
+        # Reidrata sessão mínima
+        st.session_state["auth_user_id"] = auth_user_id
+        if auth_email:
+            st.session_state["auth_email"] = auth_email
+        st.session_state["authenticated"] = True
+
+        # Revalida perfil
+        try:
+            sync_authenticated_profile(session, client)
+        except Exception:
+            pass
+
+        access = get_access_profile(client=client)
+        if not access.get("authenticated"):
+            clear_auth_state()
+            return False
+
+        st.session_state["_access_profile"] = access
+        st.session_state["_paid_allowed"] = can_access_paid_features(client=client)
+        st.session_state["_cadastro_allowed"] = can_access_cadastro(client=client)
+
+        return True
+
+    except Exception:
+        clear_auth_state()
+        return False
+
+
+# =========================================================
+# SESSION CACHE KEY
 # =========================================================
 
 def _resolve_browser_cache_key() -> str:
@@ -149,7 +315,6 @@ def bootstrap_system(session: SessionManager):
 
 def resolve_runtime_mode() -> str:
     env = os.environ.get("ENV", "").upper()
-
     if env:
         return env
 
@@ -189,6 +354,54 @@ def build_router() -> Router:
 
 
 # =========================================================
+# HELPERS
+# =========================================================
+
+def ensure_initial_route(client):
+    if "route" in st.session_state and st.session_state["route"]:
+        return
+
+    cadastro_allowed = can_access_cadastro(client=client)
+
+    if cadastro_allowed:
+        try:
+            st.session_state["route"] = Route.CADASTRO
+        except Exception:
+            st.session_state["route"] = "cadastro"
+    else:
+        try:
+            st.session_state["route"] = Route.CONSULTA
+        except Exception:
+            st.session_state["route"] = "consulta"
+
+
+def finalize_authenticated_state(session, client):
+    sync_authenticated_profile(session, client)
+
+    access = get_access_profile(client=client)
+    paid_allowed = can_access_paid_features(client=client)
+    cadastro_allowed = can_access_cadastro(client=client)
+
+    st.session_state["_access_profile"] = access
+    st.session_state["_paid_allowed"] = paid_allowed
+    st.session_state["_cadastro_allowed"] = cadastro_allowed
+
+    # tenta aproveitar email já conhecido
+    if not st.session_state.get("auth_email"):
+        try:
+            email = access.get("email")
+            if email:
+                st.session_state["auth_email"] = email
+        except Exception:
+            pass
+
+    if access.get("authenticated"):
+        st.session_state["authenticated"] = True
+        persist_auth_state(client)
+        ensure_initial_route(client)
+
+
+# =========================================================
 # MAIN
 # =========================================================
 
@@ -201,6 +414,12 @@ def main():
         st.error(f"Falha na inicialização: {exc}")
         return
 
+    if stx is None:
+        st.warning(
+            "Persistência de login desativada: falta instalar 'extra-streamlit-components'. "
+            "Rode: pip install extra-streamlit-components"
+        )
+
     runtime_mode = resolve_runtime_mode()
 
     try:
@@ -211,43 +430,38 @@ def main():
 
     st.session_state["_supabase_client"] = client
 
-    # LOGIN
-    logged = render_login(session, client)
+    # 1) tenta restaurar sessão antes de mostrar login
+    restored = try_restore_auth_session(session, client)
 
-    if not logged:
-        # Se não está logado, interrompe renderização normal
-        st.stop()
+    # 2) se não restaurou, mostra login
+    if not restored:
+        logged = render_login(session, client)
 
-    sync_authenticated_profile(session, client)
-
-    # Define rota inicial uma única vez após login
-    if "route" not in st.session_state:
-        access = get_access_profile(client=client)
-        cadastro_allowed = can_access_cadastro(client=client)
-
-        if access.get("authenticated"):
-            if cadastro_allowed:
-                st.session_state["route"] = "cadastro"
-            else:
-                st.session_state["route"] = "consulta"
-            st.rerun()
-        else:
+        if not logged:
             st.stop()
 
-    access = get_access_profile(client=client)
-    paid_allowed = can_access_paid_features(client=client)
-    cadastro_allowed = can_access_cadastro(client=client)
+        # login bem sucedido
+        finalize_authenticated_state(session, client)
+        st.rerun()
 
-    st.session_state["_access_profile"] = access
-    st.session_state["_paid_allowed"] = paid_allowed
-    st.session_state["_cadastro_allowed"] = cadastro_allowed
+    # 3) sessão restaurada -> revalida e segue
+    finalize_authenticated_state(session, client)
 
+    access = st.session_state.get("_access_profile") or get_access_profile(client=client)
     if not access.get("authenticated"):
+        clear_auth_state()
         st.stop()
 
     router = build_router()
 
     render_navigation_sidebar(session, client)
+
+    # botão de logout defensivo caso sua sidebar ainda não tenha um
+    with st.sidebar:
+        if st.button("Sair", use_container_width=True):
+            clear_auth_state()
+            st.session_state["route"] = "consulta"
+            st.rerun()
 
     ctx = AppContext(
         supabase=client,
