@@ -17,7 +17,7 @@ from core.session_manager import SessionManager
 from page import admin_panel, cadastro, consulta, diagnostico, edit, motor_detail
 from services.database import bootstrap_database, build_local_runtime_client
 
-params= st.query_params
+params = st.query_params
 
 if "token" in params and "user" not in 
 st.session_state:
