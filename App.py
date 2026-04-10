@@ -160,9 +160,9 @@ def connect_runtime_client(mode: str):
     cache_key = _resolve_browser_cache_key()
 
     if target_mode == "DEV":
-        runtime = init_connection("DEV", cache_key)
+        runtime = init_connection("DEV")
     else:
-        runtime = init_connection("PROD", cache_key)
+        runtime = init_connection("PROD")
         validate_database_schema(runtime)
 
     st.session_state["_runtime_client"] = runtime
