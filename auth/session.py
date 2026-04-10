@@ -2,10 +2,11 @@ import streamlit as st
 
 
 class SessionManager:
+
     def __init__(self):
         pass
 
-    def bootstrap(self) -> None:
+    def bootstrap(self):
         st.session_state.setdefault("is_authenticated", False)
         st.session_state.setdefault("route", "consulta")
         st.session_state.setdefault("auth_force_logged_out", False)
@@ -15,15 +16,16 @@ class SessionManager:
     def is_authenticated(self) -> bool:
         return bool(st.session_state.get("is_authenticated", False))
 
-    def login(self) -> None:
+    def login(self):
         st.session_state["is_authenticated"] = True
         st.session_state["auth_force_logged_out"] = False
 
-    def logout(self) -> None:
+    def logout(self):
+
         st.session_state["is_authenticated"] = False
         st.session_state["auth_force_logged_out"] = True
 
-        keys_to_clear = [
+        keys = [
             "auth_user_id",
             "auth_user_email",
             "auth_user_profile",
@@ -38,7 +40,7 @@ class SessionManager:
             "_post_login_route_applied",
         ]
 
-        for key in keys_to_clear:
+        for key in keys:
             st.session_state.pop(key, None)
 
         st.session_state["route"] = "consulta"
@@ -56,5 +58,5 @@ class SessionManager:
     def get_route(self):
         return st.session_state.get("route", "consulta")
 
-    def set_route(self, route) -> None:
+    def set_route(self, route):
         st.session_state["route"] = route
