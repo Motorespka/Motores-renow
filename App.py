@@ -69,11 +69,10 @@ def _to_plain_mapping(value) -> dict:
 
 
 # =========================================================
-# ⭐ CORREÇÃO REAL DA SESSÃO (NÃO QUEBRA NADA)
+# CORREÇÃO REAL DA SESSÃO
 # =========================================================
 
 def _resolve_browser_cache_key() -> str:
-
     cached = st.session_state.get("_browser_cache_key")
     if isinstance(cached, str) and cached.strip():
         return cached
@@ -105,15 +104,11 @@ def _resolve_browser_cache_key() -> str:
     )
 
     if serialized and serialized != "{}":
-        key = hashlib.sha256(
-            serialized.encode("utf-8")
-        ).hexdigest()[:24]
+        key = hashlib.sha256(serialized.encode("utf-8")).hexdigest()[:24]
     else:
         key = uuid.uuid4().hex[:24]
 
-    # ⭐ salva definitivamente
     st.session_state["_browser_cache_key"] = key
-
     return key
 
 
@@ -122,7 +117,6 @@ def _resolve_browser_cache_key() -> str:
 # =========================================================
 
 def init_connection(mode: str):
-
     if mode == "DEV":
         return build_local_runtime_client(mode="DEV")
 
@@ -166,7 +160,6 @@ def resolve_runtime_mode() -> str:
 
 
 def connect_runtime_client(mode: str):
-
     cache_key = _resolve_browser_cache_key()
 
     runtime = init_connection(mode)
@@ -200,7 +193,6 @@ def build_router() -> Router:
 # =========================================================
 
 def main():
-
     session = SessionManager()
 
     try:
@@ -220,35 +212,35 @@ def main():
     st.session_state["_supabase_client"] = client
 
     # LOGIN
-    logged = render_login(session,client);
+    logged = render_login(session, client)
 
     if not logged:
-        if
-    st.session_state.get("auth_user_id")
-            pass
-    else:
+        # Se não está logado, interrompe renderização normal
         st.stop()
 
     sync_authenticated_profile(session, client)
+
+    # Define rota inicial uma única vez após login
     if "route" not in st.session_state:
+        access = get_access_profile(client=client)
+        cadastro_allowed = can_access_cadastro(client=client)
 
-        acess =
-    get_acess_profile(client=client)
-        cadastro_allowed = 
-    can_acess_cadastro(client=client)
-
-    if cadastro_allowed:
-        st.session_state["route"] =
-    "cadastro"
-    else:
-        st.session_state["route"] = 
-    "consulta"
-
-    st.rerun()
+        if access.get("authenticated"):
+            if cadastro_allowed:
+                st.session_state["route"] = "cadastro"
+            else:
+                st.session_state["route"] = "consulta"
+            st.rerun()
+        else:
+            st.stop()
 
     access = get_access_profile(client=client)
     paid_allowed = can_access_paid_features(client=client)
     cadastro_allowed = can_access_cadastro(client=client)
+
+    st.session_state["_access_profile"] = access
+    st.session_state["_paid_allowed"] = paid_allowed
+    st.session_state["_cadastro_allowed"] = cadastro_allowed
 
     if not access.get("authenticated"):
         st.stop()
