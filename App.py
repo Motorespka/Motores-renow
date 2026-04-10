@@ -425,6 +425,7 @@ def main():
 
     if not restored:
         logged = render_login(session, client)
+    sync_authenticated_profile(session, client)
 
         if not logged:
             st.stop()
