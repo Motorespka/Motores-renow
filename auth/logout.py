@@ -1,16 +1,17 @@
-﻿import streamlit as st
+import streamlit as st
 
 
-def check_login(session=None):
-    """
-    Compatibilidade legada: validacao agora usa a sessao principal (Supabase Auth).
-    Este modulo nao decide mais rota nem permissao.
-    """
-    if session is not None and bool(getattr(session, "is_authenticated", False)):
-        return True
+def perform_logout(session, client=None):
+    try:
+        if client is not None:
+            try:
+                client.auth.sign_out()
+            except Exception:
+                pass
 
-    if bool(st.session_state.get("auth_is_authenticated", False)):
-        return True
+        session.logout()
+        st.success("Sessão encerrada com sucesso.")
+        st.rerun()
 
-    st.info("Faça login pela tela principal.")
-    st.stop()
+    except Exception as exc:
+        st.error(f"Erro ao sair: {exc}")
