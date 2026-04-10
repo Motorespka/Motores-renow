@@ -100,11 +100,14 @@ def _json_loads_safe(raw: str) -> dict:
 # COOKIE AUTH
 # =========================================================
 
-@st.cache_resource(show_spinner=False)
 def _get_cookie_manager():
     if stx is None:
         return None
-    return stx.CookieManager()
+
+    if "_cookie_manager" not in st.session_state:
+        st.session_state["_cookie_manager"] = stx.CookieManager()
+
+    return st.session_state["_cookie_manager"]
 
 
 def _cookie_available() -> bool:
@@ -153,10 +156,6 @@ def _clear_auth_cookie():
 
 
 def persist_auth_state(client) -> None:
-    """
-    Salva no cookie apenas dados suficientes para restaurar estado visual.
-    A validação real continua vindo do usuário/perfil autenticado.
-    """
     try:
         payload = {
             "auth_user_id": st.session_state.get("auth_user_id", ""),
@@ -185,12 +184,7 @@ def clear_auth_state():
 
 
 def try_restore_auth_session(session, client) -> bool:
-    """
-    Restaura o estado de autenticação após F5 a partir do cookie
-    e revalida com sync_authenticated_profile / access_profile.
-    """
     try:
-        # Se já existe em memória, considera restaurado
         if st.session_state.get("auth_user_id"):
             st.session_state["authenticated"] = True
             return True
@@ -206,13 +200,11 @@ def try_restore_auth_session(session, client) -> bool:
         if not auth_user_id or not authenticated:
             return False
 
-        # Reidrata sessão mínima
         st.session_state["auth_user_id"] = auth_user_id
         if auth_email:
             st.session_state["auth_email"] = auth_email
         st.session_state["authenticated"] = True
 
-        # Revalida perfil
         try:
             sync_authenticated_profile(session, client)
         except Exception:
@@ -386,7 +378,6 @@ def finalize_authenticated_state(session, client):
     st.session_state["_paid_allowed"] = paid_allowed
     st.session_state["_cadastro_allowed"] = cadastro_allowed
 
-    # tenta aproveitar email já conhecido
     if not st.session_state.get("auth_email"):
         try:
             email = access.get("email")
@@ -430,21 +421,17 @@ def main():
 
     st.session_state["_supabase_client"] = client
 
-    # 1) tenta restaurar sessão antes de mostrar login
     restored = try_restore_auth_session(session, client)
 
-    # 2) se não restaurou, mostra login
     if not restored:
         logged = render_login(session, client)
 
         if not logged:
             st.stop()
 
-        # login bem sucedido
         finalize_authenticated_state(session, client)
         st.rerun()
 
-    # 3) sessão restaurada -> revalida e segue
     finalize_authenticated_state(session, client)
 
     access = st.session_state.get("_access_profile") or get_access_profile(client=client)
@@ -456,7 +443,6 @@ def main():
 
     render_navigation_sidebar(session, client)
 
-    # botão de logout defensivo caso sua sidebar ainda não tenha um
     with st.sidebar:
         if st.button("Sair", use_container_width=True):
             clear_auth_state()
