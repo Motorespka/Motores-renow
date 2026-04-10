@@ -74,13 +74,12 @@ def _resolve_browser_cache_key() -> str:
     else:
         key = uuid.uuid4().hex[:24]
 
-    st.session_state["_browser_cache_key"] = key
+    
     return key
 
 
-@st.cache_resource
-def init_connection(mode: str, cache_key: str):
-    _ = cache_key  # separa cache por navegador/sessao
+def init_connection(mode: str, ):
+   
     if mode == "DEV":
         return build_local_runtime_client(mode="DEV")
 
