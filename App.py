@@ -16,7 +16,7 @@ try:
     from supabase import create_client
 except Exception:
     create_client = None
-
+from auth.session import SessionManager
 from auth.login import render_login, sync_authenticated_profile
 from core.access_control import (
     can_access_cadastro,
