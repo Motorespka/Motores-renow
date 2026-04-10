@@ -220,7 +220,13 @@ def main():
     st.session_state["_supabase_client"] = client
 
     # LOGIN
-    if not render_login(session, client):
+    logged = render_login(session,client);
+
+    if not logged:
+        if
+    st.session_state.get("auth_user_id")
+            pass
+    else:
         st.stop()
 
     sync_authenticated_profile(session, client)
