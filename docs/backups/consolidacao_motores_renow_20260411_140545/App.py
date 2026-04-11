@@ -14,11 +14,9 @@ except Exception:
 
 from auth.login import render_login, sync_authenticated_profile
 from core.access_control import can_access_cadastro, can_access_paid_features, get_access_profile
-from core.development_mode import ensure_dev_mode_access, is_dev_mode, render_dev_banner_if_needed
-from core.feature_flags import get_feature_flags
 from core.navigation import AppContext, Route, Router, render_navigation_sidebar
 from core.session_manager import SessionManager
-from page import admin_panel, atualizacoes, cadastro, consulta, diagnostico, edit, hub_comercial, motor_detail
+from page import admin_panel, atualizacoes, cadastro, consulta, diagnostico, edit, motor_detail
 from services.database import bootstrap_database, build_local_runtime_client
 
 st.set_page_config(page_title="Moto-Renow", page_icon=":gear:", layout="wide")
@@ -178,7 +176,6 @@ def build_router() -> Router:
     router.register(Route.EDIT, edit.show)
     router.register(Route.DIAGNOSTICO, diagnostico.show)
     router.register(Route.ADMIN, admin_panel.show)
-    router.register(Route.HUB_COMERCIAL, hub_comercial.show)
     return router
 
 
@@ -373,10 +370,6 @@ def main() -> None:
 
     sync_authenticated_profile(session, client)
     access = get_access_profile(client=client)
-    flags = get_feature_flags()
-    if not flags.enable_dev_env and is_dev_mode():
-        st.session_state["dev_mode"] = False
-    ensure_dev_mode_access(bool(access.get("is_admin")))
     paid_allowed = can_access_paid_features(client=client)
     cadastro_allowed = can_access_cadastro(client=client)
     current_route_before = _read_route_state(session)
@@ -414,8 +407,6 @@ def main() -> None:
     if access.get("authenticated") and (not paid_allowed) and route in ("diagnostico", "detalhe"):
         _set_route_state(session, "consulta")
         st.rerun()
-
-    render_dev_banner_if_needed(flags)
 
     router = build_router()
     render_navigation_sidebar(session, client)

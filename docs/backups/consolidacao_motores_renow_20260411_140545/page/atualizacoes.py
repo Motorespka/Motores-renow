@@ -7,23 +7,6 @@ import streamlit as st
 
 CHANGELOG: List[Dict[str, object]] = [
     {
-        "versao": "V21.0",
-        "data": "2026-04-11",
-        "titulo": "Modulo isolado de development + hub comercial + laudo pro",
-        "adicoes": [
-            "Feature flags centralizadas para development, laudo pro, WhatsApp e modulo comercial.",
-            "Controle de MODO DEVELOPMENT no admin com banner forte de ambiente de teste.",
-            "Nova rota Hub Comercial com Classificados, Empresas, Fornecedores, Vagas e Termos.",
-            "Moderacao minima no admin para pausar/remover itens e bloquear usuario/empresa por modulo.",
-            "Laudo tecnico profissional aditivo no Diagnostico, com formatacao premium.",
-            "WhatsApp do laudo com numero temporario (sem persistencia em banco).",
-        ],
-        "correcoes": [
-            "Estrutura nova isolada do fluxo principal, sem alterar cadastro/consulta existentes.",
-            "Persistencia do novo modulo preparada com fallback local para evitar impacto em producao.",
-        ],
-    },
-    {
         "versao": "V20.9",
         "data": "2026-04-11",
         "titulo": "Patch surpresa: parser tecnico fase 1",

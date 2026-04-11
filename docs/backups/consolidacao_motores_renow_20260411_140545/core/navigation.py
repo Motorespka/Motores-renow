@@ -14,8 +14,6 @@ from core.access_control import (
     is_admin_user,
     resolve_access_tier,
 )
-from core.development_mode import is_dev_mode
-from core.feature_flags import get_feature_flags
 from core.user_identity import resolve_current_user_identity
 
 class Route(str, Enum):
@@ -26,7 +24,6 @@ class Route(str, Enum):
     EDIT = "edit"
     DIAGNOSTICO = "diagnostico"
     ADMIN = "admin"
-    HUB_COMERCIAL = "hub_comercial"
 
 
 @dataclass
@@ -106,10 +103,6 @@ def render_navigation_sidebar(session, supabase_client=None) -> None:
         tier = resolve_access_tier(client=supabase_client)
         plan_label = str(access.get("plan") or "free").strip().lower() or "free"
         st.caption(f"Plano: {plan_label} | Acesso: {describe_access_tier(tier)}")
-        flags = get_feature_flags()
-        dev_mode = is_dev_mode()
-        if dev_mode:
-            st.caption("Development: ON")
         if tier == "teaser":
             st.caption("Modo teaser ativo: solicite ao admin para liberar plano pago.")
         intents = []
@@ -119,8 +112,6 @@ def render_navigation_sidebar(session, supabase_client=None) -> None:
         intents.append(("Atualizacoes", Route.ATUALIZACOES))
         if paid_allowed:
             intents.append(("Diagnostico", Route.DIAGNOSTICO))
-        if flags.any_marketplace_enabled() or dev_mode:
-            intents.append(("Hub Comercial", Route.HUB_COMERCIAL))
         if admin_user:
             intents.append(("Admin", Route.ADMIN))
         for item in intents:

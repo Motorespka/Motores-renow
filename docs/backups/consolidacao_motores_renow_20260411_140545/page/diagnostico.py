@@ -7,12 +7,7 @@ from typing import Any, Dict, List
 
 import streamlit as st
 
-from components.laudo_pro import render_laudo_tecnico
 from core.access_control import is_admin_user, require_paid_access
-from core.development_mode import is_dev_mode
-from core.feature_flags import get_feature_flags
-from core.user_identity import resolve_current_user_identity
-from services.laudo_pro import build_laudo_tecnico, build_wa_link, format_whatsapp_full, format_whatsapp_summary
 from services.oficina_parser import (
     build_normalized_from_motor_row,
     normalize_extracted_data,
@@ -79,81 +74,6 @@ def _save_snapshot_copy(snapshot: Dict[str, Any]) -> None:
         copies = []
     copies.append(snapshot)
     st.session_state[key] = copies[-60:]
-
-
-def _build_laudo_raw_payload(
-    *,
-    normalized: Dict[str, Any],
-    dados_placa: Dict[str, Any],
-    avisos: List[str],
-    alertas_validacao: List[str],
-    resultado_pos: Dict[str, Any],
-) -> Dict[str, Any]:
-    motor = normalized.get("motor") if isinstance(normalized.get("motor"), dict) else {}
-    mecanica = normalized.get("mecanica") if isinstance(normalized.get("mecanica"), dict) else {}
-    principal = normalized.get("bobinagem_principal") if isinstance(normalized.get("bobinagem_principal"), dict) else {}
-
-    resumo = "Diagnostico preliminar sem alertas criticos."
-    if avisos or alertas_validacao:
-        resumo = " / ".join((avisos + alertas_validacao)[:4])
-
-    acoes: List[str] = []
-    for aviso in avisos:
-        txt = _to_text(aviso)
-        if txt:
-            acoes.append(f"Revisar: {txt}")
-    if not acoes:
-        acoes.append("Validar em bancada antes de liberar para operacao final.")
-
-    return {
-        "fabricante": dados_placa.get("marca") or motor.get("marca"),
-        "modelo": dados_placa.get("modelo") or motor.get("modelo"),
-        "potencia": dados_placa.get("potencia") or motor.get("potencia"),
-        "rpm": dados_placa.get("rpm") or motor.get("rpm"),
-        "tensao": dados_placa.get("tensao") or motor.get("tensao"),
-        "corrente": dados_placa.get("corrente") or motor.get("corrente"),
-        "polos": dados_placa.get("polos") or motor.get("polos"),
-        "frequencia": dados_placa.get("frequencia") or motor.get("frequencia"),
-        "fase": dados_placa.get("fases") or motor.get("fases"),
-        "carcaca": mecanica.get("carcaca"),
-        "status_geral": _to_text(resultado_pos.get("status")) or "Diagnostico preliminar",
-        "nivel_confianca": "Conferencia recomendada",
-        "resumo_executivo": resumo,
-        "pontos_atencao": (avisos + alertas_validacao)[:8],
-        "analise_bobinagem": _to_text(principal.get("observacoes") or principal.get("ligacao")),
-        "analise_tensao_corrente": (
-            f"Tensao: {_to_text(dados_placa.get('tensao') or motor.get('tensao'))} | "
-            f"Corrente: {_to_text(dados_placa.get('corrente') or motor.get('corrente'))}"
-        ),
-        "analise_compatibilidade": "Compatibilidade depende de conferencia final em bancada.",
-        "analise_incoerencias": ", ".join(alertas_validacao[:4]) if alertas_validacao else "Sem incoerencias adicionais.",
-        "acoes_recomendadas": acoes[:5],
-    }
-
-
-def _render_laudo_whatsapp_panel(laudo) -> None:
-    flags = get_feature_flags()
-    dev_mode = is_dev_mode()
-    if not (flags.enable_whatsapp_send or dev_mode):
-        return
-
-    st.markdown("### Envio via WhatsApp (sem armazenamento de numero)")
-    st.info("O numero informado para envio via WhatsApp nao sera armazenado na plataforma.")
-
-    with st.form("diagnostico_wa_tmp_form", clear_on_submit=True):
-        numero_tmp = st.text_input("Digite o numero de WhatsApp", value="", key="diagnostico_wa_tmp_numero")
-        formato = st.radio("Formato da mensagem", ["Resumo", "Completo"], horizontal=True, key="diagnostico_wa_tmp_format")
-        gerar = st.form_submit_button("Gerar link de envio", use_container_width=True)
-        if gerar:
-            if not numero_tmp.strip():
-                st.warning("Informe um numero para gerar o link.")
-            else:
-                msg = format_whatsapp_summary(laudo) if formato == "Resumo" else format_whatsapp_full(laudo)
-                wa_link = build_wa_link(numero_tmp, msg)
-                st.link_button("Abrir WhatsApp", wa_link, use_container_width=True)
-                st.code(msg, language="text")
-                st.caption("Numero de contato nao e salvo em banco, cache persistente ou analytics do sistema.")
-        st.session_state.pop("diagnostico_wa_tmp_numero", None)
 
 
 def _apply_diagnostico_to_motor(ctx, motor_id: Any, normalized: Dict[str, Any], snapshot: Dict[str, Any]) -> None:
@@ -325,23 +245,6 @@ def _render_real_diagnosis(ctx) -> None:
             use_container_width=True,
             key=f"diag_download_{selected_id}",
         )
-
-    flags = get_feature_flags()
-    dev_mode = is_dev_mode()
-    if flags.enable_laudo_pro or dev_mode:
-        st.divider()
-        st.markdown("## Laudo tecnico profissional")
-        identidade = resolve_current_user_identity()
-        raw_payload = _build_laudo_raw_payload(
-            normalized=normalized,
-            dados_placa=dados_placa,
-            avisos=avisos,
-            alertas_validacao=alertas_validacao,
-            resultado_pos=resultado_pos if isinstance(resultado_pos, dict) else {},
-        )
-        laudo = build_laudo_tecnico(raw_payload, empresa_nome=identidade.get("display_name"))
-        render_laudo_tecnico(laudo)
-        _render_laudo_whatsapp_panel(laudo)
 
 
 def render(ctx):
