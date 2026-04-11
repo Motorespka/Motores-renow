@@ -8,6 +8,7 @@ Adaptado para a nova estrutura:
 
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, List
 
 import streamlit as st
@@ -36,6 +37,46 @@ if LocalRuntimeClient is not None:
     HASH_FUNCS[LocalRuntimeClient] = lambda _c: "local-runtime-client"
 
 
+def _read_secret_or_env(*names: str) -> str:
+    for name in names:
+        try:
+            value = st.secrets.get(name)
+            if value:
+                return str(value).strip()
+        except Exception:
+            pass
+        value = os.environ.get(name)
+        if value:
+            return str(value).strip()
+    return ""
+
+
+def _resolve_fetch_limit() -> int:
+    raw = _read_secret_or_env("MOTORES_FETCH_LIMIT", "SUPABASE_MOTORES_FETCH_LIMIT")
+    try:
+        value = int(str(raw or "").strip())
+    except Exception:
+        value = 3000
+    return max(200, min(value, 20000))
+
+
+def _resolve_source_candidates() -> List[str]:
+    default = ["motores", "vw_consulta_motores", "vw_motores_para_site"]
+    preferred = _read_secret_or_env("MOTORES_SOURCE_TABLE", "SUPABASE_MOTORES_SOURCE_TABLE").lower()
+    if preferred in default:
+        return [preferred] + [name for name in default if name != preferred]
+    return default
+
+
+def _sorted_rows(rows: List[MotorRow]) -> List[MotorRow]:
+    if not rows:
+        return rows
+    for key in ("updated_at", "created_at", "UpdatedAt", "CreatedAt"):
+        if any(key in row for row in rows):
+            return sorted(rows, key=lambda row: str(row.get(key) or ""), reverse=True)
+    return rows
+
+
 @st.cache_data(
     ttl=45,
     show_spinner=False,
@@ -43,34 +84,16 @@ if LocalRuntimeClient is not None:
 )
 def fetch_motores_cached(supabase: Client) -> List[MotorRow]:
     """
-    Busca os registros da view vw_consulta_motores.
-
-    Estratégia:
-    1) tenta ordenar por created_at desc
-    2) fallback para updated_at desc
-    3) fallback sem ordenação
+    Busca os registros de motores com fallback entre fontes conhecidas.
+    Estratégia otimizada para reduzir roundtrips por rerun.
     """
-    candidates = [
-        ("vw_consulta_motores", "created_at"),
-        ("vw_consulta_motores", "updated_at"),
-        ("vw_consulta_motores", None),
-        ("vw_motores_para_site", "CreatedAt"),
-        ("vw_motores_para_site", "UpdatedAt"),
-        ("vw_motores_para_site", None),
-        ("motores", "created_at"),
-        ("motores", "updated_at"),
-        ("motores", None),
-    ]
-
-    for table_name, order_col in candidates:
+    fetch_limit = _resolve_fetch_limit()
+    for table_name in _resolve_source_candidates():
         try:
-            query = supabase.table(table_name).select("*")
-            if order_col:
-                query = query.order(order_col, desc=True)
-            res = query.execute()
+            res = supabase.table(table_name).select("*").limit(fetch_limit).execute()
             data = res.data or []
             if data:
-                return data
+                return _sorted_rows(data)
         except APIError:
             continue
         except Exception:

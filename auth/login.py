@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import json
 import os
+import time
 
 import streamlit as st
 
@@ -15,6 +16,8 @@ except Exception:
 
 PERSISTED_AUTH_QP_KEY = "mrw_auth"
 PERSISTED_AUTH_TTL_HOURS = 8
+PROFILE_CACHE_TTL_SECONDS = 45
+PROFILE_SYNC_TTL_SECONDS = 20
 
 
 def _is_local_runtime(client) -> bool:
@@ -241,12 +244,90 @@ def _default_username(email: str, user_id: str) -> str:
     return f"{base}_{suffix}" if suffix else base
 
 
+def _profile_cache_key(user_id: str, email: str) -> str:
+    raw = f"{_to_text(user_id)}|{_normalized_email(email)}"
+    digest = hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
+    return f"_perfil_cache_{digest}"
+
+
+def _read_cached_profile(user_id: str, email: str):
+    key = _profile_cache_key(user_id, email)
+    cached = st.session_state.get(key)
+    if not isinstance(cached, dict):
+        return None
+    ts = float(cached.get("ts") or 0.0)
+    if (time.time() - ts) > PROFILE_CACHE_TTL_SECONDS:
+        return None
+    perfil = cached.get("perfil")
+    if isinstance(perfil, dict):
+        return dict(perfil)
+    return None
+
+
+def _write_cached_profile(user_id: str, email: str, perfil: dict | None) -> None:
+    if not user_id and not email:
+        return
+    key = _profile_cache_key(user_id, email)
+    st.session_state[key] = {
+        "ts": float(time.time()),
+        "perfil": dict(perfil or {}),
+    }
+
+
+def _ensure_usuario_app_profile(client, user, email: str, perfil: dict | None) -> None:
+    if _is_local_runtime(client):
+        return
+
+    user_id = _to_text(getattr(user, "id", ""))
+    email_norm = _normalized_email(email or getattr(user, "email", ""))
+    if not user_id or not email_norm:
+        return
+
+    existing = perfil if isinstance(perfil, dict) else {}
+    existing_id = _to_text(existing.get("id"))
+    existing_email = _normalized_email(existing.get("email"))
+    if existing_id == user_id and existing_email == email_norm:
+        return
+
+    metadata = getattr(user, "user_metadata", None) or {}
+    if not isinstance(metadata, dict):
+        metadata = {}
+
+    username = _to_text(existing.get("username")) or _to_text(metadata.get("username")) or _default_username(email_norm, user_id)
+    nome = _to_text(existing.get("nome")) or _to_text(metadata.get("nome"))
+    role = _to_text(existing.get("role")).lower() or "user"
+    plan = _to_text(existing.get("plan")).lower() or "free"
+    ativo = existing.get("ativo")
+    if ativo is None:
+        ativo = True
+
+    payload = {
+        "id": user_id,
+        "email": email_norm,
+        "username": username,
+        "nome": nome or None,
+        "role": role,
+        "plan": plan,
+        "ativo": bool(ativo),
+    }
+
+    try:
+        client.table("usuarios_app").upsert(payload, on_conflict="id").execute()
+    except Exception:
+        return
+
+    merged = dict(existing)
+    merged.update(payload)
+    _write_cached_profile(user_id, email_norm, merged)
+
+
 def _set_authenticated_state(session, user, email: str, perfil: dict | None) -> None:
     st.session_state["auth_user_id"] = getattr(user, "id", "")
     st.session_state["auth_user_email"] = _normalized_email(email)
     st.session_state["auth_user_profile"] = perfil or {}
     st.session_state["auth_force_logged_out"] = False
     st.session_state["_post_login_route_applied"] = False
+    st.session_state["_auth_profile_sync_ts"] = 0.0
     st.session_state.pop("route", None)
     st.session_state.pop("logado", None)
     st.session_state.pop("expira_em", None)
@@ -283,6 +364,10 @@ def _build_profile(perfil, user, fallback_email: str):
 
 
 def _carregar_perfil_usuario(client, user_id: str, email: str, user_metadata: dict | None = None):
+    cached = _read_cached_profile(user_id, email)
+    if isinstance(cached, dict) and cached:
+        return cached
+
     perfil = None
     email_norm = _normalized_email(email)
     supabase_url = ""
@@ -392,7 +477,10 @@ def _carregar_perfil_usuario(client, user_id: str, email: str, user_metadata: di
     if perfil:
         perfil["_source"] = debug.get("source", "none")
 
-    return perfil or None
+    final_profile = perfil or None
+    if isinstance(final_profile, dict):
+        _write_cached_profile(user_id, email_norm, final_profile)
+    return final_profile
 
 
 def try_restore_auth_session(session, client) -> bool:
@@ -411,6 +499,7 @@ def try_restore_auth_session(session, client) -> bool:
     email = _normalized_email(getattr(user, "email", None) or st.session_state.get("auth_user_email") or "")
     perfil = _carregar_perfil_usuario(client, user.id, email, getattr(user, "user_metadata", None))
     perfil = _build_profile(perfil, user, email)
+    _ensure_usuario_app_profile(client, user, email, perfil)
     _set_authenticated_state(session, user, email, perfil)
     _persist_supabase_refresh_token(client)
     return True
@@ -420,6 +509,11 @@ def sync_authenticated_profile(session, client) -> None:
     if not session.is_authenticated or _is_local_runtime(client):
         return
 
+    now = float(time.time())
+    last_sync = float(st.session_state.get("_auth_profile_sync_ts") or 0.0)
+    if (now - last_sync) < PROFILE_SYNC_TTL_SECONDS:
+        return
+
     user = _get_authenticated_user(client)
     if not user:
         return
@@ -427,13 +521,25 @@ def sync_authenticated_profile(session, client) -> None:
     email = _normalized_email(getattr(user, "email", None) or st.session_state.get("auth_user_email") or "")
     perfil = _carregar_perfil_usuario(client, user.id, email, getattr(user, "user_metadata", None))
     perfil = _build_profile(perfil, user, email)
+    _ensure_usuario_app_profile(client, user, email, perfil)
+
+    prev_profile = st.session_state.get("auth_user_profile")
+    prev_email = _normalized_email(st.session_state.get("auth_user_email") or "")
+    prev_user_id = _to_text(st.session_state.get("auth_user_id"))
+    new_user_id = _to_text(getattr(user, "id", prev_user_id))
+
+    profile_changed = (prev_profile != perfil) or (prev_email != email) or (prev_user_id != new_user_id)
+
     st.session_state["auth_user_profile"] = perfil
     st.session_state["auth_user_email"] = email
-    st.session_state["auth_user_id"] = getattr(user, "id", st.session_state.get("auth_user_id"))
-    st.session_state.pop("_access_cache_key", None)
-    st.session_state.pop("_access_cache_value", None)
-    st.session_state.pop("_admin_cache_key", None)
-    st.session_state.pop("_admin_cache_value", None)
+    st.session_state["auth_user_id"] = new_user_id
+    if profile_changed:
+        st.session_state.pop("_access_cache_key", None)
+        st.session_state.pop("_access_cache_value", None)
+        st.session_state.pop("_admin_cache_key", None)
+        st.session_state.pop("_admin_cache_value", None)
+
+    st.session_state["_auth_profile_sync_ts"] = now
     _persist_supabase_refresh_token(client)
 
 
@@ -451,6 +557,7 @@ def logout_and_clear(session, client=None) -> None:
         "auth_user_email",
         "auth_user_profile",
         "route",
+        "_auth_profile_sync_ts",
         "_access_cache_key",
         "_access_cache_value",
         "_admin_cache_key",
@@ -496,6 +603,7 @@ def _render_local_login(session) -> bool:
         st.session_state.pop("_access_cache_value", None)
         st.session_state.pop("_admin_cache_key", None)
         st.session_state.pop("_admin_cache_value", None)
+        st.session_state["_auth_profile_sync_ts"] = 0.0
         session.login()
         st.session_state["auth_force_logged_out"] = False
         st.session_state["_post_login_route_applied"] = False
@@ -547,6 +655,7 @@ def render_login(session, client) -> bool:
 
                     perfil = _carregar_perfil_usuario(client, user.id, email_norm, getattr(user, "user_metadata", None))
                     perfil = _build_profile(perfil, user, email_norm)
+                    _ensure_usuario_app_profile(client, user, email_norm, perfil)
                     _set_authenticated_state(session, user, email_norm, perfil)
                     _persist_auth_response(auth_response)
                     _persist_supabase_refresh_token(client)
@@ -595,6 +704,21 @@ def render_login(session, client) -> bool:
                     if not user:
                         st.warning("Conta criada no Auth. Verifique seu e-mail para confirmar o acesso.")
                     else:
+                        try:
+                            _ensure_usuario_app_profile(
+                                client,
+                                user,
+                                email_reg_norm,
+                                {
+                                    "username": username_norm,
+                                    "nome": nome_norm,
+                                    "role": "user",
+                                    "plan": "free",
+                                    "ativo": True,
+                                },
+                            )
+                        except Exception:
+                            pass
                         st.success("Conta criada no Auth com sucesso!")
                 except APIError as api_exc:
                     st.error(f"Erro ao cadastrar no Supabase Auth: {api_exc}")
