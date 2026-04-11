@@ -1,0 +1,30 @@
+[
+  {
+    "data": "2026-04-08 21:53:34.619336",
+    "marca": "WEG",
+    "rpm": "1750",
+    "tensao": "220",
+    "corrente": "12.3",
+    "espiras": [
+      "45",
+      "46",
+      "45"
+    ],
+    "fio": "8x17",
+    "resultado": "EM_ANALISE"
+  },
+  {
+    "data": "2026-04-08 21:53:34.631380",
+    "marca": "WEG",
+    "rpm": "1750",
+    "tensao": "220",
+    "corrente": "12.3",
+    "espiras": [
+      "45",
+      "46",
+      "45"
+    ],
+    "fio": "8x17",
+    "resultado": "EM_ANALISE"
+  }
+]
