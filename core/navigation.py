@@ -118,6 +118,7 @@ def render_navigation_sidebar(session, supabase_client=None) -> None:
             label, route = item
             if st.button(label, use_container_width=True, key=f"nav_{route.value}"):
                 session.set_route(route)
+                st.rerun()
 
         st.divider()
         st.caption(f"Rota atual: {session.get_route().value}")

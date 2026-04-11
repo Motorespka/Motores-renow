@@ -7,6 +7,18 @@ import streamlit as st
 
 CHANGELOG: List[Dict[str, object]] = [
     {
+        "versao": "V20.5",
+        "data": "2026-04-11",
+        "titulo": "Scroll reset reforcado na navegacao",
+        "adicoes": [
+            "Navegacao lateral agora faz rerun imediato apos trocar rota.",
+            "Reset de scroll executa no fim da renderizacao e atinge containers do Streamlit.",
+        ],
+        "correcoes": [
+            "Corrigido caso de abrir nova tela mantendo posicao de scroll anterior.",
+        ],
+    },
+    {
         "versao": "V20.4",
         "data": "2026-04-11",
         "titulo": "Fallback RLS no cadastro",

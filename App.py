@@ -307,28 +307,42 @@ def _render_scroll_reset_if_needed() -> None:
         return
 
     st.session_state["_scroll_reset_rendered"] = token
-    components.html(
-        """
+    html_payload = """
         <script>
         (function () {
-            const root = window.parent || window;
-            try {
-                root.scrollTo({ top: 0, behavior: "auto" });
-            } catch (e) {}
-            try {
-                const doc = root.document;
-                if (doc && doc.documentElement) {
-                    doc.documentElement.scrollTop = 0;
-                }
-                if (doc && doc.body) {
-                    doc.body.scrollTop = 0;
-                }
-            } catch (e) {}
+            const jumpTop = function () {
+                try {
+                    const root = window.parent || window;
+                    const doc = root.document;
+                    const candidates = [
+                        doc.querySelector('[data-testid="stAppViewContainer"]'),
+                        doc.querySelector("section.main"),
+                        doc.scrollingElement,
+                        doc.documentElement,
+                        doc.body,
+                    ].filter(Boolean);
+
+                    for (const el of candidates) {
+                        try { if (typeof el.scrollTo === "function") el.scrollTo(0, 0); } catch (e) {}
+                        try { el.scrollTop = 0; } catch (e) {}
+                    }
+
+                    try { if (typeof root.scrollTo === "function") root.scrollTo(0, 0); } catch (e) {}
+                } catch (e) {}
+            };
+
+            jumpTop();
+            setTimeout(jumpTop, 30);
+            setTimeout(jumpTop, 120);
         })();
         </script>
-        """,
+    """ + f"\n<div style=\"display:none\">{token}</div>\n"
+
+    components.html(
+        html_payload,
         height=0,
         width=0,
+        key=f"scroll_reset_{token}",
     )
 
 
@@ -401,10 +415,10 @@ def main() -> None:
 
     router = build_router()
     render_navigation_sidebar(session, client)
-    _render_scroll_reset_if_needed()
 
     ctx = AppContext(supabase=client, session=session, router=router)
     router.dispatch(ctx, session.get_route())
+    _render_scroll_reset_if_needed()
 
 
 if __name__ == "__main__":
