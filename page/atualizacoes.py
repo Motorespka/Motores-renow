@@ -7,6 +7,17 @@ import streamlit as st
 
 CHANGELOG: List[Dict[str, object]] = [
     {
+        "versao": "V20.4",
+        "data": "2026-04-11",
+        "titulo": "Fallback RLS no cadastro",
+        "adicoes": [
+            "Quando o insert em motores falha por RLS, o sistema tenta fallback com service role (se configurada).",
+        ],
+        "correcoes": [
+            "Mensagem de erro de cadastro agora orienta claramente quando falta permissao RLS.",
+        ],
+    },
+    {
         "versao": "V20.3",
         "data": "2026-04-11",
         "titulo": "Navegacao com scroll reset",

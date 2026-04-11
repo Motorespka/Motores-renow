@@ -10,6 +10,10 @@ from typing import Any, Dict, List
 import streamlit as st
 from PIL import Image, ImageOps
 try:
+    from supabase import create_client
+except Exception:
+    create_client = None
+try:
     from postgrest.exceptions import APIError
 except Exception:
     class APIError(Exception):
@@ -35,6 +39,20 @@ class DuplicateMotorError(RuntimeError):
     def __init__(self, message: str, duplicate_id: str = "") -> None:
         super().__init__(message)
         self.duplicate_id = duplicate_id
+
+
+def _read_secret_or_env(*names: str) -> str:
+    for name in names:
+        try:
+            value = st.secrets.get(name)
+            if value:
+                return str(value).strip()
+        except Exception:
+            pass
+        value = os.environ.get(name)
+        if value:
+            return str(value).strip()
+    return ""
 
 
 def _init_state() -> None:
@@ -227,6 +245,41 @@ def _find_duplicate_motor(ctx, normalized: Dict[str, Any]) -> Dict[str, Any] | N
     return None
 
 
+def _is_rls_error(exc: Exception | None) -> bool:
+    text = str(exc or "").lower()
+    return (
+        "row-level security policy" in text
+        or "new row violates row-level security policy" in text
+        or "'code': '42501'" in text
+        or '"code":"42501"' in text
+    )
+
+
+def _build_service_role_client():
+    if create_client is None:
+        return None
+
+    supabase_url = _read_secret_or_env("SUPABASE_URL")
+    service_key = _read_secret_or_env("SUPABASE_SERVICE_ROLE_KEY")
+    if not supabase_url or not service_key:
+        return None
+
+    cache_key = f"{supabase_url}|{service_key[:16]}"
+    cached_key = str(st.session_state.get("_service_role_client_key") or "")
+    cached_client = st.session_state.get("_service_role_client")
+    if cached_client is not None and cached_key == cache_key:
+        return cached_client
+
+    try:
+        client = create_client(supabase_url, service_key)
+    except Exception:
+        return None
+
+    st.session_state["_service_role_client_key"] = cache_key
+    st.session_state["_service_role_client"] = client
+    return client
+
+
 def _extract_missing_column(exc: Exception) -> str:
     text = str(exc or "")
     patterns = [
@@ -241,7 +294,12 @@ def _extract_missing_column(exc: Exception) -> str:
     return ""
 
 
-def _insert_resilient(ctx, payload: Dict[str, Any]) -> tuple[bool, Exception | None, List[str]]:
+def _insert_resilient(
+    ctx,
+    payload: Dict[str, Any],
+    write_client=None,
+) -> tuple[bool, Exception | None, List[str]]:
+    client = write_client or ctx.supabase
     candidate = dict(payload or {})
     removed_columns: List[str] = []
     last_error: Exception | None = None
@@ -250,7 +308,7 @@ def _insert_resilient(ctx, payload: Dict[str, Any]) -> tuple[bool, Exception | N
         if not candidate:
             break
         try:
-            ctx.supabase.table("motores").insert(candidate).execute()
+            client.table("motores").insert(candidate).execute()
             return True, None, removed_columns
         except Exception as exc:
             last_error = exc
@@ -327,6 +385,58 @@ def _save_motor(ctx, normalized: Dict[str, Any], uploads: List[Any]) -> None:
                 )
         else:
             last_error = fallback_error or last_error
+
+    if not saved and _is_rls_error(last_error):
+        service_role_client = _build_service_role_client()
+        if service_role_client is None:
+            raise PermissionError(
+                "Permissao de escrita bloqueada pelo RLS na tabela motores. "
+                "Configure SUPABASE_SERVICE_ROLE_KEY no Streamlit Cloud "
+                "ou ajuste policy INSERT para usuarios autenticados."
+            )
+
+        saved, service_error, removed_cols = _insert_resilient(ctx, legacy_payload, write_client=service_role_client)
+        if saved:
+            st.info("Salvo com credencial administrativa (fallback de RLS).")
+            if removed_cols:
+                st.info(
+                    "Cadastro salvo com ajuste automatico de schema. "
+                    f"Colunas removidas: {', '.join(removed_cols)}."
+                )
+        else:
+            last_error = service_error or last_error
+
+        if not saved:
+            saved, service_error, removed_cols = _insert_resilient(
+                ctx,
+                schema_payload,
+                write_client=service_role_client,
+            )
+            if saved:
+                st.info("Salvo no schema tecnico compativel (fallback de RLS).")
+                if removed_cols:
+                    st.info(
+                        "Cadastro salvo com ajuste automatico de schema. "
+                        f"Colunas removidas: {', '.join(removed_cols)}."
+                    )
+            else:
+                last_error = service_error or last_error
+
+        if not saved:
+            saved, service_error, removed_cols = _insert_resilient(
+                ctx,
+                fallback,
+                write_client=service_role_client,
+            )
+            if saved:
+                st.info("Salvo com colunas basicas (fallback de RLS).")
+                if removed_cols:
+                    st.info(
+                        "Cadastro salvo com ajuste automatico de schema. "
+                        f"Colunas removidas: {', '.join(removed_cols)}."
+                    )
+            else:
+                last_error = service_error or last_error
 
     if not saved:
         raise RuntimeError(f"Nao foi possivel salvar o motor em nenhum schema compativel: {last_error}")
