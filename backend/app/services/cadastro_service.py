@@ -12,6 +12,8 @@ from typing import Any, Dict, List, Tuple
 from app.core.config import Settings
 from app.integrations.supabase_rest import SupabaseRestClient, SupabaseRestError
 from app.services.access_service import AccessContext
+from app.services.technical_history_service import TechnicalHistoryService
+from app.services.technical_parser import parse_technical_bobinagem
 
 ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "heic", "heif", "avif", "jfif"}
 ALLOWED_MIME_PREFIX = "image/"
@@ -91,6 +93,7 @@ class CadastroService:
         ]
         extracted = extract_fn(file_payload)
         normalized = normalize_fn(extracted)
+        normalized = self._apply_technical_layers(normalized)
         warnings: List[str] = []
         image_urls = await self._try_upload_images(access=access, files=files, warnings=warnings)
 
@@ -119,6 +122,7 @@ class CadastroService:
         normalized = normalize_fn(normalized_data or {})
         normalized = enrich_fn(normalized, evento="cadastro")
         normalized = self._with_creator_metadata(normalized, access=access)
+        normalized = self._apply_technical_layers(normalized)
 
         safe_file_names = [self._safe_file_name(name) for name in (file_names or []) if str(name or "").strip()]
         safe_urls = [str(url or "").strip() for url in (image_urls or []) if str(url or "").strip()]
@@ -174,6 +178,50 @@ class CadastroService:
             "inserted_id": row.get("id"),
             "warnings": warnings,
         }
+
+    def _apply_technical_layers(self, normalized: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            out = json.loads(json.dumps(normalized or {}))
+        except Exception:
+            out = dict(normalized or {})
+
+        oficina = out.get("oficina")
+        if not isinstance(oficina, dict):
+            oficina = {}
+
+        try:
+            parser_tecnico = parse_technical_bobinagem(out)
+        except Exception as exc:
+            parser_tecnico = {
+                "espiras_bruto": [],
+                "passo_bruto": [],
+                "espiras_normalizado": [],
+                "passo_normalizado": [],
+                "confianca_dados": "baixa",
+                "ligacao_tipo_eletrico": "",
+                "ligacao_estrutura": "",
+                "ligacao_observacao": "",
+                "candidate_alternatives": [],
+                "parse_note": f"falha no parser tecnico: {self._short_error(str(exc), max_len=120)}",
+                "ambiguous": True,
+                "needs_review": True,
+                "status_revisao": "revisar",
+            }
+
+        office_status = "revisar" if parser_tecnico.get("needs_review") else "ok"
+        oficina["parser_tecnico"] = parser_tecnico
+        oficina["status_revisao"] = office_status
+
+        # Nao ativar sugestao real no V20: manter candidates vazio.
+        candidates: List[Dict[str, Any]] = []
+        history_service = TechnicalHistoryService()
+        oficina["sugestao_historica"] = history_service.build_suggestion(
+            parser_tecnico=parser_tecnico,
+            candidates=candidates,
+        )
+
+        out["oficina"] = oficina
+        return out
 
     async def _insert_with_strategies(
         self,

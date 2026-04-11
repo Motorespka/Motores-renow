@@ -7,6 +7,20 @@ import streamlit as st
 
 CHANGELOG: List[Dict[str, object]] = [
     {
+        "versao": "V20.9",
+        "data": "2026-04-11",
+        "titulo": "Patch surpresa: parser tecnico fase 1",
+        "adicoes": [
+            "Camada parser_tecnico adicionada no backend com normalizacao de passo/espiras e ligacao eletrica.",
+            "Estrutura candidate_alternatives preparada para evolucao futura (Fase 2).",
+            "Camada sugestao_historica adicionada como opcional, sem ativacao de consulta pesada.",
+        ],
+        "correcoes": [
+            "Heuristica de ruido OCR reforcada com marcacao obrigatoria de revisao.",
+            "Status de revisao padronizado em ok/revisar com TODO explicito para evolucao do validator.",
+        ],
+    },
+    {
         "versao": "V20.8",
         "data": "2026-04-11",
         "titulo": "Hotfix de roteamento Consulta/Cadastro",

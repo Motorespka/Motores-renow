@@ -90,6 +90,29 @@ DEFAULT_EXTRACTED: Dict[str, Any] = {
             "sugestao_aprendizado": {},
             "ultima_atualizacao": "",
         },
+        "parser_tecnico": {
+            "espiras_bruto": [],
+            "passo_bruto": [],
+            "espiras_normalizado": [],
+            "passo_normalizado": [],
+            "confianca_dados": "baixa",
+            "ligacao_tipo_eletrico": "",
+            "ligacao_estrutura": "",
+            "ligacao_observacao": "",
+            "candidate_alternatives": [],
+            "parse_note": "",
+            "ambiguous": False,
+            "needs_review": False,
+            "status_revisao": "ok",
+        },
+        "sugestao_historica": {
+            "ativo": False,
+            "motivo": "",
+            "confianca": "n/a",
+            "amostra": 0,
+            "sugestao": {},
+        },
+        "status_revisao": "ok",
         "historico_tecnico": [],
         "fluxo_fechado": [],
     },
@@ -277,6 +300,35 @@ def _confidence_level(conf: Dict[str, Any]) -> str:
     return "baixa"
 
 
+def _normalize_status_revisao(value: Any) -> str:
+    text = _to_text(value).lower()
+    if text == "revisar":
+        return "revisar"
+    # TODO: evoluir status_revisao na Fase 2 (validator)
+    # incluir: incompleto, inconsistente, etc
+    return "ok"
+
+
+def _normalize_parser_tecnico(value: Any) -> Dict[str, Any]:
+    src = value if isinstance(value, dict) else {}
+    out = {
+        "espiras_bruto": _to_list_from_any(src.get("espiras_bruto")),
+        "passo_bruto": _to_list_from_any(src.get("passo_bruto")),
+        "espiras_normalizado": _to_list_from_any(src.get("espiras_normalizado")),
+        "passo_normalizado": _to_list_from_any(src.get("passo_normalizado")),
+        "confianca_dados": _to_text(src.get("confianca_dados")) or "baixa",
+        "ligacao_tipo_eletrico": _to_text(src.get("ligacao_tipo_eletrico")),
+        "ligacao_estrutura": _to_text(src.get("ligacao_estrutura")),
+        "ligacao_observacao": _to_text(src.get("ligacao_observacao")),
+        "candidate_alternatives": _to_list_from_any(src.get("candidate_alternatives")),
+        "parse_note": _to_text(src.get("parse_note")),
+        "ambiguous": bool(src.get("ambiguous")),
+        "needs_review": bool(src.get("needs_review")),
+        "status_revisao": _normalize_status_revisao(src.get("status_revisao")),
+    }
+    return out
+
+
 def _pick_row_value(row: Dict[str, Any], *keys: str) -> Any:
     for key in keys:
         if key in row and row.get(key) not in (None, ""):
@@ -344,6 +396,26 @@ def normalize_extracted_data(payload: Dict[str, Any]) -> Dict[str, Any]:
             elif src_value is not None:
                 merged[key] = src_value
         out["oficina"] = merged
+
+    oficina = out.get("oficina")
+    if isinstance(oficina, dict):
+        oficina["status_revisao"] = _normalize_status_revisao(oficina.get("status_revisao"))
+        oficina["parser_tecnico"] = _normalize_parser_tecnico(oficina.get("parser_tecnico"))
+        sugestao = oficina.get("sugestao_historica")
+        if not isinstance(sugestao, dict):
+            sugestao = {}
+        try:
+            amostra = int(sugestao.get("amostra") or 0)
+        except Exception:
+            amostra = 0
+        oficina["sugestao_historica"] = {
+            "ativo": bool(sugestao.get("ativo")),
+            "motivo": _to_text(sugestao.get("motivo")),
+            "confianca": _to_text(sugestao.get("confianca")) or "n/a",
+            "amostra": amostra,
+            "sugestao": sugestao.get("sugestao") if isinstance(sugestao.get("sugestao"), dict) else {},
+        }
+        out["oficina"] = oficina
 
     return out
 
