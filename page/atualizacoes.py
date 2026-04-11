@@ -7,6 +7,19 @@ import streamlit as st
 
 CHANGELOG: List[Dict[str, object]] = [
     {
+        "versao": "V20.0",
+        "data": "2026-04-11",
+        "titulo": "Cadastro robusto e anti-duplicacao",
+        "adicoes": [
+            "Bloqueio de duplicacao no cadastro antes do insert em motores.",
+            "Historico de atualizacoes mantido na propria interface.",
+        ],
+        "correcoes": [
+            "Cadastro de usuario passa a ter fallback por username no perfil.",
+            "Fluxo de consulta otimizado para reduzir lentidao no site.",
+        ],
+    },
+    {
         "versao": "V10.3",
         "data": "2026-04-10",
         "titulo": "Estabilidade de consulta e desempenho",
@@ -98,4 +111,3 @@ def render(_ctx) -> None:
 
 def show(ctx) -> None:
     return render(ctx)
-

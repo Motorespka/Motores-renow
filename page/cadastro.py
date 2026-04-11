@@ -3,6 +3,7 @@
 import io
 import json
 import os
+import re
 import time
 from typing import Any, Dict, List
 
@@ -28,6 +29,12 @@ from services.oficina_runtime import enriquecer_motor_oficina
 from services.supabase_data import clear_motores_cache
 
 SUPPORTED_TYPES = ["jpg", "jpeg", "png", "heic", "heif", "webp", "jfif", "avif"]
+
+
+class DuplicateMotorError(RuntimeError):
+    def __init__(self, message: str, duplicate_id: str = "") -> None:
+        super().__init__(message)
+        self.duplicate_id = duplicate_id
 
 
 def _init_state() -> None:
@@ -117,9 +124,121 @@ def _upload_images_to_supabase(ctx, uploads: List[Any]) -> List[str]:
     return urls
 
 
+def _norm_text(value: Any) -> str:
+    txt = str(value or "").strip().lower()
+    txt = re.sub(r"\s+", " ", txt)
+    return txt
+
+
+def _norm_digits(value: Any) -> str:
+    txt = str(value or "")
+    return "".join(ch for ch in txt if ch.isdigit())
+
+
+def _norm_slash_list(values: Any) -> str:
+    if isinstance(values, list):
+        raw = [str(v or "").strip() for v in values]
+    else:
+        raw = [str(values or "").strip()]
+    out: List[str] = []
+    for item in raw:
+        if not item:
+            continue
+        for token in re.split(r"[;,/|]+", item):
+            cleaned = token.strip().lower()
+            if cleaned:
+                out.append(cleaned)
+    if not out:
+        return ""
+    return "/".join(out)
+
+
+def _extract_duplicate_values_from_normalized(normalized: Dict[str, Any]) -> Dict[str, str]:
+    motor = normalized.get("motor") if isinstance(normalized.get("motor"), dict) else {}
+    return {
+        "marca": _norm_text(motor.get("marca")),
+        "modelo": _norm_text(motor.get("modelo")),
+        "potencia": _norm_text(motor.get("potencia") or motor.get("cv")),
+        "rpm": _norm_digits(motor.get("rpm")),
+        "tensao": _norm_slash_list(motor.get("tensao")),
+        "corrente": _norm_slash_list(motor.get("corrente")),
+    }
+
+
+def _extract_duplicate_values_from_row(row: Dict[str, Any]) -> Dict[str, str]:
+    return {
+        "marca": _norm_text(row.get("marca") or row.get("Marca")),
+        "modelo": _norm_text(row.get("modelo") or row.get("Modelo")),
+        "potencia": _norm_text(row.get("potencia") or row.get("Potencia")),
+        "rpm": _norm_digits(row.get("rpm") or row.get("Rpm")),
+        "tensao": _norm_slash_list(row.get("tensao") or row.get("Tensao")),
+        "corrente": _norm_slash_list(row.get("corrente") or row.get("Corrente")),
+    }
+
+
+def _build_duplicate_key(values: Dict[str, str]) -> str:
+    marca = values.get("marca", "")
+    modelo = values.get("modelo", "")
+    potencia = values.get("potencia", "")
+    rpm = values.get("rpm", "")
+    tensao = values.get("tensao", "")
+    corrente = values.get("corrente", "")
+    if not marca or not modelo:
+        return ""
+    if not potencia and not rpm:
+        return ""
+    return "|".join([marca, modelo, potencia, rpm, tensao, corrente])
+
+
+def _find_duplicate_motor(ctx, normalized: Dict[str, Any]) -> Dict[str, Any] | None:
+    target_values = _extract_duplicate_values_from_normalized(normalized)
+    target_key = _build_duplicate_key(target_values)
+    if not target_key:
+        return None
+
+    is_local_runtime = bool(getattr(ctx.supabase, "is_local_runtime", False))
+    rows: List[Dict[str, Any]] = []
+    try:
+        query = (
+            ctx.supabase
+            .table("motores")
+            .select("id,marca,modelo,potencia,rpm,tensao,corrente,created_at,updated_at")
+        )
+        marca = target_values.get("marca", "")
+        modelo = target_values.get("modelo", "")
+        if not is_local_runtime:
+            if marca:
+                query = query.ilike("marca", marca)
+            if modelo:
+                query = query.ilike("modelo", modelo)
+        res = query.limit(120).execute()
+        data = getattr(res, "data", None) or []
+        if isinstance(data, list):
+            rows = data
+    except Exception:
+        rows = []
+
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        row_key = _build_duplicate_key(_extract_duplicate_values_from_row(row))
+        if row_key and row_key == target_key:
+            return row
+    return None
+
+
 def _save_motor(ctx, normalized: Dict[str, Any], uploads: List[Any]) -> None:
     normalized = enriquecer_motor_oficina(normalized, evento="cadastro")
     normalized = _with_creator_metadata(normalized)
+    duplicated = _find_duplicate_motor(ctx, normalized)
+    if isinstance(duplicated, dict):
+        duplicate_id = str(duplicated.get("id") or "").strip()
+        duplicate_ref = f"ID {duplicate_id}" if duplicate_id else "registro existente"
+        raise DuplicateMotorError(
+            f"Cadastro bloqueado: motor duplicado detectado ({duplicate_ref}).",
+            duplicate_id=duplicate_id,
+        )
+
     creator = resolve_current_user_identity().get("display_name", "Usuario")
     image_names = [f.name for f in uploads]
     image_urls = _upload_images_to_supabase(ctx, uploads)
@@ -410,8 +529,13 @@ def render(ctx):
             st.warning("Informe ao menos marca ou modelo antes de salvar.")
             return
 
-        _save_motor(ctx, data, uploads=current_uploads)
-        st.success("Cadastro tecnico salvo com sucesso.")
+        try:
+            _save_motor(ctx, data, uploads=current_uploads)
+            st.success("Cadastro tecnico salvo com sucesso.")
+        except DuplicateMotorError as exc:
+            st.warning(str(exc))
+        except Exception as exc:
+            st.error(f"Falha ao salvar cadastro tecnico: {exc}")
 
     st.divider()
     st.subheader("Cadastro de O.S. (mantido)")

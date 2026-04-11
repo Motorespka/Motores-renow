@@ -370,6 +370,8 @@ def _carregar_perfil_usuario(client, user_id: str, email: str, user_metadata: di
 
     perfil = None
     email_norm = _normalized_email(email)
+    user_meta = user_metadata if isinstance(user_metadata, dict) else {}
+    username_hint = _to_text(user_meta.get("username"))
     supabase_url = ""
     try:
         supabase_url = str(st.secrets.get("SUPABASE_URL") or "")
@@ -387,10 +389,13 @@ def _carregar_perfil_usuario(client, user_id: str, email: str, user_metadata: di
         "is_local_runtime": _is_local_runtime(client),
         "user_id": user_id,
         "email": email_norm,
+        "username_hint": username_hint,
         "source": "none",
         "by_id": _query_debug_payload("usuarios_app", "eq", "id", user_id),
         "by_email": _query_debug_payload("usuarios_app", "eq", "email", email_norm),
         "by_email_ilike": _query_debug_payload("usuarios_app", "ilike", "email", email_norm),
+        "by_username": _query_debug_payload("usuarios_app", "eq", "username", username_hint),
+        "by_username_ilike": _query_debug_payload("usuarios_app", "ilike", "username", username_hint),
     }
 
     try:
@@ -433,6 +438,34 @@ def _carregar_perfil_usuario(client, user_id: str, email: str, user_metadata: di
         except Exception as exc:
             debug["by_email_ilike"]["status"] = "error"
             debug["by_email_ilike"]["error"] = str(exc)
+
+    if not perfil and username_hint:
+        try:
+            res = client.table("usuarios_app").select("*").eq("username", username_hint).limit(1).execute()
+            rows = getattr(res, "data", None) or []
+            debug["by_username"]["status"] = "success"
+            debug["by_username"]["row_count"] = len(rows)
+            debug["by_username"]["data"] = rows[0] if rows else None
+            if rows:
+                perfil = rows[0]
+                debug["source"] = "username"
+        except Exception as exc:
+            debug["by_username"]["status"] = "error"
+            debug["by_username"]["error"] = str(exc)
+
+    if not perfil and username_hint:
+        try:
+            res = client.table("usuarios_app").select("*").ilike("username", username_hint).limit(1).execute()
+            rows = getattr(res, "data", None) or []
+            debug["by_username_ilike"]["status"] = "success"
+            debug["by_username_ilike"]["row_count"] = len(rows)
+            debug["by_username_ilike"]["data"] = rows[0] if rows else None
+            if rows:
+                perfil = rows[0]
+                debug["source"] = "username_ilike"
+        except Exception as exc:
+            debug["by_username_ilike"]["status"] = "error"
+            debug["by_username_ilike"]["error"] = str(exc)
 
     st.session_state["_perfil_debug"] = debug
 

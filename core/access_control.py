@@ -158,8 +158,14 @@ def _query_debug_payload(table: str, method: str, field: str, value: str) -> Dic
     }
 
 
-def _fetch_usuarios_app_profile(user_id: str, email: str, client: Any | None = None) -> Dict[str, Any] | None:
+def _fetch_usuarios_app_profile(
+    user_id: str,
+    email: str,
+    client: Any | None = None,
+    username_hint: str = "",
+) -> Dict[str, Any] | None:
     email_norm = _normalized_email(email)
+    username_norm = _to_text(username_hint).lower()
     client = _resolve_supabase_client(client)
 
     supabase_url = ""
@@ -176,10 +182,13 @@ def _fetch_usuarios_app_profile(user_id: str, email: str, client: Any | None = N
         "is_local_runtime": bool(getattr(client, "is_local_runtime", False)) if client is not None else False,
         "user_id": user_id,
         "email": email_norm,
+        "username_hint": username_norm,
         "source": "none",
         "by_id": _query_debug_payload("usuarios_app", "eq", "id", user_id),
         "by_email": _query_debug_payload("usuarios_app", "eq", "email", email_norm),
         "by_email_ilike": _query_debug_payload("usuarios_app", "ilike", "email", email_norm),
+        "by_username": _query_debug_payload("usuarios_app", "eq", "username", username_norm),
+        "by_username_ilike": _query_debug_payload("usuarios_app", "ilike", "username", username_norm),
     }
 
     st.session_state["_access_profile_debug"] = debug
@@ -254,6 +263,48 @@ def _fetch_usuarios_app_profile(user_id: str, email: str, client: Any | None = N
             debug["by_email_ilike"]["status"] = "error"
             debug["by_email_ilike"]["error"] = str(exc)
 
+    if not perfil and username_norm:
+        try:
+            res = (
+                client
+                .table("usuarios_app")
+                .select("id,email,username,nome,role,plan,ativo")
+                .eq("username", username_norm)
+                .limit(1)
+                .execute()
+            )
+            rows = getattr(res, "data", None) or []
+            debug["by_username"]["status"] = "success"
+            debug["by_username"]["row_count"] = len(rows)
+            debug["by_username"]["data"] = rows[0] if rows else None
+            if rows:
+                perfil = rows[0]
+                debug["source"] = "username"
+        except Exception as exc:
+            debug["by_username"]["status"] = "error"
+            debug["by_username"]["error"] = str(exc)
+
+    if not perfil and username_norm:
+        try:
+            res = (
+                client
+                .table("usuarios_app")
+                .select("id,email,username,nome,role,plan,ativo")
+                .ilike("username", username_norm)
+                .limit(1)
+                .execute()
+            )
+            rows = getattr(res, "data", None) or []
+            debug["by_username_ilike"]["status"] = "success"
+            debug["by_username_ilike"]["row_count"] = len(rows)
+            debug["by_username_ilike"]["data"] = rows[0] if rows else None
+            if rows:
+                perfil = rows[0]
+                debug["source"] = "username_ilike"
+        except Exception as exc:
+            debug["by_username_ilike"]["status"] = "error"
+            debug["by_username_ilike"]["error"] = str(exc)
+
     st.session_state["_access_profile_debug"] = debug
     if isinstance(perfil, dict):
         perfil["_source"] = debug.get("source", "none")
@@ -284,7 +335,8 @@ def get_access_profile(client: Any | None = None, force_refresh: bool = False) -
         if isinstance(cached, dict):
             return cached
 
-    db_profile = _fetch_usuarios_app_profile(user_id, email, resolved_client)
+    username_hint = _to_text(profile_cache.get("username"))
+    db_profile = _fetch_usuarios_app_profile(user_id, email, resolved_client, username_hint=username_hint)
     role = _to_text((db_profile or {}).get("role")).lower()
     plan = _to_text((db_profile or {}).get("plan")).lower() or DEFAULT_PLAN
     ativo = _to_bool((db_profile or {}).get("ativo")) if db_profile else False
