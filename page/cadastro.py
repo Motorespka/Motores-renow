@@ -6,6 +6,7 @@ import os
 import re
 import time
 from typing import Any, Dict, List
+import base64
 
 import streamlit as st
 from PIL import Image, ImageOps
@@ -52,6 +53,61 @@ def _read_secret_or_env(*names: str) -> str:
         value = os.environ.get(name)
         if value:
             return str(value).strip()
+    return ""
+
+
+def _decode_jwt_payload(token: str) -> Dict[str, Any]:
+    raw = str(token or "").strip()
+    parts = raw.split(".")
+    if len(parts) != 3:
+        return {}
+    payload_b64 = parts[1]
+    padding = "=" * (-len(payload_b64) % 4)
+    try:
+        decoded = base64.urlsafe_b64decode((payload_b64 + padding).encode("utf-8")).decode("utf-8")
+        data = json.loads(decoded)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _looks_like_service_role_key(token: str) -> bool:
+    raw = str(token or "").strip()
+    if not raw:
+        return False
+
+    # Chaves novas do Supabase
+    if raw.startswith("sb_secret_"):
+        return True
+    if raw.startswith("sb_publishable_"):
+        return False
+
+    payload = _decode_jwt_payload(raw)
+    role = str(payload.get("role") or "").strip().lower()
+    if role in {"service_role", "supabase_admin"}:
+        return True
+    if role in {"anon", "authenticated"}:
+        return False
+
+    return False
+
+
+def _resolve_service_role_key() -> str:
+    explicit_names = [
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SUPABASE_SERVICE_KEY",
+        "SUPABASE_SECRET_KEY",
+        "SERVICE_ROLE_KEY",
+    ]
+    for name in explicit_names:
+        value = _read_secret_or_env(name)
+        if value:
+            return value
+
+    shared_key = _read_secret_or_env("SUPABASE_KEY")
+    if shared_key and _looks_like_service_role_key(shared_key):
+        return shared_key
+
     return ""
 
 
@@ -260,7 +316,7 @@ def _build_service_role_client():
         return None
 
     supabase_url = _read_secret_or_env("SUPABASE_URL")
-    service_key = _read_secret_or_env("SUPABASE_SERVICE_ROLE_KEY")
+    service_key = _resolve_service_role_key()
     if not supabase_url or not service_key:
         return None
 
@@ -278,6 +334,38 @@ def _build_service_role_client():
     st.session_state["_service_role_client_key"] = cache_key
     st.session_state["_service_role_client"] = client
     return client
+
+
+def _with_rls_owner_hints(payload: Dict[str, Any], identity: Dict[str, Any]) -> Dict[str, Any]:
+    out = dict(payload or {})
+    user_id = str(identity.get("user_id") or "").strip()
+    email = str(identity.get("email") or "").strip().lower()
+    username = str(identity.get("username") or "").strip().lower()
+
+    if user_id:
+        for key in [
+            "user_id",
+            "owner_id",
+            "created_by",
+            "created_by_id",
+            "auth_user_id",
+            "usuario_id",
+            "cadastrado_por_id",
+        ]:
+            if key not in out or not str(out.get(key) or "").strip():
+                out[key] = user_id
+
+    if email:
+        for key in ["user_email", "created_by_email", "cadastrado_por_email"]:
+            if key not in out or not str(out.get(key) or "").strip():
+                out[key] = email
+
+    if username:
+        for key in ["username", "created_by_username", "cadastrado_por_username"]:
+            if key not in out or not str(out.get(key) or "").strip():
+                out[key] = username
+
+    return out
 
 
 def _extract_missing_column(exc: Exception) -> str:
@@ -333,11 +421,14 @@ def _save_motor(ctx, normalized: Dict[str, Any], uploads: List[Any]) -> None:
             duplicate_id=duplicate_id,
         )
 
-    creator = resolve_current_user_identity().get("display_name", "Usuario")
+    identity = resolve_current_user_identity()
+    creator = identity.get("display_name", "Usuario")
     image_names = [f.name for f in uploads]
     image_urls = _upload_images_to_supabase(ctx, uploads)
     legacy_payload = to_supabase_payload(normalized, image_paths=image_urls, image_names=image_names)
     schema_payload = to_motores_schema_payload(normalized, image_paths=image_urls, image_names=image_names)
+    legacy_payload = _with_rls_owner_hints(legacy_payload, identity)
+    schema_payload = _with_rls_owner_hints(schema_payload, identity)
 
     saved = False
     last_error = None
@@ -375,6 +466,7 @@ def _save_motor(ctx, normalized: Dict[str, Any], uploads: List[Any]) -> None:
             "corrente": legacy_payload.get("corrente", ""),
             "observacoes": fallback_obs,
         }
+        fallback = _with_rls_owner_hints(fallback, identity)
         saved, fallback_error, removed_cols = _insert_resilient(ctx, fallback)
         if saved:
             st.info("Salvo com colunas basicas. Campos JSON podem depender de migracao no Supabase.")
@@ -391,7 +483,7 @@ def _save_motor(ctx, normalized: Dict[str, Any], uploads: List[Any]) -> None:
         if service_role_client is None:
             raise PermissionError(
                 "Permissao de escrita bloqueada pelo RLS na tabela motores. "
-                "Configure SUPABASE_SERVICE_ROLE_KEY no Streamlit Cloud "
+                "Configure SUPABASE_SERVICE_ROLE_KEY (ou SUPABASE_SERVICE_KEY/SERVICE_ROLE_KEY) no Streamlit Cloud "
                 "ou ajuste policy INSERT para usuarios autenticados."
             )
 

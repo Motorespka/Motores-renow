@@ -7,6 +7,29 @@ import streamlit as st
 
 CHANGELOG: List[Dict[str, object]] = [
     {
+        "versao": "V20.7",
+        "data": "2026-04-11",
+        "titulo": "Hotfix de compatibilidade Streamlit Cloud",
+        "adicoes": [
+            "Reset de scroll mantido com renderizacao compatível na API components.html.",
+        ],
+        "correcoes": [
+            "Removido parametro invalido que causava TypeError ao abrir telas no Streamlit Cloud.",
+        ],
+    },
+    {
+        "versao": "V20.6",
+        "data": "2026-04-11",
+        "titulo": "Compatibilidade ampliada com RLS",
+        "adicoes": [
+            "Cadastro agora envia hints de ownership (user_id/owner_id/created_by...) para atender policies RLS comuns.",
+            "Fallback admin aceita multiplos nomes de secret para service role.",
+        ],
+        "correcoes": [
+            "Mensagem de bloqueio RLS atualizada com nomes alternativos de chave administrativa.",
+        ],
+    },
+    {
         "versao": "V20.5",
         "data": "2026-04-11",
         "titulo": "Scroll reset reforcado na navegacao",

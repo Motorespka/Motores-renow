@@ -340,9 +340,8 @@ def _render_scroll_reset_if_needed() -> None:
 
     components.html(
         html_payload,
-        height=0,
-        width=0,
-        key=f"scroll_reset_{token}",
+        height=1,
+        width=1,
     )
 
 
