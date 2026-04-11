@@ -1,11 +1,22 @@
+<<<<<<< HEAD
 import base64
 from datetime import datetime, timedelta
 import hashlib
 import hmac
 import json
 import os
+=======
+import json
+from datetime import datetime, timedelta, timezone
+>>>>>>> 1401479b5557645596c65200ac86f935e6b0566f
 
 import streamlit as st
+
+try:
+    import extra_streamlit_components as stx
+except Exception:
+    stx = None
+
 try:
     from postgrest.exceptions import APIError
 except Exception:
@@ -14,6 +25,61 @@ except Exception:
 
 PERSISTED_AUTH_QP_KEY = "mrw_auth"
 PERSISTED_AUTH_TTL_HOURS = 8
+
+
+AUTH_COOKIE_NAME = "moto_renow_supabase_auth"
+AUTH_COOKIE_DAYS = 30
+
+
+def _get_cookie_manager():
+    if stx is None:
+        return None
+    if "_cookie_manager_auth" not in st.session_state:
+        st.session_state["_cookie_manager_auth"] = stx.CookieManager()
+    return st.session_state["_cookie_manager_auth"]
+
+
+def _read_auth_cookie() -> dict:
+    manager = _get_cookie_manager()
+    if manager is None:
+        return {}
+
+    try:
+        raw = manager.get(AUTH_COOKIE_NAME)
+        if not raw:
+            return {}
+        data = json.loads(raw)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _write_auth_cookie(data: dict) -> bool:
+    manager = _get_cookie_manager()
+    if manager is None:
+        return False
+
+    try:
+        expires_at = datetime.now(timezone.utc) + timedelta(days=AUTH_COOKIE_DAYS)
+        manager.set(
+            AUTH_COOKIE_NAME,
+            json.dumps(data, ensure_ascii=False, separators=(",", ":")),
+            expires_at=expires_at,
+            key=f"set_{AUTH_COOKIE_NAME}",
+        )
+        return True
+    except Exception:
+        return False
+
+
+def _clear_auth_cookie() -> None:
+    manager = _get_cookie_manager()
+    if manager is None:
+        return
+    try:
+        manager.delete(AUTH_COOKIE_NAME, key=f"del_{AUTH_COOKIE_NAME}")
+    except Exception:
+        pass
 
 
 def _is_local_runtime(client) -> bool:
@@ -221,15 +287,6 @@ def _query_debug_payload(table: str, method: str, field: str, value: str) -> dic
     }
 
 
-def _default_username(email: str, user_id: str) -> str:
-    base = _normalized_email(email).split("@")[0]
-    base = "".join(ch for ch in base if ch.isalnum() or ch == "_")
-    if not base:
-        base = "user"
-    suffix = (user_id or "").replace("-", "")[:6]
-    return f"{base}_{suffix}" if suffix else base
-
-
 def _set_authenticated_state(session, user, email: str, perfil: dict | None) -> None:
     st.session_state["auth_user_id"] = getattr(user, "id", "")
     st.session_state["auth_user_email"] = _normalized_email(email)
@@ -239,6 +296,7 @@ def _set_authenticated_state(session, user, email: str, perfil: dict | None) -> 
     st.session_state.pop("route", None)
     st.session_state.pop("logado", None)
     st.session_state.pop("expira_em", None)
+
     try:
         st.query_params.pop("auth", None)
     except Exception:
@@ -248,11 +306,12 @@ def _set_authenticated_state(session, user, email: str, perfil: dict | None) -> 
             st.experimental_set_query_params(**q)
         except Exception:
             pass
-    # Evita manter status de permissao desatualizado entre logins.
+
     st.session_state.pop("_access_cache_key", None)
     st.session_state.pop("_access_cache_value", None)
     st.session_state.pop("_admin_cache_key", None)
     st.session_state.pop("_admin_cache_value", None)
+
     session.login()
 
 
@@ -273,11 +332,13 @@ def _build_profile(perfil, user, fallback_email: str):
 def _carregar_perfil_usuario(client, user_id: str, email: str, user_metadata: dict | None = None):
     perfil = None
     email_norm = _normalized_email(email)
+
     supabase_url = ""
     try:
         supabase_url = str(st.secrets.get("SUPABASE_URL") or "")
     except Exception:
         supabase_url = ""
+
     if not supabase_url:
         try:
             import os
@@ -304,7 +365,7 @@ def _carregar_perfil_usuario(client, user_id: str, email: str, user_metadata: di
         debug["by_id"]["row_count"] = len(rows)
         debug["by_id"]["data"] = rows[0] if rows else None
         if rows:
-            perfil = res.data[0]
+            perfil = rows[0]
             debug["source"] = "id"
     except Exception as exc:
         debug["by_id"]["status"] = "error"
@@ -318,7 +379,7 @@ def _carregar_perfil_usuario(client, user_id: str, email: str, user_metadata: di
             debug["by_email"]["row_count"] = len(rows)
             debug["by_email"]["data"] = rows[0] if rows else None
             if rows:
-                perfil = res.data[0]
+                perfil = rows[0]
                 debug["source"] = "email"
         except Exception as exc:
             debug["by_email"]["status"] = "error"
@@ -332,7 +393,7 @@ def _carregar_perfil_usuario(client, user_id: str, email: str, user_metadata: di
             debug["by_email_ilike"]["row_count"] = len(rows)
             debug["by_email_ilike"]["data"] = rows[0] if rows else None
             if rows:
-                perfil = res.data[0]
+                perfil = rows[0]
                 debug["source"] = "email_ilike"
         except Exception as exc:
             debug["by_email_ilike"]["status"] = "error"
@@ -343,7 +404,6 @@ def _carregar_perfil_usuario(client, user_id: str, email: str, user_metadata: di
     if not isinstance(perfil, dict):
         perfil = {}
 
-    # Compatibilidade opcional com tabela dedicada de administradores.
     admin_match = False
     for col, value in [
         ("id", user_id),
@@ -375,14 +435,6 @@ def _carregar_perfil_usuario(client, user_id: str, email: str, user_metadata: di
 
     if admin_match:
         perfil["is_admin"] = True
-        if "role" not in perfil:
-            perfil["role"] = "admin"
-
-    if not isinstance(perfil, dict):
-        perfil = {}
-
-    if admin_match:
-        perfil["is_admin"] = True
         if "role" not in perfil or not str(perfil.get("role", "")).strip():
             perfil["role"] = "admin"
         perfil["_admin_match"] = True
@@ -393,6 +445,30 @@ def _carregar_perfil_usuario(client, user_id: str, email: str, user_metadata: di
     return perfil or None
 
 
+def _persist_supabase_session(auth_response, email: str) -> None:
+    try:
+        session_obj = getattr(auth_response, "session", None)
+        if not session_obj:
+            return
+
+        access_token = getattr(session_obj, "access_token", None)
+        refresh_token = getattr(session_obj, "refresh_token", None)
+
+        if not access_token or not refresh_token:
+            return
+
+        _write_auth_cookie(
+            {
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "email": _normalized_email(email),
+                "saved_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+    except Exception:
+        pass
+
+
 def try_restore_auth_session(session, client) -> bool:
     if st.session_state.get("auth_force_logged_out"):
         return False
@@ -400,13 +476,31 @@ def try_restore_auth_session(session, client) -> bool:
     if session.is_authenticated or _is_local_runtime(client):
         return bool(session.is_authenticated)
 
+    cookie_data = _read_auth_cookie()
+    access_token = str(cookie_data.get("access_token", "")).strip()
+    refresh_token = str(cookie_data.get("refresh_token", "")).strip()
+
+    if access_token and refresh_token:
+        try:
+            client.auth.set_session(access_token, refresh_token)
+        except Exception:
+            pass
+
     user = _get_authenticated_user(client)
     if not user:
+<<<<<<< HEAD
         user = _restore_user_from_persisted_refresh_token(client)
     if not user:
+=======
+        _clear_auth_cookie()
+>>>>>>> 1401479b5557645596c65200ac86f935e6b0566f
         return False
 
-    email = _normalized_email(getattr(user, "email", None) or st.session_state.get("auth_user_email") or "")
+    email = _normalized_email(
+        getattr(user, "email", None)
+        or st.session_state.get("auth_user_email")
+        or cookie_data.get("email", "")
+    )
     perfil = _carregar_perfil_usuario(client, user.id, email, getattr(user, "user_metadata", None))
     perfil = _build_profile(perfil, user, email)
     _set_authenticated_state(session, user, email, perfil)
@@ -433,6 +527,19 @@ def sync_authenticated_profile(session, client) -> None:
     st.session_state.pop("_admin_cache_key", None)
     st.session_state.pop("_admin_cache_value", None)
     _persist_supabase_refresh_token(client)
+
+
+def logout_and_clear(session, client=None) -> None:
+    try:
+        if client is not None:
+            try:
+                client.auth.sign_out()
+            except Exception:
+                pass
+        _clear_auth_cookie()
+        session.logout()
+    except Exception:
+        session.logout()
 
 
 def _render_local_login(session) -> bool:
@@ -471,17 +578,6 @@ def _render_local_login(session) -> bool:
         st.session_state["auth_force_logged_out"] = False
         st.session_state["_post_login_route_applied"] = False
         st.session_state.pop("route", None)
-        st.session_state.pop("logado", None)
-        st.session_state.pop("expira_em", None)
-        try:
-            st.query_params.pop("auth", None)
-        except Exception:
-            try:
-                q = st.experimental_get_query_params()
-                q.pop("auth", None)
-                st.experimental_set_query_params(**q)
-            except Exception:
-                pass
         st.success("Login local realizado.")
         st.rerun()
 
@@ -501,6 +597,7 @@ def render_login(session, client) -> bool:
 
     st.title("Moto-Renow - Acesso Tecnico")
     st.caption("Planos: Free (teaser de consulta) | Pago (consulta completa + cadastro + diagnostico) | Admin (gestao total).")
+
     if st.session_state.get("auth_force_logged_out"):
         st.info("Sessao encerrada com sucesso. Faca login novamente.")
 
@@ -510,7 +607,7 @@ def render_login(session, client) -> bool:
         email = st.text_input("E-mail", key="login_email")
         senha = st.text_input("Senha", type="password", key="login_pass")
 
-        if st.button("Acessar Sistema"):
+        if st.button("Acessar Sistema", use_container_width=True):
             email_norm = (email or "").strip().lower()
             if not email_norm or not senha:
                 st.warning("Por favor, preencha todos os campos.")
@@ -518,18 +615,32 @@ def render_login(session, client) -> bool:
                 st.warning("Informe um e-mail valido para login.")
             else:
                 try:
-                    client.auth.sign_in_with_password({"email": email_norm, "password": senha})
+                    auth_response = client.auth.sign_in_with_password(
+                        {"email": email_norm, "password": senha}
+                    )
                     user = _get_authenticated_user(client)
                     if not user or not getattr(user, "id", None):
                         st.error("Login sem usuario valido retornado pelo Supabase Auth.")
                         return False
 
-                    perfil = _carregar_perfil_usuario(client, user.id, email_norm, getattr(user, "user_metadata", None))
+                    _persist_supabase_session(auth_response, email_norm)
+
+                    perfil = _carregar_perfil_usuario(
+                        client,
+                        user.id,
+                        email_norm,
+                        getattr(user, "user_metadata", None),
+                    )
                     perfil = _build_profile(perfil, user, email_norm)
                     _set_authenticated_state(session, user, email_norm, perfil)
+<<<<<<< HEAD
                     _persist_supabase_refresh_token(client)
+=======
+
+>>>>>>> 1401479b5557645596c65200ac86f935e6b0566f
                     st.success("Login realizado!")
                     st.rerun()
+
                 except APIError as api_exc:
                     msg = str(api_exc)
                     if "Invalid login credentials" in msg:
@@ -547,7 +658,7 @@ def render_login(session, client) -> bool:
         nova_senha = st.text_input("Definir Senha", type="password", key="reg_pass")
         confirmar = st.text_input("Confirmar Senha", type="password", key="reg_conf")
 
-        if st.button("Cadastrar"):
+        if st.button("Cadastrar", use_container_width=True):
             email_reg_norm = (novo_email or "").strip().lower()
             username_norm = (novo_usuario or "").strip()
             nome_norm = (nome or "").strip()
