@@ -7,6 +7,17 @@ import streamlit as st
 
 CHANGELOG: List[Dict[str, object]] = [
     {
+        "versao": "V20.3",
+        "data": "2026-04-11",
+        "titulo": "Navegacao com scroll reset",
+        "adicoes": [
+            "Toda troca de tela agora reposiciona automaticamente no topo da pagina.",
+        ],
+        "correcoes": [
+            "Removido comportamento de abrir nova tela no mesmo ponto de scroll da tela anterior.",
+        ],
+    },
+    {
         "versao": "V20.2",
         "data": "2026-04-11",
         "titulo": "Remocao de O.S. no cadastro tecnico",

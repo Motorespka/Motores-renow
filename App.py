@@ -5,6 +5,7 @@ import os
 import uuid
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 try:
     from supabase import create_client
@@ -299,6 +300,38 @@ def _debug_access_state(access: dict, current_before: str, current_after: str) -
     st.write("DEBUG current_route_after:", current_after)
 
 
+def _render_scroll_reset_if_needed() -> None:
+    token = int(st.session_state.get("_scroll_reset_token", 0) or 0)
+    rendered = int(st.session_state.get("_scroll_reset_rendered", 0) or 0)
+    if token <= 0 or token == rendered:
+        return
+
+    st.session_state["_scroll_reset_rendered"] = token
+    components.html(
+        """
+        <script>
+        (function () {
+            const root = window.parent || window;
+            try {
+                root.scrollTo({ top: 0, behavior: "auto" });
+            } catch (e) {}
+            try {
+                const doc = root.document;
+                if (doc && doc.documentElement) {
+                    doc.documentElement.scrollTop = 0;
+                }
+                if (doc && doc.body) {
+                    doc.body.scrollTop = 0;
+                }
+            } catch (e) {}
+        })();
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
+
+
 def main() -> None:
     session = SessionManager()
     try:
@@ -368,6 +401,7 @@ def main() -> None:
 
     router = build_router()
     render_navigation_sidebar(session, client)
+    _render_scroll_reset_if_needed()
 
     ctx = AppContext(supabase=client, session=session, router=router)
     router.dispatch(ctx, session.get_route())

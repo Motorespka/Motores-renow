@@ -15,6 +15,7 @@ class SessionManager:
     legacy_route_key: str = "nav_current_route"
     selected_motor_key: str = "nav_selected_motor_id"
     route_query_key: str = "route"
+    scroll_reset_token_key: str = "_scroll_reset_token"
     sync_route_query: bool = False
 
     def _read_route_from_query(self) -> Optional[str]:
@@ -100,10 +101,14 @@ class SessionManager:
         st.session_state[self.selected_motor_key] = None
 
     def set_route(self, route: Route) -> None:
+        previous_route = str(st.session_state.get(self.route_key) or "").strip().lower()
         st.session_state[self.route_key] = route.value
         st.session_state[self.legacy_route_key] = route.value
         st.session_state["route"] = route.value
         self._write_route_to_query(route.value)
+        if previous_route != route.value:
+            current_token = int(st.session_state.get(self.scroll_reset_token_key, 0) or 0)
+            st.session_state[self.scroll_reset_token_key] = current_token + 1
 
     def get_route(self) -> Route:
         value = st.session_state.get(self.route_key, Route.CADASTRO.value)
