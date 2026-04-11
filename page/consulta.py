@@ -444,7 +444,33 @@ def render(ctx) -> None:
         st.warning("Nenhum motor encontrado com os filtros atuais.")
         return
 
-    for m in filtrados:
+    pg1, pg2, pg3 = st.columns([1.2, 1.0, 3.0], gap="small")
+    with pg1:
+        page_size = st.selectbox("Itens por pagina", [10, 20, 50, 100], index=1, key="consulta_page_size")
+    total_pages = max(1, (len(filtrados) + int(page_size) - 1) // int(page_size))
+    current_page = int(st.session_state.get("consulta_page_num", 1) or 1)
+    if current_page > total_pages:
+        current_page = total_pages
+        st.session_state["consulta_page_num"] = current_page
+    with pg2:
+        page_num = int(
+            st.number_input(
+                "Pagina",
+                min_value=1,
+                max_value=total_pages,
+                value=current_page,
+                step=1,
+                key="consulta_page_num",
+            )
+        )
+    with pg3:
+        start = (page_num - 1) * int(page_size)
+        end = start + int(page_size)
+        st.caption(f"Mostrando {start + 1}-{min(end, len(filtrados))} de {len(filtrados)} motores.")
+
+    motores_visiveis = filtrados[start:end]
+
+    for m in motores_visiveis:
         with st.container(border=True):
             st.markdown(
                 f"""

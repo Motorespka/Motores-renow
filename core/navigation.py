@@ -19,6 +19,7 @@ from core.user_identity import resolve_current_user_identity
 class Route(str, Enum):
     CADASTRO = "cadastro"
     CONSULTA = "consulta"
+    ATUALIZACOES = "atualizacoes"
     DETALHE = "detalhe"
     EDIT = "edit"
     DIAGNOSTICO = "diagnostico"
@@ -108,6 +109,7 @@ def render_navigation_sidebar(session, supabase_client=None) -> None:
         if cadastro_allowed:
             intents.append(("Cadastro", Route.CADASTRO))
         intents.append(("Consulta", Route.CONSULTA))
+        intents.append(("Atualizacoes", Route.ATUALIZACOES))
         if paid_allowed:
             intents.append(("Diagnostico", Route.DIAGNOSTICO))
         if admin_user:
