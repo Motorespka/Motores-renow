@@ -7,6 +7,19 @@ import streamlit as st
 
 CHANGELOG: List[Dict[str, object]] = [
     {
+        "versao": "V20.1",
+        "data": "2026-04-11",
+        "titulo": "Cadastro resiliente e consulta mais objetiva",
+        "adicoes": [
+            "Acao de exclusao de motor com confirmacao, disponivel apenas para admin.",
+            "Previa tecnica no card da consulta com dados de rebobinagem e mecanica.",
+        ],
+        "correcoes": [
+            "Cadastro agora remove automaticamente colunas inexistentes no schema antes do insert.",
+            "Removido bloco redundante de resumo tecnico para evitar informacao duplicada na consulta.",
+        ],
+    },
+    {
         "versao": "V20.0",
         "data": "2026-04-11",
         "titulo": "Cadastro robusto e anti-duplicacao",

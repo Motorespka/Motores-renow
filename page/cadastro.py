@@ -227,6 +227,42 @@ def _find_duplicate_motor(ctx, normalized: Dict[str, Any]) -> Dict[str, Any] | N
     return None
 
 
+def _extract_missing_column(exc: Exception) -> str:
+    text = str(exc or "")
+    patterns = [
+        r"Could not find the '([^']+)' column",
+        r'column "([^"]+)" of relation',
+        r"column ([a-zA-Z_][a-zA-Z0-9_]*) does not exist",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if match:
+            return (match.group(1) or "").strip()
+    return ""
+
+
+def _insert_resilient(ctx, payload: Dict[str, Any]) -> tuple[bool, Exception | None, List[str]]:
+    candidate = dict(payload or {})
+    removed_columns: List[str] = []
+    last_error: Exception | None = None
+
+    for _ in range(15):
+        if not candidate:
+            break
+        try:
+            ctx.supabase.table("motores").insert(candidate).execute()
+            return True, None, removed_columns
+        except Exception as exc:
+            last_error = exc
+            missing_column = _extract_missing_column(exc)
+            if not missing_column or missing_column not in candidate:
+                break
+            candidate.pop(missing_column, None)
+            removed_columns.append(missing_column)
+
+    return False, last_error, removed_columns
+
+
 def _save_motor(ctx, normalized: Dict[str, Any], uploads: List[Any]) -> None:
     normalized = enriquecer_motor_oficina(normalized, evento="cadastro")
     normalized = _with_creator_metadata(normalized)
@@ -248,38 +284,49 @@ def _save_motor(ctx, normalized: Dict[str, Any], uploads: List[Any]) -> None:
     saved = False
     last_error = None
 
-    try:
-        ctx.supabase.table("motores").insert(legacy_payload).execute()
-        saved = True
-    except APIError as exc:
-        last_error = exc
-    except Exception as exc:
-        last_error = exc
+    saved, last_error, removed_cols = _insert_resilient(ctx, legacy_payload)
+    if saved and removed_cols:
+        st.info(
+            "Cadastro salvo com ajuste automatico de schema. "
+            f"Colunas removidas: {', '.join(removed_cols)}."
+        )
 
     if not saved:
-        try:
-            ctx.supabase.table("motores").insert(schema_payload).execute()
-            saved = True
+        saved, schema_error, removed_cols = _insert_resilient(ctx, schema_payload)
+        if saved:
             st.info("Salvo no schema tecnico compativel (motores/vw_motores_para_site).")
-        except Exception as exc:
-            last_error = exc
+            if removed_cols:
+                st.info(
+                    "Cadastro salvo com ajuste automatico de schema. "
+                    f"Colunas removidas: {', '.join(removed_cols)}."
+                )
+        else:
+            last_error = schema_error or last_error
 
     if not saved:
+        fallback_obs = f"{legacy_payload.get('observacoes', '')} | Feito por: {creator}".strip(" |")
+        modelo_txt = str(legacy_payload.get("modelo") or "").strip()
+        if modelo_txt:
+            fallback_obs = f"Modelo informado: {modelo_txt} | {fallback_obs}".strip(" |")
+
         fallback = {
             "marca": legacy_payload.get("marca", ""),
-            "modelo": legacy_payload.get("modelo", ""),
             "potencia": legacy_payload.get("potencia", ""),
             "rpm": legacy_payload.get("rpm", ""),
             "tensao": legacy_payload.get("tensao", ""),
             "corrente": legacy_payload.get("corrente", ""),
-            "observacoes": f"{legacy_payload.get('observacoes', '')} | Feito por: {creator}".strip(" |"),
+            "observacoes": fallback_obs,
         }
-        try:
-            ctx.supabase.table("motores").insert(fallback).execute()
-            saved = True
+        saved, fallback_error, removed_cols = _insert_resilient(ctx, fallback)
+        if saved:
             st.info("Salvo com colunas basicas. Campos JSON podem depender de migracao no Supabase.")
-        except Exception as exc:
-            last_error = exc
+            if removed_cols:
+                st.info(
+                    "Cadastro salvo com ajuste automatico de schema. "
+                    f"Colunas removidas: {', '.join(removed_cols)}."
+                )
+        else:
+            last_error = fallback_error or last_error
 
     if not saved:
         raise RuntimeError(f"Nao foi possivel salvar o motor em nenhum schema compativel: {last_error}")
