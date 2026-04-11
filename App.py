@@ -19,6 +19,7 @@ from services.database import bootstrap_database, build_local_runtime_client
 
 st.set_page_config(page_title="Moto-Renow", page_icon="⚙️", layout="wide")
 DEBUG_ACCESS = str(os.environ.get("DEBUG_ACCESS", "")).strip().lower() in {"1", "true", "yes", "on"}
+RUNTIME_CACHE_QP_KEY = "mrw_sid"
 
 
 def _read_secret_or_env(*names: str) -> str:
@@ -46,8 +47,55 @@ def _to_plain_mapping(value) -> dict:
         return {}
 
 
+def _get_query_params() -> dict:
+    try:
+        return dict(st.query_params)
+    except Exception:
+        try:
+            return dict(st.experimental_get_query_params())
+        except Exception:
+            return {}
+
+
+def _read_query_param(name: str) -> str:
+    value = _get_query_params().get(name)
+    if isinstance(value, list):
+        value = value[0] if value else ""
+    return str(value or "").strip()
+
+
+def _write_query_param(name: str, value: str | None) -> None:
+    try:
+        if value is None:
+            st.query_params.pop(name, None)
+        else:
+            st.query_params[name] = value
+        return
+    except Exception:
+        pass
+
+    try:
+        params = _get_query_params()
+        if value is None:
+            params.pop(name, None)
+        else:
+            params[name] = value
+        st.experimental_set_query_params(**params)
+    except Exception:
+        pass
+
+
+def _normalize_cache_key(raw_value: str) -> str:
+    value = str(raw_value or "").strip().lower()
+    if len(value) != 24:
+        return ""
+    if all(ch in "0123456789abcdef" for ch in value):
+        return value
+    return ""
+
+
 def _resolve_browser_cache_key() -> str:
-    cached = st.session_state.get("_browser_cache_key")
+    cached = _normalize_cache_key(st.session_state.get("_browser_cache_key"))
     if isinstance(cached, str) and cached.strip():
         return cached
 
@@ -62,17 +110,27 @@ def _resolve_browser_cache_key() -> str:
     except Exception:
         headers = {}
 
+    user_agent = str(headers.get("user-agent", "")).strip()
+    accept_language = str(headers.get("accept-language", "")).strip()
+    host = str(headers.get("host", "")).strip()
+    has_fingerprint_signal = bool(cookies) or bool(user_agent) or bool(accept_language) or bool(host)
+
     fingerprint = {
         "cookies": cookies,
-        "user_agent": headers.get("user-agent", ""),
-        "accept_language": headers.get("accept-language", ""),
-        "host": headers.get("host", ""),
+        "user_agent": user_agent,
+        "accept_language": accept_language,
+        "host": host,
     }
-    serialized = json.dumps(fingerprint, sort_keys=True, ensure_ascii=True)
-    if serialized and serialized != "{}":
+    if has_fingerprint_signal:
+        serialized = json.dumps(fingerprint, sort_keys=True, ensure_ascii=True)
         key = hashlib.sha256(serialized.encode("utf-8")).hexdigest()[:24]
     else:
-        key = uuid.uuid4().hex[:24]
+        from_query = _normalize_cache_key(_read_query_param(RUNTIME_CACHE_QP_KEY))
+        if from_query:
+            key = from_query
+        else:
+            key = uuid.uuid4().hex[:24]
+            _write_query_param(RUNTIME_CACHE_QP_KEY, key)
 
     st.session_state["_browser_cache_key"] = key
     return key

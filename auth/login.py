@@ -1,9 +1,19 @@
+import base64
+from datetime import datetime, timedelta
+import hashlib
+import hmac
+import json
+import os
+
 import streamlit as st
 try:
     from postgrest.exceptions import APIError
 except Exception:
     class APIError(Exception):
         pass
+
+PERSISTED_AUTH_QP_KEY = "mrw_auth"
+PERSISTED_AUTH_TTL_HOURS = 8
 
 
 def _is_local_runtime(client) -> bool:
@@ -23,6 +33,169 @@ def _get_authenticated_user(client):
 
 def _normalized_email(value: str) -> str:
     return (value or "").strip().lower()
+
+
+def _to_text(value) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _get_query_params() -> dict:
+    try:
+        return dict(st.query_params)
+    except Exception:
+        try:
+            return dict(st.experimental_get_query_params())
+        except Exception:
+            return {}
+
+
+def _read_query_param(name: str) -> str:
+    value = _get_query_params().get(name)
+    if isinstance(value, list):
+        value = value[0] if value else ""
+    return _to_text(value)
+
+
+def _write_query_param(name: str, value: str | None) -> None:
+    current = _read_query_param(name)
+    target = _to_text(value)
+    if value is not None and current == target:
+        return
+    if value is None and not current:
+        return
+
+    try:
+        if value is None:
+            st.query_params.pop(name, None)
+        else:
+            st.query_params[name] = target
+        return
+    except Exception:
+        pass
+
+    try:
+        params = _get_query_params()
+        if value is None:
+            params.pop(name, None)
+        else:
+            params[name] = target
+        st.experimental_set_query_params(**params)
+    except Exception:
+        pass
+
+
+def _secret_key() -> bytes:
+    try:
+        auth_secret = _to_text(st.secrets.get("AUTH_SECRET_KEY"))
+    except Exception:
+        auth_secret = ""
+    try:
+        app_secret = _to_text(st.secrets.get("APP_PASSWORD"))
+    except Exception:
+        app_secret = ""
+
+    key = (
+        auth_secret
+        or _to_text(os.environ.get("AUTH_SECRET_KEY"))
+        or app_secret
+        or _to_text(os.environ.get("APP_PASSWORD"))
+        or "dev"
+    )
+    return key.encode("utf-8")
+
+
+def _b64url_encode(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).decode("utf-8").rstrip("=")
+
+
+def _b64url_decode(txt: str) -> bytes:
+    padding = "=" * (-len(txt) % 4)
+    return base64.urlsafe_b64decode((txt + padding).encode("utf-8"))
+
+
+def _sign(payload: str) -> str:
+    signature = hmac.new(_secret_key(), payload.encode("utf-8"), hashlib.sha256).digest()
+    return _b64url_encode(signature)
+
+
+def _build_persisted_auth_token(refresh_token: str) -> str:
+    payload = {
+        "rt": _to_text(refresh_token),
+        "exp": int((datetime.utcnow() + timedelta(hours=PERSISTED_AUTH_TTL_HOURS)).timestamp()),
+    }
+    payload_txt = json.dumps(payload, separators=(",", ":"), ensure_ascii=True)
+    payload_b64 = _b64url_encode(payload_txt.encode("utf-8"))
+    return f"{payload_b64}.{_sign(payload_b64)}"
+
+
+def _parse_persisted_auth_token(raw_token: str) -> str:
+    token = _to_text(raw_token)
+    if not token or "." not in token:
+        return ""
+    payload_b64, signature = token.rsplit(".", 1)
+    if not hmac.compare_digest(_sign(payload_b64), signature):
+        return ""
+    try:
+        payload_raw = _b64url_decode(payload_b64).decode("utf-8")
+        payload = json.loads(payload_raw)
+    except Exception:
+        return ""
+    refresh_token = _to_text(payload.get("rt"))
+    try:
+        exp_ts = int(payload.get("exp") or 0)
+    except Exception:
+        return ""
+    if not refresh_token or exp_ts <= 0:
+        return ""
+    if datetime.utcnow().timestamp() > exp_ts:
+        return ""
+    return refresh_token
+
+
+def _clear_persisted_auth_query_param() -> None:
+    _write_query_param(PERSISTED_AUTH_QP_KEY, None)
+
+
+def _persist_supabase_refresh_token(client) -> None:
+    if _is_local_runtime(client):
+        return
+    try:
+        session = client.auth.get_session()
+    except Exception:
+        return
+    refresh_token = _to_text(getattr(session, "refresh_token", None))
+    if not refresh_token:
+        return
+    persisted = _build_persisted_auth_token(refresh_token)
+    _write_query_param(PERSISTED_AUTH_QP_KEY, persisted)
+
+
+def _restore_user_from_persisted_refresh_token(client):
+    if _is_local_runtime(client):
+        return None
+    persisted = _read_query_param(PERSISTED_AUTH_QP_KEY)
+    refresh_token = _parse_persisted_auth_token(persisted)
+    if not refresh_token:
+        if persisted:
+            _clear_persisted_auth_query_param()
+        return None
+    try:
+        auth_response = client.auth.refresh_session(refresh_token)
+    except Exception:
+        _clear_persisted_auth_query_param()
+        return None
+
+    session = getattr(auth_response, "session", None)
+    new_refresh_token = _to_text(getattr(session, "refresh_token", None))
+    if new_refresh_token:
+        _write_query_param(PERSISTED_AUTH_QP_KEY, _build_persisted_auth_token(new_refresh_token))
+
+    user = getattr(auth_response, "user", None)
+    if user and getattr(user, "id", None):
+        return user
+    return _get_authenticated_user(client)
 
 
 def _partial_url(url: str) -> str:
@@ -212,6 +385,7 @@ def _carregar_perfil_usuario(client, user_id: str, email: str, user_metadata: di
         perfil["is_admin"] = True
         if "role" not in perfil or not str(perfil.get("role", "")).strip():
             perfil["role"] = "admin"
+        perfil["_admin_match"] = True
 
     if perfil:
         perfil["_source"] = debug.get("source", "none")
@@ -228,12 +402,15 @@ def try_restore_auth_session(session, client) -> bool:
 
     user = _get_authenticated_user(client)
     if not user:
+        user = _restore_user_from_persisted_refresh_token(client)
+    if not user:
         return False
 
     email = _normalized_email(getattr(user, "email", None) or st.session_state.get("auth_user_email") or "")
     perfil = _carregar_perfil_usuario(client, user.id, email, getattr(user, "user_metadata", None))
     perfil = _build_profile(perfil, user, email)
     _set_authenticated_state(session, user, email, perfil)
+    _persist_supabase_refresh_token(client)
     return True
 
 
@@ -255,6 +432,7 @@ def sync_authenticated_profile(session, client) -> None:
     st.session_state.pop("_access_cache_value", None)
     st.session_state.pop("_admin_cache_key", None)
     st.session_state.pop("_admin_cache_value", None)
+    _persist_supabase_refresh_token(client)
 
 
 def _render_local_login(session) -> bool:
@@ -262,7 +440,7 @@ def _render_local_login(session) -> bool:
         return True
 
     st.title("Moto-Renow - Acesso Tecnico (Local)")
-    st.caption("Ambiente de teste sem dependencia de Supabase Auth.")
+    st.caption("Ambiente de teste sem dependencia de Supabase Auth (acesso admin local).")
 
     email = st.text_input("E-mail tecnico", key="local_login_email")
     nome = st.text_input("Nome tecnico", key="local_login_nome")
@@ -270,13 +448,25 @@ def _render_local_login(session) -> bool:
     if st.button("Entrar em modo local", use_container_width=True):
         email_norm = (email or "dev@local").strip().lower()
         nome_norm = (nome or "Tecnico DEV").strip()
+        username_norm = _default_username(email_norm, f"local-{email_norm}")
         st.session_state["auth_user_id"] = f"local-{email_norm}"
         st.session_state["auth_user_email"] = email_norm
         st.session_state["auth_user_profile"] = {
+            "id": f"local-{email_norm}",
+            "username": username_norm,
             "nome": nome_norm,
             "email": email_norm,
             "local_mode": True,
+            "role": "admin",
+            "plan": "paid",
+            "ativo": True,
+            "is_admin": True,
+            "_admin_match": True,
         }
+        st.session_state.pop("_access_cache_key", None)
+        st.session_state.pop("_access_cache_value", None)
+        st.session_state.pop("_admin_cache_key", None)
+        st.session_state.pop("_admin_cache_value", None)
         session.login()
         st.session_state["auth_force_logged_out"] = False
         st.session_state["_post_login_route_applied"] = False
@@ -300,6 +490,7 @@ def _render_local_login(session) -> bool:
 
 def render_login(session, client) -> bool:
     if session.is_authenticated:
+        _persist_supabase_refresh_token(client)
         return True
 
     if _is_local_runtime(client):
@@ -336,6 +527,7 @@ def render_login(session, client) -> bool:
                     perfil = _carregar_perfil_usuario(client, user.id, email_norm, getattr(user, "user_metadata", None))
                     perfil = _build_profile(perfil, user, email_norm)
                     _set_authenticated_state(session, user, email_norm, perfil)
+                    _persist_supabase_refresh_token(client)
                     st.success("Login realizado!")
                     st.rerun()
                 except APIError as api_exc:

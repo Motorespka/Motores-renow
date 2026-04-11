@@ -76,10 +76,12 @@ def _perform_logout(session, supabase_client=None) -> None:
     # Compatibilidade com sessao legada baseada em query param.
     try:
         st.query_params.pop("auth", None)
+        st.query_params.pop("mrw_auth", None)
     except Exception:
         try:
             q = st.experimental_get_query_params()
             q.pop("auth", None)
+            q.pop("mrw_auth", None)
             st.experimental_set_query_params(**q)
         except Exception:
             pass

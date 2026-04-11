@@ -273,6 +273,8 @@ def _merge_profile_cache(db_profile: Dict[str, Any] | None, email: str, is_admin
 def get_access_profile(client: Any | None = None, force_refresh: bool = False) -> Dict[str, Any]:
     resolved_client = _resolve_supabase_client(client)
     user_id, email = _get_authenticated_identity(resolved_client)
+    profile_cache = _current_profile()
+    is_local_runtime = bool(getattr(resolved_client, "is_local_runtime", False)) if resolved_client is not None else False
     auth_flag = bool(st.session_state.get("auth_is_authenticated"))
     authenticated = bool(user_id) and (auth_flag or bool(email))
     cache_key = f"{user_id}|{email}|{int(authenticated)}"
@@ -284,7 +286,7 @@ def get_access_profile(client: Any | None = None, force_refresh: bool = False) -
 
     db_profile = _fetch_usuarios_app_profile(user_id, email, resolved_client)
     role = _to_text((db_profile or {}).get("role")).lower()
-    plan = _to_text((db_profile or {}).get("plan")) or DEFAULT_PLAN
+    plan = _to_text((db_profile or {}).get("plan")).lower() or DEFAULT_PLAN
     ativo = _to_bool((db_profile or {}).get("ativo")) if db_profile else False
 
     # Fonte principal: usuarios_app (id + ativo + role)
@@ -302,6 +304,36 @@ def get_access_profile(client: Any | None = None, force_refresh: bool = False) -
         if (user_id and user_id in admin_ids) or (email and email in admin_emails):
             is_admin = True
             source = "allowlist"
+
+    # Compatibilidade com a tabela `admin` consultada no login.
+    if authenticated and not is_admin and _to_bool(profile_cache.get("_admin_match")):
+        is_admin = True
+        source = "admin_table"
+        if not role:
+            role = _to_text(profile_cache.get("role")).lower() or "admin"
+        if plan == DEFAULT_PLAN:
+            plan = _to_text(profile_cache.get("plan")).lower() or DEFAULT_PLAN
+        if not db_profile:
+            ativo = True
+
+    # No runtime local (localhost), permite bootstrap de admin via perfil local.
+    if authenticated and not is_admin and is_local_runtime:
+        profile_role = _to_text(profile_cache.get("role")).lower()
+        profile_plan = _to_text(profile_cache.get("plan")).lower()
+        profile_admin = _to_bool(profile_cache.get("is_admin"))
+        local_mode = _to_bool(profile_cache.get("local_mode"))
+        if profile_admin or profile_role in ADMIN_ROLES or local_mode:
+            is_admin = True
+            source = "local_profile"
+            if not role:
+                role = profile_role or "admin"
+        if plan == DEFAULT_PLAN and profile_plan:
+            plan = profile_plan
+        if not db_profile:
+            ativo = True
+
+    if is_admin and not role:
+        role = "admin"
 
     _merge_profile_cache(db_profile, email=email, is_admin=is_admin)
 
