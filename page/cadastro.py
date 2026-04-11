@@ -584,37 +584,6 @@ def render(ctx):
         except Exception as exc:
             st.error(f"Falha ao salvar cadastro tecnico: {exc}")
 
-    st.divider()
-    st.subheader("Cadastro de O.S. (mantido)")
-
-    with st.form("os_form"):
-        cliente = st.text_input("Cliente")
-        marca = st.text_input("Marca")
-        potencia = st.text_input("Potencia")
-        rpm = st.text_input("RPM")
-        tensao = st.text_input("Tensao")
-        corrente = st.text_input("Corrente")
-        diagnostico = st.text_area("Diagnostico de entrada")
-        salvar_os = st.form_submit_button("Salvar ordem", use_container_width=True)
-
-    if salvar_os:
-        if not cliente or not marca:
-            st.warning("Preencha Cliente e Marca.")
-            return
-        payload = {
-            "cliente": cliente,
-            "marca": marca,
-            "potencia": potencia,
-            "rpm": rpm,
-            "tensao": tensao,
-            "corrente": corrente,
-            "diagnostico": diagnostico,
-            "status": "Em Analise",
-        }
-        ctx.supabase.table("ordens_servico").insert(payload).execute()
-        st.success("Ordem salva com sucesso.")
-
-
 def show(ctx):
     return render(ctx)
 

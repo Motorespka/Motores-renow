@@ -7,6 +7,17 @@ import streamlit as st
 
 CHANGELOG: List[Dict[str, object]] = [
     {
+        "versao": "V20.2",
+        "data": "2026-04-11",
+        "titulo": "Remocao de O.S. no cadastro tecnico",
+        "adicoes": [
+            "Fluxo de cadastro focado somente em motor tecnico.",
+        ],
+        "correcoes": [
+            "Removido bloco de Cadastro de O.S. que causava erro de API na tabela ordens_servico.",
+        ],
+    },
+    {
         "versao": "V20.1",
         "data": "2026-04-11",
         "titulo": "Cadastro resiliente e consulta mais objetiva",
