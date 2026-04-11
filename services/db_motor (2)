@@ -1,0 +1,62 @@
+import sqlite3
+from pathlib import Path
+
+DB_PATH = Path("data/motores.db")
+
+# ===========================
+# CRIAR CONEXÃO E TABELA
+# ===========================
+def criar_tabela():
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS motores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                marca TEXT,
+                modelo TEXT,
+                potencia TEXT,
+                tensao TEXT,
+                corrente TEXT,
+                rpm TEXT,
+                frequencia TEXT,
+                fp TEXT,
+                carcaca TEXT,
+                ip TEXT,
+                isolacao TEXT,
+                regime TEXT,
+                rolamento_dianteiro TEXT,
+                rolamento_traseiro TEXT,
+                peso TEXT,
+                diametro_eixo TEXT,
+                comprimento_pacote TEXT,
+                numero_ranhuras TEXT,
+                ligacao TEXT,
+                fabricacao TEXT
+            )
+        """)
+        conn.commit()
+
+# ===========================
+# INSERIR MOTOR
+# ===========================
+def salvar_motor(motor: dict):
+    criar_tabela()  # garante que a tabela exista
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        campos = ", ".join(motor.keys())
+        placeholders = ", ".join("?" for _ in motor)
+        valores = list(motor.values())
+        cursor.execute(f"INSERT INTO motores ({campos}) VALUES ({placeholders})", valores)
+        conn.commit()
+
+# ===========================
+# LISTAR MOTORES
+# ===========================
+def listar_motores():
+    criar_tabela()
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM motores ORDER BY id DESC")
+        colunas = [desc[0] for desc in cursor.description]
+        linhas = cursor.fetchall()
+        return [dict(zip(colunas, linha)) for linha in linhas]
