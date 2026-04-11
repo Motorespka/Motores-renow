@@ -7,6 +7,17 @@ import streamlit as st
 
 CHANGELOG: List[Dict[str, object]] = [
     {
+        "versao": "V20.8",
+        "data": "2026-04-11",
+        "titulo": "Hotfix de roteamento Consulta/Cadastro",
+        "adicoes": [
+            "Consulta volta a respeitar a rota escolhida no menu, sem redirecionamento forcado.",
+        ],
+        "correcoes": [
+            "Removida regra que convertia automaticamente 'consulta' em 'cadastro' para usuarios com acesso de cadastro.",
+        ],
+    },
+    {
         "versao": "V20.7",
         "data": "2026-04-11",
         "titulo": "Hotfix de compatibilidade Streamlit Cloud",

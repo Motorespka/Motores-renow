@@ -379,7 +379,7 @@ def main() -> None:
         st.session_state["route"] = "login"
     else:
         if cadastro_allowed:
-            if current_route in {"", "login", "consulta"}:
+            if current_route in {"", "login"}:
                 _set_route_state(session, "cadastro")
         else:
             if current_route in {"", "login", "cadastro", "edit", "diagnostico", "detalhe", "admin"}:
@@ -392,10 +392,6 @@ def main() -> None:
         st.stop()
 
     route = st.session_state.get("route", "login")
-    if access.get("authenticated") and cadastro_allowed and route == "consulta":
-        _set_route_state(session, "cadastro")
-        st.rerun()
-
     if access.get("authenticated") and (not cadastro_allowed) and route == "cadastro":
         _set_route_state(session, "consulta")
         st.rerun()
