@@ -403,22 +403,57 @@ def _render_live_update_if_needed(flags, access: dict, route: str) -> None:
     interval_seconds = _resolve_live_update_seconds(route_value)
     state_key = f"_live_update_last_full_rerun_{route_value}"
 
-    @st.fragment(run_every=interval_seconds)
-    def _live_update_fragment() -> None:
-        current_route = str(st.session_state.get("route") or "").strip().lower()
-        if current_route != route_value:
-            return
+    if hasattr(st, "fragment"):
+        @st.fragment(run_every=interval_seconds)
+        def _live_update_fragment() -> None:
+            current_route = str(st.session_state.get("route") or "").strip().lower()
+            if current_route != route_value:
+                return
 
-        now = time.time()
-        last_full_rerun = float(st.session_state.get(state_key, 0.0) or 0.0)
-        if now - last_full_rerun < max(float(interval_seconds) * 0.6, 1.0):
-            return
+            now = time.time()
+            last_full_rerun = float(st.session_state.get(state_key, 0.0) or 0.0)
+            if now - last_full_rerun < max(float(interval_seconds) * 0.6, 1.0):
+                return
 
-        st.session_state[state_key] = now
-        st.session_state["_live_update_pulse"] = int(st.session_state.get("_live_update_pulse", 0) or 0) + 1
-        st.rerun()
+            st.session_state[state_key] = now
+            st.session_state["_live_update_pulse"] = int(st.session_state.get("_live_update_pulse", 0) or 0) + 1
+            st.rerun()
 
-    _live_update_fragment()
+        _live_update_fragment()
+        return
+
+    interval_ms = int(interval_seconds * 1000)
+    pulse = int(st.session_state.get("_live_update_pulse", 0) or 0) + 1
+    st.session_state["_live_update_pulse"] = pulse
+
+    html_payload = f"""
+        <script>
+        (function () {{
+            try {{
+                const root = window.parent || window;
+                const timerKey = "__mrw_live_update_timer";
+                if (root[timerKey]) {{
+                    clearTimeout(root[timerKey]);
+                }}
+                root[timerKey] = setTimeout(function () {{
+                    try {{
+                        const url = new URL(root.location.href);
+                        url.searchParams.set("mrw_live_tick", String(Date.now()));
+                        root.location.replace(url.toString());
+                    }} catch (e) {{
+                        try {{ root.location.reload(); }} catch (_e) {{}}
+                    }}
+                }}, {interval_ms});
+            }} catch (e) {{}}
+        }})();
+        </script>
+    """ + f"\n<div style=\"display:none\">live:{route_value}:{pulse}:{interval_ms}</div>\n"
+
+    components.html(
+        html_payload,
+        height=1,
+        width=1,
+    )
 
 
 def main() -> None:
