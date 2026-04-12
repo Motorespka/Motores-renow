@@ -303,7 +303,7 @@ def _render_development(ctx) -> None:
     with c1:
         if st.button("Abrir ambiente de teste", use_container_width=True, key="admin_dev_on"):
             set_dev_mode(True, actor=identity.get("display_name", "admin"))
-            ctx.session.set_route(Route.HUB_COMERCIAL)
+            ctx.session.set_route(Route.ATUALIZACOES)
             st.success("Development ativado para esta sessao.")
             st.rerun()
     with c2:
