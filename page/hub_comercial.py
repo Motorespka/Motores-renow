@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+from pathlib import Path
 from typing import Dict, List
 from urllib.parse import quote_plus
 
@@ -10,6 +12,8 @@ from core.feature_flags import get_feature_flags
 from core.navigation import Route
 from core.user_identity import resolve_current_user_identity
 from services.modulo_comercial import (
+    CHAT_TERM_CONTEXT,
+    CHAT_TERM_VERSION,
     CommercialModuleStore,
     STATUS_ACTIVE,
     STATUS_PAUSED,
@@ -26,7 +30,24 @@ TERMS_TEXTS: List[str] = [
     "Voce sera direcionado para contato externo.",
     "A plataforma nao participa da contratacao.",
     "Indicadores baseados em atividade na plataforma, nao representando certificacao.",
-    "O numero informado para envio via WhatsApp nao sera armazenado.",
+    "Os contatos publicos exibidos nos anuncios/perfis sao informados pelo proprio anunciante.",
+    "No chat interno, e proibido compartilhar dados pessoais, financeiros ou sensiveis.",
+]
+
+CHAT_MAX_LENGTH = 500
+LEGAL_REPO_BASE_URL = "https://github.com/Motorespka/Motores-renow/blob/main"
+LEGAL_DOCS = [
+    ("Termo de Uso do Modulo Comercial e Chat (v1.0)", "docs/legal/TERMO_USO_CHAT_MARKETPLACE_V1_0.md"),
+    ("Politica de Privacidade e Retencao (v1.0)", "docs/legal/POLITICA_PRIVACIDADE_RETENCAO_V1_0.md"),
+]
+
+SENSITIVE_CHAT_PATTERNS = [
+    ("e-mail", re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.IGNORECASE)),
+    ("telefone", re.compile(r"(?:\+?\d[\d\s\-\(\)]{7,}\d)")),
+    ("cpf", re.compile(r"\b\d{3}\.?\d{3}\.?\d{3}\-?\d{2}\b")),
+    ("cnpj", re.compile(r"\b\d{2}\.?\d{3}\.?\d{3}/?\d{4}\-?\d{2}\b")),
+    ("link externo", re.compile(r"(https?://|www\.)", re.IGNORECASE)),
+    ("dados de endereco", re.compile(r"\b(rua|avenida|av\.|bairro|cep)\b", re.IGNORECASE)),
 ]
 
 
@@ -45,6 +66,96 @@ def _show_terms_block() -> None:
     st.markdown("### Termos e avisos")
     for row in TERMS_TEXTS:
         st.write(f"- {row}")
+
+
+def _legal_doc_url(relative_path: str) -> str:
+    rel = str(relative_path or "").replace("\\", "/").lstrip("/")
+    return f"{LEGAL_REPO_BASE_URL}/{rel}"
+
+
+@st.cache_data(show_spinner=False)
+def _load_legal_doc(relative_path: str) -> str:
+    rel = str(relative_path or "").replace("\\", "/").lstrip("/")
+    doc_path = Path(__file__).resolve().parents[1] / rel
+    try:
+        return doc_path.read_text(encoding="utf-8")
+    except Exception:
+        return ""
+
+
+def _render_legal_doc_links(section_key: str) -> None:
+    st.caption("Documentos legais:")
+    for label, rel in LEGAL_DOCS:
+        st.markdown(f"- [{label}]({_legal_doc_url(rel)})")
+
+    cols = st.columns(2)
+    for idx, (label, rel) in enumerate(LEGAL_DOCS):
+        content = _load_legal_doc(rel)
+        if not content:
+            continue
+        cols[idx % 2].download_button(
+            label=f"Baixar {label}",
+            data=content,
+            file_name=Path(rel).name,
+            mime="text/markdown",
+            key=f"{section_key}_legal_dl_{idx}",
+            use_container_width=True,
+        )
+
+
+def _chat_terms_accepted(store: CommercialModuleStore, identity: Dict[str, str]) -> bool:
+    return store.has_terms_acceptance(
+        user_id=identity.get("user_id", ""),
+        contexto=CHAT_TERM_CONTEXT,
+        versao=CHAT_TERM_VERSION,
+    )
+
+
+def _detect_sensitive_chat_payload(text: str) -> List[str]:
+    content = _to_text(text)
+    if not content:
+        return []
+    flags: List[str] = []
+    for label, pattern in SENSITIVE_CHAT_PATTERNS:
+        if pattern.search(content):
+            flags.append(label)
+    return flags
+
+
+def _start_secure_chat(
+    *,
+    store: CommercialModuleStore,
+    identity: Dict[str, str],
+    contexto_tipo: str,
+    contexto_id: str,
+    contexto_titulo: str,
+    owner_user_id: str,
+    owner_nome: str,
+) -> None:
+    if not _chat_terms_accepted(store, identity):
+        st.warning("Para abrir chat, aceite primeiro os termos na aba Chat.")
+        return
+
+    requester_id = identity.get("user_id", "")
+    if not _to_text(requester_id):
+        st.error("Usuario nao autenticado para abrir chat.")
+        return
+
+    thread = store.get_or_create_chat_thread(
+        contexto_tipo=contexto_tipo,
+        contexto_id=contexto_id,
+        contexto_titulo=contexto_titulo,
+        requester_user_id=requester_id,
+        requester_nome=identity.get("display_name", ""),
+        owner_user_id=owner_user_id,
+        owner_nome=owner_nome,
+    )
+    if not thread:
+        st.warning("Nao foi possivel abrir chat para este item.")
+        return
+
+    st.session_state["hub_chat_thread_id"] = thread.get("id")
+    st.success("Chat pronto. Abra a aba Chat para continuar com seguranca.")
 
 
 def _render_header(dev_mode: bool, isolated_mode: bool) -> None:
@@ -179,6 +290,22 @@ def _render_classificados_tab(store: CommercialModuleStore, identity: Dict[str, 
             wa = _to_text(row.get("whatsapp"))
             if wa:
                 st.link_button("Falar com anunciante", _wa_link(wa, contato_msg), use_container_width=True)
+            owner_id = _to_text(row.get("user_id"))
+            if owner_id and owner_id != _to_text(identity.get("user_id")):
+                if st.button(
+                    "Abrir chat seguro",
+                    key=f"chat_anuncio_{_to_text(row.get('id'))}",
+                    use_container_width=True,
+                ):
+                    _start_secure_chat(
+                        store=store,
+                        identity=identity,
+                        contexto_tipo="anuncio",
+                        contexto_id=_to_text(row.get("id")),
+                        contexto_titulo=_to_text(row.get("titulo")) or "Anuncio",
+                        owner_user_id=owner_id,
+                        owner_nome=_to_text(row.get("nome_publico")) or "Anunciante",
+                    )
 
 
 def _render_empresas_tab(store: CommercialModuleStore, identity: Dict[str, str], dev_mode: bool) -> None:
@@ -186,6 +313,7 @@ def _render_empresas_tab(store: CommercialModuleStore, identity: Dict[str, str],
     st.caption(
         "Indicadores baseados em atividade na plataforma, nao representando garantia, certificacao ou recomendacao."
     )
+    my_empresa = store.find_user_empresa(identity.get("user_id", ""))
 
     with st.expander("Cadastrar/atualizar perfil da empresa", expanded=False):
         if store.is_blocked("user", identity.get("user_id", ""), "empresas"):
@@ -194,17 +322,24 @@ def _render_empresas_tab(store: CommercialModuleStore, identity: Dict[str, str],
             with st.form("form_empresa", clear_on_submit=True):
                 c1, c2 = st.columns(2)
                 with c1:
-                    nome_publico = st.text_input("Nome publico")
-                    cidade = st.text_input("Cidade")
-                    estado = st.text_input("Estado")
-                    whatsapp = st.text_input("WhatsApp")
-                    especialidades = st.text_input("Especialidades")
+                    nome_publico = st.text_input("Nome publico", value=_to_text((my_empresa or {}).get("nome_publico")))
+                    cidade = st.text_input("Cidade", value=_to_text((my_empresa or {}).get("cidade")))
+                    estado = st.text_input("Estado", value=_to_text((my_empresa or {}).get("estado")))
+                    whatsapp = st.text_input("WhatsApp comercial", value=_to_text((my_empresa or {}).get("whatsapp")))
+                    especialidades = st.text_input(
+                        "Especialidades",
+                        value=_to_text((my_empresa or {}).get("especialidades")),
+                    )
                 with c2:
-                    descricao = st.text_area("Descricao", height=90)
-                    regiao = st.text_input("Regiao de atendimento")
-                    rota = st.text_input("Rota de entrega")
-                    pedido_min = st.text_input("Pedido minimo")
-                    perfil_completo = st.toggle("Perfil completo")
+                    descricao = st.text_area("Descricao", value=_to_text((my_empresa or {}).get("descricao")), height=90)
+                    regiao = st.text_input(
+                        "Regiao de atendimento",
+                        value=_to_text((my_empresa or {}).get("regiao_atendimento")),
+                    )
+                    perfil_completo = st.toggle(
+                        "Perfil completo",
+                        value=bool((my_empresa or {}).get("perfil_completo")),
+                    )
                 submitted = st.form_submit_button("Salvar empresa", use_container_width=True)
                 if submitted:
                     if not nome_publico:
@@ -219,13 +354,62 @@ def _render_empresas_tab(store: CommercialModuleStore, identity: Dict[str, str],
                                 "whatsapp": whatsapp,
                                 "especialidades": especialidades,
                                 "regiao_atendimento": regiao,
-                                "rota_entrega": rota,
-                                "pedido_minimo_texto": pedido_min,
                                 "perfil_completo": perfil_completo,
                             },
                             user_id=identity.get("user_id", ""),
                         )
                         st.success(f"Empresa salva ({row.get('id')}).")
+                        my_empresa = row
+
+    if my_empresa:
+        st.markdown("#### Equipe da empresa")
+        st.caption("Cadastre somente nomes profissionais e funcao. Nao use dados pessoais sensiveis.")
+        with st.form("form_membro_empresa", clear_on_submit=True):
+            m1, m2 = st.columns(2)
+            with m1:
+                nome_profissional = st.text_input("Nome profissional")
+            with m2:
+                funcao = st.selectbox("Funcao", ["atendente", "vendedor", "tecnico", "admin"], index=0)
+            add_membro = st.form_submit_button("Adicionar membro", use_container_width=True)
+            if add_membro:
+                if not _to_text(nome_profissional):
+                    st.error("Informe o nome profissional.")
+                else:
+                    row = store.save_empresa_membro(
+                        {
+                            "empresa_id": _to_text(my_empresa.get("id")),
+                            "nome_profissional": nome_profissional,
+                            "funcao": funcao,
+                        },
+                        created_by_user_id=identity.get("user_id", ""),
+                    )
+                    st.success(f"Membro salvo ({row.get('id')}).")
+
+        membros = store.list_empresa_membros(empresa_id=_to_text(my_empresa.get("id")), include_inactive=True)
+        if not membros:
+            st.caption("Nenhum membro cadastrado.")
+        for membro in membros:
+            status = _to_text(membro.get("status")) or STATUS_ACTIVE
+            with st.container(border=True):
+                st.caption(
+                    f"{_to_text(membro.get('nome_profissional')) or '-'} | "
+                    f"funcao={_to_text(membro.get('funcao')) or '-'} | status={status}"
+                )
+                cbtn1, cbtn2 = st.columns(2)
+                if status == STATUS_ACTIVE:
+                    if cbtn1.button("Pausar", key=f"membro_pause_{_to_text(membro.get('id'))}", use_container_width=True):
+                        store.set_empresa_membro_status(_to_text(membro.get("id")), STATUS_PAUSED)
+                        st.rerun()
+                    if cbtn2.button("Remover", key=f"membro_remove_{_to_text(membro.get('id'))}", use_container_width=True):
+                        store.set_empresa_membro_status(_to_text(membro.get("id")), "removed")
+                        st.rerun()
+                elif status == STATUS_PAUSED:
+                    if cbtn1.button("Reativar", key=f"membro_resume_{_to_text(membro.get('id'))}", use_container_width=True):
+                        store.set_empresa_membro_status(_to_text(membro.get("id")), STATUS_ACTIVE)
+                        st.rerun()
+                    if cbtn2.button("Remover", key=f"membro_remove_{_to_text(membro.get('id'))}", use_container_width=True):
+                        store.set_empresa_membro_status(_to_text(membro.get("id")), "removed")
+                        st.rerun()
 
     f1, f2 = st.columns(2)
     cidade_f = f1.text_input("Filtrar cidade", key="empresa_cidade")
@@ -248,11 +432,11 @@ def _render_empresas_tab(store: CommercialModuleStore, identity: Dict[str, str],
                 st.caption(f"Atividade: {atividade} (ultima referencia: {data_ref})")
             else:
                 st.caption(f"Atividade: {atividade}")
+            membros_count = len(store.list_empresa_membros(empresa_id=_to_text(row.get("id")), include_inactive=False))
             st.caption(
                 f"Especialidades: {_to_text(row.get('especialidades')) or '-'} | "
                 f"Regiao: {_to_text(row.get('regiao_atendimento')) or '-'} | "
-                f"Rota: {_to_text(row.get('rota_entrega')) or '-'} | "
-                f"Pedido minimo: {_to_text(row.get('pedido_minimo_texto')) or '-'}"
+                f"Membros ativos: {membros_count}"
             )
             wa = _to_text(row.get("whatsapp"))
             if wa:
@@ -261,6 +445,18 @@ def _render_empresas_tab(store: CommercialModuleStore, identity: Dict[str, str],
                     _wa_link(wa, "Ola, vi seu perfil no Uniao Motores e gostaria de mais informacoes."),
                     use_container_width=True,
                 )
+            owner_id = _to_text(row.get("user_id"))
+            if owner_id and owner_id != _to_text(identity.get("user_id")):
+                if st.button("Abrir chat seguro", key=f"chat_empresa_{_to_text(row.get('id'))}", use_container_width=True):
+                    _start_secure_chat(
+                        store=store,
+                        identity=identity,
+                        contexto_tipo="empresa",
+                        contexto_id=_to_text(row.get("id")),
+                        contexto_titulo=_to_text(row.get("nome_publico")) or "Empresa",
+                        owner_user_id=owner_id,
+                        owner_nome=_to_text(row.get("nome_publico")) or "Empresa",
+                    )
 
 
 def _render_fornecedores_tab(store: CommercialModuleStore, identity: Dict[str, str], dev_mode: bool) -> None:
@@ -345,6 +541,22 @@ def _render_fornecedores_tab(store: CommercialModuleStore, identity: Dict[str, s
                     _wa_link(wa, "Ola, vi seu perfil no Uniao Motores e gostaria de solicitar atendimento."),
                     use_container_width=True,
                 )
+            owner_id = _to_text(row.get("user_id"))
+            if owner_id and owner_id != _to_text(identity.get("user_id")):
+                if st.button(
+                    "Abrir chat seguro",
+                    key=f"chat_fornecedor_{_to_text(row.get('id'))}",
+                    use_container_width=True,
+                ):
+                    _start_secure_chat(
+                        store=store,
+                        identity=identity,
+                        contexto_tipo="fornecedor",
+                        contexto_id=_to_text(row.get("id")),
+                        contexto_titulo=_to_text(row.get("nome_publico")) or "Fornecedor",
+                        owner_user_id=owner_id,
+                        owner_nome=_to_text(row.get("nome_publico")) or "Fornecedor",
+                    )
 
 
 def _render_vagas_tab(store: CommercialModuleStore, identity: Dict[str, str], dev_mode: bool) -> None:
@@ -414,15 +626,182 @@ def _render_vagas_tab(store: CommercialModuleStore, identity: Dict[str, str], de
             wa = _to_text(row.get("contato_whatsapp"))
             if wa:
                 st.link_button("Contato da vaga", _wa_link(wa, mensagem_contato_vaga()), use_container_width=True)
+            owner_id = _to_text(row.get("user_id"))
+            if owner_id and owner_id != _to_text(identity.get("user_id")):
+                if st.button("Abrir chat seguro", key=f"chat_vaga_{_to_text(row.get('id'))}", use_container_width=True):
+                    _start_secure_chat(
+                        store=store,
+                        identity=identity,
+                        contexto_tipo="vaga",
+                        contexto_id=_to_text(row.get("id")),
+                        contexto_titulo=_to_text(row.get("titulo")) or "Vaga",
+                        owner_user_id=owner_id,
+                        owner_nome=_to_text(row.get("nome_empresa_snapshot")) or "Empresa",
+                    )
+
+
+def _find_by_id(rows: List[Dict[str, str]], row_id: str) -> Dict[str, str] | None:
+    target = _to_text(row_id)
+    if not target:
+        return None
+    for row in rows:
+        if _to_text(row.get("id")) == target:
+            return row
+    return None
+
+
+def _resolve_external_chat_link(store: CommercialModuleStore, thread: Dict[str, str]) -> tuple[str, str]:
+    context_type = _to_text(thread.get("contexto_tipo"))
+    context_id = _to_text(thread.get("contexto_id"))
+
+    if context_type == "fornecedor":
+        row = _find_by_id(store.list_fornecedores(include_inactive=True), context_id)
+        wa = _to_text((row or {}).get("whatsapp"))
+        if wa:
+            return _wa_link(wa, "Ola, vamos continuar nosso atendimento fora da plataforma."), "Ir para WhatsApp do fornecedor"
+
+    if context_type == "anuncio":
+        row = _find_by_id(store.list_anuncios(include_inactive=True), context_id)
+        wa = _to_text((row or {}).get("whatsapp"))
+        if wa:
+            return _wa_link(wa, mensagem_contato_anuncio()), "Ir para WhatsApp do anunciante"
+
+    if context_type == "vaga":
+        row = _find_by_id(store.list_vagas(include_inactive=True), context_id)
+        wa = _to_text((row or {}).get("contato_whatsapp"))
+        if wa:
+            return _wa_link(wa, mensagem_contato_vaga()), "Ir para WhatsApp da vaga"
+
+    if context_type == "empresa":
+        row = _find_by_id(store.list_empresas(include_inactive=True), context_id)
+        wa = _to_text((row or {}).get("whatsapp"))
+        if wa:
+            return _wa_link(wa, "Ola, vamos continuar nosso atendimento fora da plataforma."), "Ir para WhatsApp da empresa"
+
+    return "", ""
+
+
+def _render_chat_tab(store: CommercialModuleStore, identity: Dict[str, str], dev_mode: bool) -> None:
+    st.markdown("### Chat seguro (triagem)")
+    st.caption("Use o chat apenas para triagem comercial. Negociacao final e fechamento devem ocorrer fora da plataforma.")
+
+    st.warning(
+        "A plataforma nao se responsabiliza por negociacoes, pagamentos, contratacoes, entregas, garantias ou promessas feitas entre usuarios."
+    )
+    st.info("E proibido compartilhar e-mail, telefone, CPF/CNPJ, links externos, enderecos e quaisquer dados sensiveis no chat.")
+
+    user_id = _to_text(identity.get("user_id"))
+    if not user_id:
+        st.error("Usuario nao autenticado para usar chat.")
+        return
+
+    if not _chat_terms_accepted(store, identity):
+        st.markdown("#### Aceite obrigatorio para liberar o chat")
+        st.write("- Conversas sao apenas para triagem inicial.")
+        st.write("- Nao envie dados pessoais, dados financeiros ou links externos.")
+        st.write("- O fechamento deve ocorrer fora da plataforma, por sua conta e risco.")
+        _render_legal_doc_links("chat_aceite")
+        with st.form("chat_terms_required", clear_on_submit=False):
+            confirm_terms = st.checkbox("Li e aceito o Termo de Uso do Modulo Comercial e Chat (v1.0).")
+            confirm_privacy = st.checkbox("Li e concordo com a Politica de Privacidade e Retencao (v1.0).")
+            submit_terms = st.form_submit_button("Aceitar e liberar chat", use_container_width=True)
+            if submit_terms:
+                if not (confirm_terms and confirm_privacy):
+                    st.error("Confirme os dois aceites para liberar o chat.")
+                else:
+                    store.record_terms_acceptance(
+                        user_id=user_id,
+                        versao=CHAT_TERM_VERSION,
+                        contexto=CHAT_TERM_CONTEXT,
+                        ip="",
+                    )
+                    st.success("Termo aceito. Chat liberado.")
+                    st.rerun()
+        return
+
+    threads = store.list_chat_threads_for_user(user_id=user_id, include_inactive=dev_mode)
+    if not threads:
+        st.info("Nenhuma conversa ainda. Abra um chat seguro a partir de anuncios, empresas, fornecedores ou vagas.")
+        return
+
+    thread_ids = [_to_text(row.get("id")) for row in threads if _to_text(row.get("id"))]
+    if not thread_ids:
+        st.info("Nenhuma conversa valida encontrada.")
+        return
+
+    preferred_thread = _to_text(st.session_state.get("hub_chat_thread_id"))
+    if preferred_thread not in thread_ids:
+        preferred_thread = thread_ids[0]
+    default_index = thread_ids.index(preferred_thread)
+
+    labels = []
+    for row in threads:
+        titulo = _to_text(row.get("contexto_titulo")) or _to_text(row.get("contexto_tipo")) or "Conversa"
+        ultimo = _to_text(row.get("last_message_at")) or _to_text(row.get("updated_at")) or "-"
+        labels.append(f"{titulo} | ultima atividade: {ultimo}")
+
+    selected_thread_id = st.selectbox(
+        "Conversas",
+        options=thread_ids,
+        index=default_index,
+        format_func=lambda tid: labels[thread_ids.index(tid)],
+    )
+    st.session_state["hub_chat_thread_id"] = selected_thread_id
+    selected_thread = store.get_chat_thread(thread_id=selected_thread_id, user_id=user_id)
+    if not selected_thread:
+        st.warning("Conversa indisponivel.")
+        return
+
+    external_url, external_label = _resolve_external_chat_link(store, selected_thread)
+    if external_url:
+        st.link_button(external_label, external_url, use_container_width=True)
+
+    st.markdown("#### Mensagens")
+    messages = store.list_chat_messages(thread_id=selected_thread_id, user_id=user_id, limit=200)
+    if not messages:
+        st.caption("Ainda sem mensagens nesta conversa.")
+    for row in messages:
+        sender = _to_text(row.get("sender_display_name")) or "Usuario"
+        ts = _to_text(row.get("created_at")) or "-"
+        text = _to_text(row.get("message_text"))
+        with st.container(border=True):
+            st.caption(f"{sender} | {ts}")
+            st.write(text or "-")
+
+    with st.form("chat_send_form", clear_on_submit=True):
+        msg = st.text_area("Mensagem", height=90, max_chars=CHAT_MAX_LENGTH)
+        submit_msg = st.form_submit_button("Enviar mensagem", use_container_width=True)
+        if submit_msg:
+            content = _to_text(msg)
+            if not content:
+                st.error("Digite uma mensagem.")
+            else:
+                sensitive = _detect_sensitive_chat_payload(content)
+                if sensitive:
+                    itens = ", ".join(sorted(set(sensitive)))
+                    st.error(f"Mensagem bloqueada por conter possivel dado sensivel: {itens}.")
+                else:
+                    row = store.save_chat_message(
+                        thread_id=selected_thread_id,
+                        sender_user_id=user_id,
+                        sender_display_name=identity.get("display_name", ""),
+                        message_text=content,
+                    )
+                    if not row:
+                        st.error("Nao foi possivel enviar a mensagem.")
+                    else:
+                        st.success("Mensagem enviada.")
+                        st.rerun()
 
 
 def _render_termos_tab(store: CommercialModuleStore, identity: Dict[str, str]) -> None:
     _show_terms_block()
+    _render_legal_doc_links("termos_tab")
 
     with st.form("form_aceite_termos", clear_on_submit=True):
         contexto = st.selectbox(
             "Contexto do aceite",
-            ["classificados", "empresas", "fornecedores", "vagas", "whatsapp_laudo"],
+            ["classificados", "empresas", "fornecedores", "vagas", "whatsapp_laudo", CHAT_TERM_CONTEXT],
             index=0,
         )
         versao = st.text_input("Versao dos termos", value="v1.0")
@@ -431,11 +810,14 @@ def _render_termos_tab(store: CommercialModuleStore, identity: Dict[str, str]) -
             if not identity.get("user_id"):
                 st.error("Usuario nao identificado para registrar aceite.")
             else:
+                ip_value = ""
+                if contexto != CHAT_TERM_CONTEXT:
+                    ip_value = resolve_client_ip()
                 row = store.record_terms_acceptance(
                     user_id=identity.get("user_id", ""),
                     versao=versao,
                     contexto=contexto,
-                    ip=resolve_client_ip(),
+                    ip=ip_value,
                 )
                 st.success(f"Aceite registrado em {row.get('created_at')}.")
 
@@ -447,7 +829,7 @@ def _render_termos_tab(store: CommercialModuleStore, identity: Dict[str, str]) -
     for row in sorted(rows, key=lambda item: _to_text(item.get("created_at")), reverse=True)[:20]:
         st.caption(
             f"{_to_text(row.get('created_at'))} | versao={_to_text(row.get('versao'))} | "
-            f"contexto={_to_text(row.get('contexto'))} | ip={_to_text(row.get('ip')) or '-'}"
+            f"contexto={_to_text(row.get('contexto'))} | ip={'oculto' if _to_text(row.get('ip')) else '-'}"
         )
 
 
@@ -483,6 +865,9 @@ def render(ctx) -> None:
     if flags.enable_vagas or dev_mode:
         tab_labels.append("Vagas")
         renderers.append(lambda: _render_vagas_tab(store, identity, dev_mode))
+    if flags.enable_chat or dev_mode:
+        tab_labels.append("Chat")
+        renderers.append(lambda: _render_chat_tab(store, identity, dev_mode))
     tab_labels.append("Termos")
     renderers.append(lambda: _render_termos_tab(store, identity))
 

@@ -10,17 +10,26 @@ import streamlit as st
 
 
 TABLE_EMPRESAS = "marketplace_empresas"
+TABLE_EMPRESA_MEMBROS = "marketplace_empresa_membros"
 TABLE_ANUNCIOS = "marketplace_anuncios"
 TABLE_FORNECEDORES = "marketplace_fornecedores"
 TABLE_VAGAS = "marketplace_vagas"
+TABLE_CHAT_THREADS = "marketplace_chat_threads"
+TABLE_CHAT_MESSAGES = "marketplace_chat_messages"
 TABLE_BLOQUEIOS = "marketplace_bloqueios"
 TABLE_TERMOS = "marketplace_termos_aceites"
 TABLES_MODULE = {
     "empresas": TABLE_EMPRESAS,
+    "empresa_membros": TABLE_EMPRESA_MEMBROS,
     "anuncios": TABLE_ANUNCIOS,
     "fornecedores": TABLE_FORNECEDORES,
     "vagas": TABLE_VAGAS,
+    "chat_threads": TABLE_CHAT_THREADS,
+    "chat_messages": TABLE_CHAT_MESSAGES,
 }
+CHAT_RETENTION_DAYS = 15
+CHAT_TERM_CONTEXT = "chat_marketplace"
+CHAT_TERM_VERSION = "v1.0"
 
 STATUS_ACTIVE = "active"
 STATUS_PAUSED = "paused"
@@ -99,8 +108,6 @@ class EmpresaPublica:
     whatsapp: str | None = None
     especialidades: str | None = None
     regiao_atendimento: str | None = None
-    rota_entrega: str | None = None
-    pedido_minimo_texto: str | None = None
     perfil_completo: bool = False
     last_login_at: str | None = None
     last_activity_at: str | None = None
@@ -180,6 +187,49 @@ class Vaga:
     status: str = STATUS_ACTIVE
     user_id: str | None = None
     empresa_id: str | None = None
+
+
+@dataclass
+class EmpresaMembro:
+    id: str
+    empresa_id: str
+    nome_profissional: str
+    funcao: str
+    created_by_user_id: str
+    status: str = STATUS_ACTIVE
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+@dataclass
+class ChatThread:
+    id: str
+    contexto_tipo: str
+    contexto_id: str
+    contexto_titulo: str
+    user_a_id: str
+    user_b_id: str
+    user_a_nome: str
+    user_b_nome: str
+    terms_contexto: str = CHAT_TERM_CONTEXT
+    terms_versao: str = CHAT_TERM_VERSION
+    last_message_preview: str | None = None
+    last_message_at: str | None = None
+    status: str = STATUS_ACTIVE
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+@dataclass
+class ChatMessage:
+    id: str
+    thread_id: str
+    sender_user_id: str
+    sender_display_name: str
+    message_text: str
+    status: str = STATUS_ACTIVE
+    created_at: str | None = None
+    updated_at: str | None = None
 
 
 def get_status_atividade(last_activity_at: datetime | None) -> tuple[str, str | None]:
@@ -330,6 +380,43 @@ class CommercialModuleStore:
             self._set_local_rows(table_name, rows)
         return updated
 
+    def _find_first(self, rows: List[Dict[str, Any]], field_name: str, value: str) -> Dict[str, Any] | None:
+        target = _to_text(value)
+        if not target:
+            return None
+        for row in rows:
+            if _to_text(row.get(field_name)) == target:
+                return row
+        return None
+
+    def _is_chat_participant(self, thread: Dict[str, Any], user_id: str) -> bool:
+        uid = _to_text(user_id)
+        if not uid:
+            return False
+        return uid in {_to_text(thread.get("user_a_id")), _to_text(thread.get("user_b_id"))}
+
+    def _touch_chat_thread(self, thread_id: str, message_preview: str) -> None:
+        row_id = _to_text(thread_id)
+        if not row_id:
+            return
+        payload = {
+            "last_message_preview": _to_text(message_preview)[:160],
+            "last_message_at": _now_iso(),
+            "updated_at": _now_iso(),
+        }
+        if self._remote_update(TABLE_CHAT_THREADS, row_id, payload):
+            return
+
+        rows = self._get_local_rows(TABLE_CHAT_THREADS)
+        updated = False
+        for row in rows:
+            if _to_text(row.get("id")) == row_id:
+                row.update(payload)
+                updated = True
+                break
+        if updated:
+            self._set_local_rows(TABLE_CHAT_THREADS, rows)
+
     def _upsert_block(
         self,
         *,
@@ -426,9 +513,22 @@ class CommercialModuleStore:
             actor_user_id=actor_user_id,
         )
 
+    def find_user_empresa(self, user_id: str) -> Dict[str, Any] | None:
+        uid = _to_text(user_id)
+        if not uid:
+            return None
+        rows = self._list_rows(TABLE_EMPRESAS, include_inactive=True)
+        mine = [row for row in rows if _to_text(row.get("user_id")) == uid]
+        if not mine:
+            return None
+        mine.sort(key=lambda item: _to_text(item.get("updated_at")), reverse=True)
+        return mine[0]
+
     def save_empresa(self, payload: Dict[str, Any], user_id: str) -> Dict[str, Any]:
+        uid = _to_text(user_id)
+        existing = self.find_user_empresa(uid)
         model = EmpresaPublica(
-            id=_to_text(payload.get("id")) or _gen_id("emp"),
+            id=_to_text(payload.get("id")) or _to_text((existing or {}).get("id")) or _gen_id("emp"),
             nome_publico=_to_text(payload.get("nome_publico")),
             cidade=_to_text(payload.get("cidade")) or None,
             estado=_to_text(payload.get("estado")) or None,
@@ -436,8 +536,6 @@ class CommercialModuleStore:
             whatsapp=_to_text(payload.get("whatsapp")) or None,
             especialidades=_to_text(payload.get("especialidades")) or None,
             regiao_atendimento=_to_text(payload.get("regiao_atendimento")) or None,
-            rota_entrega=_to_text(payload.get("rota_entrega")) or None,
-            pedido_minimo_texto=_to_text(payload.get("pedido_minimo_texto")) or None,
             perfil_completo=_to_bool(payload.get("perfil_completo")),
             last_login_at=_to_text(payload.get("last_login_at")) or None,
             last_activity_at=_to_text(payload.get("last_activity_at")) or _now_iso(),
@@ -446,9 +544,13 @@ class CommercialModuleStore:
             anuncios_count=int(payload.get("anuncios_count") or 0),
             vagas_count=int(payload.get("vagas_count") or 0),
             status=_to_text(payload.get("status")) or STATUS_ACTIVE,
-            user_id=_to_text(user_id),
+            user_id=uid,
         )
-        return self._save_row(TABLE_EMPRESAS, asdict(model), prefix="emp")
+        row = asdict(model)
+        created_at = _to_text(payload.get("created_at")) or _to_text((existing or {}).get("created_at"))
+        if created_at:
+            row["created_at"] = created_at
+        return self._save_row(TABLE_EMPRESAS, row, prefix="emp")
 
     def list_empresas(self, *, cidade: str = "", estado: str = "", include_inactive: bool = False) -> List[Dict[str, Any]]:
         rows = self._list_rows(TABLE_EMPRESAS, include_inactive=include_inactive)
@@ -462,6 +564,32 @@ class CommercialModuleStore:
                 continue
             out.append(row)
         return out
+
+    def save_empresa_membro(self, payload: Dict[str, Any], created_by_user_id: str) -> Dict[str, Any]:
+        empresa_id = _to_text(payload.get("empresa_id"))
+        model = EmpresaMembro(
+            id=_to_text(payload.get("id")) or _gen_id("memb"),
+            empresa_id=empresa_id,
+            nome_profissional=_to_text(payload.get("nome_profissional")),
+            funcao=_to_text(payload.get("funcao")) or "atendente",
+            created_by_user_id=_to_text(created_by_user_id),
+            status=_to_text(payload.get("status")) or STATUS_ACTIVE,
+        )
+        return self._save_row(TABLE_EMPRESA_MEMBROS, asdict(model), prefix="memb")
+
+    def list_empresa_membros(self, *, empresa_id: str, include_inactive: bool = False) -> List[Dict[str, Any]]:
+        target = _to_text(empresa_id)
+        if not target:
+            return []
+        rows = self._list_rows(TABLE_EMPRESA_MEMBROS, include_inactive=include_inactive)
+        out = [row for row in rows if _to_text(row.get("empresa_id")) == target]
+        out.sort(key=lambda item: _to_text(item.get("updated_at")), reverse=True)
+        return out
+
+    def set_empresa_membro_status(self, membro_id: str, status: str) -> bool:
+        if status not in {STATUS_ACTIVE, STATUS_PAUSED, STATUS_REMOVED}:
+            return False
+        return self._set_row_status(TABLE_EMPRESA_MEMBROS, _to_text(membro_id), status)
 
     def save_anuncio(self, payload: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         model = Anuncio(
@@ -615,13 +743,146 @@ class CommercialModuleStore:
         out.sort(key=lambda item: _to_text(item.get("updated_at")), reverse=True)
         return out
 
+    def get_chat_thread(self, *, thread_id: str, user_id: str) -> Dict[str, Any] | None:
+        tid = _to_text(thread_id)
+        uid = _to_text(user_id)
+        if not tid or not uid:
+            return None
+        rows = self._list_rows(TABLE_CHAT_THREADS, include_inactive=True)
+        found = self._find_first(rows, "id", tid)
+        if not found:
+            return None
+        if not self._is_chat_participant(found, uid):
+            return None
+        return found
+
+    def get_or_create_chat_thread(
+        self,
+        *,
+        contexto_tipo: str,
+        contexto_id: str,
+        contexto_titulo: str,
+        requester_user_id: str,
+        requester_nome: str,
+        owner_user_id: str,
+        owner_nome: str,
+    ) -> Dict[str, Any]:
+        requester = _to_text(requester_user_id)
+        owner = _to_text(owner_user_id)
+        if not requester or not owner:
+            return {}
+        if requester == owner:
+            return {}
+
+        c_tipo = _to_text(contexto_tipo)
+        c_id = _to_text(contexto_id)
+        if not c_tipo or not c_id:
+            return {}
+
+        rows = self._list_rows(TABLE_CHAT_THREADS, include_inactive=True)
+        for row in rows:
+            if _to_text(row.get("contexto_tipo")) != c_tipo:
+                continue
+            if _to_text(row.get("contexto_id")) != c_id:
+                continue
+            participants = {_to_text(row.get("user_a_id")), _to_text(row.get("user_b_id"))}
+            if {requester, owner} == participants:
+                return row
+
+        model = ChatThread(
+            id=_gen_id("th"),
+            contexto_tipo=c_tipo,
+            contexto_id=c_id,
+            contexto_titulo=_to_text(contexto_titulo) or c_tipo,
+            user_a_id=requester,
+            user_b_id=owner,
+            user_a_nome=_to_text(requester_nome) or "Usuario",
+            user_b_nome=_to_text(owner_nome) or "Atendente",
+        )
+        return self._save_row(TABLE_CHAT_THREADS, asdict(model), prefix="th")
+
+    def list_chat_threads_for_user(self, *, user_id: str, include_inactive: bool = False) -> List[Dict[str, Any]]:
+        uid = _to_text(user_id)
+        if not uid:
+            return []
+        rows = self._list_rows(TABLE_CHAT_THREADS, include_inactive=include_inactive)
+        out = [row for row in rows if self._is_chat_participant(row, uid)]
+        out.sort(
+            key=lambda item: _to_text(item.get("last_message_at")) or _to_text(item.get("updated_at")),
+            reverse=True,
+        )
+        return out
+
+    def save_chat_message(
+        self,
+        *,
+        thread_id: str,
+        sender_user_id: str,
+        sender_display_name: str,
+        message_text: str,
+    ) -> Dict[str, Any]:
+        thread = self.get_chat_thread(thread_id=thread_id, user_id=sender_user_id)
+        if not thread:
+            return {}
+        model = ChatMessage(
+            id=_gen_id("msg"),
+            thread_id=_to_text(thread_id),
+            sender_user_id=_to_text(sender_user_id),
+            sender_display_name=_to_text(sender_display_name) or "Usuario",
+            message_text=_to_text(message_text)[:500],
+        )
+        row = self._save_row(TABLE_CHAT_MESSAGES, asdict(model), prefix="msg")
+        self._touch_chat_thread(_to_text(thread_id), model.message_text)
+        return row
+
+    def list_chat_messages(
+        self,
+        *,
+        thread_id: str,
+        user_id: str,
+        limit: int = 200,
+    ) -> List[Dict[str, Any]]:
+        thread = self.get_chat_thread(thread_id=thread_id, user_id=user_id)
+        if not thread:
+            return []
+        tid = _to_text(thread_id)
+        rows = self._list_rows(TABLE_CHAT_MESSAGES, include_inactive=False)
+        cutoff = datetime.utcnow() - timedelta(days=CHAT_RETENTION_DAYS)
+        out: List[Dict[str, Any]] = []
+        for row in rows:
+            if _to_text(row.get("thread_id")) != tid:
+                continue
+            created = _parse_dt(row.get("created_at"))
+            if created and created < cutoff:
+                continue
+            out.append(row)
+        out.sort(key=lambda item: _to_text(item.get("created_at")))
+        return out[-max(int(limit or 0), 1) :]
+
+    def has_terms_acceptance(self, *, user_id: str, contexto: str, versao: str = "") -> bool:
+        uid = _to_text(user_id)
+        ctx = _to_text(contexto)
+        ver = _to_text(versao)
+        if not uid or not ctx:
+            return False
+        rows = self.list_terms_acceptance(user_id=uid)
+        for row in rows:
+            if _to_text(row.get("status")).lower() == STATUS_REMOVED:
+                continue
+            if _to_text(row.get("contexto")) != ctx:
+                continue
+            if ver and _to_text(row.get("versao")) != ver:
+                continue
+            return True
+        return False
+
     def record_terms_acceptance(
         self,
         *,
         user_id: str,
         versao: str,
         contexto: str,
-        ip: str,
+        ip: str = "",
     ) -> Dict[str, Any]:
         payload = {
             "id": _gen_id("term"),
@@ -640,7 +901,9 @@ class CommercialModuleStore:
         user = _to_text(user_id)
         if not user:
             return rows
-        return [row for row in rows if _to_text(row.get("user_id")) == user]
+        selected = [row for row in rows if _to_text(row.get("user_id")) == user]
+        selected.sort(key=lambda item: _to_text(item.get("created_at")), reverse=True)
+        return selected
 
     def set_item_status(self, module_name: str, item_id: str, status: str) -> bool:
         table = TABLES_MODULE.get(_to_text(module_name))

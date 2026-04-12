@@ -32,11 +32,13 @@ class FeatureFlags:
     enable_dev_env: bool = False
     enable_dev_banner: bool = True
     enable_laudo_pro: bool = False
+    enable_live_updates: bool = True
     enable_whatsapp_send: bool = False
     enable_classificados: bool = False
     enable_empresas: bool = False
     enable_vagas: bool = False
     enable_fornecedores: bool = False
+    enable_chat: bool = False
 
     def any_marketplace_enabled(self) -> bool:
         return any(
@@ -45,6 +47,7 @@ class FeatureFlags:
                 self.enable_empresas,
                 self.enable_vagas,
                 self.enable_fornecedores,
+                self.enable_chat,
             ]
         )
 
@@ -54,11 +57,13 @@ def _base_flags() -> FeatureFlags:
         enable_dev_env=_read_secret_or_env("ENABLE_DEV_ENV", False),
         enable_dev_banner=_read_secret_or_env("ENABLE_DEV_BANNER", True),
         enable_laudo_pro=_read_secret_or_env("ENABLE_LAUDO_PRO", False),
+        enable_live_updates=_read_secret_or_env("ENABLE_LIVE_UPDATES", True),
         enable_whatsapp_send=_read_secret_or_env("ENABLE_WHATSAPP_SEND", False),
         enable_classificados=_read_secret_or_env("ENABLE_CLASSIFICADOS", False),
         enable_empresas=_read_secret_or_env("ENABLE_EMPRESAS", False),
         enable_vagas=_read_secret_or_env("ENABLE_VAGAS", False),
         enable_fornecedores=_read_secret_or_env("ENABLE_FORNECEDORES", False),
+        enable_chat=_read_secret_or_env("ENABLE_CHAT", False),
     )
 
 
@@ -83,11 +88,13 @@ def get_feature_flags() -> FeatureFlags:
         "enable_dev_env": base.enable_dev_env,
         "enable_dev_banner": base.enable_dev_banner,
         "enable_laudo_pro": base.enable_laudo_pro,
+        "enable_live_updates": base.enable_live_updates,
         "enable_whatsapp_send": base.enable_whatsapp_send,
         "enable_classificados": base.enable_classificados,
         "enable_empresas": base.enable_empresas,
         "enable_vagas": base.enable_vagas,
         "enable_fornecedores": base.enable_fornecedores,
+        "enable_chat": base.enable_chat,
     }
     for key, value in overrides.items():
         if key in payload:
@@ -100,11 +107,13 @@ def list_flag_names() -> list[str]:
         "enable_dev_env",
         "enable_dev_banner",
         "enable_laudo_pro",
+        "enable_live_updates",
         "enable_whatsapp_send",
         "enable_classificados",
         "enable_empresas",
         "enable_vagas",
         "enable_fornecedores",
+        "enable_chat",
     ]
 
 

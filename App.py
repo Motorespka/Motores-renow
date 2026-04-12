@@ -2,6 +2,7 @@ from pathlib import Path
 import hashlib
 import json
 import os
+import time
 import uuid
 
 import streamlit as st
@@ -38,6 +39,37 @@ def _read_secret_or_env(*names: str) -> str:
         if value:
             return str(value).strip()
     return ""
+
+
+def _read_int_secret_or_env(*names: str, default: int, minimum: int = 5, maximum: int = 180) -> int:
+    for name in names:
+        raw = ""
+        try:
+            value = st.secrets.get(name)
+            if value is not None:
+                raw = str(value).strip()
+        except Exception:
+            raw = ""
+        if not raw:
+            env_value = os.environ.get(name)
+            if env_value:
+                raw = str(env_value).strip()
+        if not raw:
+            continue
+        try:
+            parsed = int(raw)
+            if parsed < minimum:
+                return minimum
+            if parsed > maximum:
+                return maximum
+            return parsed
+        except Exception:
+            continue
+    if default < minimum:
+        return minimum
+    if default > maximum:
+        return maximum
+    return default
 
 
 def _to_plain_mapping(value) -> dict:
@@ -348,6 +380,47 @@ def _render_scroll_reset_if_needed() -> None:
     )
 
 
+def _resolve_live_update_seconds(route: str) -> int:
+    route_value = str(route or "").strip().lower()
+    default_seconds = 8
+    if route_value in {"cadastro", "diagnostico", "edit"}:
+        default_seconds = 20
+    if route_value == "admin":
+        default_seconds = 12
+    return _read_int_secret_or_env("LIVE_UPDATE_SECONDS", default=default_seconds, minimum=5, maximum=180)
+
+
+def _render_live_update_if_needed(flags, access: dict, route: str) -> None:
+    if not bool(access.get("authenticated")):
+        return
+    if not bool(getattr(flags, "enable_live_updates", True)):
+        return
+
+    route_value = str(route or "").strip().lower()
+    if not route_value or route_value == "login":
+        return
+
+    interval_seconds = _resolve_live_update_seconds(route_value)
+    state_key = f"_live_update_last_full_rerun_{route_value}"
+
+    @st.fragment(run_every=interval_seconds)
+    def _live_update_fragment() -> None:
+        current_route = str(st.session_state.get("route") or "").strip().lower()
+        if current_route != route_value:
+            return
+
+        now = time.time()
+        last_full_rerun = float(st.session_state.get(state_key, 0.0) or 0.0)
+        if now - last_full_rerun < max(float(interval_seconds) * 0.6, 1.0):
+            return
+
+        st.session_state[state_key] = now
+        st.session_state["_live_update_pulse"] = int(st.session_state.get("_live_update_pulse", 0) or 0) + 1
+        st.rerun()
+
+    _live_update_fragment()
+
+
 def main() -> None:
     session = SessionManager()
     try:
@@ -423,6 +496,7 @@ def main() -> None:
     ctx = AppContext(supabase=client, session=session, router=router)
     router.dispatch(ctx, session.get_route())
     _render_scroll_reset_if_needed()
+    _render_live_update_if_needed(flags=flags, access=access, route=session.get_route().value)
 
 
 if __name__ == "__main__":

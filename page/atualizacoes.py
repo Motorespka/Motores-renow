@@ -7,6 +7,33 @@ import streamlit as st
 
 CHANGELOG: List[Dict[str, object]] = [
     {
+        "versao": "V21.2",
+        "data": "2026-04-12",
+        "titulo": "Roadmap V200: IA com 10 keys, perfil por acesso e recusas de seguranca",
+        "adicoes": [
+            "Documento de planejamento V200 criado para IA operacional do Motores-Renow.",
+            "Escopo por perfil definido: admin analisa sistema, pago gera calculos, free limitado.",
+            "Estrategia de key ring com 10 chaves e fallback em backend registrada.",
+            "Politica de recusa obrigatoria para pedidos como criar tabela, conceder acesso e expor keys.",
+        ],
+        "correcoes": [
+            "Roadmap V200 deixa de ficar vago e passa a ter diretriz tecnica objetiva para IA segura.",
+        ],
+    },
+    {
+        "versao": "V21.1",
+        "data": "2026-04-12",
+        "titulo": "Atualizacao automatica sem precisar de F5",
+        "adicoes": [
+            "Auto-refresh global adicionado no App para manter telas atualizadas automaticamente.",
+            "Intervalo inteligente por rota: paginas de consulta atualizam mais rapido e formularios com intervalo maior.",
+            "Flag ENABLE_LIVE_UPDATES adicionada para ligar/desligar o comportamento sem alterar codigo.",
+        ],
+        "correcoes": [
+            "Removida dependencia manual de F5 para refletir mudancas recentes no site.",
+        ],
+    },
+    {
         "versao": "V21.0",
         "data": "2026-04-11",
         "titulo": "Modulo isolado de development + hub comercial + laudo pro",
