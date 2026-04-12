@@ -2,7 +2,6 @@ from pathlib import Path
 import hashlib
 import json
 import os
-import time
 import uuid
 
 import streamlit as st
@@ -15,12 +14,18 @@ except Exception:
 
 from auth.login import render_login, sync_authenticated_profile
 from core.access_control import can_access_cadastro, can_access_paid_features, get_access_profile
-from core.development_mode import ensure_dev_mode_access, is_dev_mode, render_dev_banner_if_needed
+from core.development_mode import (
+    ensure_dev_mode_access,
+    is_dev_mode,
+    render_dev_banner_if_needed,
+    resolve_dev_sandbox_db_path,
+)
 from core.feature_flags import get_feature_flags
 from core.navigation import AppContext, Route, Router, render_navigation_sidebar
 from core.session_manager import SessionManager
 from page import admin_panel, atualizacoes, cadastro, consulta, diagnostico, edit, hub_comercial, motor_detail
 from services.database import bootstrap_database, build_local_runtime_client
+from services.supabase_data import clear_motores_cache
 
 st.set_page_config(page_title="Moto-Renow", page_icon=":gear:", layout="wide")
 DEBUG_ACCESS = str(os.environ.get("DEBUG_ACCESS", "")).strip().lower() in {"1", "true", "yes", "on"}
@@ -39,37 +44,6 @@ def _read_secret_or_env(*names: str) -> str:
         if value:
             return str(value).strip()
     return ""
-
-
-def _read_int_secret_or_env(*names: str, default: int, minimum: int = 5, maximum: int = 180) -> int:
-    for name in names:
-        raw = ""
-        try:
-            value = st.secrets.get(name)
-            if value is not None:
-                raw = str(value).strip()
-        except Exception:
-            raw = ""
-        if not raw:
-            env_value = os.environ.get(name)
-            if env_value:
-                raw = str(env_value).strip()
-        if not raw:
-            continue
-        try:
-            parsed = int(raw)
-            if parsed < minimum:
-                return minimum
-            if parsed > maximum:
-                return maximum
-            return parsed
-        except Exception:
-            continue
-    if default < minimum:
-        return minimum
-    if default > maximum:
-        return maximum
-    return default
 
 
 def _to_plain_mapping(value) -> dict:
@@ -271,6 +245,16 @@ def connect_runtime_client(mode: str):
     return runtime
 
 
+def _connect_dev_sandbox_client() -> object:
+    db_path = resolve_dev_sandbox_db_path()
+    runtime = build_local_runtime_client(mode="DEV", db_path=db_path)
+    st.session_state["_runtime_client"] = runtime
+    st.session_state["_runtime_client_mode"] = "DEV_SANDBOX"
+    st.session_state["_runtime_client_cache_key"] = db_path
+    st.session_state["_supabase_client"] = runtime
+    return runtime
+
+
 def _read_route_state(session: SessionManager) -> str:
     route = st.session_state.get("route")
     if isinstance(route, str) and route.strip():
@@ -380,84 +364,9 @@ def _render_scroll_reset_if_needed() -> None:
     )
 
 
-def _resolve_live_update_seconds(route: str) -> int:
-    route_value = str(route or "").strip().lower()
-    default_seconds = 8
-    if route_value in {"cadastro", "diagnostico", "edit"}:
-        default_seconds = 20
-    if route_value == "admin":
-        default_seconds = 12
-    return _read_int_secret_or_env("LIVE_UPDATE_SECONDS", default=default_seconds, minimum=5, maximum=180)
-
-
-def _render_live_update_if_needed(flags, access: dict, route: str) -> None:
-    if not bool(access.get("authenticated")):
-        return
-    if not bool(getattr(flags, "enable_live_updates", True)):
-        return
-
-    route_value = str(route or "").strip().lower()
-    if not route_value or route_value == "login":
-        return
-
-    interval_seconds = _resolve_live_update_seconds(route_value)
-    state_key = f"_live_update_last_full_rerun_{route_value}"
-
-    if hasattr(st, "fragment"):
-        @st.fragment(run_every=interval_seconds)
-        def _live_update_fragment() -> None:
-            current_route = str(st.session_state.get("route") or "").strip().lower()
-            if current_route != route_value:
-                return
-
-            now = time.time()
-            last_full_rerun = float(st.session_state.get(state_key, 0.0) or 0.0)
-            if now - last_full_rerun < max(float(interval_seconds) * 0.6, 1.0):
-                return
-
-            st.session_state[state_key] = now
-            st.session_state["_live_update_pulse"] = int(st.session_state.get("_live_update_pulse", 0) or 0) + 1
-            st.rerun()
-
-        _live_update_fragment()
-        return
-
-    interval_ms = int(interval_seconds * 1000)
-    pulse = int(st.session_state.get("_live_update_pulse", 0) or 0) + 1
-    st.session_state["_live_update_pulse"] = pulse
-
-    html_payload = f"""
-        <script>
-        (function () {{
-            try {{
-                const root = window.parent || window;
-                const timerKey = "__mrw_live_update_timer";
-                if (root[timerKey]) {{
-                    clearTimeout(root[timerKey]);
-                }}
-                root[timerKey] = setTimeout(function () {{
-                    try {{
-                        const url = new URL(root.location.href);
-                        url.searchParams.set("mrw_live_tick", String(Date.now()));
-                        root.location.replace(url.toString());
-                    }} catch (e) {{
-                        try {{ root.location.reload(); }} catch (_e) {{}}
-                    }}
-                }}, {interval_ms});
-            }} catch (e) {{}}
-        }})();
-        </script>
-    """ + f"\n<div style=\"display:none\">live:{route_value}:{pulse}:{interval_ms}</div>\n"
-
-    components.html(
-        html_payload,
-        height=1,
-        width=1,
-    )
-
-
 def main() -> None:
     session = SessionManager()
+    previous_runtime_mode = str(st.session_state.get("_runtime_client_mode") or "")
     try:
         bootstrap_system(session)
     except Exception as exc:
@@ -485,6 +394,20 @@ def main() -> None:
     if not flags.enable_dev_env and is_dev_mode():
         st.session_state["dev_mode"] = False
     ensure_dev_mode_access(bool(access.get("is_admin")))
+
+    if is_dev_mode():
+        if previous_runtime_mode != "DEV_SANDBOX":
+            clear_motores_cache()
+        client = _connect_dev_sandbox_client()
+        st.session_state.pop("_access_cache_key", None)
+        st.session_state.pop("_access_cache_value", None)
+        access = get_access_profile(client=client, force_refresh=True)
+    elif previous_runtime_mode == "DEV_SANDBOX":
+        clear_motores_cache()
+        st.session_state.pop("_access_cache_key", None)
+        st.session_state.pop("_access_cache_value", None)
+        access = get_access_profile(client=client, force_refresh=True)
+
     paid_allowed = can_access_paid_features(client=client)
     cadastro_allowed = can_access_cadastro(client=client)
     current_route_before = _read_route_state(session)
@@ -531,7 +454,6 @@ def main() -> None:
     ctx = AppContext(supabase=client, session=session, router=router)
     router.dispatch(ctx, session.get_route())
     _render_scroll_reset_if_needed()
-    _render_live_update_if_needed(flags=flags, access=access, route=session.get_route().value)
 
 
 if __name__ == "__main__":

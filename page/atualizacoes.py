@@ -4,37 +4,8 @@ from typing import List, Dict
 
 import streamlit as st
 
-from core.development_mode import is_dev_mode
-
 
 CHANGELOG: List[Dict[str, object]] = [
-    {
-        "versao": "V21.2",
-        "data": "2026-04-12",
-        "titulo": "Roadmap V200: IA com 10 keys, perfil por acesso e recusas de seguranca",
-        "adicoes": [
-            "Documento de planejamento V200 criado para IA operacional do Motores-Renow.",
-            "Escopo por perfil definido: admin analisa sistema, pago gera calculos, free limitado.",
-            "Estrategia de key ring com 10 chaves e fallback em backend registrada.",
-            "Politica de recusa obrigatoria para pedidos como criar tabela, conceder acesso e expor keys.",
-        ],
-        "correcoes": [
-            "Roadmap V200 deixa de ficar vago e passa a ter diretriz tecnica objetiva para IA segura.",
-        ],
-    },
-    {
-        "versao": "V21.1",
-        "data": "2026-04-12",
-        "titulo": "Atualizacao automatica sem precisar de F5",
-        "adicoes": [
-            "Auto-refresh global adicionado no App para manter telas atualizadas automaticamente.",
-            "Intervalo inteligente por rota: paginas de consulta atualizam mais rapido e formularios com intervalo maior.",
-            "Flag ENABLE_LIVE_UPDATES adicionada para ligar/desligar o comportamento sem alterar codigo.",
-        ],
-        "correcoes": [
-            "Removida dependencia manual de F5 para refletir mudancas recentes no site.",
-        ],
-    },
     {
         "versao": "V21.0",
         "data": "2026-04-11",
@@ -210,35 +181,18 @@ CHANGELOG: List[Dict[str, object]] = [
     },
 ]
 
-DEV_PREVIEW_CHANGELOG: List[Dict[str, object]] = [
-    {
-        "versao": "V21.1.1",
-        "data": "2026-04-12",
-        "titulo": "Canal de teste em development antes da liberacao geral",
-        "adicoes": [
-            "Versoes de teste agora podem aparecer primeiro em modo development.",
-            "Admin pode abrir ambiente de teste e validar release antes de liberar para todos.",
-            "Auto-refresh ganhou fallback para ambientes Streamlit sem suporte ao fragment.",
-        ],
-        "correcoes": [
-            "Padronizado fluxo de validacao: testar no development e aprovar antes de producao.",
-        ],
-    },
-]
 
-
-def _render_release_card(item: Dict[str, object], preview: bool = False) -> None:
+def _render_release_card(item: Dict[str, object]) -> None:
     versao = str(item.get("versao") or "-")
     data = str(item.get("data") or "-")
     titulo = str(item.get("titulo") or "Atualizacao")
     adicoes = item.get("adicoes") or []
     correcoes = item.get("correcoes") or []
-    badge = "PREVIEW DEVELOPMENT | " if preview else ""
 
     st.markdown(
         f"""
         <div class="data-panel" style="margin-bottom: 14px;">
-            <div class="data-label">{badge}{versao} | {data}</div>
+            <div class="data-label">{versao} | {data}</div>
             <div class="data-value" style="font-size: 1.04rem;">{titulo}</div>
         </div>
         """,
@@ -273,13 +227,6 @@ def render(_ctx) -> None:
         """,
         unsafe_allow_html=True,
     )
-
-    if is_dev_mode() and DEV_PREVIEW_CHANGELOG:
-        st.warning("MODO DEVELOPMENT: voce esta vendo versoes de teste antes da liberacao geral.")
-        for item in DEV_PREVIEW_CHANGELOG:
-            _render_release_card(item, preview=True)
-
-        st.markdown("### Releases gerais")
 
     for item in CHANGELOG:
         _render_release_card(item)
