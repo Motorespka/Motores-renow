@@ -317,6 +317,14 @@ def _render_development(ctx) -> None:
             st.rerun()
 
     st.divider()
+    if not dev_mode:
+        st.info("Feature flags da sessao ficam disponiveis apenas com o ambiente development ativo.")
+        st.caption(
+            f"ENABLE_DEV_ENV (base): {'ON' if flags.enable_dev_env else 'OFF'} | "
+            f"ENABLE_DEV_BANNER: {'ON' if flags.enable_dev_banner else 'OFF'}"
+        )
+        return
+
     st.markdown("### Feature flags da sessao")
     st.caption("Overrides abaixo valem apenas para esta sessao de admin.")
 

@@ -4,6 +4,8 @@ from typing import List, Dict
 
 import streamlit as st
 
+from core.development_mode import is_dev_mode
+
 
 CHANGELOG: List[Dict[str, object]] = [
     {
@@ -181,18 +183,35 @@ CHANGELOG: List[Dict[str, object]] = [
     },
 ]
 
+DEV_PREVIEW_CHANGELOG: List[Dict[str, object]] = [
+    {
+        "versao": "V21.1.2",
+        "data": "2026-04-12",
+        "titulo": "Sandbox real de development + admin limpo no principal",
+        "adicoes": [
+            "Development agora usa banco local isolado por sessao para testes sem impacto na producao.",
+            "Saida do development limpa estado local e remove residuos da sessao de teste.",
+            "Feature flags da sessao ficaram restritas ao development ativo.",
+        ],
+        "correcoes": [
+            "Removida exposicao de controles de teste no admin principal fora do development.",
+        ],
+    },
+]
 
-def _render_release_card(item: Dict[str, object]) -> None:
+
+def _render_release_card(item: Dict[str, object], preview: bool = False) -> None:
     versao = str(item.get("versao") or "-")
     data = str(item.get("data") or "-")
     titulo = str(item.get("titulo") or "Atualizacao")
     adicoes = item.get("adicoes") or []
     correcoes = item.get("correcoes") or []
+    badge = "PREVIEW DEVELOPMENT | " if preview else ""
 
     st.markdown(
         f"""
         <div class="data-panel" style="margin-bottom: 14px;">
-            <div class="data-label">{versao} | {data}</div>
+            <div class="data-label">{badge}{versao} | {data}</div>
             <div class="data-value" style="font-size: 1.04rem;">{titulo}</div>
         </div>
         """,
@@ -227,6 +246,12 @@ def render(_ctx) -> None:
         """,
         unsafe_allow_html=True,
     )
+
+    if is_dev_mode() and DEV_PREVIEW_CHANGELOG:
+        st.warning("MODO DEVELOPMENT: voce esta visualizando versoes de teste antes da liberacao geral.")
+        for item in DEV_PREVIEW_CHANGELOG:
+            _render_release_card(item, preview=True)
+        st.markdown("### Releases gerais")
 
     for item in CHANGELOG:
         _render_release_card(item)
