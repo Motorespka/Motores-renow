@@ -27,7 +27,15 @@ DEV_LOCAL_STATE_KEYS = (
 
 
 def is_dev_mode() -> bool:
-    return bool(st.session_state.get(DEV_MODE_KEY, False))
+    value = st.session_state.get(DEV_MODE_KEY, False)
+    if isinstance(value, bool):
+        return value
+    text = str(value or "").strip().lower()
+    if text in {"1", "true", "yes", "on", "sim"}:
+        return True
+    if text in {"0", "false", "no", "off", "nao", "não", ""}:
+        return False
+    return bool(value)
 
 
 def _sanitize_token(value: str) -> str:

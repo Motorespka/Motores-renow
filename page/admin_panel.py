@@ -294,6 +294,7 @@ def _render_development(ctx) -> None:
     flags = get_feature_flags()
     identity = resolve_current_user_identity()
     dev_mode = is_dev_mode()
+    isolated_runtime = bool(getattr(ctx.supabase, "is_local_runtime", False))
 
     st.markdown("### Ambiente development")
     st.caption("Ative somente para testes do modulo isolado.")
@@ -317,8 +318,13 @@ def _render_development(ctx) -> None:
             st.rerun()
 
     st.divider()
-    if not dev_mode:
-        st.info("Feature flags da sessao ficam disponiveis apenas com o ambiente development ativo.")
+    if not dev_mode or not isolated_runtime:
+        st.info("Feature flags da sessao ficam disponiveis apenas no ambiente development isolado.")
+        if dev_mode and not isolated_runtime:
+            st.warning(
+                "Sessao marcada como development, mas ainda em runtime principal. "
+                "Clique em 'Sair do development' e ative novamente."
+            )
         st.caption(
             f"ENABLE_DEV_ENV (base): {'ON' if flags.enable_dev_env else 'OFF'} | "
             f"ENABLE_DEV_BANNER: {'ON' if flags.enable_dev_banner else 'OFF'}"
