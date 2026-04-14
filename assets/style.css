@@ -525,6 +525,29 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
     color: #a9c2d7 !important;
 }
 
+.dev-mode-banner {
+    border: 1px solid rgba(255, 159, 26, 0.58);
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    background: linear-gradient(160deg, rgba(48, 27, 4, 0.86), rgba(22, 12, 2, 0.9));
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.dev-mode-banner strong {
+    color: #ffd9a3;
+    letter-spacing: 0.08em;
+    font-size: 0.9rem;
+}
+
+.dev-mode-banner span {
+    color: #ffd7b5 !important;
+    font-size: 0.84rem;
+}
+
 @media (max-width: 990px) {
     [data-testid="stMainBlockContainer"] {
         padding-left: 0.8rem;

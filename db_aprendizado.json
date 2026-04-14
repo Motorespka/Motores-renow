@@ -1,0 +1,22 @@
+<<<<<<< Updated upstream
+e[
+=======
+[
+>>>>>>> Stashed changes
+  {
+    "marca": "WEG",
+    "rpm": "1750",
+    "tensao": "220",
+    "corrente": "12.3",
+    "espiras": 45,
+    "fio": "8x17"
+  },
+  {
+    "marca": "WEG",
+    "rpm": "1750",
+    "tensao": "220",
+    "corrente": "12.3",
+    "espiras": 45,
+    "fio": "8x17"
+  }
+]

@@ -18,13 +18,25 @@ from core.access_control import (
     search_usuarios_for_cadastro_access,
     update_usuario_for_admin,
 )
+from core.development_mode import is_dev_mode, set_dev_mode, use_isolated_mode_for_module
+from core.feature_flags import clear_feature_overrides, get_feature_flags, list_flag_names, set_feature_override
 from core.navigation import Route
+from core.user_identity import resolve_current_user_identity
+from services.modulo_comercial import (
+    CommercialModuleStore,
+    STATUS_ACTIVE,
+    STATUS_PAUSED,
+    STATUS_REMOVED,
+    TABLES_MODULE,
+)
 
 SECTIONS = {
     "General": "general",
     "Usuarios": "users",
     "Permissao Cadastro": "cadastro_permissions",
     "Matriz de Acesso": "access_matrix",
+    "Development": "development",
+    "Moderacao Modulo": "marketplace_moderation",
 }
 
 ROLE_OPTIONS = ["user", "admin"]
@@ -278,6 +290,194 @@ def _render_access_matrix() -> None:
     st.info("Recomendacao comercial: Free para atracao, Paid para operacao tecnica completa, Admin somente para voce.")
 
 
+def _render_development(ctx) -> None:
+    flags = get_feature_flags()
+    identity = resolve_current_user_identity()
+    dev_mode = is_dev_mode()
+    isolated_runtime = bool(getattr(ctx.supabase, "is_local_runtime", False))
+
+    st.markdown("### Ambiente development")
+    st.caption("Ative somente para testes do modulo isolado.")
+    st.caption(f"Estado atual: {'ATIVO' if dev_mode else 'DESATIVADO'}")
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        if st.button("Abrir ambiente de teste", use_container_width=True, key="admin_dev_on"):
+            set_dev_mode(True, actor=identity.get("display_name", "admin"))
+            ctx.session.set_route(Route.ATUALIZACOES)
+            st.success("Development ativado para esta sessao.")
+            st.rerun()
+    with c2:
+        if st.button("Sair do development", use_container_width=True, key="admin_dev_off"):
+            set_dev_mode(False, actor=identity.get("display_name", "admin"))
+            st.success("Development desativado.")
+            st.rerun()
+    with c3:
+        if st.button("Abrir hub de teste", use_container_width=True, key="admin_dev_open_hub"):
+            ctx.session.set_route(Route.HUB_COMERCIAL)
+            st.rerun()
+
+    st.divider()
+    if not dev_mode or not isolated_runtime:
+        st.info("Feature flags da sessao ficam disponiveis apenas no ambiente development isolado.")
+        if dev_mode and not isolated_runtime:
+            st.warning(
+                "Sessao marcada como development, mas ainda em runtime principal. "
+                "Clique em 'Sair do development' e ative novamente."
+            )
+        st.caption(
+            f"ENABLE_DEV_ENV (base): {'ON' if flags.enable_dev_env else 'OFF'} | "
+            f"ENABLE_DEV_BANNER: {'ON' if flags.enable_dev_banner else 'OFF'}"
+        )
+        return
+
+    st.markdown("### Feature flags da sessao")
+    st.caption("Overrides abaixo valem apenas para esta sessao de admin.")
+
+    with st.form("admin_flags_form"):
+        values = {}
+        for flag_name in list_flag_names():
+            current = bool(getattr(flags, flag_name))
+            label = flag_name.replace("_", " ").upper()
+            values[flag_name] = st.toggle(label, value=current, key=f"admin_flag_{flag_name}")
+        c_apply, c_clear = st.columns(2)
+        apply_clicked = c_apply.form_submit_button("Aplicar flags", use_container_width=True)
+        clear_clicked = c_clear.form_submit_button("Limpar overrides", use_container_width=True)
+        if apply_clicked:
+            for flag_name, flag_value in values.items():
+                set_feature_override(flag_name, bool(flag_value))
+            st.success("Flags da sessao atualizadas.")
+            st.rerun()
+        if clear_clicked:
+            clear_feature_overrides()
+            st.success("Overrides removidos.")
+            st.rerun()
+
+    st.caption(
+        f"ENABLE_DEV_ENV (base): {'ON' if flags.enable_dev_env else 'OFF'} | "
+        f"ENABLE_DEV_BANNER: {'ON' if flags.enable_dev_banner else 'OFF'}"
+    )
+
+
+def _status_chip(status: str) -> str:
+    text = _to_text(status).lower()
+    if text == STATUS_ACTIVE:
+        return "active"
+    if text == STATUS_PAUSED:
+        return "paused"
+    if text == STATUS_REMOVED:
+        return "removed"
+    return text or "-"
+
+
+def _render_module_rows(store: CommercialModuleStore, module_name: str, rows: List[Dict[str, Any]]) -> None:
+    if not rows:
+        st.caption("Nenhum item encontrado.")
+        return
+
+    for row in rows[:120]:
+        item_id = _to_text(row.get("id"))
+        title = (
+            _to_text(row.get("titulo"))
+            or _to_text(row.get("nome_publico"))
+            or _to_text(row.get("nome_empresa_snapshot"))
+            or item_id
+        )
+        status = _status_chip(_to_text(row.get("status")))
+        with st.container(border=True):
+            st.write(f"**{title}**")
+            st.caption(f"id={item_id} | status={status} | user={_to_text(row.get('user_id')) or '-'}")
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                if st.button("Ativar", key=f"admin_set_active_{module_name}_{item_id}", use_container_width=True):
+                    if store.set_item_status(module_name, item_id, STATUS_ACTIVE):
+                        st.success("Item ativado.")
+                        st.rerun()
+                    st.error("Nao foi possivel ativar.")
+            with c2:
+                if st.button("Pausar", key=f"admin_set_pause_{module_name}_{item_id}", use_container_width=True):
+                    if store.set_item_status(module_name, item_id, STATUS_PAUSED):
+                        st.success("Item pausado.")
+                        st.rerun()
+                    st.error("Nao foi possivel pausar.")
+            with c3:
+                if st.button("Remover", key=f"admin_set_remove_{module_name}_{item_id}", use_container_width=True):
+                    if store.set_item_status(module_name, item_id, STATUS_REMOVED):
+                        st.success("Item removido.")
+                        st.rerun()
+                    st.error("Nao foi possivel remover.")
+
+
+def _render_marketplace_moderation(ctx) -> None:
+    st.markdown("### Moderacao do modulo comercial")
+    st.caption("Acoes de pausar/remover e bloqueio por modulo.")
+
+    isolated_mode = use_isolated_mode_for_module(ctx.supabase)
+    store = CommercialModuleStore(ctx.supabase, force_local=isolated_mode)
+    identity = resolve_current_user_identity()
+    actor_user_id = _to_text(identity.get("user_id"))
+
+    tab_ads, tab_jobs, tab_suppliers, tab_companies, tab_blocks = st.tabs(
+        ["Anuncios", "Vagas", "Fornecedores", "Empresas", "Bloqueios"]
+    )
+
+    with tab_ads:
+        rows = store.list_anuncios(include_inactive=True)
+        _render_module_rows(store, "anuncios", rows)
+
+    with tab_jobs:
+        rows = store.list_vagas(include_inactive=True)
+        _render_module_rows(store, "vagas", rows)
+
+    with tab_suppliers:
+        rows = store.list_fornecedores(include_inactive=True)
+        _render_module_rows(store, "fornecedores", rows)
+
+    with tab_companies:
+        rows = store.list_empresas(include_inactive=True)
+        _render_module_rows(store, "empresas", rows)
+
+    with tab_blocks:
+        st.markdown("#### Bloquear usuario no modulo")
+        with st.form("admin_block_user_form", clear_on_submit=True):
+            user_id = st.text_input("User ID")
+            module_name = st.selectbox("Modulo", list(TABLES_MODULE.keys()), key="admin_block_user_module")
+            reason = st.text_input("Motivo")
+            block_action = st.selectbox("Acao", ["Bloquear", "Desbloquear"], key="admin_block_user_action")
+            submit = st.form_submit_button("Aplicar", use_container_width=True)
+            if submit:
+                blocked = block_action == "Bloquear"
+                if store.block_user(user_id, module_name, blocked, reason, actor_user_id=actor_user_id):
+                    st.success("Bloqueio de usuario atualizado.")
+                    st.rerun()
+                else:
+                    st.error("Falha ao atualizar bloqueio de usuario.")
+
+        st.markdown("#### Bloquear empresa no modulo")
+        with st.form("admin_block_company_form", clear_on_submit=True):
+            empresa_id = st.text_input("Empresa ID")
+            module_name = st.selectbox("Modulo ", list(TABLES_MODULE.keys()), key="admin_block_company_module")
+            reason = st.text_input("Motivo ", key="admin_block_company_reason")
+            block_action = st.selectbox("Acao ", ["Bloquear", "Desbloquear"], key="admin_block_company_action")
+            submit = st.form_submit_button("Aplicar ", use_container_width=True)
+            if submit:
+                blocked = block_action == "Bloquear"
+                if store.block_empresa(empresa_id, module_name.strip(), blocked, reason.strip(), actor_user_id=actor_user_id):
+                    st.success("Bloqueio de empresa atualizado.")
+                    st.rerun()
+                else:
+                    st.error("Falha ao atualizar bloqueio de empresa.")
+
+        st.markdown("#### Bloqueios ativos")
+        for row in store.list_blocks():
+            if not row.get("blocked"):
+                continue
+            st.caption(
+                f"{_to_text(row.get('target_type'))}:{_to_text(row.get('target_id'))} | "
+                f"modulo={_to_text(row.get('module_name'))} | motivo={_to_text(row.get('reason'))}"
+            )
+
+
 def render(ctx) -> None:
     if not require_admin_access("Painel administrativo", client=ctx.supabase):
         if st.button("Voltar para consulta", use_container_width=True):
@@ -311,6 +511,10 @@ def render(ctx) -> None:
             _render_users(ctx.supabase)
         elif section == "cadastro_permissions":
             _render_cadastro_permissions(ctx.supabase)
+        elif section == "development":
+            _render_development(ctx)
+        elif section == "marketplace_moderation":
+            _render_marketplace_moderation(ctx)
         else:
             _render_access_matrix()
 

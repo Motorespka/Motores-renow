@@ -12,7 +12,7 @@ import streamlit as st
 from core.access_control import can_access_paid_features, is_admin_user
 from core.navigation import Route
 from services.oficina_parser import build_normalized_from_motor_row
-from services.supabase_data import fetch_motores_cached
+from services.supabase_data import clear_motores_cache, fetch_motores_cached
 
 
 def _is_empty(value: Any) -> bool:
@@ -265,51 +265,30 @@ def _count_list_items(value: Any) -> int:
     return len([p for p in re.split(r"\s*,\s*", text) if p.strip()])
 
 
-def _render_technical_summary(motor: Dict[str, Any], data: Dict[str, Any]) -> None:
-    motor_info = _section(data, "motor")
-    principal = _section(data, "bobinagem_principal")
-    auxiliar = _section(data, "bobinagem_auxiliar")
-    mecanica = _section(data, "mecanica")
-    esquema = _section(data, "esquema")
-    oficina = _section(data, "oficina")
-    diagnostico = oficina.get("diagnostico", {}) if isinstance(oficina, dict) else {}
-    avisos = diagnostico.get("avisos", []) if isinstance(diagnostico, dict) else []
-    if not isinstance(avisos, list):
-        avisos = []
+def _compact_preview(value: Any, max_len: int = 56) -> str:
+    txt = _to_text(value)
+    if not txt:
+        return "-"
+    if len(txt) <= max_len:
+        return txt
+    return txt[: max_len - 3].rstrip() + "..."
 
-    resumo_id = (
-        f"{_safe(motor.get('marca'))} {_safe(motor.get('modelo'))} | "
-        f"{_safe(motor.get('tipo_motor'))} | {_safe(motor.get('fases'))} | {_safe(motor.get('polos'))}"
-    )
-    resumo_eletrico = (
-        f"Potencia {_safe(motor.get('potencia'))} | RPM {_safe(motor.get('rpm'))} | "
-        f"Tensao {_safe(motor.get('tensao'))} | Corrente {_safe(motor.get('corrente'))}"
-    )
-    resumo_bobinagem = (
-        f"Principal: {_count_list_items(principal.get('passos'))} passos, "
-        f"{_count_list_items(principal.get('espiras'))} espiras, "
-        f"{_count_list_items(principal.get('fios'))} fios | "
-        f"Auxiliar: {_count_list_items(auxiliar.get('passos'))} passos, "
-        f"{_count_list_items(auxiliar.get('espiras'))} espiras, "
-        f"{_count_list_items(auxiliar.get('fios'))} fios"
-    )
-    resumo_mecanica = (
-        f"Carcaca {_safe(mecanica.get('carcaca') or motor_info.get('carcaca'))} | "
-        f"Eixo {_safe(mecanica.get('eixo'))} | Rolamentos {_safe(mecanica.get('rolamentos'))} | "
-        f"Ranhuras {_safe(esquema.get('ranhuras'))} | Camadas {_safe(esquema.get('camadas'))}"
-    )
-    resumo_ia = f"Alertas da IA: {len(avisos)}"
 
-    st.markdown(
-        f"""
-        <div class="data-panel"><div class="data-label">Identificacao</div><div class="data-value">{resumo_id}</div></div>
-        <div class="data-panel"><div class="data-label">Eletrica</div><div class="data-value">{resumo_eletrico}</div></div>
-        <div class="data-panel"><div class="data-label">Bobinagem</div><div class="data-value">{resumo_bobinagem}</div></div>
-        <div class="data-panel"><div class="data-label">Mecanica</div><div class="data-value">{resumo_mecanica}</div></div>
-        <div class="data-panel"><div class="data-label">IA</div><div class="data-value">{resumo_ia}</div></div>
-        """,
-        unsafe_allow_html=True,
-    )
+def _delete_motor(ctx, motor_id: Any) -> None:
+    motor_id_txt = _to_text(motor_id)
+    if not motor_id_txt:
+        raise RuntimeError("ID do motor invalido para exclusao.")
+
+    last_error: Exception | None = None
+    for id_col in ("id", "Id"):
+        try:
+            ctx.supabase.table("motores").delete().eq(id_col, motor_id_txt).execute()
+            clear_motores_cache()
+            return
+        except Exception as exc:
+            last_error = exc
+
+    raise RuntimeError(f"Nao foi possivel excluir o motor {motor_id_txt}: {last_error}")
 
 
 def _render_consulta_header(total: int, filtrados: int, trifasicos: int, monofasicos: int) -> None:
@@ -444,8 +423,54 @@ def render(ctx) -> None:
         st.warning("Nenhum motor encontrado com os filtros atuais.")
         return
 
-    for m in filtrados:
+    pg1, pg2, pg3 = st.columns([1.2, 1.0, 3.0], gap="small")
+    with pg1:
+        page_size = st.selectbox("Itens por pagina", [10, 20, 50, 100], index=1, key="consulta_page_size")
+    total_pages = max(1, (len(filtrados) + int(page_size) - 1) // int(page_size))
+    current_page = int(st.session_state.get("consulta_page_num", 1) or 1)
+    if current_page > total_pages:
+        current_page = total_pages
+        st.session_state["consulta_page_num"] = current_page
+    with pg2:
+        page_num = int(
+            st.number_input(
+                "Pagina",
+                min_value=1,
+                max_value=total_pages,
+                value=current_page,
+                step=1,
+                key="consulta_page_num",
+            )
+        )
+    with pg3:
+        start = (page_num - 1) * int(page_size)
+        end = start + int(page_size)
+        st.caption(f"Mostrando {start + 1}-{min(end, len(filtrados))} de {len(filtrados)} motores.")
+
+    motores_visiveis = filtrados[start:end]
+
+    for m in motores_visiveis:
         with st.container(border=True):
+            data = m.get("dados_tecnicos_json", {})
+            motor_info = _section(data, "motor")
+            bob_principal = _section(data, "bobinagem_principal")
+            bob_auxiliar = _section(data, "bobinagem_auxiliar")
+            mecanica = _section(data, "mecanica")
+            esquema = _section(data, "esquema")
+
+            motor_id_txt = _to_text(m.get("id")) or "sem_id"
+            motor_key = re.sub(r"[^a-zA-Z0-9_-]", "_", motor_id_txt)
+            principal_preview = _compact_preview(
+                bob_principal.get("fios") or bob_principal.get("espiras") or bob_principal.get("passos")
+            )
+            auxiliar_preview = _compact_preview(
+                bob_auxiliar.get("fios") or bob_auxiliar.get("espiras") or bob_auxiliar.get("passos")
+            )
+            rolamentos_preview = _compact_preview(mecanica.get("rolamentos"))
+            eixo_carcaca_preview = _compact_preview(
+                f"Eixo: {_to_text(mecanica.get('eixo')) or '-'} | Carcaca: {_to_text(mecanica.get('carcaca')) or '-'}"
+            )
+
             st.markdown(
                 f"""
                 <div class="motor-headline">
@@ -473,6 +498,14 @@ def render(ctx) -> None:
                 if _to_text(m.get("feito_por")):
                     st.caption(f"Feito por: {_to_text(m.get('feito_por'))}")
 
+                pv1, pv2 = st.columns(2)
+                with pv1:
+                    _render_data_panel("Rebobinagem principal (previa)", principal_preview)
+                    _render_data_panel("Rebobinagem auxiliar (previa)", auxiliar_preview)
+                with pv2:
+                    _render_data_panel("Mecanica (rolamentos)", rolamentos_preview)
+                    _render_data_panel("Mecanica (eixo/carcaca)", eixo_carcaca_preview)
+
             with right:
                 st.markdown(
                     f"""
@@ -493,29 +526,42 @@ def render(ctx) -> None:
                 )
 
             if admin_user:
-                b1, b2 = st.columns(2)
+                b1, b2, b3 = st.columns(3)
                 with b1:
-                    if st.button("Editar", key=f"edit_{m['id']}", use_container_width=True):
+                    if st.button("Editar", key=f"edit_{motor_key}", use_container_width=True):
                         ctx.session.selected_motor_id = m["id"]
                         ctx.session.set_route(Route.EDIT)
                         st.rerun()
                 with b2:
-                    if st.button("Detalhes", key=f"detail_{m['id']}", use_container_width=True):
+                    if st.button("Detalhes", key=f"detail_{motor_key}", use_container_width=True):
                         ctx.session.selected_motor_id = m["id"]
                         ctx.session.set_route(Route.DETALHE)
                         st.rerun()
+                with b3:
+                    if st.button("Excluir", key=f"delete_{motor_key}", use_container_width=True):
+                        st.session_state[f"confirm_delete_{motor_key}"] = True
+
+                if st.session_state.get(f"confirm_delete_{motor_key}"):
+                    st.warning("Exclusao definitiva. Confirme abaixo para remover este motor do cadastro.")
+                    c_confirm, c_cancel = st.columns(2)
+                    with c_confirm:
+                        if st.button("Confirmar exclusao", key=f"confirm_delete_btn_{motor_key}", use_container_width=True):
+                            try:
+                                _delete_motor(ctx, m.get("id"))
+                                st.session_state.pop(f"confirm_delete_{motor_key}", None)
+                                st.success("Motor excluido com sucesso.")
+                                st.rerun()
+                            except Exception as exc:
+                                st.error(f"Falha ao excluir motor: {exc}")
+                    with c_cancel:
+                        if st.button("Cancelar", key=f"cancel_delete_btn_{motor_key}", use_container_width=True):
+                            st.session_state.pop(f"confirm_delete_{motor_key}", None)
+                            st.rerun()
             else:
-                if st.button("Detalhes", key=f"detail_{m['id']}", use_container_width=True):
+                if st.button("Detalhes", key=f"detail_{motor_key}", use_container_width=True):
                     ctx.session.selected_motor_id = m["id"]
                     ctx.session.set_route(Route.DETALHE)
                     st.rerun()
-
-            data = m.get("dados_tecnicos_json", {})
-            motor_info = _section(data, "motor")
-            bob_principal = _section(data, "bobinagem_principal")
-            bob_auxiliar = _section(data, "bobinagem_auxiliar")
-            mecanica = _section(data, "mecanica")
-            esquema = _section(data, "esquema")
 
             tab1, tab2, tab3, tab4 = st.tabs(["Identificacao", "Bobinagem", "Mecanica", "Leitura IA"])
             with tab1:
@@ -579,9 +625,6 @@ def render(ctx) -> None:
                 if admin_user:
                     _render_data_panel("Texto OCR", m.get("texto_bruto_extraido"))
                 _render_data_panel("Esquema (observacoes)", esquema.get("observacoes"))
-
-            with st.expander("Resumo tecnico", expanded=False):
-                _render_technical_summary(m, data)
 
 
 def show(ctx) -> None:
