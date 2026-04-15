@@ -29,12 +29,14 @@ from services.modulo_comercial import (
     STATUS_REMOVED,
     TABLES_MODULE,
 )
+from services.admin_ai_assistant import ask_admin_internal_assistant, route_question_context
 
 SECTIONS = {
     "General": "general",
     "Usuarios": "users",
     "Permissao Cadastro": "cadastro_permissions",
     "Matriz de Acesso": "access_matrix",
+    "Assistente Tecnico IA": "ai_assistant",
     "Development": "development",
     "Moderacao Modulo": "marketplace_moderation",
 }
@@ -478,6 +480,82 @@ def _render_marketplace_moderation(ctx) -> None:
             )
 
 
+def _render_ai_assistant(ctx) -> None:
+    st.markdown("### GPT interno do admin (multimarcas)")
+    st.caption(
+        "Assistente tecnico para motores, motoredutores, redutores, cadastro e melhoria de fluxo. "
+        "As respostas sao apoio de decisao e nao substituem validacao humana."
+    )
+
+    history_enabled = st.toggle(
+        "Manter historico desta sessao",
+        value=True,
+        key="admin_ai_history_enabled",
+    )
+    if "admin_ai_history" not in st.session_state:
+        st.session_state["admin_ai_history"] = []
+
+    with st.form("admin_ai_assistant_form", clear_on_submit=False):
+        question = st.text_area(
+            "Pergunta tecnica",
+            placeholder=(
+                "Ex.: Esse motoredutor parece mais Bonfiglioli ou SEW? "
+                "Quais inconsistencias de cadastro devo revisar?"
+            ),
+            height=170,
+        )
+        submit = st.form_submit_button("Analisar pergunta", use_container_width=True)
+
+    if question.strip():
+        routed_preview = route_question_context(question)
+        st.caption(
+            f"Marca(s): {', '.join(routed_preview.brands) or '-'} | "
+            f"Tipo(s): {', '.join(routed_preview.product_types) or '-'} | "
+            f"Intencao(oes): {', '.join(routed_preview.intents) or '-'}"
+        )
+        st.caption(f"Packs ativos: {', '.join(routed_preview.selected_packs) or '-'}")
+
+    if submit:
+        history = st.session_state.get("admin_ai_history", []) if history_enabled else []
+        result = ask_admin_internal_assistant(question, history=history)
+        if not result.get("ok"):
+            st.error(result.get("error") or "Falha ao processar pergunta.")
+            return
+
+        answer = _to_text(result.get("response"))
+        model_name = _to_text(result.get("model")) or "local-fallback"
+        used_fallback_key = bool(result.get("used_fallback_key"))
+        st.success(
+            f"Resposta gerada com modelo: {model_name}"
+            + (" (fallback de chave ativado)" if used_fallback_key else "")
+        )
+        st.markdown(answer)
+
+        if history_enabled:
+            st.session_state["admin_ai_history"] = [
+                *st.session_state.get("admin_ai_history", []),
+                {"role": "user", "content": question.strip()},
+                {"role": "assistant", "content": answer},
+            ][-20:]
+
+    if history_enabled and st.session_state.get("admin_ai_history"):
+        st.markdown("#### Historico da sessao")
+        for turn in st.session_state["admin_ai_history"][-10:]:
+            role = "Você" if _to_text(turn.get("role")) == "user" else "Assistente"
+            st.markdown(f"**{role}:** {_to_text(turn.get('content'))}")
+
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("Limpar historico", key="admin_ai_clear_history", use_container_width=True):
+            st.session_state["admin_ai_history"] = []
+            st.success("Historico limpo.")
+            st.rerun()
+    with c2:
+        if st.button("Ir para consulta", key="admin_ai_go_consulta", use_container_width=True):
+            ctx.session.set_route(Route.CONSULTA)
+            st.rerun()
+
+
 def render(ctx) -> None:
     if not require_admin_access("Painel administrativo", client=ctx.supabase):
         if st.button("Voltar para consulta", use_container_width=True):
@@ -511,6 +589,8 @@ def render(ctx) -> None:
             _render_users(ctx.supabase)
         elif section == "cadastro_permissions":
             _render_cadastro_permissions(ctx.supabase)
+        elif section == "ai_assistant":
+            _render_ai_assistant(ctx)
         elif section == "development":
             _render_development(ctx)
         elif section == "marketplace_moderation":
