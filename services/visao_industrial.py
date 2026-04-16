@@ -3,6 +3,7 @@ from PIL import Image
 
 try:
     import easyocr
+<<<<<<< Updated upstream
 except Exception:
     easyocr = None
 
@@ -23,6 +24,21 @@ def _ensure_ocr_runtime() -> None:
 
 def analisar_enrolamento(imagem):
     _ensure_ocr_runtime()
+=======
+except ImportError:  # pragma: no cover - depends on optional package
+    easyocr = None
+
+reader = easyocr.Reader(["pt", "en"], gpu=False) if easyocr else None
+
+
+def _ensure_ocr_dependencies() -> None:
+    if easyocr is None:
+        raise RuntimeError("Dependencia OCR ausente: easyocr")
+
+
+def analisar_enrolamento(imagem):
+    _ensure_ocr_dependencies()
+>>>>>>> Stashed changes
 
     img = Image.open(imagem)
     img = np.array(img)
@@ -37,7 +53,7 @@ def analisar_enrolamento(imagem):
         diagnostico.append("Bobina queimada detectada")
 
     if "escuro" in texto_total:
-        diagnostico.append("Possível sobreaquecimento")
+        diagnostico.append("Possivel sobreaquecimento")
 
     if not diagnostico:
         diagnostico.append("Nenhuma falha visual clara")

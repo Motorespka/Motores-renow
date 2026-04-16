@@ -1,3 +1,7 @@
+<<<<<<< Updated upstream
+=======
+import numpy as np
+>>>>>>> Stashed changes
 import re
 
 import numpy as np
@@ -14,6 +18,7 @@ except Exception:
 
 from services.engenharia_motor import calcular_rebobinagem
 
+<<<<<<< Updated upstream
 reader = None
 if easyocr is not None:
     try:
@@ -31,6 +36,34 @@ def _ensure_ocr_runtime() -> None:
 
 def preprocessar(file):
     _ensure_ocr_runtime()
+=======
+try:
+    import cv2
+except ImportError:  # pragma: no cover - depends on optional package
+    cv2 = None
+
+try:
+    import easyocr
+except ImportError:  # pragma: no cover - depends on optional package
+    easyocr = None
+
+reader = easyocr.Reader(["pt", "en"], gpu=False) if easyocr else None
+
+
+def _ensure_ocr_dependencies() -> None:
+    missing = []
+    if easyocr is None:
+        missing.append("easyocr")
+    if cv2 is None:
+        missing.append("opencv-python")
+    if missing:
+        deps = ", ".join(missing)
+        raise RuntimeError(f"Dependencias OCR ausentes: {deps}")
+
+
+def preprocessar(file):
+    _ensure_ocr_dependencies()
+>>>>>>> Stashed changes
 
     bytes_data = np.asarray(bytearray(file.read()), dtype=np.uint8)
     img = cv2.imdecode(bytes_data, 1)
@@ -42,7 +75,11 @@ def preprocessar(file):
 
 
 def ler_texto(file):
+<<<<<<< Updated upstream
     _ensure_ocr_runtime()
+=======
+    _ensure_ocr_dependencies()
+>>>>>>> Stashed changes
 
     img = preprocessar(file)
     resultado = reader.readtext(img, detail=0)

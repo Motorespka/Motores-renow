@@ -19,20 +19,23 @@
 ## Coerencia local
 
 - Backend Python compila sem erro.
-- Projeto Python inteiro compila sem erro.
-- Frontend preparado, mas build nao executado neste terminal por ausencia de `node/npm`.
+- Testes Python (`ai_board/tests`) passando.
+- Healthcheck FastAPI (`/api/health`) retornando `200`.
+- Frontend com `npm install` executado e build do Next validado no ambiente local.
 
 ## Arquivos de ambiente
 
-- Backend:
-  - [backend/.env.example](c:\Users\micke\Documents\GitHub\Uniao-motor\backend\.env.example)
-- Frontend:
-  - [frontend/.env.example](c:\Users\micke\Documents\GitHub\Uniao-motor\frontend\.env.example)
+- Backend: `backend/.env.example`
+- Frontend: `frontend/.env.example`
 
 ## Como executar
 
+<<<<<<< Updated upstream
 - Guia completo:
   - [docs/COMO_RODAR_MIGRACAO_LOCAL.md](c:\Users\micke\Documents\GitHub\Uniao-motor\docs\COMO_RODAR_MIGRACAO_LOCAL.md)
+=======
+- Guia completo: `docs/COMO_RODAR_MIGRACAO_LOCAL.md`
+>>>>>>> Stashed changes
 
 ## Tarefas (ordem atual)
 
