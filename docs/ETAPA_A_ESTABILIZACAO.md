@@ -33,3 +33,11 @@
 
 - Guia completo:
   - [docs/COMO_RODAR_MIGRACAO_LOCAL.md](c:\Users\micke\Documents\GitHub\Uniao-motor\docs\COMO_RODAR_MIGRACAO_LOCAL.md)
+
+## Tarefas (ordem atual)
+
+- Configurar `backend/.env` com `SUPABASE_URL` e `SUPABASE_ANON_KEY`.
+- Configurar `frontend/.env.local` com `NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000/api`.
+- Subir backend FastAPI.
+- Subir frontend Next.js.
+- Integracao final com repositorio Lovable: `git@github.com:Motorespka/motor-nova-vision.git`.

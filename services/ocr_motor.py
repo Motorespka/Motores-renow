@@ -1,14 +1,36 @@
-import easyocr
-import numpy as np
-import cv2
 import re
+
+import numpy as np
+
+try:
+    import cv2
+except Exception:
+    cv2 = None
+
+try:
+    import easyocr
+except Exception:
+    easyocr = None
 
 from services.engenharia_motor import calcular_rebobinagem
 
-reader = easyocr.Reader(['pt','en'], gpu=False)
+reader = None
+if easyocr is not None:
+    try:
+        reader = easyocr.Reader(["pt", "en"], gpu=False)
+    except Exception:
+        reader = None
+
+
+def _ensure_ocr_runtime() -> None:
+    if cv2 is None or reader is None:
+        raise RuntimeError(
+            "OCR indisponivel: instale/valide dependencias 'easyocr' e 'opencv-python'."
+        )
 
 
 def preprocessar(file):
+    _ensure_ocr_runtime()
 
     bytes_data = np.asarray(bytearray(file.read()), dtype=np.uint8)
     img = cv2.imdecode(bytes_data, 1)
@@ -20,6 +42,7 @@ def preprocessar(file):
 
 
 def ler_texto(file):
+    _ensure_ocr_runtime()
 
     img = preprocessar(file)
     resultado = reader.readtext(img, detail=0)

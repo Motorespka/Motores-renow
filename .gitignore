@@ -9,3 +9,8 @@ data/*.db
 data/dev_storage/
 db/
 db_aprendizado.json
+node_modules/
+.next/
+frontend/node_modules/
+frontend/.next/
+frontend/.turbo/
