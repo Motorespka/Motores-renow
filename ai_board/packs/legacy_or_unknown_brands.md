@@ -1,5 +1,14 @@
-# Marcas Legadas ou Não Identificadas
-- Em motor sem marca clara, usar regras genéricas + comparação por padrão técnico.
-- Não atribuir marca sem evidência direta da placa/carcaça.
-- Destacar dados mínimos para triagem: potência, tensão, corrente, rpm, carcaça, ligação.
-- Recomendar foto adicional e revisão de cadastro quando houver dúvida.
+# Legacy or Unknown Brands
+
+## Quando usar
+- marca ausente, ilegível, inconsistente ou não confiável para decisão.
+
+## Diretriz
+- Aplicar regras genéricas de motor/gearmotor + consistência de dados.
+- Não atribuir marca por suposição fraca.
+- Pedir evidência adicional (foto melhor, dados de bancada, histórico de manutenção).
+
+## Resposta recomendada
+- classificar como "marca não confirmada";
+- separar fato, padrão provável, hipótese e verificação;
+- recomendar revisão humana quando decisão técnica/comercial depender da marca.
