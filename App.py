@@ -1,26 +1,42 @@
 from __future__ import annotations
 
-import argparse
 import os
 import shutil
+import socket
 import subprocess
 import sys
 import time
 from pathlib import Path
 
+import streamlit as st
+import streamlit.components.v1 as components
+
 ROOT_DIR = Path(__file__).resolve().parent
 BACKEND_DIR = ROOT_DIR / "backend"
 FRONTEND_DIR = ROOT_DIR / "frontend"
-LOVABLE_REPO = "git@github.com:Motorespka/motor-nova-vision.git"
-COMMON_NPM_PATHS = (
-    Path(r"C:\Program Files\nodejs\npm.cmd"),
-    Path(r"C:\Program Files (x86)\nodejs\npm.cmd"),
-)
+LEGACY_FILE = ROOT_DIR / "legacy_streamlit_app.py"
+
+API_PORT = int(os.getenv("API_PORT", "8000"))
+FRONTEND_PORT = int(os.getenv("FRONTEND_PORT", "3000"))
+
+API_URL = f"http://127.0.0.1:{API_PORT}"
+FRONTEND_URL = f"http://127.0.0.1:{FRONTEND_PORT}"
+API_DOCS_URL = f"{API_URL}/docs"
 
 
 def _require_path(path: Path, description: str) -> None:
     if not path.exists():
-        raise FileNotFoundError(f"{description} nao encontrado: {path}")
+        raise FileNotFoundError(f"{description} não encontrado: {path}")
+
+
+def _find_python() -> str:
+    win_venv = ROOT_DIR / ".venv" / "Scripts" / "python.exe"
+    unix_venv = ROOT_DIR / ".venv" / "bin" / "python"
+    if win_venv.exists():
+        return str(win_venv)
+    if unix_venv.exists():
+        return str(unix_venv)
+    return sys.executable
 
 
 def _find_npm() -> str:
@@ -28,71 +44,48 @@ def _find_npm() -> str:
     if npm_cmd:
         return npm_cmd
 
-    for candidate in COMMON_NPM_PATHS:
+    known_paths = [
+        Path(r"C:\Program Files\nodejs\npm.cmd"),
+        Path(r"C:\Program Files (x86)\nodejs\npm.cmd"),
+    ]
+    for candidate in known_paths:
         if candidate.exists():
             return str(candidate)
 
-    raise RuntimeError(
-        "npm nao encontrado. Instale Node.js LTS ou adicione npm ao PATH."
+    raise RuntimeError("npm não encontrado. Instale Node.js e adicione ao PATH.")
+
+
+def _port_open(host: str, port: int, timeout: float = 0.5) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.settimeout(timeout)
+        return sock.connect_ex((host, port)) == 0
+
+
+def _wait_port(host: str, port: int, seconds: int = 30) -> bool:
+    deadline = time.time() + seconds
+    while time.time() < deadline:
+        if _port_open(host, port):
+            return True
+        time.sleep(0.5)
+    return False
+
+
+def _spawn(command: list[str], cwd: Path, env: dict[str, str] | None = None) -> subprocess.Popen:
+    return subprocess.Popen(
+        command,
+        cwd=str(cwd),
+        env=env,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.STDOUT,
     )
 
 
-def _find_python() -> str:
-    venv_python = ROOT_DIR / ".venv" / "Scripts" / "python.exe"
-    if venv_python.exists():
-        return str(venv_python)
-    return sys.executable
-
-
-def _with_node_path(env: dict[str, str], npm_cmd: str) -> dict[str, str]:
-    updated = env.copy()
-    npm_path = Path(npm_cmd).parent
-    current_path = updated.get("PATH", "")
-    if str(npm_path) not in current_path.split(os.pathsep):
-        updated["PATH"] = f"{npm_path}{os.pathsep}{current_path}"
-    return updated
-
-
-def _startup_tasks(api_port: int, frontend_port: int) -> list[str]:
-    api_base = f"http://127.0.0.1:{api_port}/api"
-    return [
-        "Configurar backend/.env com SUPABASE_URL e SUPABASE_ANON_KEY.",
-        f"Configurar frontend/.env.local com NEXT_PUBLIC_API_BASE_URL={api_base}.",
-        f"Subir FastAPI em http://127.0.0.1:{api_port}.",
-        f"Subir Next.js em http://127.0.0.1:{frontend_port}.",
-        f"Integracao final com repositorio Lovable: {LOVABLE_REPO}.",
-    ]
-
-
-def _print_tasks(api_port: int, frontend_port: int) -> None:
-    print("\n[TAREFAS]")
-    for idx, task in enumerate(_startup_tasks(api_port, frontend_port), start=1):
-        print(f"{idx}. {task}")
-    print("")
-
-
-def _spawn_process(
-    command: list[str], cwd: Path, env: dict[str, str] | None = None
-) -> subprocess.Popen:
-    return subprocess.Popen(command, cwd=str(cwd), env=env)
-
-
-def _stop_process(proc: subprocess.Popen, name: str) -> int:
-    if proc.poll() is not None:
-        return int(proc.returncode or 0)
-
-    print(f"[stop] Encerrando {name}...")
-    proc.terminate()
-    try:
-        proc.wait(timeout=10)
-    except subprocess.TimeoutExpired:
-        proc.kill()
-        proc.wait(timeout=5)
-    return int(proc.returncode or 0)
-
-
-def run_backend(api_port: int) -> int:
+def _start_backend() -> dict:
     _require_path(BACKEND_DIR / "app" / "main.py", "Backend FastAPI")
+
+    if _port_open("127.0.0.1", API_PORT):
+        return {"name": "backend", "running": True, "spawned": False, "url": API_URL}
+
     python_cmd = _find_python()
     cmd = [
         python_cmd,
@@ -102,165 +95,115 @@ def run_backend(api_port: int) -> int:
         "--host",
         "127.0.0.1",
         "--port",
-        str(api_port),
-        "--reload",
+        str(API_PORT),
     ]
-    print(f"[backend] {' '.join(cmd)}")
-    proc = _spawn_process(cmd, BACKEND_DIR)
-    try:
-        return int(proc.wait())
-    except KeyboardInterrupt:
-        return _stop_process(proc, "backend")
+
+    proc = _spawn(cmd, BACKEND_DIR)
+    ok = _wait_port("127.0.0.1", API_PORT, seconds=30)
+
+    return {
+        "name": "backend",
+        "running": ok,
+        "spawned": True,
+        "proc": proc,
+        "url": API_URL,
+        "cmd": " ".join(cmd),
+    }
 
 
-def run_frontend(api_port: int, frontend_port: int) -> int:
-    _require_path(FRONTEND_DIR / "package.json", "Frontend Next.js")
-    npm_cmd = _find_npm()
-    env = _with_node_path(os.environ.copy(), npm_cmd)
-    env.setdefault("NEXT_PUBLIC_API_BASE_URL", f"http://127.0.0.1:{api_port}/api")
-    env.setdefault("PORT", str(frontend_port))
-    env.setdefault("npm_config_offline", "false")
-
-    cmd = [npm_cmd, "run", "dev", "--", "-p", str(frontend_port)]
-    print(f"[frontend] {' '.join(cmd)}")
-    proc = _spawn_process(cmd, FRONTEND_DIR, env=env)
-    try:
-        return int(proc.wait())
-    except KeyboardInterrupt:
-        return _stop_process(proc, "frontend")
-
-
-def run_streamlit_legacy(streamlit_port: int) -> int:
-    legacy_file = ROOT_DIR / "legacy_streamlit_app.py"
-    _require_path(legacy_file, "Entrypoint legacy Streamlit")
-    cmd = [
-        sys.executable,
-        "-m",
-        "streamlit",
-        "run",
-        str(legacy_file),
-        "--server.port",
-        str(streamlit_port),
-    ]
-    print(f"[streamlit-legacy] {' '.join(cmd)}")
-    proc = _spawn_process(cmd, ROOT_DIR)
-    try:
-        return int(proc.wait())
-    except KeyboardInterrupt:
-        return _stop_process(proc, "streamlit-legacy")
-
-
-def run_dev(api_port: int, frontend_port: int) -> int:
-    _require_path(BACKEND_DIR / "app" / "main.py", "Backend FastAPI")
+def _start_frontend() -> dict:
     _require_path(FRONTEND_DIR / "package.json", "Frontend Next.js")
 
-    python_cmd = _find_python()
+    if _port_open("127.0.0.1", FRONTEND_PORT):
+        return {"name": "frontend", "running": True, "spawned": False, "url": FRONTEND_URL}
+
     npm_cmd = _find_npm()
+    env = os.environ.copy()
+    env["NEXT_PUBLIC_API_BASE_URL"] = f"{API_URL}/api"
+    env["PORT"] = str(FRONTEND_PORT)
 
-    api_base = f"http://127.0.0.1:{api_port}/api"
-    frontend_env = _with_node_path(os.environ.copy(), npm_cmd)
-    frontend_env.setdefault("NEXT_PUBLIC_API_BASE_URL", api_base)
-    frontend_env.setdefault("PORT", str(frontend_port))
-    frontend_env.setdefault("npm_config_offline", "false")
+    cmd = [npm_cmd, "run", "dev", "--", "-p", str(FRONTEND_PORT)]
 
-    backend_cmd = [
-        python_cmd,
-        "-m",
-        "uvicorn",
-        "app.main:app",
-        "--host",
-        "127.0.0.1",
-        "--port",
-        str(api_port),
-        "--reload",
-    ]
-    frontend_cmd = [npm_cmd, "run", "dev", "--", "-p", str(frontend_port)]
+    proc = _spawn(cmd, FRONTEND_DIR, env=env)
+    ok = _wait_port("127.0.0.1", FRONTEND_PORT, seconds=60)
 
-    _print_tasks(api_port, frontend_port)
-    print(f"[backend] {' '.join(backend_cmd)}")
-    backend_proc = _spawn_process(backend_cmd, BACKEND_DIR)
-
-    print(f"[frontend] {' '.join(frontend_cmd)}")
-    frontend_proc = _spawn_process(frontend_cmd, FRONTEND_DIR, env=frontend_env)
-
-    try:
-        while True:
-            backend_code = backend_proc.poll()
-            frontend_code = frontend_proc.poll()
-
-            if backend_code is not None:
-                print(f"[erro] Backend finalizou com codigo {backend_code}.")
-                _stop_process(frontend_proc, "frontend")
-                return int(backend_code)
-
-            if frontend_code is not None:
-                print(f"[erro] Frontend finalizou com codigo {frontend_code}.")
-                _stop_process(backend_proc, "backend")
-                return int(frontend_code)
-
-            time.sleep(0.5)
-    except KeyboardInterrupt:
-        print("\n[stop] Interrupcao manual recebida.")
-        backend_code = _stop_process(backend_proc, "backend")
-        frontend_code = _stop_process(frontend_proc, "frontend")
-        return backend_code if backend_code != 0 else frontend_code
+    return {
+        "name": "frontend",
+        "running": ok,
+        "spawned": True,
+        "proc": proc,
+        "url": FRONTEND_URL,
+        "cmd": " ".join(cmd),
+    }
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Entrypoint da aplicacao em arquitetura Next.js + FastAPI."
-    )
-    parser.add_argument(
-        "mode",
-        nargs="?",
-        default="dev",
-        choices=["dev", "backend", "frontend", "tasks", "streamlit-legacy"],
-        help=(
-            "Modo de execucao: dev (backend+frontend), backend, frontend, "
-            "tasks ou streamlit-legacy."
-        ),
-    )
-    parser.add_argument(
-        "--api-port",
-        type=int,
-        default=8000,
-        help="Porta do backend FastAPI (default: 8000).",
-    )
-    parser.add_argument(
-        "--frontend-port",
-        type=int,
-        default=3000,
-        help="Porta do frontend Next.js (default: 3000).",
-    )
-    parser.add_argument(
-        "--streamlit-port",
-        type=int,
-        default=8501,
-        help="Porta do Streamlit legacy (default: 8501).",
-    )
-    return parser.parse_args()
+@st.cache_resource(show_spinner=False)
+def ensure_stack() -> dict:
+    backend = _start_backend()
+    frontend = _start_frontend()
+    return {"backend": backend, "frontend": frontend}
 
 
-def main() -> int:
-    args = parse_args()
-    try:
-        if args.mode == "tasks":
-            _print_tasks(api_port=args.api_port, frontend_port=args.frontend_port)
-            return 0
-        if args.mode == "backend":
-            return run_backend(api_port=args.api_port)
-        if args.mode == "frontend":
-            return run_frontend(
-                api_port=args.api_port,
-                frontend_port=args.frontend_port,
-            )
-        if args.mode == "streamlit-legacy":
-            return run_streamlit_legacy(streamlit_port=args.streamlit_port)
-        return run_dev(api_port=args.api_port, frontend_port=args.frontend_port)
-    except (FileNotFoundError, RuntimeError) as exc:
-        print(f"[erro] {exc}")
-        return 1
+def _status_line(label: str, running: bool, url: str) -> None:
+    icon = "🟢" if running else "🔴"
+    st.write(f"{icon} **{label}** — {url}")
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+st.set_page_config(page_title="Moto-Renow Bridge", layout="wide")
+st.title("Moto-Renow — Streamlit puxando Next.js + FastAPI")
+
+st.caption("Casca Streamlit para iniciar o backend e o frontend e exibir o site novo dentro do app.")
+
+error = None
+stack = None
+
+try:
+    with st.spinner("Iniciando backend e frontend..."):
+        stack = ensure_stack()
+except Exception as exc:
+    error = exc
+
+with st.sidebar:
+    st.header("Status")
+
+    if error:
+        st.error(str(error))
+    else:
+        _status_line("FastAPI", stack["backend"]["running"], API_URL)
+        _status_line("Next.js", stack["frontend"]["running"], FRONTEND_URL)
+
+        st.markdown(f"[Abrir frontend]({FRONTEND_URL})")
+        st.markdown(f"[Abrir docs da API]({API_DOCS_URL})")
+
+        if LEGACY_FILE.exists():
+            st.info("legacy_streamlit_app.py encontrado no projeto.")
+
+        if st.button("Reiniciar verificação"):
+            ensure_stack.clear()
+            st.rerun()
+
+if error:
+    st.error("Falha ao iniciar a stack.")
+    st.code(str(error))
+    st.stop()
+
+backend_ok = stack["backend"]["running"]
+frontend_ok = stack["frontend"]["running"]
+
+if not backend_ok:
+    st.error("O FastAPI não subiu.")
+    if "cmd" in stack["backend"]:
+        st.code(stack["backend"]["cmd"])
+if not frontend_ok:
+    st.error("O Next.js não subiu.")
+    if "cmd" in stack["frontend"]:
+        st.code(stack["frontend"]["cmd"])
+
+if backend_ok and frontend_ok:
+    st.success("Stack iniciada com sucesso.")
+    components.iframe(FRONTEND_URL, height=900, scrolling=True)
+else:
+    st.warning("Algum serviço não abriu. Veja o status na barra lateral.")
+    st.markdown(f"- Frontend esperado: `{FRONTEND_URL}`")
+    st.markdown(f"- Backend esperado: `{API_URL}`")
+    st.markdown(f"- Docs da API: `{API_DOCS_URL}`")
