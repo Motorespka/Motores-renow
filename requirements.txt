@@ -11,4 +11,4 @@ supabase
 bcrypt
 streamlit-option-menu
 extra-streamlit-components
-
+Node.js 
