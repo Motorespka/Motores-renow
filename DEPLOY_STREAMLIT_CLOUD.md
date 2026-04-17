@@ -1,11 +1,14 @@
 ## Deploy no Streamlit Cloud (site principal)
 
-Este repositório foi organizado para **Streamlit (App.py)** continuar sendo o **entrypoint principal** e não depender do runtime do Next.js/FastAPI.
+Este repositório foi organizado para **Streamlit** continuar sendo o **entrypoint principal** e não depender do runtime do Next.js/FastAPI.
 
 ### 1) Configurar o app no Streamlit Cloud
 - **Repository**: este repo
 - **Main file path**: `App.py`
 - **Python requirements**: `requirements.txt` (raiz)
+
+> Desenvolvimento funcional: edite `app.py`.  
+> Compatibilidade de deploy: `App.py` apenas importa e executa `app.main()`.
 
 ### 2) Variáveis/Secrets (Streamlit Cloud)
 No Streamlit Cloud, configure em **Secrets** (ou variáveis do app):
@@ -14,17 +17,10 @@ Obrigatórias para PROD (Supabase):
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY` (ou `SUPABASE_KEY`)
 
-Opcional (links do sistema novo):
-- `NEXTJS_URL` (URL do Next.js em produção)
-- `FASTAPI_URL` (URL do FastAPI em produção, ex.: `https://api.seudominio.com`)
-
-Se não configurar, o shell não mostra mais avisos grandes na sidebar: as dicas ficam em **Integrações opcionais (Next / API)** (expander fechado).
-
 Opcional (controle de ambiente):
 - `ENV=PROD` (ou `DEV` para forçar modo dev)
 
 ### 3) Comportamento e fallback
-- Se `NEXTJS_URL`/`FASTAPI_URL` não existirem (ou estiverem offline), o Streamlit segue funcionando normalmente.
 - O Streamlit sempre mantém as páginas legadas (pasta `page/`) e a navegação do shell.
 
 ### 4) Rollback rápido (se der B.O.)

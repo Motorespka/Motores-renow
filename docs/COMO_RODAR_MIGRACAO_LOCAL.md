@@ -1,9 +1,9 @@
 # Como Rodar Localmente (MVP fora do Streamlit)
 
-## 1) Streamlit legado (continua ativo)
+## 1) Streamlit legado / dev funcional (continua ativo)
 
 ```bash
-streamlit run App.py
+streamlit run app.py
 ```
 
 ## 2) Backend FastAPI

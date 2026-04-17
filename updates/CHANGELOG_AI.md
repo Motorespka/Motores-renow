@@ -1,5 +1,12 @@
 # CHANGELOG AI
 
+## 2026-04-17 | Cycle 0029
+- **Change Description:** Restaurado o fluxo principal do Streamlit para o comportamento pré-migração Next/FastAPI: `app.py` voltou a abrir no ciclo legado (home em `cadastro`/`consulta`), removidos `dashboard`/header/links do sistema novo do shell, e `App.py` virou wrapper compatível apontando para `app.py`.
+- **Reason:** Reposicionar o Streamlit como ambiente principal de desenvolvimento funcional, permitindo evoluir primeiro no legado antes de refatorar para o site/Vercel.
+- **Risk Level:** Baixo-Médio (rollback controlado do shell e da navegação; páginas legadas preservadas).
+- **Rollback Availability:** Alto (restaurar `App.py`, `app.py`, `core/navigation.py` e `core/session_manager.py` para o estado anterior deste ciclo).
+- **Next Predicted Risk:** Documentos e automações antigas que assumam `dashboard` como home ou que editem somente `App.py` precisam migrar para `app.py` para evitar divergência futura.
+
 ## 2026-04-16 | Cycle 0021
 - **Change Description:** Implementada rota `dashboard` (Visão geral) como home pós-login, com página `page/visao_geral.py` (KPIs + atalhos) no estilo `motor-nova-vision` e fallback seguro para Consulta.
 - **Reason:** Tornar a experiência mais próxima do dashboard de referência e mais clara para o usuário, sem hard cutover e preservando o legado.
