@@ -246,6 +246,17 @@ def _detect_fase_bucket(m: Dict[str, Any]) -> str:
     return ""
 
 
+def _motor_needs_review_flag(m: Dict[str, Any]) -> bool:
+    """Read-only: alinha com aviso de revisao na listagem (parser/oficina)."""
+    data = m.get("dados_tecnicos_json")
+    if not isinstance(data, dict):
+        data = {}
+    snap = extract_consulta_parser_snapshot(data)
+    if bool(snap.get("needs_review")):
+        return True
+    return str(snap.get("status_revisao") or "").strip().lower() == "revisar"
+
+
 def _matches_range(v: str, r: tuple[float, float]) -> bool:
     if not v:
         return True
@@ -460,6 +471,12 @@ def render(ctx) -> None:
     tipo = st.sidebar.selectbox("Tipo do motor", ["Todos"] + _unique(motores, "tipo_motor"))
     fases = st.sidebar.selectbox("Fases", ["Todos"] + _unique(motores, "fases"))
     rpm_range = st.sidebar.slider("Faixa RPM", 0, 5000, (0, 5000), step=50)
+    revisao_filtro = st.sidebar.selectbox(
+        "Revisao tecnica (parser)",
+        ["Todos", "Somente com revisao sugerida", "Sem pendencia de revisao"],
+        index=0,
+        key="consulta_filtro_revisao_v2104",
+    )
 
     if marca != "Todas":
         filtrados = [m for m in filtrados if _to_text(m.get("marca")) == marca]
@@ -470,6 +487,11 @@ def render(ctx) -> None:
     if fases != "Todos":
         filtrados = [m for m in filtrados if _to_text(m.get("fases")) == fases]
     filtrados = [m for m in filtrados if _matches_range(_to_text(m.get("rpm")), rpm_range)]
+
+    if revisao_filtro == "Somente com revisao sugerida":
+        filtrados = [m for m in filtrados if _motor_needs_review_flag(m)]
+    elif revisao_filtro == "Sem pendencia de revisao":
+        filtrados = [m for m in filtrados if not _motor_needs_review_flag(m)]
 
     tri_count = sum(1 for m in filtrados if _detect_fase_bucket(m) == "tri")
     mono_count = sum(1 for m in filtrados if _detect_fase_bucket(m) == "mono")
