@@ -1,5 +1,6 @@
 ﻿from __future__ import annotations
 
+import json
 import re
 import unicodedata
 from typing import Any, Dict, Iterable
@@ -13,8 +14,8 @@ MOTOR_IMAGE_FALLBACKS = [
 
 # Aliases orientados pelo schema real da tabela public.motores.
 ALIASES = {
-    "marca": ["marca", "fabricante", "brand", "manufacturer"],
-    "modelo": ["modelo", "num_serie", "codigo_interno", "modelo_motor", "nome"],
+    "marca": ["marca", "Marca", "fabricante", "Fabricante", "brand", "manufacturer"],
+    "modelo": ["modelo", "Modelo", "num_serie", "codigo_interno", "modelo_motor", "nome"],
     "potencia": ["potencia_hp_cv", "potencia_kw", "potencia", "potencia_cv", "potencia_hp", "cv", "cavalaria"],
     "rpm": ["rpm_nominal", "rpm", "rotacao", "rotacao_nominal"],
     "corrente": ["corrente_nominal_a", "corrente", "amperagem", "corrente_nominal"],
@@ -37,12 +38,41 @@ ALIASES = {
 }
 
 
+def _to_dict_json(value: Any) -> Dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str) and value.strip().startswith("{"):
+        try:
+            parsed = json.loads(value)
+            return parsed if isinstance(parsed, dict) else {}
+        except Exception:
+            return {}
+    return {}
+
+
+def dados_tecnicos_from_row(row: Dict[str, Any]) -> Dict[str, Any]:
+    """JSON técnico na linha (snake_case ou PascalCase)."""
+    for key in (
+        "dados_tecnicos_json",
+        "DadosTecnicosJson",
+        "DadosTecnicosJSON",
+        "leitura_gemini_json",
+        "LeituraGeminiJson",
+    ):
+        raw = row.get(key)
+        if raw:
+            data = _to_dict_json(raw)
+            if data:
+                return data
+    return {}
+
+
 def is_empty(value: Any) -> bool:
     if value is None:
         return True
     if isinstance(value, str):
         raw = value.strip().lower()
-        return raw in {"", "none", "nan", "null", "n/d", "na", "n.a."}
+        return raw in {"", "-", "none", "nan", "null", "n/d", "na", "n.a."}
     return False
 
 
@@ -86,6 +116,8 @@ def pick_value(row: Dict[str, Any], aliases: Iterable[str]) -> Any:
 
 def normalize_motor_record(row: Dict[str, Any]) -> Dict[str, Any]:
     motor = dict(row)
+    if motor.get("id") in (None, "") and motor.get("Id") not in (None, ""):
+        motor["id"] = motor.get("Id")
     motor["_norm_index"] = build_normalized_index(motor)
 
     motor["marca"] = pick_value(motor, ALIASES["marca"])

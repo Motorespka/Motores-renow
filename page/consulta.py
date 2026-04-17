@@ -17,6 +17,7 @@ from services.oficina_parser import (
     extract_consulta_parser_snapshot,
 )
 from services.supabase_data import clear_motores_cache, fetch_motores_cached
+from utils.motor_normalizer import normalize_motor_row_for_ui
 
 
 def _is_empty(value: Any) -> bool:
@@ -36,6 +37,14 @@ def _safe(value: Any, fallback: str = "-") -> str:
     if not txt:
         txt = fallback
     return html.escape(txt)
+
+
+def _merge_display_fields(*vals: Any) -> str:
+    for v in vals:
+        t = _to_text(v)
+        if t:
+            return t
+    return ""
 
 
 def _is_path_like(value: str) -> bool:
@@ -161,6 +170,7 @@ def _normalize_motor_record(row: Dict[str, Any]) -> Dict[str, Any]:
     if not data:
         data = build_normalized_from_motor_row(row)
     motor = data.get("motor", {}) if isinstance(data, dict) else {}
+    mecanica = data.get("mecanica", {}) if isinstance(data.get("mecanica"), dict) else {}
     imagens = row.get("imagens_urls")
     if not imagens:
         imagens = _to_text(row.get("ImagemUrls") or row.get("ArquivoOrigem"))
@@ -183,22 +193,59 @@ def _normalize_motor_record(row: Dict[str, Any]) -> Dict[str, Any]:
 
     feito_por = _extract_feito_por(row, data)
 
+    ui = normalize_motor_row_for_ui(row)
+
     return {
         "id": motor_id,
         "marca": marca,
         "modelo": modelo,
-        "potencia": _pick_first(row, "potencia", "potencia_cv", "Potencia") or _to_text(motor.get("potencia") or motor.get("cv")),
-        "rpm": _pick_first(row, "rpm", "rpm_nominal", "Rpm") or _to_text(motor.get("rpm")),
-        "tensao": _pick_first(row, "tensao", "tensao_v", "Tensao") or _to_text(motor.get("tensao")),
-        "corrente": _pick_first(row, "corrente", "corrente_a", "Corrente") or _to_text(motor.get("corrente")),
-        "polos": _pick_first(row, "polos", "Polos") or _to_text(motor.get("polos")),
-        "tipo_motor": _pick_first(row, "tipo_motor", "TipoMotor") or _to_text(motor.get("tipo_motor")),
+        "potencia": _merge_display_fields(
+            _pick_first(row, "potencia", "potencia_cv", "Potencia"),
+            motor.get("potencia") or motor.get("cv"),
+            ui.get("potencia"),
+        ),
+        "rpm": _merge_display_fields(
+            _pick_first(row, "rpm", "rpm_nominal", "Rpm"),
+            motor.get("rpm"),
+            ui.get("rpm"),
+        ),
+        "tensao": _merge_display_fields(
+            _pick_first(row, "tensao", "tensao_v", "Tensao"),
+            motor.get("tensao"),
+            ui.get("tensao"),
+        ),
+        "corrente": _merge_display_fields(
+            _pick_first(row, "corrente", "corrente_a", "Corrente"),
+            motor.get("corrente"),
+            ui.get("corrente"),
+        ),
+        "polos": _merge_display_fields(
+            _pick_first(row, "polos", "Polos"),
+            motor.get("polos"),
+            ui.get("polos"),
+        ),
+        "tipo_motor": _merge_display_fields(
+            _pick_first(row, "tipo_motor", "TipoMotor"),
+            motor.get("tipo_motor"),
+            ui.get("tipo_motor"),
+        ),
         "fases": _pick_first(row, "fases", "Fases") or _to_text(motor.get("fases")),
+        "frequencia": _merge_display_fields(
+            motor.get("frequencia"),
+            _pick_first(row, "frequencia", "Frequencia"),
+            ui.get("frequencia"),
+        ),
+        "carcaca": _merge_display_fields(
+            mecanica.get("carcaca"),
+            _pick_first(row, "carcaca", "Carcaca"),
+            ui.get("carcaca"),
+        ),
         "dados_tecnicos_json": data,
         "texto_bruto_extraido": _to_text(row.get("texto_bruto_extraido") or row.get("TextoBrutoExtraido") or data.get("texto_ocr")),
         "imagens_urls": imagens,
         "observacoes": _to_text(row.get("observacoes") or row.get("Observacoes") or data.get("observacoes_gerais")),
         "feito_por": feito_por,
+        "_consulta_ui": ui,
     }
 
 
@@ -237,6 +284,8 @@ def _search_blob(m: Dict[str, Any]) -> str:
         m.get("polos"),
         m.get("tipo_motor"),
         m.get("fases"),
+        m.get("frequencia"),
+        m.get("carcaca"),
         m.get("observacoes"),
     ]
     return " ".join(_to_text(v).lower() for v in values)
@@ -343,7 +392,13 @@ def _compact_preview(value: Any, max_len: int = 56) -> str:
     return txt[: max_len - 3].rstrip() + "..."
 
 
-def _extract_eixo_xy(mecanica: Dict[str, Any]) -> tuple[str, str]:
+def _extract_eixo_xy(mecanica: Dict[str, Any], ui: Dict[str, str] | None = None) -> tuple[str, str]:
+    ui = ui or {}
+    ux = _to_text(ui.get("eixo_x"))
+    uy = _to_text(ui.get("eixo_y"))
+    if ux or uy:
+        return ux or "-", uy or "-"
+
     eixo_raw = _to_text(mecanica.get("eixo"))
     medidas_raw = _join_values(mecanica.get("medidas"))
     combined = " | ".join(v for v in [eixo_raw, medidas_raw] if _to_text(v))
@@ -569,7 +624,8 @@ def render(ctx) -> None:
 
             motor_id_txt = _to_text(m.get("id")) or "sem_id"
             motor_key = re.sub(r"[^a-zA-Z0-9_-]", "_", motor_id_txt)
-            eixo_x, eixo_y = _extract_eixo_xy(mecanica)
+            consulta_ui = m.get("_consulta_ui") if isinstance(m.get("_consulta_ui"), dict) else {}
+            eixo_x, eixo_y = _extract_eixo_xy(mecanica, consulta_ui)
             fase_txt = _to_text(m.get("fases")) or _to_text(motor_info.get("fases"))
 
             snap = extract_consulta_parser_snapshot(data)
@@ -595,7 +651,7 @@ def render(ctx) -> None:
                 unsafe_allow_html=True,
             )
 
-            freq_txt = _to_text(motor_info.get("frequencia"))
+            freq_txt = _merge_display_fields(motor_info.get("frequencia"), m.get("frequencia"))
             assinatura = build_assinatura_tecnica_consulta(
                 marca_disp,
                 modelo_disp,

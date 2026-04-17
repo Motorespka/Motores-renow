@@ -21,6 +21,8 @@ from services.oficina_parser import (
 )
 from services.oficina_runtime import enriquecer_motor_oficina
 from services.supabase_data import clear_motores_cache, fetch_motor_by_id_cached
+from utils.motor_normalizer import normalize_motor_row_for_ui
+from utils.motor_view import dados_tecnicos_from_row
 
 
 def _to_text(value: Any) -> str:
@@ -38,6 +40,62 @@ def _to_dict(value: Any) -> Dict[str, Any]:
         except Exception:
             return {}
     return {}
+
+
+def _nonempty_list(val: Any) -> bool:
+    if not isinstance(val, list):
+        return False
+    return any(_to_text(x) for x in val)
+
+
+def _split_csv_tokens(s: str) -> List[str]:
+    out: List[str] = []
+    for part in s.replace(";", ",").split(","):
+        t = part.strip()
+        if t:
+            out.append(t)
+    return out
+
+
+def _merge_ui_fields_into_normalized_data(data: Dict[str, Any], motor: Dict[str, Any]) -> None:
+    """Preenche lacunas do JSON com colunas da view / VariaveisSite (mesma regra da consulta/detalhe)."""
+    ui = normalize_motor_row_for_ui(motor)
+    info = data.setdefault("motor", {})
+    bp = data.setdefault("bobinagem_principal", {})
+    ba = data.setdefault("bobinagem_auxiliar", {})
+    mec = data.setdefault("mecanica", {})
+
+    if not _nonempty_list(bp.get("passos")) and ui.get("passo_principal"):
+        bp["passos"] = _split_csv_tokens(ui["passo_principal"])
+    if not _nonempty_list(bp.get("espiras")) and ui.get("espiras_principal"):
+        bp["espiras"] = _split_csv_tokens(ui["espiras_principal"])
+    if not _nonempty_list(bp.get("fios")) and ui.get("fio_principal"):
+        bp["fios"] = _split_csv_tokens(ui["fio_principal"])
+    if not _to_text(bp.get("ligacao")) and ui.get("ligacao_principal"):
+        bp["ligacao"] = ui["ligacao_principal"]
+
+    if not _nonempty_list(ba.get("passos")) and ui.get("passo_auxiliar"):
+        ba["passos"] = _split_csv_tokens(ui["passo_auxiliar"])
+    if not _nonempty_list(ba.get("espiras")) and ui.get("espiras_auxiliar"):
+        ba["espiras"] = _split_csv_tokens(ui["espiras_auxiliar"])
+    if not _nonempty_list(ba.get("fios")) and ui.get("fio_auxiliar"):
+        ba["fios"] = _split_csv_tokens(ui["fio_auxiliar"])
+    if not _to_text(ba.get("ligacao")) and ui.get("ligacao_auxiliar"):
+        ba["ligacao"] = ui["ligacao_auxiliar"]
+
+    if not _to_text(mec.get("eixo")) and ui.get("eixo"):
+        mec["eixo"] = ui["eixo"]
+    if not _to_text(mec.get("carcaca")) and ui.get("carcaca"):
+        mec["carcaca"] = ui["carcaca"]
+    if not _nonempty_list(mec.get("medidas")) and ui.get("medidas"):
+        mec["medidas"] = [ui["medidas"]]
+
+    if not _to_text(info.get("frequencia")) and ui.get("frequencia"):
+        info["frequencia"] = ui["frequencia"]
+    if not _to_text(info.get("tipo_motor")) and ui.get("tipo_motor"):
+        info["tipo_motor"] = ui["tipo_motor"]
+    if not _to_text(info.get("polos")) and ui.get("polos"):
+        info["polos"] = ui["polos"]
 
 
 def _to_list(value: Any, split_slash: bool = False) -> List[str]:
@@ -72,7 +130,9 @@ def _list_editor(label: str, values: List[str], key: str, help_text: str = "") -
 
 
 def _build_initial_data(motor: Dict[str, Any]) -> Dict[str, Any]:
-    source = _to_dict(motor.get("dados_tecnicos_json") or motor.get("leitura_gemini_json"))
+    source = dados_tecnicos_from_row(motor)
+    if not source:
+        source = _to_dict(motor.get("dados_tecnicos_json") or motor.get("leitura_gemini_json"))
     if not source:
         source = build_normalized_from_motor_row(motor)
     source = source or DEFAULT_EXTRACTED
@@ -114,6 +174,8 @@ def _build_initial_data(motor: Dict[str, Any]) -> Dict[str, Any]:
         data["observacoes_gerais"] = _to_text(motor.get("observacoes") or motor.get("Observacoes"))
     if not data.get("texto_ocr"):
         data["texto_ocr"] = _to_text(motor.get("texto_bruto_extraido") or motor.get("TextoBrutoExtraido"))
+
+    _merge_ui_fields_into_normalized_data(data, motor)
 
     return data
 
