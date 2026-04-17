@@ -16,14 +16,24 @@ const fallbackAnonKey = "placeholder-anon-key";
 
 export const SUPABASE_CONFIGURED = hasSupabaseEnv;
 
+// Com credenciais reais, a sessão precisa persistir (localStorage) ou o login
+// "funciona" mas some no próximo getSession() — típico em produção (Vercel).
+const authOptions = hasSupabaseEnv
+  ? {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    }
+  : {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    };
+
 export const supabase = createClient(
   hasSupabaseEnv ? supabaseUrl : fallbackUrl,
   hasSupabaseEnv ? supabaseAnonKey : fallbackAnonKey,
   {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-    },
+    auth: authOptions,
   }
 );
