@@ -1,5 +1,12 @@
 # CHANGELOG AI
 
+## 2026-04-17 | Cycle 0031
+- **Change Description:** Restaurada a base visual Streamlit no estilo atual ("nova vision") e aplicada melhoria de UX na navegação: adicionada entrada direta de `Consulta` na sidebar (sem depender de abrir a página `Visão geral` para alcançar a tela de consulta). Também realizado polimento visual leve dos botões de navegação da sidebar (gradiente, borda ativa e hover mais consistente no desktop/mobile).
+- **Reason:** Atender pedido de manter o visual atual, melhorar acabamento gráfico e reduzir fricção de navegação para acesso da consulta em 1 clique.
+- **Risk Level:** Baixo (mudança concentrada em UI/navegação, sem alterar regras de negócio ou persistência).
+- **Rollback Availability:** Alto (reverter `core/navigation.py` e `assets/style.css` ao estado anterior).
+- **Next Predicted Risk:** A sidebar pode crescer com muitos atalhos; caso isso aconteça, considerar agrupamento colapsável para manter legibilidade em telas pequenas.
+
 ## 2026-04-17 | Cycle 0030
 - **Change Description:** Restaurado o visual legado do Streamlit (pré-camada “site novo”) ao reverter `core/navigation.py` e `assets/style.css` para o estado anterior ao commit de integração (`277f9da`). Também corrigido `core/session_manager.py` para remover fallback inválido em `Route.DASHBOARD`, voltando o bootstrap de rota para `Route.CADASTRO`.
 - **Reason:** O usuário reportou que o site ainda estava com “cara do Vercel”; era necessário desacoplar não só `App.py`, mas também a camada de navegação/estilo e o fallback de sessão introduzidos no ciclo de integração visual.

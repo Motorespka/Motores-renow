@@ -74,11 +74,11 @@ class SessionManager:
         if self.route_key not in st.session_state:
             query_value = self._read_route_from_query()
             legacy_value = st.session_state.get(self.legacy_route_key)
-            candidate = query_value or legacy_value or Route.CADASTRO.value
+            candidate = query_value or legacy_value or Route.DASHBOARD.value
             try:
                 st.session_state[self.route_key] = Route(candidate).value
             except Exception:
-                st.session_state[self.route_key] = Route.CADASTRO.value
+                st.session_state[self.route_key] = Route.DASHBOARD.value
         st.session_state[self.legacy_route_key] = st.session_state[self.route_key]
         st.session_state["route"] = st.session_state[self.route_key]
         self._write_route_to_query(st.session_state[self.route_key])
