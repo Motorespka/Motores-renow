@@ -9,7 +9,6 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 REPO_ROOT = Path(__file__).resolve().parent
-# Ensures absolute imports like `core.*` resolve to this repo on Streamlit Cloud.
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
@@ -27,9 +26,9 @@ from core.development_mode import (
     resolve_dev_sandbox_db_path,
 )
 from core.feature_flags import get_feature_flags
-from core.navigation import AppContext, Route, Router, render_navigation_sidebar, render_route_header
+from core.navigation import AppContext, Route, Router, render_navigation_sidebar
 from core.session_manager import SessionManager
-from page import admin_panel, atualizacoes, cadastro, consulta, diagnostico, edit, hub_comercial, motor_detail, visao_geral
+from page import admin_panel, atualizacoes, cadastro, consulta, diagnostico, edit, hub_comercial, motor_detail
 from services.database import bootstrap_database, build_local_runtime_client
 from services.supabase_data import clear_motores_cache
 
@@ -183,7 +182,6 @@ def bootstrap_styles() -> None:
 
 def build_router() -> Router:
     router = Router()
-    router.register(Route.DASHBOARD, visao_geral.show)
     router.register(Route.CADASTRO, cadastro.show)
     router.register(Route.CONSULTA, consulta.show)
     router.register(Route.ATUALIZACOES, atualizacoes.show)
@@ -425,10 +423,10 @@ def main() -> None:
     else:
         if cadastro_allowed:
             if current_route in {"", "login"}:
-                _set_route_state(session, "dashboard")
+                _set_route_state(session, "cadastro")
         else:
             if current_route in {"", "login", "cadastro", "edit", "diagnostico", "detalhe", "admin"}:
-                _set_route_state(session, "dashboard")
+                _set_route_state(session, "consulta")
 
     current_route_after = _read_route_state(session)
     _debug_access_state(access, current_route_before, current_route_after)
@@ -457,10 +455,6 @@ def main() -> None:
 
     router = build_router()
     render_navigation_sidebar(session, client)
-    try:
-        render_route_header(session.get_route())
-    except Exception:
-        pass
 
     ctx = AppContext(supabase=client, session=session, router=router)
     router.dispatch(ctx, session.get_route())
