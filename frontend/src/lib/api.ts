@@ -1,5 +1,11 @@
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api";
 
+/** Sem URL pública da API, o bundle usa localhost — no Vercel o browser não alcança isso. */
+function isDefaultLocalApiBase(): boolean {
+  const base = (process.env.NEXT_PUBLIC_API_BASE_URL || "").trim();
+  return !base || base.includes("localhost") || base.includes("127.0.0.1");
+}
+
 export type ApiError = {
   status: number;
   detail: string;
@@ -150,8 +156,11 @@ export async function apiFetch<T>(
     return mockFetch<T>(path, init);
   }
 
-  const allowMockFallback =
-    typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+  const onLocalhost =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+  // Localhost: mock se API cair. Vercel sem NEXT_PUBLIC_API_BASE_URL público: mesmo problema que localhost na URL.
+  const allowMockFallback = onLocalhost || (typeof window !== "undefined" && isDefaultLocalApiBase());
 
   let response: Response;
   try {
