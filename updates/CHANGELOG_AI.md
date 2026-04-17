@@ -1,5 +1,12 @@
 # CHANGELOG AI
 
+## 2026-04-17 | Cycle 0029
+- **Change Description:** Restaurado o shell Streamlit como fluxo principal de desenvolvimento: `App.py` voltou ao comportamento pré-dashboard/migração (cadastro/consulta como destinos padrão), `SessionManager` retomou `cadastro` como rota inicial segura e a navegação deixou de expor o atalho `dashboard`/links de migração na sidebar.
+- **Reason:** Reposicionar o Streamlit como ambiente principal para evolução funcional, mantendo Next.js/FastAPI no repositório apenas como base paralela para futura refatoração no site.
+- **Risk Level:** Baixo-Médio (ajuste de roteamento e UX do shell; backend/frontend paralelos permanecem intactos).
+- **Rollback Availability:** Alto (reverter `App.py`, `core/session_manager.py`, `core/navigation.py` e este registro).
+- **Next Predicted Risk:** Rotas/telas desenvolvidas pensando no `dashboard` podem ficar sem ponto de entrada explícito; se a visão geral continuar útil no futuro, reintroduzir como página opcional sem torná-la default.
+
 ## 2026-04-16 | Cycle 0021
 - **Change Description:** Implementada rota `dashboard` (Visão geral) como home pós-login, com página `page/visao_geral.py` (KPIs + atalhos) no estilo `motor-nova-vision` e fallback seguro para Consulta.
 - **Reason:** Tornar a experiência mais próxima do dashboard de referência e mais clara para o usuário, sem hard cutover e preservando o legado.
