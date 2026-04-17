@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, Dict
 
-import os
 import streamlit as st
 
 from core.access_control import (
@@ -19,76 +18,7 @@ from core.development_mode import is_dev_mode
 from core.feature_flags import get_feature_flags
 from core.user_identity import resolve_current_user_identity
 
-def _read_env_url(*names: str) -> str:
-    for name in names:
-        value = ""
-        try:
-            # `st.secrets` pode não existir localmente (ou não ter secrets.toml).
-            value = str(st.secrets.get(name) or "").strip()  # type: ignore[attr-defined]
-        except Exception:
-            value = ""
-        if value:
-            return value
-        value = str(os.environ.get(name) or "").strip()
-        if value:
-            return value
-    return ""
-
-
-@st.cache_data(ttl=10, show_spinner=False)
-def _probe_url_ok(url: str) -> bool:
-    url = str(url or "").strip()
-    if not url:
-        return False
-    try:
-        import urllib.request
-
-        req = urllib.request.Request(url, headers={"User-Agent": "Moto-Renow/streamlit-shell"})
-        with urllib.request.urlopen(req, timeout=1.5) as resp:
-            return 200 <= int(getattr(resp, "status", 200) or 200) < 500
-    except Exception:
-        return False
-
-
-def _render_external_links() -> None:
-    st.caption("Novo sistema (migração incremental)")
-
-    next_url = _read_env_url("NEXTJS_URL", "NEXT_PUBLIC_APP_URL", "FRONTEND_URL")
-    api_url = _read_env_url("FASTAPI_URL", "API_URL", "BACKEND_URL")
-
-    if next_url:
-        next_ok = _probe_url_ok(next_url)
-        if hasattr(st, "link_button"):
-            st.link_button("Abrir sistema novo", next_url, use_container_width=True)
-        else:
-            st.markdown(f"[Abrir sistema novo]({next_url})")
-        st.caption("Status: online" if next_ok else "Status: indisponível (fallback para legado ativo)")
-
-    if api_url:
-        docs_url = api_url.rstrip("/") + "/docs"
-        docs_ok = _probe_url_ok(docs_url)
-        if hasattr(st, "link_button"):
-            st.link_button("Abrir API docs", docs_url, use_container_width=True)
-        else:
-            st.markdown(f"[Abrir API docs]({docs_url})")
-        st.caption("Docs: online" if docs_ok else "Docs: indisponível (legado segue funcional)")
-
-    # No Cloud, secrets opcionais costumam faltar: evita dois `st.info` azuis que mudam a "cara" do shell.
-    if not next_url or not api_url:
-        with st.expander("Integrações opcionais (Next / API)", expanded=False):
-            st.caption(
-                "O Streamlit funciona sozinho. Para botões do app novo e da API, "
-                "adicione secrets no Streamlit Cloud (veja DEPLOY_STREAMLIT_CLOUD.md)."
-            )
-            if not next_url:
-                st.markdown("- `NEXTJS_URL` ou `FRONTEND_URL` — URL do Next.js")
-            if not api_url:
-                st.markdown("- `FASTAPI_URL`, `API_URL` ou `BACKEND_URL` — base da API (docs em `/docs`)")
-
-    st.divider()
-
 class Route(str, Enum):
-    DASHBOARD = "dashboard"
     CADASTRO = "cadastro"
     CONSULTA = "consulta"
     ATUALIZACOES = "atualizacoes"
@@ -202,7 +132,6 @@ def render_navigation_sidebar(session, supabase_client=None) -> None:
             unsafe_allow_html=True,
         )
 
-        _render_external_links()
         access = get_access_profile(client=supabase_client)
         admin_user = is_admin_user()
         paid_allowed = can_access_paid_features(supabase_client)
@@ -236,10 +165,10 @@ def render_navigation_sidebar(session, supabase_client=None) -> None:
                 )
 
         _group("OPERAÇÃO")
-        _nav_button("Visão geral", Route.DASHBOARD)
         _nav_button("Atualizações", Route.ATUALIZACOES, badge="NEW", badge_kind="accent")
         if cadastro_allowed:
             _nav_button("Cadastro / OCR", Route.CADASTRO, badge="OCR", badge_kind="primary")
+        _nav_button("Consulta", Route.CONSULTA)
 
         _group("ANÁLISE TÉCNICA")
         if paid_allowed:
@@ -262,7 +191,6 @@ def render_navigation_sidebar(session, supabase_client=None) -> None:
 def render_route_header(route: Route) -> None:
     route_value = str(getattr(route, "value", route) or "").strip().lower()
     titles: dict[str, tuple[str, str, str, str]] = {
-        Route.DASHBOARD.value: ("VISÃO GERAL", "Painel operacional do workspace", "DASH", "accent"),
         Route.CONSULTA.value: ("CONSULTA TÉCNICA", "Base de motores cadastrados", "BASE", "accent"),
         Route.CADASTRO.value: ("CADASTRO / OCR", "Leitura de plaqueta e revisão assistida", "OCR", "primary"),
         Route.DIAGNOSTICO.value: ("DIAGNÓSTICO TÉCNICO", "Análise assistida de condição", "PRO", "warning"),

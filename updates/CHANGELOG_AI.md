@@ -1,5 +1,12 @@
 # CHANGELOG AI
 
+## 2026-04-17 | Cycle 0029
+- **Change Description:** Restaurado o fluxo principal do Streamlit para o comportamento pré-Next/FastAPI: removida a home `dashboard` do entrypoint, restaurado o pós-login para `cadastro`/`consulta`, removidos os links externos de migração da sidebar e reajustado o `SessionManager` para iniciar em `cadastro`.
+- **Reason:** Recolocar o Streamlit como ambiente principal de desenvolvimento funcional, usando o fluxo legado como base segura antes de portar/refatorar funcionalidades para o site em Vercel.
+- **Risk Level:** Baixo-Médio (ajuste de roteamento inicial e sidebar; sem alteração de banco, autenticação ou contratos de dados).
+- **Rollback Availability:** Alto (reaplicar a rota `dashboard` no `App.py`, reintroduzir `Route.DASHBOARD`/links externos em `core/navigation.py` e restaurar o default `dashboard` no `core/session_manager.py`).
+- **Next Predicted Risk:** Sessões antigas com rota persistida podem tentar abrir caminhos removidos; o fallback para `cadastro` reduz o impacto, mas vale validar manualmente login, cadastro, consulta e diagnóstico no próximo ciclo funcional.
+
 ## 2026-04-16 | Cycle 0021
 - **Change Description:** Implementada rota `dashboard` (Visão geral) como home pós-login, com página `page/visao_geral.py` (KPIs + atalhos) no estilo `motor-nova-vision` e fallback seguro para Consulta.
 - **Reason:** Tornar a experiência mais próxima do dashboard de referência e mais clara para o usuário, sem hard cutover e preservando o legado.
