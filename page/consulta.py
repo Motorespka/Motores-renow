@@ -459,10 +459,20 @@ def render(ctx) -> None:
         _render_teaser_consulta(motores, admin_user=admin_user)
         return
 
-    busca = st.text_input(
-        "Busca geral",
-        placeholder="Marca, modelo, potencia, rpm, tensao, corrente, polos...",
-    ).strip().lower()
+    col_busca, col_revisao = st.columns([2.35, 1.0], gap="medium")
+    with col_busca:
+        busca = st.text_input(
+            "Busca geral",
+            placeholder="Marca, modelo, potencia, rpm, tensao, corrente, polos...",
+        ).strip().lower()
+    with col_revisao:
+        revisao_filtro = st.selectbox(
+            "Revisao tecnica (parser)",
+            ["Todos", "Somente com revisao sugerida", "Sem pendencia de revisao"],
+            index=0,
+            key="consulta_filtro_revisao_v2104",
+            help="Filtro read-only sobre dados ja carregados. Marca, polos e demais filtros continuam na barra lateral.",
+        )
     filtrados = [m for m in motores if busca in _search_blob(m)] if busca else motores
 
     st.sidebar.markdown("### Filtros")
@@ -471,12 +481,6 @@ def render(ctx) -> None:
     tipo = st.sidebar.selectbox("Tipo do motor", ["Todos"] + _unique(motores, "tipo_motor"))
     fases = st.sidebar.selectbox("Fases", ["Todos"] + _unique(motores, "fases"))
     rpm_range = st.sidebar.slider("Faixa RPM", 0, 5000, (0, 5000), step=50)
-    revisao_filtro = st.sidebar.selectbox(
-        "Revisao tecnica (parser)",
-        ["Todos", "Somente com revisao sugerida", "Sem pendencia de revisao"],
-        index=0,
-        key="consulta_filtro_revisao_v2104",
-    )
 
     if marca != "Todas":
         filtrados = [m for m in filtrados if _to_text(m.get("marca")) == marca]
