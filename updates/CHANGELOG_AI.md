@@ -119,6 +119,13 @@
 - **Rollback Availability:** Alto (rollback por remoção do diretório `ai_board/` e restauração deste changelog).
 - **Next Predicted Risk:** Integração futura do orchestrator pode ignorar `approval_gate/policy_engine/kill_switch` se não for obrigatória no ponto de chamada.
 
+## 2026-04-17 | Cycle 0033
+- **Change Description:** Restaurado `App.py` para o estado anterior à introdução do Next.js/FastAPI (equivalente a `legacy_streamlit_app.py`). Revertidas: importação de `sys`/`REPO_ROOT`, `render_route_header`, `visao_geral` (route `DASHBOARD`) e defaults de rota pós-login (`dashboard` → `cadastro`/`consulta`).
+- **Reason:** O Streamlit passa a ser o ambiente primário de desenvolvimento de funcionalidades ("dev"), sem acoplamento ao Next.js ou FastAPI. O que funcionar no Streamlit será portado de forma refatorada para o Vercel futuramente.
+- **Risk Level:** Baixo (revert puro para estado anterior estável).
+- **Rollback Availability:** Alto (reverter ao commit `277f9da` se necessário).
+- **Next Predicted Risk:** `page/visao_geral.py` permanece no disco mas não estará registrado no router; garantir que não seja importado acidentalmente por outras pages.
+
 ## 2026-04-13 | Cycle 0012
 - **Change Description:** Fortalecido o runtime de papéis com política explícita de fallback aprovado (motivo + falha primária obrigatórios), API de resolução por nome e ponte dedicada para orquestrador (`orchestrator_runtime.py`).
 - **Reason:** Corrigir ambiguidade de fallback e preparar integração direta do orchestrator com governança sem acoplamento indevido.
