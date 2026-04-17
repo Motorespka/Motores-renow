@@ -9,6 +9,18 @@ from core.development_mode import is_dev_mode
 
 CHANGELOG: List[Dict[str, object]] = [
     {
+        "versao": "V21.0.5",
+        "data": "2026-04-18",
+        "titulo": "Consulta: filtro de revisao visivel na area principal",
+        "adicoes": [
+            "Controle Revisao tecnica (parser) ao lado da Busca geral, sempre visivel sem rolar a sidebar.",
+            "Ajuda inline explicando que os demais filtros permanecem na barra lateral.",
+        ],
+        "correcoes": [
+            "Evita que o filtro V21.0.4 ficasse escondido abaixo do menu na sidebar em ecras pequenos.",
+        ],
+    },
+    {
         "versao": "V21.0.4",
         "data": "2026-04-18",
         "titulo": "Consulta: filtro read-only por revisao tecnica",
