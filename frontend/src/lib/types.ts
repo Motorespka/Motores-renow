@@ -20,6 +20,8 @@ export type MeResponse = {
 
 export type MotorRecord = {
   id?: string | number;
+  /** Ordem global na lista (ex.: #1, #2); não é o PK do Supabase. */
+  cadastro_seq?: number;
   marca?: string;
   modelo?: string;
   potencia?: string;

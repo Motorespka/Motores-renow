@@ -16,6 +16,12 @@ def _section(data, key: str) -> dict:
     return value if isinstance(value, dict) else {}
 
 
+def _to_text(value) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
 def _join_values(value) -> str:
     if isinstance(value, list):
         items = [str(v).strip() for v in value if str(v).strip()]
@@ -61,7 +67,15 @@ def render(ctx) -> None:
             st.rerun()
         return
 
-    m = normalize_motor_record(motor)
+    motor_row = dict(motor)
+    seq_sess = st.session_state.get(f"motor_cadastro_seq_{motor_id}")
+    if seq_sess is not None:
+        try:
+            motor_row["cadastro_seq"] = int(seq_sess)
+        except (TypeError, ValueError):
+            pass
+
+    m = normalize_motor_record(motor_row)
     dados = dados_tecnicos_from_row(m)
     motor_info = _section(dados, "motor")
     ui = normalize_motor_row_for_ui(motor)
@@ -79,13 +93,32 @@ def render(ctx) -> None:
     if is_empty(m.get("fases")) and not is_empty(motor_info.get("fases")):
         m["fases"] = motor_info.get("fases")
 
+    seq_disp = st.session_state.get(f"motor_cadastro_seq_{motor_id}")
+    if seq_disp is not None:
+        try:
+            sd = int(seq_disp)
+            mod_now = _to_text(m.get("modelo"))
+            mid = str(m.get("id") or motor_id or "").strip()
+            if (not mod_now or mod_now == "Sem modelo") and mid:
+                m["modelo"] = f"Registro #{sd}"
+            elif mod_now.lower().startswith("registro"):
+                tail = re.sub(r"(?i)^registro\s+#?\s*", "", mod_now).strip()
+                if not tail or tail == mid or tail.replace("-", "").replace(" ", "") == mid.replace("-", "").replace(
+                    " ", ""
+                ):
+                    m["modelo"] = f"Registro #{sd}"
+        except (TypeError, ValueError):
+            pass
+
     chip_fases = m.get("fases") or motor_info.get("fases") or ui.get("tipo_motor")
+
+    id_badge = seq_disp if seq_disp is not None else motor_id
 
     st.markdown(
         f"""
         <div class="motor-headline">
             <div>
-                <div class="motor-id">#{friendly(motor_id)}</div>
+                <div class="motor-id">#{html.escape(str(id_badge))}</div>
                 <div class="motor-title">{friendly(m.get('marca'))} <span>{friendly(m.get('modelo'))}</span></div>
             </div>
             <div class="motor-chip">{friendly(chip_fases)} | {friendly(m.get('polos'))} polos</div>

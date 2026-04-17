@@ -893,10 +893,16 @@ div[data-testid="stButton"] > button:hover {
 
 .motor-headline {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
+    flex-wrap: wrap;
     gap: 10px;
     margin-bottom: 10px;
+}
+
+.motor-headline > div:first-child {
+    min-width: 0;
+    flex: 1 1 220px;
 }
 
 .motor-id {
@@ -1074,6 +1080,10 @@ div[data-testid="stButton"] > button:hover {
     padding: 10px 12px;
     margin-bottom: 10px;
     background: rgba(8, 15, 27, 0.78);
+    min-height: 4.6rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
 }
 
 .data-label {
@@ -1085,6 +1095,9 @@ div[data-testid="stButton"] > button:hover {
     color: #e9f7ff;
     font-weight: 700;
     margin-top: 2px;
+    line-height: 1.35;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .diag-hero {

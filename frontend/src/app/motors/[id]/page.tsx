@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Cpu, FileJson, Gauge, Tag } from "lucide-react";
 
@@ -14,7 +14,9 @@ import { MeResponse, MotorDetailResponse } from "@/lib/types";
 export default function MotorDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const motorId = String(params?.id || "");
+  const cadastroSeqQ = searchParams.get("cadastro_seq");
 
   const [me, setMe] = useState<MeResponse | null>(null);
   const [detail, setDetail] = useState<MotorDetailResponse | null>(null);
@@ -29,7 +31,7 @@ export default function MotorDetailPage() {
         setMe(mePayload);
         let detailPayload: MotorDetailResponse;
         if (shouldFetchMotorsFromSupabase()) {
-          const direct = await fetchMotorDetailFromSupabase(motorId);
+          const direct = await fetchMotorDetailFromSupabase(motorId, cadastroSeqQ);
           if (!direct) {
             setError("Motor nao encontrado ou sem permissao (RLS).");
             return;
@@ -47,7 +49,7 @@ export default function MotorDetailPage() {
         setError(msg);
       }
     })();
-  }, [router, motorId]);
+  }, [router, motorId, cadastroSeqQ]);
 
   if (!me) {
     return <div className="center-screen text-muted">Carregando detalhe...</div>;
@@ -55,8 +57,16 @@ export default function MotorDetailPage() {
 
   return (
     <AppShell
-      title={`Motor #${motorId}`}
-      subtitle="Detalhamento tecnico"
+      title={
+        cadastroSeqQ
+          ? `Motor cadastro #${cadastroSeqQ}`
+          : `Motor #${motorId}`
+      }
+      subtitle={
+        cadastroSeqQ
+          ? `Referencia interna Supabase: ${motorId}`
+          : "Detalhamento tecnico"
+      }
       isAdmin={me.profile.is_admin}
       userLabel={me.profile.display_name || me.profile.username || me.profile.email}
       canAccessCadastro={me.profile.cadastro_allowed}
@@ -88,7 +98,17 @@ export default function MotorDetailPage() {
                   {String(detail.item.marca || "Motor")} {String(detail.item.modelo || "-")}
                 </div>
                 <div className="text-[11px] text-muted-foreground font-tech mt-1">
-                  ID: <span className="font-mono-tech">{motorId}</span>
+                  {detail.item.cadastro_seq != null ? (
+                    <>
+                      Cadastro #{detail.item.cadastro_seq}
+                      <span className="text-muted-foreground/70"> · ref </span>
+                      <span className="font-mono-tech">{motorId}</span>
+                    </>
+                  ) : (
+                    <>
+                      ID: <span className="font-mono-tech">{motorId}</span>
+                    </>
+                  )}
                 </div>
               </div>
               <Link

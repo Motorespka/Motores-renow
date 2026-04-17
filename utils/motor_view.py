@@ -132,7 +132,14 @@ def normalize_motor_record(row: Dict[str, Any]) -> Dict[str, Any]:
     motor["imagem_motor_url"] = resolve_motor_image_url(motor)
 
     if is_empty(motor.get("modelo")):
-        motor["modelo"] = f"Registro #{friendly(motor.get('id'))}"
+        seq = motor.get("cadastro_seq")
+        if not is_empty(seq):
+            try:
+                motor["modelo"] = f"Registro #{int(seq)}"
+            except (TypeError, ValueError):
+                motor["modelo"] = f"Registro #{friendly(seq)}"
+        else:
+            motor["modelo"] = f"Registro #{friendly(motor.get('id'))}"
     return motor
 
 

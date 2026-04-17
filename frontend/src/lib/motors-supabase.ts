@@ -38,14 +38,31 @@ function idColumnForTable(table: string): "id" | "Id" {
 
 function rowToMotorRecord(row: Record<string, unknown>): MotorRecord {
   const ui = normalizeMotorRowForUi(row);
-  const modelo =
+  const seq = typeof row.cadastro_seq === "number" ? row.cadastro_seq : Number(row.cadastro_seq) || undefined;
+  let modelo =
     row.modelo ??
     row.Modelo ??
     row.modelo_iec ??
     row.modelo_nema ??
     "-";
+  const mid = String(row.id ?? row.Id ?? "").trim();
+  const modStr = String(modelo).trim();
+  if (
+    seq != null &&
+    mid &&
+    (modStr === "" ||
+      modStr === "-" ||
+      modStr === "Sem modelo" ||
+      /^registro\s+#?/i.test(modStr))
+  ) {
+    const tail = modStr.replace(/^registro\s+#?\s*/i, "").trim();
+    if (!modStr || !tail || tail === mid || tail.replace(/[-\s]/g, "") === mid.replace(/[-\s]/g, "")) {
+      modelo = `Registro #${seq}`;
+    }
+  }
   return {
     id: (row.id ?? row.Id) as string | number | undefined,
+    cadastro_seq: seq,
     marca: String(row.marca ?? row.Marca ?? "Motor"),
     modelo: String(modelo),
     potencia: String(row.potencia ?? row.Potencia ?? ui.potencia ?? "-"),
@@ -84,6 +101,7 @@ function rowMatchesSearch(row: Record<string, unknown>, s: string): boolean {
     row.Corrente,
     row.polos,
     row.Polos,
+    row.cadastro_seq,
     ui.potencia,
     ui.rpm,
     ui.tensao,
@@ -134,14 +152,18 @@ export async function fetchMotorListFromSupabase(q: string, limit: number): Prom
     return { mode: "full", total: 0, items: [] };
   }
 
-  let filtered = rows.filter((r) => rowMatchesSearch(r, s));
+  const numbered = rows.map((r, i) => ({ ...r, cadastro_seq: i + 1 }));
+  let filtered = numbered.filter((r) => rowMatchesSearch(r, s));
   filtered = filtered.slice(0, lim);
 
   const items = filtered.map((r) => rowToMotorRecord(r));
   return { mode: "full", total: items.length, items };
 }
 
-export async function fetchMotorDetailFromSupabase(motorId: string): Promise<MotorDetailResponse | null> {
+export async function fetchMotorDetailFromSupabase(
+  motorId: string,
+  cadastroSeq?: string | null
+): Promise<MotorDetailResponse | null> {
   if (!shouldFetchMotorsFromSupabase()) return null;
 
   for (const table of resolveMotorTableChain()) {
@@ -149,7 +171,10 @@ export async function fetchMotorDetailFromSupabase(motorId: string): Promise<Mot
     const { data, error } = await supabase.from(table).select("*").eq(idCol, motorId).maybeSingle();
     if (!error && data) {
       const raw = data as Record<string, unknown>;
-      return { item: rowToMotorRecord(raw), raw };
+      const trimmed = cadastroSeq?.trim();
+      const merged =
+        trimmed && /^\d+$/.test(trimmed) ? { ...raw, cadastro_seq: parseInt(trimmed, 10) } : raw;
+      return { item: rowToMotorRecord(merged), raw };
     }
   }
 

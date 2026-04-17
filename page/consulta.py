@@ -20,6 +20,29 @@ from services.supabase_data import clear_motores_cache, fetch_motores_cached
 from utils.motor_normalizer import normalize_motor_row_for_ui
 
 
+def _remember_motor_cadastro_seq(motor_id: Any, seq: int) -> None:
+    if motor_id in (None, ""):
+        return
+    st.session_state[f"motor_cadastro_seq_{motor_id}"] = int(seq)
+
+
+def _assign_cadastro_sequencia(motores: List[Dict[str, Any]]) -> None:
+    """Ordem global = mesma de fetch_motores_cached; exibe #1, #2, #3 em vez do PK."""
+    for i, m in enumerate(motores, start=1):
+        m["cadastro_seq"] = i
+        mid = str(m.get("id") or "").strip()
+        mod = _to_text(m.get("modelo"))
+        if (not mod or mod == "Sem modelo") and mid:
+            m["modelo"] = f"Registro #{i}"
+            continue
+        if mid and re.match(r"(?i)^registro\s+", mod):
+            tail = re.sub(r"(?i)^registro\s+#?\s*", "", mod).strip()
+            if not tail or tail == mid or tail.replace("-", "").replace(" ", "") == mid.replace("-", "").replace(
+                " ", ""
+            ):
+                m["modelo"] = f"Registro #{i}"
+
+
 def _is_empty(value: Any) -> bool:
     return value is None or (isinstance(value, str) and value.strip().lower() in {"", "none", "null", "nan"})
 
@@ -262,7 +285,7 @@ def _consulta_modelo_display(m: Dict[str, Any], motor_info: Dict[str, Any]) -> s
     """Preferir modelo do JSON quando a linha e so 'Registro {id}'."""
     row = _to_text(m.get("modelo"))
     inner = _to_text(motor_info.get("modelo"))
-    if inner and re.match(r"(?i)^registro\s+\d+\s*$", row):
+    if inner and re.match(r"(?i)^registro\s+#?\s*[\w\-]+\s*$", row):
         return inner
     if inner and not row:
         return inner
@@ -287,6 +310,7 @@ def _search_blob(m: Dict[str, Any]) -> str:
         m.get("frequencia"),
         m.get("carcaca"),
         m.get("observacoes"),
+        m.get("cadastro_seq"),
     ]
     return " ".join(_to_text(v).lower() for v in values)
 
@@ -539,6 +563,7 @@ def render(ctx) -> None:
         return
 
     motores = [_normalize_motor_record(r) for r in raw]
+    _assign_cadastro_sequencia(motores)
 
     if not paid_user:
         _render_teaser_consulta(motores, admin_user=admin_user)
@@ -640,7 +665,7 @@ def render(ctx) -> None:
                 f"""
                 <div class="motor-headline">
                     <div>
-                        <div class="motor-id">#{_safe(m.get('id'))}</div>
+                        <div class="motor-id">#{_safe(m.get("cadastro_seq") or m.get("id"))}</div>
                         <div class="motor-title">{_safe(marca_disp)} <span>{_safe(modelo_disp)}</span></div>
                     </div>
                     <div class="motor-chip-row">
@@ -737,11 +762,13 @@ def render(ctx) -> None:
                 b1, b2, b3 = st.columns(3)
                 with b1:
                     if st.button("Editar", key=f"edit_{motor_key}", use_container_width=True):
+                        _remember_motor_cadastro_seq(m["id"], int(m.get("cadastro_seq") or 0))
                         ctx.session.selected_motor_id = m["id"]
                         ctx.session.set_route(Route.EDIT)
                         st.rerun()
                 with b2:
                     if st.button("Abrir detalhes", key=f"detail_{motor_key}", use_container_width=True):
+                        _remember_motor_cadastro_seq(m["id"], int(m.get("cadastro_seq") or 0))
                         ctx.session.selected_motor_id = m["id"]
                         ctx.session.set_route(Route.DETALHE)
                         st.rerun()
@@ -767,6 +794,7 @@ def render(ctx) -> None:
                             st.rerun()
             else:
                 if st.button("Abrir detalhes", key=f"detail_{motor_key}", use_container_width=True):
+                    _remember_motor_cadastro_seq(m["id"], int(m.get("cadastro_seq") or 0))
                     ctx.session.selected_motor_id = m["id"]
                     ctx.session.set_route(Route.DETALHE)
                     st.rerun()

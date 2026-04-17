@@ -236,6 +236,13 @@ def render(ctx):
             st.rerun()
         return
 
+    seq_sess = st.session_state.get(f"motor_cadastro_seq_{id_motor}")
+    if seq_sess is not None:
+        try:
+            st.caption(f"Cadastro #{int(seq_sess)} · ID interno (Supabase): {id_motor}")
+        except (TypeError, ValueError):
+            st.caption(f"ID interno (Supabase): {id_motor}")
+
     state_key = f"edit_motor_data_{id_motor}"
     loaded_key = "edit_loaded_motor_id"
     if st.session_state.get(loaded_key) != id_motor or state_key not in st.session_state:

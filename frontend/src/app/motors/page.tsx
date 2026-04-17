@@ -140,9 +140,12 @@ export default function MotorsPage() {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <div className="font-tech text-sm text-foreground truncate">
-                    {String(m.marca || "Motor")} {String(m.modelo || "-")}
-                  </div>
+                  <div className="font-tech text-xs text-muted-foreground font-mono-tech mb-0.5">
+                  Cadastro #{m.cadastro_seq != null ? String(m.cadastro_seq) : String(m.id ?? "-")}
+                </div>
+                <div className="font-tech text-sm text-foreground truncate">
+                  {String(m.marca || "Motor")} {String(m.modelo || "-")}
+                </div>
                   <span className="badge-premium badge-primary">MOTOR</span>
                 </div>
                 <div className="text-[11px] text-muted-foreground font-tech mt-0.5 truncate">
@@ -152,7 +155,9 @@ export default function MotorsPage() {
 
               {mode === "full" ? (
                 <Link
-                  href={`/motors/${m.id}`}
+                  href={`/motors/${encodeURIComponent(String(m.id))}${
+                    m.cadastro_seq != null ? `?cadastro_seq=${encodeURIComponent(String(m.cadastro_seq))}` : ""
+                  }`}
                   className="text-[11px] px-3 py-2 rounded-xl border border-border/40 bg-muted/20 hover:bg-muted/40 text-muted-foreground hover:text-foreground transition-colors shrink-0"
                 >
                   Detalhes
