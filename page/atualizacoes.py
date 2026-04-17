@@ -9,6 +9,16 @@ from core.development_mode import is_dev_mode
 
 CHANGELOG: List[Dict[str, object]] = [
     {
+        "versao": "V21.0.8",
+        "data": "2026-04-18",
+        "titulo": "Consulta: marca/modelo reais na assinatura e titulo",
+        "adicoes": [
+            "Quando a linha traz placeholder (Motor, Registro N), usa marca/modelo de dados_tecnicos_json.motor se existirem.",
+            "Busca geral passa a indexar esses valores de exibicao.",
+        ],
+        "correcoes": [],
+    },
+    {
         "versao": "V21.0.7",
         "data": "2026-04-18",
         "titulo": "Streamlit: scroll reset sem components.v1.html",

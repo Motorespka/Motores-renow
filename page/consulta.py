@@ -202,10 +202,34 @@ def _normalize_motor_record(row: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _consulta_marca_display(m: Dict[str, Any], motor_info: Dict[str, Any]) -> str:
+    """Preferir marca do JSON da placa quando a linha so tem placeholder (ex.: Motor)."""
+    row = _to_text(m.get("marca"))
+    inner = _to_text(motor_info.get("marca"))
+    if inner and row.strip().lower() in {"motor", "sem marca", "-"}:
+        return inner
+    return row or inner
+
+
+def _consulta_modelo_display(m: Dict[str, Any], motor_info: Dict[str, Any]) -> str:
+    """Preferir modelo do JSON quando a linha e so 'Registro {id}'."""
+    row = _to_text(m.get("modelo"))
+    inner = _to_text(motor_info.get("modelo"))
+    if inner and re.match(r"(?i)^registro\s+\d+\s*$", row):
+        return inner
+    if inner and not row:
+        return inner
+    return row or inner
+
+
 def _search_blob(m: Dict[str, Any]) -> str:
+    data = m.get("dados_tecnicos_json") if isinstance(m.get("dados_tecnicos_json"), dict) else {}
+    motor_info = data.get("motor") if isinstance(data.get("motor"), dict) else {}
+    marca_d = _consulta_marca_display(m, motor_info)
+    modelo_d = _consulta_modelo_display(m, motor_info)
     values = [
-        m.get("marca"),
-        m.get("modelo"),
+        marca_d,
+        modelo_d,
         m.get("potencia"),
         m.get("rpm"),
         m.get("tensao"),
@@ -553,12 +577,15 @@ def render(ctx) -> None:
             if snap_requires_review(snap):
                 rev_chip = '<div class="motor-chip motor-chip--review">Revisao tecnica</div>'
 
+            marca_disp = _consulta_marca_display(m, motor_info)
+            modelo_disp = _consulta_modelo_display(m, motor_info)
+
             st.markdown(
                 f"""
                 <div class="motor-headline">
                     <div>
                         <div class="motor-id">#{_safe(m.get('id'))}</div>
-                        <div class="motor-title">{_safe(m.get('marca'))} <span>{_safe(m.get('modelo'))}</span></div>
+                        <div class="motor-title">{_safe(marca_disp)} <span>{_safe(modelo_disp)}</span></div>
                     </div>
                     <div class="motor-chip-row">
                         <div class="motor-chip">{_safe(m.get('tipo_motor'), fallback='Tipo nao informado')}</div>{rev_chip}
@@ -570,8 +597,8 @@ def render(ctx) -> None:
 
             freq_txt = _to_text(motor_info.get("frequencia"))
             assinatura = build_assinatura_tecnica_consulta(
-                _to_text(m.get("marca")),
-                _to_text(m.get("modelo")),
+                marca_disp,
+                modelo_disp,
                 _to_text(m.get("potencia")),
                 _to_text(m.get("rpm")),
                 _to_text(m.get("polos")),
