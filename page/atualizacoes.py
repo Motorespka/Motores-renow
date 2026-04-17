@@ -9,6 +9,16 @@ from core.development_mode import is_dev_mode
 
 CHANGELOG: List[Dict[str, object]] = [
     {
+        "versao": "V21.0.6",
+        "data": "2026-04-18",
+        "titulo": "Consulta: chip Revisao tecnica nos cards",
+        "adicoes": [
+            "Badge visivel ao lado do tipo de motor quando parser/oficina pedem revisao.",
+            "Funcao snap_requires_review compartilhada entre chip, aviso e filtro.",
+        ],
+        "correcoes": [],
+    },
+    {
         "versao": "V21.0.5",
         "data": "2026-04-18",
         "titulo": "Consulta: filtro de revisao visivel na area principal",

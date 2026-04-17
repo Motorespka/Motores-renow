@@ -246,15 +246,21 @@ def _detect_fase_bucket(m: Dict[str, Any]) -> str:
     return ""
 
 
+def snap_requires_review(snap: Dict[str, Any]) -> bool:
+    """Read-only: mesmo criterio do filtro e do aviso (parser/oficina)."""
+    if not isinstance(snap, dict):
+        return False
+    if bool(snap.get("needs_review")):
+        return True
+    return str(snap.get("status_revisao") or "").strip().lower() == "revisar"
+
+
 def _motor_needs_review_flag(m: Dict[str, Any]) -> bool:
     """Read-only: alinha com aviso de revisao na listagem (parser/oficina)."""
     data = m.get("dados_tecnicos_json")
     if not isinstance(data, dict):
         data = {}
-    snap = extract_consulta_parser_snapshot(data)
-    if bool(snap.get("needs_review")):
-        return True
-    return str(snap.get("status_revisao") or "").strip().lower() == "revisar"
+    return snap_requires_review(extract_consulta_parser_snapshot(data))
 
 
 def _matches_range(v: str, r: tuple[float, float]) -> bool:
@@ -534,6 +540,11 @@ def render(ctx) -> None:
                 f"Eixo: {_to_text(mecanica.get('eixo')) or '-'} | Carcaca: {_to_text(mecanica.get('carcaca')) or '-'}"
             )
 
+            snap = extract_consulta_parser_snapshot(data)
+            rev_chip = ""
+            if snap_requires_review(snap):
+                rev_chip = '<div class="motor-chip motor-chip--review">Revisao tecnica</div>'
+
             st.markdown(
                 f"""
                 <div class="motor-headline">
@@ -541,7 +552,9 @@ def render(ctx) -> None:
                         <div class="motor-id">#{_safe(m.get('id'))}</div>
                         <div class="motor-title">{_safe(m.get('marca'))} <span>{_safe(m.get('modelo'))}</span></div>
                     </div>
-                    <div class="motor-chip">{_safe(m.get('tipo_motor'), fallback='Tipo nao informado')}</div>
+                    <div class="motor-chip-row">
+                        <div class="motor-chip">{_safe(m.get('tipo_motor'), fallback='Tipo nao informado')}</div>{rev_chip}
+                    </div>
                 </div>
                 """,
                 unsafe_allow_html=True,
@@ -559,8 +572,7 @@ def render(ctx) -> None:
             )
             st.caption(assinatura)
 
-            snap = extract_consulta_parser_snapshot(data)
-            if snap.get("needs_review") or str(snap.get("status_revisao") or "") == "revisar":
+            if snap_requires_review(snap):
                 st.warning(
                     "Revisao tecnica sugerida: conferir placa/bobinagem antes de usar como referencia definitiva."
                 )
