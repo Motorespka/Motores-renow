@@ -63,8 +63,6 @@ def _render_external_links() -> None:
         else:
             st.markdown(f"[Abrir sistema novo]({next_url})")
         st.caption("Status: online" if next_ok else "Status: indisponível (fallback para legado ativo)")
-    else:
-        st.info("Sistema novo: configure `NEXTJS_URL` (ou `FRONTEND_URL`).")
 
     if api_url:
         docs_url = api_url.rstrip("/") + "/docs"
@@ -74,8 +72,18 @@ def _render_external_links() -> None:
         else:
             st.markdown(f"[Abrir API docs]({docs_url})")
         st.caption("Docs: online" if docs_ok else "Docs: indisponível (legado segue funcional)")
-    else:
-        st.info("API: configure `FASTAPI_URL` (ou `API_URL` / `BACKEND_URL`).")
+
+    # No Cloud, secrets opcionais costumam faltar: evita dois `st.info` azuis que mudam a "cara" do shell.
+    if not next_url or not api_url:
+        with st.expander("Integrações opcionais (Next / API)", expanded=False):
+            st.caption(
+                "O Streamlit funciona sozinho. Para botões do app novo e da API, "
+                "adicione secrets no Streamlit Cloud (veja DEPLOY_STREAMLIT_CLOUD.md)."
+            )
+            if not next_url:
+                st.markdown("- `NEXTJS_URL` ou `FRONTEND_URL` — URL do Next.js")
+            if not api_url:
+                st.markdown("- `FASTAPI_URL`, `API_URL` ou `BACKEND_URL` — base da API (docs em `/docs`)")
 
     st.divider()
 

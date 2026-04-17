@@ -18,6 +18,8 @@ Opcional (links do sistema novo):
 - `NEXTJS_URL` (URL do Next.js em produção)
 - `FASTAPI_URL` (URL do FastAPI em produção, ex.: `https://api.seudominio.com`)
 
+Se não configurar, o shell não mostra mais avisos grandes na sidebar: as dicas ficam em **Integrações opcionais (Next / API)** (expander fechado).
+
 Opcional (controle de ambiente):
 - `ENV=PROD` (ou `DEV` para forçar modo dev)
 
