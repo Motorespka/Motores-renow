@@ -65,3 +65,53 @@ export type CadastroSaveResponse = {
   inserted_id?: string | number | null;
   warnings: string[];
 };
+
+export type DiagnosticRecord = {
+  id: string;
+  motor_id: string;
+  created_by: string;
+  status: "pending" | "running" | "done" | "error" | string;
+  score: number;
+  summary: string;
+  recommendations: Record<string, unknown>[];
+  evidence: Record<string, unknown>;
+  error: string;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type DiagnosticListResponse = {
+  total: number;
+  items: DiagnosticRecord[];
+};
+
+export type DiagnosticRunResponse = {
+  ok: boolean;
+  message: string;
+  created: number;
+  items: DiagnosticRecord[];
+};
+
+export type ConferenceRecord = {
+  id: string;
+  motor_id: string;
+  created_by: string;
+  status: "pending" | "approved" | "rejected" | string;
+  confidence: number;
+  diff: Record<string, unknown>;
+  decision: Record<string, unknown>;
+  decided_by?: string | null;
+  decided_at?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type ConferenceListResponse = {
+  total: number;
+  items: ConferenceRecord[];
+};
+
+export type SettingsMeResponse = {
+  ui_prefs: Record<string, unknown>;
+  feature_flags: Record<string, unknown>;
+};

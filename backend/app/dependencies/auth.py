@@ -25,6 +25,11 @@ async def get_access_token(credentials: HTTPAuthorizationCredentials = Depends(b
 
 async def get_current_access(token: str = Depends(get_access_token)) -> AccessContext:
     settings = get_settings()
+    if not str(settings.supabase_url or "").strip() or not str(settings.supabase_anon_key or "").strip():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Backend sem SUPABASE_URL/SUPABASE_ANON_KEY. Configure backend/.env e reinicie o FastAPI.",
+        )
     gateway = SupabaseRestClient(settings)
     service = AccessService(settings, gateway)
     try:

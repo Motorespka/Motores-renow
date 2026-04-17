@@ -11,6 +11,3 @@ supabase
 bcrypt
 streamlit-option-menu
 extra-streamlit-components
-fastapi
-uvicorn
-pydantic

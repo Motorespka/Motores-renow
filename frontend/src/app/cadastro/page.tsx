@@ -55,6 +55,29 @@ export default function CadastroPage() {
     setOkMessage("");
     setLoadingAnalyze(true);
     try {
+      if (token === "dev") {
+        const names = files.map((f) => f.name);
+        setFileNames(names);
+        setImageUrls(names.map((_, idx) => `dev://image/${idx + 1}`));
+        setWarnings(["Modo DEV: análise simulada (backend/Gemini não executado)."]);
+        setNormalizedText(
+          JSON.stringify(
+            {
+              fabricante: "WEG",
+              modelo: "W22",
+              potencia: "10 CV",
+              rpm: "1750",
+              tensao: "220/380V",
+              observacao: "Mock local para validar o fluxo de cadastro.",
+            },
+            null,
+            2
+          )
+        );
+        setOkMessage("Análise simulada concluída (DEV).");
+        return;
+      }
+
       const form = new FormData();
       files.forEach((file) => form.append("files", file));
       const response = await fetch(`${API_BASE}/cadastro/analyze`, {
@@ -102,6 +125,12 @@ export default function CadastroPage() {
         throw new Error("JSON de dados tecnicos invalido. Corrija antes de salvar.");
       }
 
+      if (token === "dev") {
+        setWarnings(["Modo DEV: salvamento simulado (não grava no Supabase)."]);
+        setOkMessage("Cadastro simulado salvo (DEV). Estrategia: dev-mock | ID: dev-0001");
+        return;
+      }
+
       const payload = await apiFetch<CadastroSaveResponse>("/cadastro/save", token, {
         method: "POST",
         body: JSON.stringify({
@@ -135,59 +164,105 @@ export default function CadastroPage() {
       canAccessCadastro={me.profile.cadastro_allowed}
     >
       {!canAccessCadastro ? (
-        <div className="card error">
-          Sem permissao para cadastro. Necessario admin, plano pago ou liberacao manual.
+        <div className="p-3 rounded-lg border border-destructive/30 bg-destructive/10 text-[12px] text-destructive">
+          Sem permissão para cadastro. Necessário admin, plano pago ou liberação manual.
         </div>
       ) : (
         <>
-          <div className="card">
-            <h3>1) Upload</h3>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={(e) => setFiles(Array.from(e.target.files || []))}
-            />
-            <p className="text-muted">{fileLabel}</p>
-            <button className="btn" onClick={analyzeFiles} disabled={loadingAnalyze || !files.length}>
-              {loadingAnalyze ? "Analisando..." : "Analisar com Gemini"}
-            </button>
+          <div className="premium-card-elevated p-5">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <div className="font-display text-sm tracking-wider">CADASTRO / OCR</div>
+                <div className="text-[11px] text-muted-foreground font-tech mt-1">
+                  Upload de imagem e extração de dados técnicos (DEV com fallback).
+                </div>
+              </div>
+              <span className="badge-premium badge-accent">OCR</span>
+            </div>
+
+            <div className="mt-4 grid gap-3">
+              <div className="premium-card p-4">
+                <div className="text-[11px] text-muted-foreground font-tech">1) Upload</div>
+                <input
+                  className="mt-2 block w-full text-[12px] font-tech"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => setFiles(Array.from(e.target.files || []))}
+                />
+                <div className="mt-2 text-[11px] text-muted-foreground font-tech">{fileLabel}</div>
+                <button
+                  className="mt-3 h-10 px-4 rounded-xl bg-primary/15 border border-primary/25 text-primary font-semibold tracking-wider hover:bg-primary/20 transition-colors disabled:opacity-60"
+                  onClick={analyzeFiles}
+                  disabled={loadingAnalyze || !files.length}
+                  type="button"
+                >
+                  {loadingAnalyze ? "Analisando..." : token === "dev" ? "Analisar (DEV)" : "Analisar com Gemini"}
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div className="card" style={{ marginTop: 12 }}>
-            <h3>2) Revisar JSON tecnico</h3>
+          <div className="mt-3 premium-card-elevated p-5">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <div className="font-display text-sm tracking-wider">REVISAR JSON</div>
+                <div className="text-[11px] text-muted-foreground font-tech mt-1">
+                  Ajuste os dados técnicos antes de salvar.
+                </div>
+              </div>
+              <span className="badge-premium badge-primary">DATA</span>
+            </div>
+
             <textarea
+              className="mt-4 w-full min-h-[360px] rounded-xl bg-muted/20 border border-border/40 p-3 text-[11px] font-mono-tech outline-none focus:border-primary/50 focus:shadow-[0_0_20px_rgba(var(--glow-primary-rgb),0.10)]"
               value={normalizedText}
               onChange={(e) => setNormalizedText(e.target.value)}
               rows={18}
-              style={{
-                width: "100%",
-                borderRadius: 10,
-                border: "1px solid var(--line)",
-                background: "#0a1323",
-                color: "var(--ink)",
-                padding: 12,
-                fontFamily: "Consolas, monospace"
-              }}
             />
-            <button className="btn" style={{ marginTop: 12 }} onClick={saveCadastro} disabled={loadingSave}>
-              {loadingSave ? "Salvando..." : "Salvar cadastro no Supabase"}
-            </button>
+
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
+              <button
+                className="h-10 px-4 rounded-xl bg-primary/15 border border-primary/25 text-primary font-semibold tracking-wider hover:bg-primary/20 transition-colors disabled:opacity-60"
+                style={{ marginTop: 0 }}
+                onClick={saveCadastro}
+                disabled={loadingSave}
+                type="button"
+              >
+                {loadingSave ? "Salvando..." : token === "dev" ? "Salvar (DEV)" : "Salvar cadastro no Supabase"}
+              </button>
+              <span className="text-[11px] text-muted-foreground font-tech">
+                Backend: <span className="font-mono-tech">{API_BASE}</span>
+              </span>
+            </div>
           </div>
         </>
       )}
 
-      {error ? <div className="error" style={{ marginTop: 12 }}>{error}</div> : null}
-      {okMessage ? <div className="ok" style={{ marginTop: 12 }}>{okMessage}</div> : null}
+      {error ? (
+        <div className="mt-3 p-3 rounded-lg border border-destructive/30 bg-destructive/10 text-[12px] text-destructive">
+          {error}
+        </div>
+      ) : null}
+      {okMessage ? (
+        <div className="mt-3 p-3 rounded-lg border border-accent/30 bg-accent/10 text-[12px] text-foreground">
+          {okMessage}
+        </div>
+      ) : null}
 
       {warnings.length ? (
-        <div className="card" style={{ marginTop: 12 }}>
-          <h3>Avisos</h3>
-          {warnings.map((warning, idx) => (
-            <p className="text-muted" key={`${warning}-${idx}`}>
-              - {warning}
-            </p>
-          ))}
+        <div className="mt-3 premium-card p-4">
+          <div className="flex items-center justify-between">
+            <div className="font-display text-sm tracking-wider">AVISOS</div>
+            <span className="badge-premium badge-warning">WARN</span>
+          </div>
+          <div className="mt-2 grid gap-1">
+            {warnings.map((warning, idx) => (
+              <div className="text-[12px] text-muted-foreground font-tech" key={`${warning}-${idx}`}>
+                - {warning}
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
     </AppShell>
