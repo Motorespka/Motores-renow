@@ -1,5 +1,12 @@
 # CHANGELOG AI
 
+## 2026-04-17 | Cycle 0029
+- **Change Description:** Revertido `App.py` (e dependências diretas `core/navigation.py` e `core/session_manager.py`) para o estado anterior à migração Next/FastAPI. Removida a rota/página `dashboard` (`page/visao_geral.py`) e os links externos Next/API do sidebar. Streamlit volta a ser o app funcional completo ("dev de funcionalidades"); Vercel/Next e FastAPI permanecem no repo, intactos, como vitrine e experimento.
+- **Reason:** Atender diretriz do produto: priorizar o Streamlit como ambiente de evolução funcional e só portar para o site (Next/Vercel) o que já estiver validado lá.
+- **Risk Level:** Baixo (mudanças reconstruídas a partir do commit `392d8bd`, pré-migração, sem alterar schema, auth ou dados).
+- **Rollback Availability:** Alto (revert do commit deste ciclo restaura o shell Next/API e a rota dashboard; `legacy_streamlit_app.py` permanece no repo como snapshot de referência).
+- **Next Predicted Risk:** Divergência gradual entre o Streamlit (dev) e o Next (site) conforme funcionalidades forem evoluindo; mitigar consolidando contratos antes de refatorar para o site.
+
 ## 2026-04-16 | Cycle 0021
 - **Change Description:** Implementada rota `dashboard` (Visão geral) como home pós-login, com página `page/visao_geral.py` (KPIs + atalhos) no estilo `motor-nova-vision` e fallback seguro para Consulta.
 - **Reason:** Tornar a experiência mais próxima do dashboard de referência e mais clara para o usuário, sem hard cutover e preservando o legado.
