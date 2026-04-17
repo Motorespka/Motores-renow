@@ -11,7 +11,11 @@ import streamlit as st
 
 from core.access_control import can_access_paid_features, is_admin_user
 from core.navigation import Route
-from services.oficina_parser import build_normalized_from_motor_row
+from services.oficina_parser import (
+    build_assinatura_tecnica_consulta,
+    build_normalized_from_motor_row,
+    extract_consulta_parser_snapshot,
+)
 from services.supabase_data import clear_motores_cache, fetch_motores_cached
 
 
@@ -218,6 +222,30 @@ def _unique(rows: List[Dict[str, Any]], key: str) -> List[str]:
     return sorted({(_to_text(r.get(key))) for r in rows if _to_text(r.get(key))})
 
 
+def _detect_fase_bucket(m: Dict[str, Any]) -> str:
+    """
+    tri | mono | vazio — usa fases, tipo_motor e fallback em dados_tecnicos_json.motor
+    para alinhar KPIs ao chip quando a coluna fases vem vazia.
+    """
+    fases = _to_text(m.get("fases")).lower()
+    tipo = _to_text(m.get("tipo_motor")).lower()
+    data = m.get("dados_tecnicos_json") if isinstance(m.get("dados_tecnicos_json"), dict) else {}
+    motor = data.get("motor") if isinstance(data.get("motor"), dict) else {}
+    if not fases and isinstance(motor, dict):
+        fases = _to_text(motor.get("fases")).lower()
+    if not tipo and isinstance(motor, dict):
+        tipo = _to_text(motor.get("tipo_motor")).lower()
+
+    blob = f"{fases} {tipo}"
+    if "trif" in blob or "tri " in blob or blob.strip().startswith("tri"):
+        return "tri"
+    if "mono" in blob or "monof" in blob:
+        return "mono"
+    if "tri" in tipo or "tri" in fases:
+        return "tri"
+    return ""
+
+
 def _matches_range(v: str, r: tuple[float, float]) -> bool:
     if not v:
         return True
@@ -272,6 +300,15 @@ def _compact_preview(value: Any, max_len: int = 56) -> str:
     if len(txt) <= max_len:
         return txt
     return txt[: max_len - 3].rstrip() + "..."
+
+
+def _trunc_plain(text: str, max_len: int = 120) -> str:
+    txt = _to_text(text)
+    if not txt:
+        return ""
+    if len(txt) <= max_len:
+        return txt
+    return txt[: max_len - 1].rstrip() + "\u2026"
 
 
 def _delete_motor(ctx, motor_id: Any) -> None:
@@ -415,8 +452,8 @@ def render(ctx) -> None:
         filtrados = [m for m in filtrados if _to_text(m.get("fases")) == fases]
     filtrados = [m for m in filtrados if _matches_range(_to_text(m.get("rpm")), rpm_range)]
 
-    tri_count = sum(1 for m in filtrados if "tri" in _to_text(m.get("fases")).lower())
-    mono_count = sum(1 for m in filtrados if "mono" in _to_text(m.get("fases")).lower())
+    tri_count = sum(1 for m in filtrados if _detect_fase_bucket(m) == "tri")
+    mono_count = sum(1 for m in filtrados if _detect_fase_bucket(m) == "mono")
     _render_consulta_header(len(motores), len(filtrados), tri_count, mono_count)
 
     if not filtrados:
@@ -483,6 +520,27 @@ def render(ctx) -> None:
                 """,
                 unsafe_allow_html=True,
             )
+
+            freq_txt = _to_text(motor_info.get("frequencia"))
+            assinatura = build_assinatura_tecnica_consulta(
+                _to_text(m.get("marca")),
+                _to_text(m.get("modelo")),
+                _to_text(m.get("potencia")),
+                _to_text(m.get("rpm")),
+                _to_text(m.get("polos")),
+                _to_text(m.get("tensao")),
+                freq_txt,
+            )
+            st.caption(assinatura)
+
+            snap = extract_consulta_parser_snapshot(data)
+            if snap.get("needs_review") or str(snap.get("status_revisao") or "") == "revisar":
+                st.warning(
+                    "Revisao tecnica sugerida: conferir placa/bobinagem antes de usar como referencia definitiva."
+                )
+            note_raw = _to_text(snap.get("parse_note"))
+            if note_raw:
+                st.caption(f"Nota do parser: {html.escape(_trunc_plain(note_raw, 120))}")
 
             left, right = st.columns([1.45, 1.0], gap="large")
             with left:

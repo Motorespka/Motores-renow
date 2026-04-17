@@ -329,6 +329,70 @@ def _normalize_parser_tecnico(value: Any) -> Dict[str, Any]:
     return out
 
 
+def build_assinatura_tecnica_consulta(
+    marca: str,
+    modelo: str,
+    potencia: str,
+    rpm: str,
+    polos: str,
+    tensao: str,
+    frequencia: str,
+) -> str:
+    """
+    Linha read-only de identidade/assinatura para listagem (V200 consulta).
+    Usa apenas strings ja normalizadas pelo fluxo da consulta.
+    """
+    pairs = (
+        ("Marca", _to_text(marca)),
+        ("Modelo", _to_text(modelo)),
+        ("CV", _to_text(potencia)),
+        ("RPM", _to_text(rpm)),
+        ("Polos", _to_text(polos)),
+        ("Tensao", _to_text(tensao)),
+        ("Freq", _to_text(frequencia)),
+    )
+    parts = [f"{label}: {val}" for label, val in pairs if val]
+    return " | ".join(parts) if parts else "-"
+
+
+def extract_consulta_parser_snapshot(data: Any) -> Dict[str, Any]:
+    """
+    Leitura read-only de oficina.parser_tecnico / status ja presentes em dados tecnicos.
+    parse_note retorna texto bruto; truncar e escapar na UI.
+    """
+    empty: Dict[str, Any] = {
+        "needs_review": False,
+        "ambiguous": False,
+        "status_revisao": "ok",
+        "parse_note": "",
+        "confianca_dados": "",
+    }
+    if not isinstance(data, dict):
+        return dict(empty)
+
+    oficina = data.get("oficina")
+    if not isinstance(oficina, dict):
+        return dict(empty)
+
+    top_status = _normalize_status_revisao(oficina.get("status_revisao"))
+    pt_src = oficina.get("parser_tecnico")
+    pt = _normalize_parser_tecnico(pt_src) if isinstance(pt_src, dict) else _normalize_parser_tecnico({})
+    pt_status = str(pt.get("status_revisao") or "ok").strip().lower()
+    if pt_status not in {"ok", "revisar"}:
+        pt_status = _normalize_status_revisao(pt_status)
+
+    final_status = "revisar" if (top_status == "revisar" or pt_status == "revisar") else "ok"
+    needs = bool(pt.get("needs_review")) or bool(pt.get("ambiguous")) or final_status == "revisar"
+
+    return {
+        "needs_review": needs,
+        "ambiguous": bool(pt.get("ambiguous")),
+        "status_revisao": final_status,
+        "parse_note": _to_text(pt.get("parse_note")),
+        "confianca_dados": _to_text(pt.get("confianca_dados")),
+    }
+
+
 def _pick_row_value(row: Dict[str, Any], *keys: str) -> Any:
     for key in keys:
         if key in row and row.get(key) not in (None, ""):
