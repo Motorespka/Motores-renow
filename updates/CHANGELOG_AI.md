@@ -1,5 +1,12 @@
 # CHANGELOG AI
 
+## 2026-04-17 | Cycle 0029
+- **Change Description:** Restaurado `App.py` para o estado anterior ao commit de integração com Next/FastAPI (`392d8bd`), removendo bootstrap de `sys.path`, rota inicial `dashboard`, import/uso de `visao_geral` e `render_route_header` no shell Streamlit.
+- **Reason:** Reposicionar o Streamlit como ambiente principal de desenvolvimento funcional ("dev") para validação de features antes da refatoração/migração para o site em Vercel.
+- **Risk Level:** Baixo-Médio (rollback de navegação para fluxo anterior `cadastro/consulta`; pode divergir da UX recente baseada em dashboard).
+- **Rollback Availability:** Alto (reaplicar diferenças do commit `277f9da` em `App.py` ou restaurar o arquivo desse commit).
+- **Next Predicted Risk:** Sem o bootstrap explícito de `sys.path`, ambientes de deploy com resolução de pacote diferente podem voltar a apresentar erro de import em `core.*`; validar startup no Streamlit Cloud antes da próxima rodada funcional.
+
 ## 2026-04-16 | Cycle 0021
 - **Change Description:** Implementada rota `dashboard` (Visão geral) como home pós-login, com página `page/visao_geral.py` (KPIs + atalhos) no estilo `motor-nova-vision` e fallback seguro para Consulta.
 - **Reason:** Tornar a experiência mais próxima do dashboard de referência e mais clara para o usuário, sem hard cutover e preservando o legado.
