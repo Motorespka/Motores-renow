@@ -1,5 +1,12 @@
 # CHANGELOG AI
 
+## 2026-04-17 | Cycle 0029
+- **Change Description:** Restaurado `App.py` para o estado imediatamente anterior ao commit que introduziu shell Streamlit acoplado ao Next/FastAPI (`277f9da`). Removidos os acoplamentos adicionados nesse ciclo (rota `dashboard` no bootstrap do router, `render_route_header` e imports associados), retornando o fluxo padrão de rotas (`cadastro`/`consulta`) do Streamlit legado.
+- **Reason:** Atender à estratégia operacional definida para usar o Streamlit como ambiente principal de desenvolvimento funcional, desacoplando o entrypoint das evoluções web (Next/FastAPI) nesta etapa.
+- **Risk Level:** Baixo-Médio (alteração do entrypoint principal de navegação; risco de regressão visual em elementos adicionados recentemente ao shell).
+- **Rollback Availability:** Alto (reaplicar `App.py` do commit `277f9da` ou reverter este commit).
+- **Next Predicted Risk:** A remoção do header por rota no `App.py` pode reduzir consistência visual com estilos recentes; se necessário, reintroduzir apenas camada visual sem recoupling com stack web.
+
 ## 2026-04-16 | Cycle 0021
 - **Change Description:** Implementada rota `dashboard` (Visão geral) como home pós-login, com página `page/visao_geral.py` (KPIs + atalhos) no estilo `motor-nova-vision` e fallback seguro para Consulta.
 - **Reason:** Tornar a experiência mais próxima do dashboard de referência e mais clara para o usuário, sem hard cutover e preservando o legado.
