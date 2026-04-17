@@ -9,6 +9,27 @@ from core.development_mode import is_dev_mode
 
 CHANGELOG: List[Dict[str, object]] = [
     {
+        "versao": "V21.0.4",
+        "data": "2026-04-18",
+        "titulo": "Consulta: filtro read-only por revisao tecnica",
+        "adicoes": [
+            "Filtro lateral na consulta paga: Todos / Somente com revisao sugerida / Sem pendencia de revisao.",
+            "Usa apenas dados ja carregados (oficina.parser_tecnico) sem nova query nem gravacao.",
+        ],
+        "correcoes": [],
+    },
+    {
+        "versao": "V21.0.3",
+        "data": "2026-04-17",
+        "titulo": "Consulta: assinatura tecnica e sinal de revisao (V200 Streamlit)",
+        "adicoes": [
+            "Linha de assinatura tecnica (Marca, Modelo, CV, RPM, Polos, Tensao, Freq) em cada card.",
+            "Aviso read-only quando parser/oficina indicam revisao; nota do parser truncada e escapada.",
+            "KPIs Trifasicos/Monofasicos alinhados a tipo_motor e motor em JSON quando fases vem vazia.",
+        ],
+        "correcoes": [],
+    },
+    {
         "versao": "V21.0",
         "data": "2026-04-11",
         "titulo": "Modulo isolado de development + hub comercial + laudo pro",
