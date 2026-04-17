@@ -302,6 +302,16 @@ p, span, label, li, .stCaption {
     margin-top: -6px;
     margin-bottom: 8px;
     padding-left: 6px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.mrw-badge--active {
+    background: rgba(36, 215, 255, 0.22);
+    color: #eaffff;
+    border-color: rgba(36, 215, 255, 0.48);
+    box-shadow: 0 0 0 1px rgba(36, 215, 255, 0.18) inset;
 }
 
 /* Give active route a clear "selected" state */
@@ -546,10 +556,12 @@ div[data-testid="stButton"] > button:hover {
 /* Sidebar buttons look more like nav items */
 [data-testid="stSidebar"] div[data-testid="stButton"] > button {
     border-radius: 12px !important;
-    padding: 0.65rem 0.8rem !important;
+    padding: 0.72rem 0.82rem !important;
     border: 1px solid rgba(82, 132, 173, 0.20) !important;
     background: rgba(9, 16, 29, 0.55) !important;
     box-shadow: none !important;
+    font-weight: 700;
+    letter-spacing: 0.01em;
 }
 
 [data-testid="stSidebar"] div[data-testid="stButton"] > button:hover {
@@ -1184,27 +1196,105 @@ div[data-testid="stButton"] > button:hover {
 
 @media (max-width: 990px) {
     [data-testid="stMainBlockContainer"] {
-        padding-left: 0.8rem;
-        padding-right: 0.8rem;
+        padding-left: 0.72rem;
+        padding-right: 0.72rem;
+        padding-top: 0.9rem;
+        padding-bottom: 1.1rem;
     }
 
     .mrw-header {
-        padding: 12px 10px;
-        border-radius: 12px;
+        padding: 10px 9px;
+        border-radius: 11px;
+        margin-bottom: 8px;
     }
 
     .mrw-header__title {
-        font-size: 0.84rem;
-        letter-spacing: 0.08em;
+        font-size: 0.76rem;
+        letter-spacing: 0.06em;
+        line-height: 1.2;
     }
 
     .mrw-header__subtitle {
-        font-size: 0.68rem;
+        font-size: 0.63rem;
     }
 
     [data-testid="stSidebar"] div[data-testid="stButton"] > button {
-        min-height: 42px;
-        font-size: 0.93rem;
+        min-height: 46px;
+        font-size: 0.98rem;
+        border-radius: 11px !important;
+    }
+
+    .mrw-nav-group {
+        font-size: 0.6rem;
+        letter-spacing: 0.16em;
+    }
+
+    .mrw-badge {
+        font-size: 0.58rem;
+        padding: 2px 7px;
+        letter-spacing: 0.1em;
+    }
+
+    .mrw-sidebar-workspace {
+        padding: 9px 9px 10px 9px;
+        border-radius: 12px;
+    }
+
+    .mrw-sidebar-workspace__name {
+        font-size: 0.84rem;
+    }
+
+    .mrw-sidebar-workspace__hint {
+        font-size: 0.67rem;
+    }
+
+    .mrw-sidebar-brand {
+        padding: 10px 8px 9px 8px;
+        gap: 9px;
+    }
+
+    .mrw-sidebar-mark {
+        width: 36px;
+        height: 36px;
+        border-radius: 11px;
+    }
+
+    .mrw-sidebar-brand__title {
+        font-size: 0.8rem;
+        letter-spacing: 0.09em;
+    }
+
+    .mrw-sidebar-brand__subtitle {
+        font-size: 0.56rem;
+    }
+
+    .mrw-global-search-anchor + div[data-testid="stTextInput"] input {
+        height: 40px !important;
+        border-radius: 12px !important;
+    }
+
+    .mrw-header__hint {
+        margin-top: 8px;
+        font-size: 0.64rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .stApp::before,
+    .stApp::after {
+        opacity: 0.12;
+    }
+
+    [data-testid="stSidebar"] > div {
+        border-right-color: rgba(82, 132, 173, 0.22);
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        border-radius: 12px !important;
+    }
+
+    [data-testid="stExpander"] {
+        border-radius: 10px !important;
     }
 
     .motor-headline {

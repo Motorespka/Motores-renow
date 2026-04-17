@@ -1,5 +1,12 @@
 # CHANGELOG AI
 
+## 2026-04-17 | Cycle 0032
+- **Change Description:** Aplicado refinamento mobile-first do shell Streamlit no estilo nova vision: sidebar com áreas de toque maiores, badges mais legíveis e com quebra controlada, estado ativo mais evidente no menu, header compactado em telas pequenas e redução de ruído visual (scanline/grid/glow) no mobile.
+- **Reason:** Atender ao pedido de foco em experiência mobile, melhorando legibilidade e usabilidade da navegação no celular sem alterar regras de negócio.
+- **Risk Level:** Baixo (ajustes CSS responsivos, sem mudança de fluxo de dados).
+- **Rollback Availability:** Alto (reverter `assets/style.css` para o commit anterior).
+- **Next Predicted Risk:** Em dispositivos muito antigos, efeitos visuais ainda podem impactar performance; se necessário, criar modo `reduced-motion` explícito para mobile.
+
 ## 2026-04-17 | Cycle 0031
 - **Change Description:** Restaurada a base visual Streamlit no estilo atual ("nova vision") e aplicada melhoria de UX na navegação: adicionada entrada direta de `Consulta` na sidebar (sem depender de abrir a página `Visão geral` para alcançar a tela de consulta). Também realizado polimento visual leve dos botões de navegação da sidebar (gradiente, borda ativa e hover mais consistente no desktop/mobile).
 - **Reason:** Atender pedido de manter o visual atual, melhorar acabamento gráfico e reduzir fricção de navegação para acesso da consulta em 1 clique.
