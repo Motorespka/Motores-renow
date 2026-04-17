@@ -8,6 +8,7 @@ import { Search } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { apiFetch } from "@/lib/api";
 import { requireSession } from "@/lib/auth";
+import { fetchMotorListFromSupabase, shouldFetchMotorsFromSupabase } from "@/lib/motors-supabase";
 import { MeResponse, MotorListResponse } from "@/lib/types";
 
 export default function MotorsPage() {
@@ -25,8 +26,13 @@ export default function MotorsPage() {
     setLoading(true);
     setError("");
     try {
-      const query = search ? `?q=${encodeURIComponent(search)}&limit=50` : "?limit=50";
-      const list = await apiFetch<MotorListResponse>(`/motors${query}`, tokenResolved);
+      let list: MotorListResponse;
+      if (shouldFetchMotorsFromSupabase()) {
+        list = (await fetchMotorListFromSupabase(search, 50)) ?? { mode: "full", total: 0, items: [] };
+      } else {
+        const query = search ? `?q=${encodeURIComponent(search)}&limit=50` : "?limit=50";
+        list = await apiFetch<MotorListResponse>(`/motors${query}`, tokenResolved);
+      }
       setPayload(list);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Falha ao carregar motores.";
@@ -79,6 +85,11 @@ export default function MotorsPage() {
             <div className="text-[11px] text-muted-foreground font-tech mt-1">
               Busque por marca, modelo, potência, RPM e outros campos.
             </div>
+            {shouldFetchMotorsFromSupabase() ? (
+              <div className="text-[10px] text-primary/70 font-tech mt-1">
+                Lista em tempo real do Supabase (sem API FastAPI publicada).
+              </div>
+            ) : null}
           </div>
           <span className={mode === "teaser" ? "badge-premium badge-warning" : "badge-premium badge-primary"}>
             {mode === "teaser" ? "TEASER" : "FULL"}

@@ -10,6 +10,7 @@ import { KpiCard } from "@/components/dashboard/KpiCard";
 import { QueueItem } from "@/components/dashboard/QueueItem";
 import { apiFetch } from "@/lib/api";
 import { requireSession } from "@/lib/auth";
+import { fetchMotorListFromSupabase, shouldFetchMotorsFromSupabase } from "@/lib/motors-supabase";
 import { MeResponse, MotorListResponse, MotorRecord } from "@/lib/types";
 
 function pickTitle(m: MotorRecord): { title: string; subtitle: string } {
@@ -44,10 +45,10 @@ export default function DashboardPage() {
       const session = await requireSession(router);
       if (!session) return;
       try {
-        const [mePayload, motorsPayload] = await Promise.all([
-          apiFetch<MeResponse>("/auth/me", session.access_token),
-          apiFetch<MotorListResponse>("/motors?limit=6", session.access_token),
-        ]);
+        const mePayload = await apiFetch<MeResponse>("/auth/me", session.access_token);
+        const motorsPayload = shouldFetchMotorsFromSupabase()
+          ? (await fetchMotorListFromSupabase("", 6)) ?? { mode: "full", total: 0, items: [] }
+          : await apiFetch<MotorListResponse>("/motors?limit=6", session.access_token);
         setMe(mePayload);
         setMotors(motorsPayload.items || []);
       } catch (err) {

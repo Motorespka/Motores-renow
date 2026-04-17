@@ -1,7 +1,7 @@
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api";
 
 /** Sem URL pública da API, o bundle usa localhost — no Vercel o browser não alcança isso. */
-function isDefaultLocalApiBase(): boolean {
+export function isDefaultLocalApiBase(): boolean {
   const base = (process.env.NEXT_PUBLIC_API_BASE_URL || "").trim();
   return !base || base.includes("localhost") || base.includes("127.0.0.1");
 }

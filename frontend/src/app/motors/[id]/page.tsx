@@ -8,6 +8,7 @@ import { Cpu, FileJson, Gauge, Tag } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { apiFetch } from "@/lib/api";
 import { requireSession } from "@/lib/auth";
+import { fetchMotorDetailFromSupabase, shouldFetchMotorsFromSupabase } from "@/lib/motors-supabase";
 import { MeResponse, MotorDetailResponse } from "@/lib/types";
 
 export default function MotorDetailPage() {
@@ -26,7 +27,20 @@ export default function MotorDetailPage() {
       try {
         const mePayload = await apiFetch<MeResponse>("/auth/me", session.access_token);
         setMe(mePayload);
-        const detailPayload = await apiFetch<MotorDetailResponse>(`/motors/${encodeURIComponent(motorId)}`, session.access_token);
+        let detailPayload: MotorDetailResponse;
+        if (shouldFetchMotorsFromSupabase()) {
+          const direct = await fetchMotorDetailFromSupabase(motorId);
+          if (!direct) {
+            setError("Motor nao encontrado ou sem permissao (RLS).");
+            return;
+          }
+          detailPayload = direct;
+        } else {
+          detailPayload = await apiFetch<MotorDetailResponse>(
+            `/motors/${encodeURIComponent(motorId)}`,
+            session.access_token
+          );
+        }
         setDetail(detailPayload);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Falha ao carregar detalhe.";
