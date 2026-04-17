@@ -1,5 +1,12 @@
 # CHANGELOG AI
 
+## 2026-04-17 | Cycle 0030
+- **Change Description:** Restaurado o visual legado do Streamlit (pré-camada “site novo”) ao reverter `core/navigation.py` e `assets/style.css` para o estado anterior ao commit de integração (`277f9da`). Também corrigido `core/session_manager.py` para remover fallback inválido em `Route.DASHBOARD`, voltando o bootstrap de rota para `Route.CADASTRO`.
+- **Reason:** O usuário reportou que o site ainda estava com “cara do Vercel”; era necessário desacoplar não só `App.py`, mas também a camada de navegação/estilo e o fallback de sessão introduzidos no ciclo de integração visual.
+- **Risk Level:** Baixo-Médio (mudança visual + correção de fallback de rota no bootstrap de sessão).
+- **Rollback Availability:** Alto (reaplicar `core/navigation.py`/`assets/style.css`/`core/session_manager.py` do commit anterior ou reverter este commit).
+- **Next Predicted Risk:** Como permanecem arquivos de páginas novos no repositório, futuras mudanças podem reintroduzir elementos visuais “premium”; manter Streamlit legado como baseline explícito para novos ciclos.
+
 ## 2026-04-17 | Cycle 0029
 - **Change Description:** Restaurado `App.py` para o estado imediatamente anterior ao commit que introduziu shell Streamlit acoplado ao Next/FastAPI (`277f9da`). Removidos os acoplamentos adicionados nesse ciclo (rota `dashboard` no bootstrap do router, `render_route_header` e imports associados), retornando o fluxo padrão de rotas (`cadastro`/`consulta`) do Streamlit legado.
 - **Reason:** Atender à estratégia operacional definida para usar o Streamlit como ambiente principal de desenvolvimento funcional, desacoplando o entrypoint das evoluções web (Next/FastAPI) nesta etapa.
