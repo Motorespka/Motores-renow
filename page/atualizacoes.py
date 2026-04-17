@@ -9,6 +9,16 @@ from core.development_mode import is_dev_mode
 
 CHANGELOG: List[Dict[str, object]] = [
     {
+        "versao": "V21.0.7",
+        "data": "2026-04-18",
+        "titulo": "Streamlit: scroll reset sem components.v1.html",
+        "adicoes": [],
+        "correcoes": [
+            "Substituido components.html por st.iframe no reset de scroll (App.py), conforme aviso de deprecacao Streamlit.",
+            "Fallback para components.html apenas se st.iframe nao existir (Streamlit antigo).",
+        ],
+    },
+    {
         "versao": "V21.0.6",
         "data": "2026-04-18",
         "titulo": "Consulta: chip Revisao tecnica nos cards",

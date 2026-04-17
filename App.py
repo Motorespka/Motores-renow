@@ -6,7 +6,6 @@ import sys
 import uuid
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 REPO_ROOT = Path(__file__).resolve().parent
 # Ensures absolute imports like `core.*` resolve to this repo on Streamlit Cloud.
@@ -364,11 +363,13 @@ def _render_scroll_reset_if_needed() -> None:
         </script>
     """ + f"\n<div style=\"display:none\">{token}</div>\n"
 
-    components.html(
-        html_payload,
-        height=1,
-        width=1,
-    )
+    # st.components.v1.html deprecated (removal ~2026-06); st.iframe accepts HTML (srcdoc).
+    if hasattr(st, "iframe"):
+        st.iframe(src=html_payload, height=1, width=1)
+    else:
+        import streamlit.components.v1 as components
+
+        components.html(html_payload, height=1, width=1)
 
 
 def main() -> None:
