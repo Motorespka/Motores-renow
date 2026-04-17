@@ -1,5 +1,12 @@
 # CHANGELOG AI
 
+## 2026-04-17 | Cycle 0033
+- **Change Description:** Reorganizada a experiência Consulta/Detalhes dos motores. Na página `consulta`, os cards passaram a exibir somente informações essenciais para triagem rápida (RPM, potência/cavalaria, corrente, fases/mono-trifásico, polos e resumo de eixo em X/Y). O conteúdo técnico denso (bobinagem, mecânica detalhada, esquema e leitura IA) foi removido da listagem e concentrado na página `motor_detail`, que agora apresenta visão limpa e completa em abas (Visão geral, Rebobinagem, Mecânica, Oficina & IA).
+- **Reason:** Atender pedido de reduzir poluição visual na consulta e usar “Abrir detalhes” como tela técnica completa, melhorando fluxo operacional e leitura em desktop/mobile.
+- **Risk Level:** Baixo-Médio (mudança de layout e distribuição de informação entre telas; sem alteração de dados persistidos).
+- **Rollback Availability:** Alto (reverter `page/consulta.py` e `page/motor_detail.py` ao commit anterior).
+- **Next Predicted Risk:** Alguns registros legados podem não preencher todos os campos de mecânica/oficina; manter fallback “-” e, se necessário, adicionar sinalização de completude por registro.
+
 ## 2026-04-17 | Cycle 0032
 - **Change Description:** Aplicado refinamento mobile-first do shell Streamlit no estilo nova vision: sidebar com áreas de toque maiores, badges mais legíveis e com quebra controlada, estado ativo mais evidente no menu, header compactado em telas pequenas e redução de ruído visual (scanline/grid/glow) no mobile.
 - **Reason:** Atender ao pedido de foco em experiência mobile, melhorando legibilidade e usabilidade da navegação no celular sem alterar regras de negócio.

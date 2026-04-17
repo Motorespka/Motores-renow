@@ -274,6 +274,25 @@ def _compact_preview(value: Any, max_len: int = 56) -> str:
     return txt[: max_len - 3].rstrip() + "..."
 
 
+def _extract_eixo_xy(mecanica: Dict[str, Any]) -> tuple[str, str]:
+    eixo_raw = _to_text(mecanica.get("eixo"))
+    medidas_raw = _join_values(mecanica.get("medidas"))
+    combined = " | ".join(v for v in [eixo_raw, medidas_raw] if _to_text(v))
+    if not combined:
+        return "-", "-"
+
+    match = re.search(r"(\d+(?:[.,]\d+)?)\s*[xX×/]\s*(\d+(?:[.,]\d+)?)", combined)
+    if match:
+        return match.group(1).replace(",", "."), match.group(2).replace(",", ".")
+
+    numbers = re.findall(r"\d+(?:[.,]\d+)?", combined)
+    if len(numbers) >= 2:
+        return numbers[0].replace(",", "."), numbers[1].replace(",", ".")
+    if numbers:
+        return numbers[0].replace(",", "."), "-"
+    return "-", "-"
+
+
 def _delete_motor(ctx, motor_id: Any) -> None:
     motor_id_txt = _to_text(motor_id)
     if not motor_id_txt:
@@ -453,23 +472,12 @@ def render(ctx) -> None:
         with st.container(border=True):
             data = m.get("dados_tecnicos_json", {})
             motor_info = _section(data, "motor")
-            bob_principal = _section(data, "bobinagem_principal")
-            bob_auxiliar = _section(data, "bobinagem_auxiliar")
             mecanica = _section(data, "mecanica")
-            esquema = _section(data, "esquema")
 
             motor_id_txt = _to_text(m.get("id")) or "sem_id"
             motor_key = re.sub(r"[^a-zA-Z0-9_-]", "_", motor_id_txt)
-            principal_preview = _compact_preview(
-                bob_principal.get("fios") or bob_principal.get("espiras") or bob_principal.get("passos")
-            )
-            auxiliar_preview = _compact_preview(
-                bob_auxiliar.get("fios") or bob_auxiliar.get("espiras") or bob_auxiliar.get("passos")
-            )
-            rolamentos_preview = _compact_preview(mecanica.get("rolamentos"))
-            eixo_carcaca_preview = _compact_preview(
-                f"Eixo: {_to_text(mecanica.get('eixo')) or '-'} | Carcaca: {_to_text(mecanica.get('carcaca')) or '-'}"
-            )
+            eixo_x, eixo_y = _extract_eixo_xy(mecanica)
+            fase_txt = _to_text(m.get("fases")) or _to_text(motor_info.get("fases"))
 
             st.markdown(
                 f"""
@@ -486,25 +494,46 @@ def render(ctx) -> None:
 
             left, right = st.columns([1.45, 1.0], gap="large")
             with left:
-                k1, k2, k3, k4 = st.columns(4)
-                k1.markdown(f'<div class="metric-tile"><span>Potencia</span><strong>{_safe(m.get("potencia"))}</strong></div>', unsafe_allow_html=True)
-                k2.markdown(f'<div class="metric-tile"><span>RPM</span><strong>{_safe(m.get("rpm"))}</strong></div>', unsafe_allow_html=True)
-                k3.markdown(f'<div class="metric-tile"><span>Tensao</span><strong>{_safe(m.get("tensao"))}</strong></div>', unsafe_allow_html=True)
-                k4.markdown(f'<div class="metric-tile"><span>Corrente</span><strong>{_safe(m.get("corrente"))}</strong></div>', unsafe_allow_html=True)
+                with st.expander("Informacoes essenciais do motor", expanded=False):
+                    k1, k2, k3 = st.columns(3)
+                    k1.markdown(
+                        f'<div class="metric-tile"><span>Cavalaria</span><strong>{_safe(m.get("potencia"))}</strong></div>',
+                        unsafe_allow_html=True,
+                    )
+                    k2.markdown(
+                        f'<div class="metric-tile"><span>RPM</span><strong>{_safe(m.get("rpm"))}</strong></div>',
+                        unsafe_allow_html=True,
+                    )
+                    k3.markdown(
+                        f'<div class="metric-tile"><span>Amperagem</span><strong>{_safe(m.get("corrente"))}</strong></div>',
+                        unsafe_allow_html=True,
+                    )
 
-                d1, d2 = st.columns(2)
-                d1.markdown(f'<div class="inline-pill">Polos: <b>{_safe(m.get("polos"))}</b></div>', unsafe_allow_html=True)
-                d2.markdown(f'<div class="inline-pill">Fases: <b>{_safe(m.get("fases"))}</b></div>', unsafe_allow_html=True)
+                    d1, d2, d3 = st.columns(3)
+                    d1.markdown(
+                        f'<div class="inline-pill">Polaridade: <b>{_safe(m.get("polos"))}</b></div>',
+                        unsafe_allow_html=True,
+                    )
+                    d2.markdown(
+                        f'<div class="inline-pill">Fase: <b>{_safe(fase_txt)}</b></div>',
+                        unsafe_allow_html=True,
+                    )
+                    d3.markdown(
+                        f'<div class="inline-pill">Tensao: <b>{_safe(m.get("tensao"))}</b></div>',
+                        unsafe_allow_html=True,
+                    )
+
+                    e1, e2 = st.columns(2)
+                    e1.markdown(
+                        f'<div class="inline-pill">Eixo X: <b>{_safe(eixo_x)}</b></div>',
+                        unsafe_allow_html=True,
+                    )
+                    e2.markdown(
+                        f'<div class="inline-pill">Eixo Y: <b>{_safe(eixo_y)}</b></div>',
+                        unsafe_allow_html=True,
+                    )
                 if _to_text(m.get("feito_por")):
                     st.caption(f"Feito por: {_to_text(m.get('feito_por'))}")
-
-                pv1, pv2 = st.columns(2)
-                with pv1:
-                    _render_data_panel("Rebobinagem principal (previa)", principal_preview)
-                    _render_data_panel("Rebobinagem auxiliar (previa)", auxiliar_preview)
-                with pv2:
-                    _render_data_panel("Mecanica (rolamentos)", rolamentos_preview)
-                    _render_data_panel("Mecanica (eixo/carcaca)", eixo_carcaca_preview)
 
             with right:
                 st.markdown(
@@ -533,7 +562,7 @@ def render(ctx) -> None:
                         ctx.session.set_route(Route.EDIT)
                         st.rerun()
                 with b2:
-                    if st.button("Detalhes", key=f"detail_{motor_key}", use_container_width=True):
+                    if st.button("Abrir detalhes", key=f"detail_{motor_key}", use_container_width=True):
                         ctx.session.selected_motor_id = m["id"]
                         ctx.session.set_route(Route.DETALHE)
                         st.rerun()
@@ -558,73 +587,10 @@ def render(ctx) -> None:
                             st.session_state.pop(f"confirm_delete_{motor_key}", None)
                             st.rerun()
             else:
-                if st.button("Detalhes", key=f"detail_{motor_key}", use_container_width=True):
+                if st.button("Abrir detalhes", key=f"detail_{motor_key}", use_container_width=True):
                     ctx.session.selected_motor_id = m["id"]
                     ctx.session.set_route(Route.DETALHE)
                     st.rerun()
-
-            tab1, tab2, tab3, tab4 = st.tabs(["Identificacao", "Bobinagem", "Mecanica", "Leitura IA"])
-            with tab1:
-                c1, c2, c3 = st.columns(3)
-                with c1:
-                    _render_data_panel("Marca", m.get("marca"))
-                    _render_data_panel("Modelo", m.get("modelo"))
-                    _render_data_panel("Tipo", m.get("tipo_motor"))
-                with c2:
-                    _render_data_panel("Fases", m.get("fases"))
-                    _render_data_panel("Polos", m.get("polos"))
-                    _render_data_panel("Frequencia", motor_info.get("frequencia"))
-                with c3:
-                    _render_data_panel("Numero de serie", motor_info.get("numero_serie"))
-                    _render_data_panel("IP", motor_info.get("ip"))
-                    _render_data_panel("Isolacao", motor_info.get("isolacao"))
-
-            with tab2:
-                bb1, bb2 = st.columns(2)
-                with bb1:
-                    _render_data_panel("Passos principais", bob_principal.get("passos"))
-                    _render_data_panel("Espiras principais", bob_principal.get("espiras"))
-                    _render_data_panel("Fio principal", bob_principal.get("fios"))
-                    _render_data_panel("Ligacao principal", bob_principal.get("ligacao"))
-                    _render_data_panel("Qtd. grupos", bob_principal.get("quantidade_grupos"))
-                    _render_data_panel("Qtd. bobinas", bob_principal.get("quantidade_bobinas"))
-                with bb2:
-                    _render_data_panel("Passos auxiliares", bob_auxiliar.get("passos"))
-                    _render_data_panel("Espiras auxiliares", bob_auxiliar.get("espiras"))
-                    _render_data_panel("Fio auxiliar", bob_auxiliar.get("fios"))
-                    _render_data_panel("Ligacao auxiliar", bob_auxiliar.get("ligacao"))
-                    _render_data_panel("Capacitor", bob_auxiliar.get("capacitor"))
-                    _render_data_panel("Obs. bobinagem", bob_principal.get("observacoes") or bob_auxiliar.get("observacoes"))
-
-            with tab3:
-                mc1, mc2 = st.columns(2)
-                with mc1:
-                    _render_data_panel("Rolamentos", mecanica.get("rolamentos"))
-                    _render_data_panel("Eixo", mecanica.get("eixo"))
-                    _render_data_panel("Carcaca", mecanica.get("carcaca"))
-                    _render_data_panel("Comprimento ponta", mecanica.get("comprimento_ponta"))
-                    _render_data_panel("Obs. mecanica", mecanica.get("observacoes"))
-                with mc2:
-                    _render_data_panel("Medidas", mecanica.get("medidas"))
-                    _render_data_panel("Esquema de ligacao", esquema.get("ligacao"))
-                    _render_data_panel("Ranhuras", esquema.get("ranhuras"))
-                    _render_data_panel("Camadas", esquema.get("camadas"))
-                    _render_data_panel("Distribuicao bobinas", esquema.get("distribuicao_bobinas"))
-
-            with tab4:
-                _render_data_panel("Observacoes", m.get("observacoes"))
-                oficina = _section(data, "oficina")
-                diagnostico = oficina.get("diagnostico", {}) if isinstance(oficina, dict) else {}
-                avisos = diagnostico.get("avisos", []) if isinstance(diagnostico, dict) else []
-                if isinstance(avisos, list) and avisos:
-                    st.markdown("Diagnostico da oficina")
-                    for aviso in avisos[:4]:
-                        st.write(f"- {aviso}")
-                else:
-                    st.caption("Sem alertas tecnicos registrados pela IA para este motor.")
-                if admin_user:
-                    _render_data_panel("Texto OCR", m.get("texto_bruto_extraido"))
-                _render_data_panel("Esquema (observacoes)", esquema.get("observacoes"))
 
 
 def show(ctx) -> None:
