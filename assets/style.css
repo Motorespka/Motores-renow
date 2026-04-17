@@ -926,6 +926,20 @@ div[data-testid="stButton"] > button:hover {
     font-weight: 700;
 }
 
+.motor-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.motor-chip--review {
+    border-color: rgba(255, 120, 150, 0.52);
+    background: rgba(70, 22, 35, 0.48);
+    color: #ffd6dc;
+}
+
 .metric-tile {
     border: 1px solid rgba(88, 127, 164, 0.42);
     border-radius: 12px;
