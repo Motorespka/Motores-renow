@@ -1,10 +1,12 @@
 "use client";
 
-import Link from "next/link";
+import { ReactNode, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ReactNode } from "react";
 
 import { supabase } from "@/lib/supabase";
+import { SUPABASE_CONFIGURED } from "@/lib/supabase";
+import { CyberHeader } from "@/components/cyber/CyberHeader";
+import { CyberSidebar } from "@/components/cyber/CyberSidebar";
 
 type Props = {
   title: string;
@@ -25,52 +27,56 @@ export function AppShell({
 }: Props) {
   const pathname = usePathname();
   const router = useRouter();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   async function handleLogout() {
-    await supabase.auth.signOut();
+    if (SUPABASE_CONFIGURED) {
+      await supabase.auth.signOut();
+    }
     router.replace("/login");
   }
 
-  const links = [
-    { href: "/dashboard", label: "Dashboard" },
-    { href: "/motors", label: "Consulta" },
-    ...(canAccessCadastro ? [{ href: "/cadastro", label: "Cadastro" }] : []),
-    ...(isAdmin ? [{ href: "/admin", label: "Admin" }] : [])
-  ];
+  const activeSection = useMemo(() => {
+    if (pathname.startsWith("/motors")) return "motors";
+    if (pathname.startsWith("/cadastro")) return "cadastro";
+    if (pathname.startsWith("/admin")) return "admin";
+    if (pathname.startsWith("/diagnostico")) return "diagnostic";
+    if (pathname.startsWith("/conferencia")) return "conference";
+    if (pathname.startsWith("/settings")) return "settings";
+    if (pathname.startsWith("/dashboard")) return "dashboard";
+    return "dashboard";
+  }, [pathname]);
 
   return (
-    <div className="app-layout">
-      <aside className="app-sidebar">
-        <div className="brand">Moto-Renow</div>
-        {userLabel ? <div className="text-muted">Logado como: {userLabel}</div> : null}
-        <nav className="menu">
-          {links.map((item) => {
-            const active =
-              pathname === item.href ||
-              (item.href !== "/dashboard" && pathname.startsWith(`${item.href}/`));
-            return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={active ? "menu-link active" : "menu-link"}
-            >
-              {item.label}
-            </Link>
-            );
-          })}
-        </nav>
-        <button onClick={handleLogout} className="logout-btn">
-          Logout
-        </button>
-      </aside>
-
-      <main className="app-main">
-        <header className="page-header">
-          <h1>{title}</h1>
-          {subtitle ? <p>{subtitle}</p> : null}
-        </header>
-        {children}
-      </main>
+    <div className="flex h-screen overflow-hidden bg-background">
+      <div className="fixed inset-0 grid-bg pointer-events-none" />
+      <CyberSidebar
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={() => setSidebarCollapsed((v) => !v)}
+        canAccessCadastro={!!canAccessCadastro}
+        isAdmin={!!isAdmin}
+      />
+      <div className="flex-1 flex flex-col overflow-hidden relative">
+        <CyberHeader activeSection={activeSection} userName={userLabel || "Técnico"} />
+        <main className="flex-1 overflow-auto p-6">
+          <div className="max-w-[1800px] mx-auto">
+            {/* Keep existing title/subtitle as accessible fallback */}
+            <div className="sr-only">
+              <h2>{title}</h2>
+              {subtitle ? <p>{subtitle}</p> : null}
+            </div>
+            {children}
+            <div className="mt-8 flex justify-end">
+              <button
+                onClick={handleLogout}
+                className="text-xs px-3 py-2 rounded-lg border border-border/40 bg-muted/30 hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Sair
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

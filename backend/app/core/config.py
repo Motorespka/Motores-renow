@@ -22,8 +22,10 @@ class Settings(BaseSettings):
 
     backend_cors_origins: str = "http://localhost:3000"
 
-    supabase_url: str = Field(..., alias="SUPABASE_URL")
-    supabase_anon_key: str = Field(..., alias="SUPABASE_ANON_KEY")
+    # Allow backend to boot without Supabase in local dev.
+    # When missing, auth/protected endpoints will return 503 with clear message.
+    supabase_url: str = Field(default="", alias="SUPABASE_URL")
+    supabase_anon_key: str = Field(default="", alias="SUPABASE_ANON_KEY")
     supabase_service_role_key: str | None = Field(default=None, alias="SUPABASE_SERVICE_ROLE_KEY")
 
     default_paid_plans: str = "paid,pro,premium,enterprise,business"

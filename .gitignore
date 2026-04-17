@@ -9,14 +9,10 @@ data/*.db
 data/dev_storage/
 db/
 db_aprendizado.json
-<<<<<<< Updated upstream
 node_modules/
 .next/
 frontend/node_modules/
 frontend/.next/
-=======
-frontend/node_modules/
-frontend/.next/
 frontend/out/
->>>>>>> Stashed changes
 frontend/.turbo/
+_reference/
