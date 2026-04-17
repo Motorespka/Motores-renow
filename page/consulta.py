@@ -27,20 +27,26 @@ def _remember_motor_cadastro_seq(motor_id: Any, seq: int) -> None:
 
 
 def _assign_cadastro_sequencia(motores: List[Dict[str, Any]]) -> None:
-    """Ordem global = mesma de fetch_motores_cached; exibe #1, #2, #3 em vez do PK."""
-    for i, m in enumerate(motores, start=1):
-        m["cadastro_seq"] = i
+    """
+    A lista segue fetch_motores_cached (mais recente primeiro).
+    Numero de cadastro: #1 = mais antigo na base carregada; maior # = mais recente.
+    O primeiro card do site (ultimo cadastro) fica com o numero mais alto, nao com #1.
+    """
+    n = len(motores)
+    for i, m in enumerate(motores):
+        seq = n - i
+        m["cadastro_seq"] = seq
         mid = str(m.get("id") or "").strip()
         mod = _to_text(m.get("modelo"))
         if (not mod or mod == "Sem modelo") and mid:
-            m["modelo"] = f"Registro #{i}"
+            m["modelo"] = f"Registro #{seq}"
             continue
         if mid and re.match(r"(?i)^registro\s+", mod):
             tail = re.sub(r"(?i)^registro\s+#?\s*", "", mod).strip()
             if not tail or tail == mid or tail.replace("-", "").replace(" ", "") == mid.replace("-", "").replace(
                 " ", ""
             ):
-                m["modelo"] = f"Registro #{i}"
+                m["modelo"] = f"Registro #{seq}"
 
 
 def _is_empty(value: Any) -> bool:

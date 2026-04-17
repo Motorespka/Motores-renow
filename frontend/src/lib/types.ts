@@ -20,7 +20,7 @@ export type MeResponse = {
 
 export type MotorRecord = {
   id?: string | number;
-  /** Ordem global na lista (ex.: #1, #2); não é o PK do Supabase. */
+  /** Ordem de cadastro na janela carregada: #1 = mais antigo; maior # = mais recente (não é o PK). */
   cadastro_seq?: number;
   marca?: string;
   modelo?: string;

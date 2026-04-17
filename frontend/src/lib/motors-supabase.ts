@@ -152,7 +152,8 @@ export async function fetchMotorListFromSupabase(q: string, limit: number): Prom
     return { mode: "full", total: 0, items: [] };
   }
 
-  const numbered = rows.map((r, i) => ({ ...r, cadastro_seq: i + 1 }));
+  /* Mesma logica do Streamlit: lista recente-first; #1 = mais antigo, maior # = ultimo cadastro. */
+  const numbered = rows.map((r, i) => ({ ...r, cadastro_seq: rows.length - i }));
   let filtered = numbered.filter((r) => rowMatchesSearch(r, s));
   filtered = filtered.slice(0, lim);
 
