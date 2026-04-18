@@ -5,6 +5,7 @@ import re
 import streamlit as st
 
 from core.access_control import is_admin_user, require_paid_access
+from core.calculadora import mensagem_bobinagem_auxiliar_incompleta
 from core.navigation import Route
 from services.supabase_data import fetch_motor_by_id_cached
 from components.motor_hologram import render_engine_hologram
@@ -146,6 +147,11 @@ def render(ctx) -> None:
         unsafe_allow_html=True,
     )
 
+    with st.expander("Inteligência técnica Moto-Renow (read-only)", expanded=False):
+        from components.motor_inteligencia_panel import render_motor_inteligencia_panel
+
+        render_motor_inteligencia_panel(motor_row, key_prefix=f"mdetail_{motor_id}")
+
     holo_m = dict(m)
     holo_m["dados_tecnicos_json"] = dados
     holo_m["rpm"] = holo_m.get("rpm_nominal") or holo_m.get("rpm")
@@ -158,8 +164,10 @@ def render(ctx) -> None:
     holo_left, holo_right = st.columns([1.25, 1.0], gap="medium")
     with holo_left:
         st.caption(
-            "Holograma GLB: detalhe usa um viewer WebGL (estável). GLB grande de teste em static/glb: "
-            "desligar com HOLOGRAM_DISABLE_TEST_DOWNLOAD_GLB=1. Na consulta: malha Three.js."
+            "Holograma GLB: viewer WebGL. Por motor: holograma_glb_url no JSON. Por carcaça: "
+            "HOLOGRAM_GLB_WEG_STYLE_HOUSING + HOLOGRAM_CARCACA_GLB_CONTAINS (ex.: IP21) ou HOLOGRAM_CARCACA_GLB_RULE. "
+            "Global: HOLOGRAM_GLB_DEFAULT. "
+            "Disco: HOLOGRAM_TEST_DISK_GLB=1."
         )
     with holo_right:
         render_engine_hologram(holo_m, key=f"motor_detail_holo_{motor_id}")
@@ -174,6 +182,17 @@ def render(ctx) -> None:
     historico = oficina.get("historico_tecnico", []) if isinstance(oficina, dict) else []
 
     tab1, tab2, tab3, tab4 = st.tabs(["Identificação", "Rebobinagem", "Mecânica", "Oficina / IA"])
+
+    _coerencia_bob = {
+        "bobinagem_auxiliar": {
+            "passos": bob_auxiliar.get("passos") or ui.get("passo_auxiliar"),
+            "fios": bob_auxiliar.get("fios") or ui.get("fio_auxiliar"),
+            "espiras": bob_auxiliar.get("espiras") or ui.get("espiras_auxiliar"),
+        }
+    }
+    _msg_bob = mensagem_bobinagem_auxiliar_incompleta(_coerencia_bob)
+    if _msg_bob:
+        st.warning(_msg_bob)
 
     with tab1:
         c1, c2, c3 = st.columns(3)
@@ -236,6 +255,15 @@ def render(ctx) -> None:
             )
             _render_data_panel("Capacitor", bob_auxiliar.get("capacitor"))
             _render_data_panel("Obs. bobinagem", bob_principal.get("observacoes") or bob_auxiliar.get("observacoes"))
+
+        with st.expander("Coerência de rebobinagem (read-only)", expanded=False):
+            from components.motor_rebobinagem_panel import render_rebobinagem_panel
+
+            render_rebobinagem_panel(
+                motor_row,
+                key_prefix=f"md_rb_{motor_id}",
+                title="Inteligência de rebobinagem",
+            )
 
     with tab3:
         mc1, mc2 = st.columns(2)

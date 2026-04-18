@@ -381,6 +381,10 @@ def enriquecer_motor_oficina(normalized: Dict[str, Any], evento: str = "cadastro
         "frequencia": dados_base.get("frequencia"),
         "fases": dados_base.get("fases"),
         "tipo_motor": dados_base.get("tipo_motor"),
+        "motor": data.get("motor") if isinstance(data.get("motor"), dict) else {},
+        "bobinagem_auxiliar": data.get("bobinagem_auxiliar")
+        if isinstance(data.get("bobinagem_auxiliar"), dict)
+        else {},
     }
     alertas_validacao = alertas_validacao_projeto(validacao_input)
 
@@ -528,6 +532,10 @@ def diagnostico_motor_oficina_readonly(normalized: Dict[str, Any]) -> Dict[str, 
             "frequencia": dados_base.get("frequencia"),
             "fases": dados_base.get("fases"),
             "tipo_motor": dados_base.get("tipo_motor"),
+            "motor": normalized.get("motor") if isinstance(normalized.get("motor"), dict) else {},
+            "bobinagem_auxiliar": normalized.get("bobinagem_auxiliar")
+            if isinstance(normalized.get("bobinagem_auxiliar"), dict)
+            else {},
         }
     )
     return {

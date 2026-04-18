@@ -17,6 +17,8 @@ from services.oficina_parser import (
     extract_consulta_parser_snapshot,
 )
 from components.motor_hologram import render_engine_hologram
+from components.motor_inteligencia_panel import render_intel_consulta_inline
+from components.motor_rebobinagem_panel import render_rebobinagem_consulta_inline
 from services.supabase_data import clear_motores_cache, fetch_motores_cached
 from utils.motor_normalizer import normalize_motor_row_for_ui
 
@@ -702,6 +704,9 @@ def render(ctx) -> None:
             note_raw = _to_text(snap.get("parse_note"))
             if note_raw:
                 st.caption(f"Nota do parser: {html.escape(_trunc_plain(note_raw, 120))}")
+
+            render_intel_consulta_inline(m, key_prefix=f"consulta_intel_{motor_key}")
+            render_rebobinagem_consulta_inline(m, key_prefix=f"consulta_rb_{motor_key}")
 
             left, right = st.columns([1.45, 1.0], gap="large")
             with left:

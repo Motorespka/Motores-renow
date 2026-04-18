@@ -1,5 +1,33 @@
 # CHANGELOG AI
 
+## 2026-04-18 | Cycle 0037
+- **Change Description:** Nova camada read-only ``services/motor_rebobinagem`` (normalização passo/espiras/fio/ranhuras/mm, assinatura técnica, validação de coerência, ``analyze_rewinding_coherence``, similaridade futura ``prepare_similarity_query``, serialização FastAPI). UI: linha compacta na consulta + expander em detalhe/cadastro/edição. Testes ``tests/test_motor_rebobinagem.py``.
+- **Reason:** Inteligência de rebobinagem de oficina modular, sem persistência nem alteração de fluxos core; aproveita ``motor_inteligencia`` só como contexto elétrico.
+- **Risk Level:** Baixo.
+- **Rollback Availability:** Alto (remover pacote, componente, imports nas páginas).
+- **Next Predicted Risk:** Tabelas AWG/mm² e modelo ranhura×bobina — documentado em ``future_work``.
+
+## 2026-04-18 | Cycle 0036
+- **Change Description:** Fase 2 da camada ``motor_inteligencia``: ``batch_review.py`` (relatório read-only agregado), ``serialization.py`` (JSON-safe / FastAPI futuro), refinamento de severidade (insuficiente por dados lacunares vs. crítico só incoerência forte; limiares Pin/slip/corrente mais conservadores), ``summary_one_liner`` + resumo textual melhorado, consulta com linha mínima (badge + frase) sem expander pesado, admin no diagnóstico para relatório em lote + download JSON.
+- **Reason:** Validar com dados reais, reduzir falsos positivos e UX leve na consulta, mantendo read-only e sem tocar persistência core.
+- **Risk Level:** Baixo.
+- **Rollback Availability:** Alto (reverter ficheiros da camada + consulta + diagnostico + componente).
+- **Next Predicted Risk:** Amostras muito grandes na UI — já limitadas; cache opcional depois.
+
+## 2026-04-18 | Cycle 0035
+- **Change Description:** Nova camada técnica read-only ``services/motor_inteligencia`` (normalização numérica, cálculos ns/slip/Pin/Pout/torque, validação com status ok/alerta/critico/insuficiente, sugestões de cálculos futuros, coerção de linhas Supabase). Componente ``components/motor_inteligencia_panel.py`` com badges verde/amarelo/vermelho/cinza. Integração leve em expanders em ``motor_detail``, ``cadastro``, ``edit``, ``consulta`` e ``diagnostico``. Testes ``tests/test_motor_inteligencia.py`` (unittest).
+- **Reason:** Base para inteligência técnica Moto-Renow sem acoplar lógica pesada à UI nem alterar fluxos de persistência/autenticação existentes.
+- **Risk Level:** Baixo (código novo + expanders; falhas isoladas em try/except no painel).
+- **Rollback Availability:** Alto (remover pacote, componente, imports nas páginas e testes).
+- **Next Predicted Risk:** Performance na consulta com muitos cards se todos expandirem a análise; considerar cache por id se necessário.
+
+## 2026-04-18 | Cycle 0034
+- **Change Description:** Validação de coerência da bobinagem auxiliar: se existir qualquer dado auxiliar (passos ou fio), exige-se o conjunto completo **passos + fio + espiras**; alertas (`alertas_validacao_projeto`), aviso no detalhe e bloqueio de salvar em cadastro/edição até os três estarem preenchidos (sem sugerir apagar passo).
+- **Reason:** Registros monofásicos não podem ficar com passo/fio auxiliar sem espiras, nem com dois dos três — evita dados incompletos na oficina.
+- **Risk Level:** Baixo (regra localizada; registros legados incoerentes passam a exigir correção no próximo save).
+- **Rollback Availability:** Alto (reverter `core/calculadora.py`, `services/oficina_runtime.py`, `page/cadastro.py`, `page/edit.py`, `page/motor_detail.py`).
+- **Next Predicted Risk:** Casos raros de rascunho parcial; o fluxo correto é completar os três campos auxiliares.
+
 ## 2026-04-17 | Cycle 0033
 - **Change Description:** Reorganizada a experiência Consulta/Detalhes dos motores. Na página `consulta`, os cards passaram a exibir somente informações essenciais para triagem rápida (RPM, potência/cavalaria, corrente, fases/mono-trifásico, polos e resumo de eixo em X/Y). O conteúdo técnico denso (bobinagem, mecânica detalhada, esquema e leitura IA) foi removido da listagem e concentrado na página `motor_detail`, que agora apresenta visão limpa e completa em abas (Visão geral, Rebobinagem, Mecânica, Oficina & IA).
 - **Reason:** Atender pedido de reduzir poluição visual na consulta e usar “Abrir detalhes” como tela técnica completa, melhorando fluxo operacional e leitura em desktop/mobile.

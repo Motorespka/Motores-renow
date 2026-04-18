@@ -1,10 +1,14 @@
 """
 URLs de modelos GLB para o holograma 3D (<model-viewer>).
-Prioridade: motor.holograma_glb_url no JSON > HOLOGRAM_GLB_MOTOR_<id> > env por preset >
-HOLOGRAM_GLB_DEFAULT > HOLOGRAM_GLB_NEMA48 (se carcaca NEMA 48) >
+Prioridade: motor.holograma_glb_url no JSON > HOLOGRAM_GLB_MOTOR_<id> >
+GLB por tipo de carcaça (HOLOGRAM_GLB_WEG_STYLE_HOUSING + match); o mesmo URL entra na cadeia DEFAULT
+se HOLOGRAM_GLB_WEG_STYLE_ONLY_MATCHED nao estiver ligado (URL global no Cloud sem regra de carcaca).
+HOLOGRAM_CARCACA_GLB_CONTAINS / HOLOGRAM_CARCACA_GLB_RULE: ver motor_matches_weg_style_carcaca_for_glb. >
+HOLOGRAM_GLB_DEFAULT (global Cloud; antes dos presets para nao ficar preso a GLB antigo por preset) >
+env HOLOGRAM_GLB_<PRESET> > HOLOGRAM_GLB_NEMA48 (se carcaca NEMA 48) >
+GLB em disco opt-in (HOLOGRAM_TEST_DISK_GLB=1; HOLOGRAM_TEST_DISK_GLB_FILE) >
 ficheiros em static/glb (starter pack; pequenos em data URL) > demo (opcional).
-GLB de teste grande `electric_motor_3d_model.glb` (se existir): prioridade apos URL no JSON; HTTP se >1.4MB.
-Desligar esse teste: HOLOGRAM_DISABLE_TEST_DOWNLOAD_GLB=1. Pack: HOLOGRAM_USE_STARTER_PACK=0. HTTP pack: HOLOGRAM_STARTER_PACK_HTTP=1.
+Pack: HOLOGRAM_USE_STARTER_PACK=0. HTTP pack: HOLOGRAM_STARTER_PACK_HTTP=1.
 
 Sem URL valida: UI usa malha procedural aproximada em Three.js (no browser) ou, com
 `HOLOGRAM_LEGACY_CSS=1`, a silhueta CSS antiga. GLB real continua a ser o unico desenho tecnico fiel.
@@ -23,21 +27,34 @@ DEMO_GLB_URL = "https://modelviewer.dev/shared-assets/models/Astronaut.glb"
 
 
 def _read_secret_or_env(*names: str) -> str:
+    """Lê Streamlit secrets ou os.environ; remove aspas TOML à volta de URLs por engano."""
+
+    def _normalize(val: str) -> str:
+        s = str(val).strip()
+        if len(s) >= 2 and s[0] == s[-1] and s[0] in "\"'":
+            s = s[1:-1].strip()
+        return s
+
     for name in names:
         try:
             import streamlit as st
 
             try:
-                v = st.secrets.get(name)
-                if v:
-                    return str(v).strip()
+                sec = getattr(st, "secrets", None)
+                if sec is not None:
+                    try:
+                        v = sec[name]
+                    except Exception:
+                        v = None
+                    if v is not None and str(v).strip():
+                        return _normalize(v)
             except Exception:
                 pass
         except Exception:
             pass
         v = os.environ.get(name)
-        if v:
-            return str(v).strip()
+        if v and str(v).strip():
+            return _normalize(v)
     return ""
 
 
@@ -96,8 +113,8 @@ def _starter_pack_embedded_src(filename: str) -> Optional[str]:
     return f"data:model/gltf-binary;base64,{b64}"
 
 
-# GLB de teste (~30MB) em static/glb/ — prioridade alta se existir (desligar: HOLOGRAM_DISABLE_TEST_DOWNLOAD_GLB=1).
-TEST_DOWNLOAD_GLB_FILENAME = "electric_motor_3d_model.glb"
+# GLB opcional em static/glb/ — só com HOLOGRAM_TEST_DISK_GLB=1 (nome: HOLOGRAM_TEST_DISK_GLB_FILE ou electric_motor_3d_model.glb).
+TEST_DISK_GLB_DEFAULT = "electric_motor_3d_model.glb"
 
 
 def _starter_resolved_src(filename: str) -> Optional[str]:
@@ -112,6 +129,22 @@ def _starter_resolved_src(filename: str) -> Optional[str]:
     if sz <= 1_400_000:
         return _starter_pack_embedded_src(filename)
     return _starter_pack_http_url(filename)
+
+
+def _resolve_opt_in_disk_test_glb() -> Optional[str]:
+    """GLB em static/glb/ só com HOLOGRAM_TEST_DISK_GLB=1 (compat: HOLOGRAM_TEST_DOWNLOAD_GLB)."""
+    on = _read_secret_or_env(
+        "HOLOGRAM_TEST_DISK_GLB",
+        "HOLOGRAM_TEST_DOWNLOAD_GLB",
+        "MOTORES_HOLOGRAM_TEST_DISK_GLB",
+    ).strip().lower()
+    if on not in ("1", "true", "yes", "on"):
+        return None
+    raw = _read_secret_or_env("HOLOGRAM_TEST_DISK_GLB_FILE", "MOTORES_HOLOGRAM_TEST_DISK_GLB_FILE").strip()
+    name = os.path.basename(raw) if raw else TEST_DISK_GLB_DEFAULT
+    if not name.lower().endswith(".glb"):
+        return None
+    return _starter_resolved_src(name)
 
 
 def _starter_pack_disabled() -> bool:
@@ -229,6 +262,114 @@ def _path_looks_glb(u: str) -> bool:
     return base.endswith(".glb")
 
 
+def _motor_identity_blob_upper(m: Dict[str, Any]) -> str:
+    """Marca, modelo e carcaça agregados (linha + JSON + UI) para heurísticas."""
+    motor = _motor_json(m)
+    parts = [
+        _carcaca_blob(m),
+        str(m.get("marca") or ""),
+        str(m.get("modelo") or ""),
+        str(motor.get("marca") or ""),
+        str(motor.get("modelo") or ""),
+        str(motor.get("carcaca") or ""),
+    ]
+    ui = m.get("_consulta_ui") if isinstance(m.get("_consulta_ui"), dict) else {}
+    parts.extend(
+        [
+            str(ui.get("marca") or ""),
+            str(ui.get("modelo") or ""),
+            str(ui.get("carcaca") or ""),
+        ]
+    )
+    return " ".join(parts).upper()
+
+
+def _read_carcaca_glb_rule() -> str:
+    """
+    weg_or_nema48 (defeito): WEG na identidade OU quadro NEMA 48.
+    weg_only | nema48_only | ip21_only — IP21 / IPW21 na ficha (protecao gotejamento).
+    """
+    r = _read_secret_or_env("HOLOGRAM_CARCACA_GLB_RULE", "MOTORES_HOLOGRAM_CARCACA_GLB_RULE").strip().lower()
+    if r in ("weg_only", "nema48_only", "weg_or_nema48", "ip21_only"):
+        return r
+    return "weg_or_nema48"
+
+
+def _carcaca_glb_contains_tokens() -> list[str]:
+    raw = _read_secret_or_env("HOLOGRAM_CARCACA_GLB_CONTAINS", "MOTORES_HOLOGRAM_CARCACA_GLB_CONTAINS").strip()
+    if not raw:
+        return []
+    return [t.strip().upper() for t in raw.split(",") if t.strip()]
+
+
+def _blob_for_carcaca_match(m: Dict[str, Any]) -> tuple[str, str]:
+    blob = _motor_identity_blob_upper(m)
+    compact = re.sub(r"[\s._\-]+", "", blob)
+    return blob, compact
+
+
+def _token_matches_blob(tok: str, blob: str, blob_c: str) -> bool:
+    t = tok.strip().upper()
+    if not t:
+        return False
+    if t in blob:
+        return True
+    tc = re.sub(r"[\s._\-]+", "", t)
+    return bool(tc) and tc in blob_c
+
+
+def _is_ip21_carcaca(m: Dict[str, Any]) -> bool:
+    blob, blob_c = _blob_for_carcaca_match(m)
+    if "IP21" in blob_c or "IPW21" in blob_c:
+        return True
+    return bool(re.search(r"IP\s*W?\s*21\b", blob))
+
+
+def motor_matches_weg_style_carcaca_for_glb(m: Dict[str, Any]) -> bool:
+    """
+    True → usar URL em HOLOGRAM_GLB_WEG_STYLE_HOUSING (ou alias).
+
+    1) Se HOLOGRAM_CARCACA_GLB_CONTAINS estiver definido (ex.: IP21 ou texto da placa),
+       qualquer token (separado por virgula) que apareca em marca/modelo/carcaca conta como match.
+       HOLOGRAM_CARCACA_GLB_MATCH_ALL=1 exige que todos os tokens apareçam.
+    2) Senao, HOLOGRAM_CARCACA_GLB_RULE: weg_or_nema48 | weg_only | nema48_only | ip21_only.
+    """
+    tokens = _carcaca_glb_contains_tokens()
+    blob, blob_c = _blob_for_carcaca_match(m)
+    if tokens:
+        match_all = _read_secret_or_env(
+            "HOLOGRAM_CARCACA_GLB_MATCH_ALL", "MOTORES_HOLOGRAM_CARCACA_GLB_MATCH_ALL"
+        ).strip().lower() in ("1", "true", "yes", "on")
+        checks = [_token_matches_blob(t, blob, blob_c) for t in tokens]
+        if match_all:
+            return all(checks)
+        return any(checks)
+
+    rule = _read_carcaca_glb_rule()
+    has_weg = "WEG" in blob
+    has_n48 = _is_nema_48_frame(m)
+    if rule == "weg_only":
+        return has_weg
+    if rule == "nema48_only":
+        return has_n48
+    if rule == "ip21_only":
+        return _is_ip21_carcaca(m)
+    return has_weg or has_n48
+
+
+def motor_has_json_hologram_glb_url(m: Dict[str, Any]) -> bool:
+    """True se dados_tecnicos_json.motor tiver URL https/http a um .glb (holograma no cadastro)."""
+    motor = _motor_json(m)
+    for key in ("holograma_glb_url", "holograma_glb", "HologramaGlbUrl"):
+        raw = motor.get(key)
+        if not raw:
+            continue
+        u = str(raw).strip()
+        if u.lower().startswith(("http://", "https://")) and _path_looks_glb(u):
+            return True
+    return False
+
+
 def resolve_model_glb_url(m: Dict[str, Any], preset: str) -> Optional[str]:
     """
     Retorna URL https/http, data URL (starter pack), ou None para Three.js / CSS legado.
@@ -241,30 +382,48 @@ def resolve_model_glb_url(m: Dict[str, Any], preset: str) -> Optional[str]:
             if u.lower().startswith(("http://", "https://")) and _path_looks_glb(u):
                 return u
 
-    if not _read_secret_or_env("HOLOGRAM_DISABLE_TEST_DOWNLOAD_GLB", "MOTORES_HOLOGRAM_DISABLE_TEST_DOWNLOAD_GLB").strip().lower() in (
-        "1",
-        "true",
-        "yes",
-        "on",
-    ):
-        u_test = _starter_resolved_src(TEST_DOWNLOAD_GLB_FILENAME)
-        if u_test:
-            return u_test
-
     mid = _motor_id_str(m)
     if mid:
         u = _read_secret_or_env(f"HOLOGRAM_GLB_MOTOR_{mid}", f"MOTORES_HOLOGRAM_GLB_MOTOR_{mid}")
         if u and u.lower().startswith(("http://", "https://")) and _path_looks_glb(u):
             return u
 
-    preset_u = preset.upper().replace("-", "_")
-    preset_l = preset.lower()
-    for name in (
-        f"HOLOGRAM_GLB_{preset_u}",
-        f"HOLOGRAM_GLB_{preset_l}",
+    if motor_matches_weg_style_carcaca_for_glb(m):
+        for name in (
+            "HOLOGRAM_GLB_WEG_STYLE_HOUSING",
+            "HOLOGRAM_GLB_CARCACA_FRACIONARIO",
+            "MOTORES_HOLOGRAM_GLB_WEG_STYLE",
+        ):
+            u = _read_secret_or_env(name)
+            if u and u.lower().startswith(("http://", "https://")) and _path_looks_glb(u):
+                return u
+
+    # DEFAULT (+ fallback): muitos utilizadores colocam o URL so em HOLOGRAM_GLB_WEG_STYLE_HOUSING;
+    # sem match de carcaca isso nunca era lido. Incluir aqui salvo HOLOGRAM_GLB_WEG_STYLE_ONLY_MATCHED=1.
+    only_matched = _read_secret_or_env(
+        "HOLOGRAM_GLB_WEG_STYLE_ONLY_MATCHED", "MOTORES_HOLOGRAM_GLB_WEG_STYLE_ONLY_MATCHED"
+    ).strip().lower() in ("1", "true", "yes", "on")
+    default_chain = [
         "HOLOGRAM_GLB_DEFAULT",
         "MOTORES_HOLOGRAM_GLB_DEFAULT",
-    ):
+        "HOLOGRAM_DEFAULT_GLB",
+    ]
+    if not only_matched:
+        default_chain.extend(
+            (
+                "HOLOGRAM_GLB_WEG_STYLE_HOUSING",
+                "HOLOGRAM_GLB_CARCACA_FRACIONARIO",
+                "MOTORES_HOLOGRAM_GLB_WEG_STYLE",
+            )
+        )
+    for name in default_chain:
+        u = _read_secret_or_env(name)
+        if u and u.lower().startswith(("http://", "https://")) and _path_looks_glb(u):
+            return u
+
+    preset_u = preset.upper().replace("-", "_")
+    preset_l = preset.lower()
+    for name in (f"HOLOGRAM_GLB_{preset_u}", f"HOLOGRAM_GLB_{preset_l}"):
         u = _read_secret_or_env(name)
         if u and u.lower().startswith(("http://", "https://")) and _path_looks_glb(u):
             return u
@@ -273,6 +432,10 @@ def resolve_model_glb_url(m: Dict[str, Any], preset: str) -> Optional[str]:
         u = _read_secret_or_env("HOLOGRAM_GLB_NEMA48", "MOTORES_HOLOGRAM_GLB_NEMA48")
         if u and u.lower().startswith(("http://", "https://")) and _path_looks_glb(u):
             return u
+
+    u_disk = _resolve_opt_in_disk_test_glb()
+    if u_disk:
+        return u_disk
 
     sp = _resolve_starter_pack_url(m, preset)
     if sp:

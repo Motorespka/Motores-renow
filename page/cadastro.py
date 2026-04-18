@@ -21,6 +21,7 @@ except Exception:
         pass
 
 from core.access_control import require_cadastro_access
+from core.calculadora import mensagem_bobinagem_auxiliar_incompleta
 from core.navigation import Route
 from core.user_identity import resolve_current_user_identity
 from services.gemini_oficina import HEIF_SUPPORTED, extract_motor_data_with_gemini
@@ -751,6 +752,11 @@ def render(ctx):
             data["bobinagem_auxiliar"]["ligacao"] = st.text_input("Ligacao auxiliar", value=data["bobinagem_auxiliar"].get("ligacao", ""))
         data["bobinagem_auxiliar"]["observacoes"] = st.text_area("Obs. auxiliar", value=data["bobinagem_auxiliar"].get("observacoes", ""), height=80)
 
+        with st.expander("Coerencia de rebobinagem (read-only)", expanded=False):
+            from components.motor_rebobinagem_panel import render_rebobinagem_panel
+
+            render_rebobinagem_panel(data, key_prefix="cadastro_rb", title="Inteligencia de rebobinagem")
+
         st.markdown("### D. Mecanica")
         data["mecanica"]["rolamentos"] = _list_editor("Rolamentos", data["mecanica"].get("rolamentos", []), "mec_rolamentos")
         m1, m2, m3 = st.columns(3)
@@ -806,11 +812,21 @@ def render(ctx):
             )
             st.json(data.get("confianca", {}), expanded=False)
 
+        with st.expander("Inteligência técnica Moto-Renow (read-only)", expanded=False):
+            from components.motor_inteligencia_panel import render_motor_inteligencia_panel
+
+            render_motor_inteligencia_panel(data, key_prefix="cadastro_intel")
+
         salvar = st.form_submit_button("Salvar", use_container_width=True)
 
     if salvar:
         if not data["motor"].get("marca") and not data["motor"].get("modelo"):
             st.warning("Informe ao menos marca ou modelo antes de salvar.")
+            return
+
+        msg_bob = mensagem_bobinagem_auxiliar_incompleta(data)
+        if msg_bob:
+            st.error(msg_bob)
             return
 
         try:

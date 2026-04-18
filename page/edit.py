@@ -11,6 +11,7 @@ except Exception:
         pass
 
 from core.access_control import require_admin_access
+from core.calculadora import mensagem_bobinagem_auxiliar_incompleta
 from core.navigation import Route
 from services.oficina_parser import (
     DEFAULT_EXTRACTED,
@@ -338,6 +339,11 @@ def render(ctx):
             data["bobinagem_auxiliar"]["ligacao"] = st.text_input("LigaÃ§Ã£o auxiliar", value=data["bobinagem_auxiliar"].get("ligacao", ""), key=f"{k}aux_ligacao")
         data["bobinagem_auxiliar"]["observacoes"] = st.text_area("Obs. auxiliar", value=data["bobinagem_auxiliar"].get("observacoes", ""), height=80, key=f"{k}aux_observacoes")
 
+        with st.expander("Coerencia de rebobinagem (read-only)", expanded=False):
+            from components.motor_rebobinagem_panel import render_rebobinagem_panel
+
+            render_rebobinagem_panel(data, key_prefix=f"edit_rb_{id_motor}", title="Inteligencia de rebobinagem")
+
         st.markdown("### D. MecÃ¢nica")
         data["mecanica"]["rolamentos"] = _list_editor("Rolamentos", data["mecanica"].get("rolamentos", []), f"{k}mec_rolamentos")
         m1, m2, m3 = st.columns(3)
@@ -367,6 +373,11 @@ def render(ctx):
         st.code(json.dumps(data.get("confianca", {}), ensure_ascii=False, indent=2), language="json")
         st.code(json.dumps(data, ensure_ascii=False, indent=2), language="json")
 
+        with st.expander("Inteligência técnica Moto-Renow (read-only)", expanded=False):
+            from components.motor_inteligencia_panel import render_motor_inteligencia_panel
+
+            render_motor_inteligencia_panel(data, key_prefix=f"edit_intel_{id_motor}")
+
         c1, c2 = st.columns(2)
         with c1:
             salvar = st.form_submit_button("ðŸ’¾ SALVAR ALTERAÃ‡Ã•ES", use_container_width=True)
@@ -378,6 +389,10 @@ def render(ctx):
         st.rerun()
 
     if salvar:
+        msg_bob = mensagem_bobinagem_auxiliar_incompleta(data)
+        if msg_bob:
+            st.error(msg_bob)
+            return
         image_names = _to_list(motor.get("imagens_origem") or motor.get("arquivo_origem") or motor.get("ArquivoOrigem"))
         image_urls = _to_list(motor.get("imagens_urls"))
         data = enriquecer_motor_oficina(data, evento="edicao")

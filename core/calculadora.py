@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import re
 
 # Constantes mantidas
@@ -94,7 +96,69 @@ def alertas_validacao_projeto(dados: dict):
     if tensao_val > 1000:
         alertas.append("🔴 Risco: Tensão de Alta Voltagem detectada (>1000V).")
 
+    msg_bob = mensagem_bobinagem_auxiliar_incompleta(dados)
+    if msg_bob:
+        alertas.append(f"⚠️ {msg_bob}")
+
     return alertas
+
+
+def _campo_bobinagem_lista_nao_vazio(valor) -> bool:
+    if valor is None:
+        return False
+    if isinstance(valor, list):
+        return any(str(x).strip() for x in valor)
+    return bool(str(valor).strip())
+
+
+def _bob_aux_presenca_passos_fio_espiras(dados: dict) -> tuple[bool, bool, bool]:
+    """Retorna (tem_passos, tem_fio, tem_espiras) para bobinagem auxiliar (JSON ou chaves planas)."""
+    if not isinstance(dados, dict):
+        return (False, False, False)
+    bob = dados.get("bobinagem_auxiliar")
+    if not isinstance(bob, dict):
+        bob = {}
+    passos = bob.get("passos")
+    fios = bob.get("fios")
+    espiras = bob.get("espiras")
+    if not _campo_bobinagem_lista_nao_vazio(passos):
+        passos = dados.get("passo_auxiliar")
+    if not _campo_bobinagem_lista_nao_vazio(fios):
+        fios = dados.get("fio_auxiliar")
+    if not _campo_bobinagem_lista_nao_vazio(espiras):
+        espiras = dados.get("espiras_auxiliar")
+    return (
+        _campo_bobinagem_lista_nao_vazio(passos),
+        _campo_bobinagem_lista_nao_vazio(fios),
+        _campo_bobinagem_lista_nao_vazio(espiras),
+    )
+
+
+def mensagem_bobinagem_auxiliar_incompleta(dados: dict) -> str | None:
+    """
+    Se qualquer um de passos / fio / espiras auxiliares estiver preenchido, os três são obrigatórios.
+    Aceita `bobinagem_auxiliar` aninhado e fallbacks `passo_auxiliar`, `fio_auxiliar`, `espiras_auxiliar`.
+    """
+    tem_passos, tem_fio, tem_espiras = _bob_aux_presenca_passos_fio_espiras(dados)
+    algum = tem_passos or tem_fio or tem_espiras
+    todos = tem_passos and tem_fio and tem_espiras
+    if not algum or todos:
+        return None
+    faltam: list[str] = []
+    if not tem_passos:
+        faltam.append("passos auxiliares")
+    if not tem_fio:
+        faltam.append("fio auxiliar")
+    if not tem_espiras:
+        faltam.append("espiras auxiliares")
+    return (
+        "Bobinagem auxiliar incompleta: ao usar a auxiliar, são obrigatórios passos, fio e espiras (os três). "
+        f"Falta: {', '.join(faltam)}."
+    )
+
+
+# Compat: nome antigo usado em imports legados
+mensagem_bobinagem_aux_passos_sem_espiras = mensagem_bobinagem_auxiliar_incompleta
 
 def sugerir_equivalentes_paralelos(fio_awg):
     """

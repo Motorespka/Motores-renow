@@ -1,5 +1,8 @@
 """
-Holograma na consulta: GLB real via <model-viewer> quando houver URL; senao silhueta CSS com arrastar.
+Holograma: GLB via <model-viewer> quando houver URL resolvida.
+Na listagem (consulta): http(s) inclui Supabase e pack /app/static/glb/ no Streamlit Cloud;
+data: so com HOLOGRAM_LIST_SHOW_GLB=1. HOLOGRAM_LIST_NO_STATIC_GLB=1 esconde pack na lista.
+HOLOGRAM_LIST_NO_GLB=1 força só silhueta na lista.
 """
 
 from __future__ import annotations
@@ -13,7 +16,11 @@ from typing import Any, Dict
 import streamlit as st
 
 from utils.motor_hologram import hologram_choice_label, resolve_hologram_preset
-from utils.motor_hologram_glb import hologram_carcaca_context, resolve_model_glb_url
+from utils.motor_hologram_glb import (
+    hologram_carcaca_context,
+    motor_has_json_hologram_glb_url,
+    resolve_model_glb_url,
+)
 
 # Three.js (ESM) — malha procedural aproximada; nao substitui CAD nem GLB tecnico.
 _THREE_IMPORTMAP = """
@@ -181,6 +188,20 @@ main();
 """
 
 
+def _glb_url_ok_for_list_remote_viewer(url: str) -> bool:
+    """
+    Na consulta, usar model-viewer para http(s), incl. pack em /app/static/glb/ no Cloud.
+    data: (base64 embutido) fica de fora salvo HOLOGRAM_LIST_SHOW_GLB=1 (muitos cards esgotam GPU).
+    Para voltar a esconder o pack na lista: HOLOGRAM_LIST_NO_STATIC_GLB=1.
+    """
+    u = (url or "").strip().lower()
+    if not u.startswith(("http://", "https://")):
+        return False
+    if "/app/static/glb/" in u and _flag_truthy("HOLOGRAM_LIST_NO_STATIC_GLB"):
+        return False
+    return True
+
+
 def _flag_truthy(name: str) -> bool:
     raw = str(os.environ.get(name, "") or "").strip().lower()
     if raw in ("1", "true", "yes", "on"):
@@ -228,12 +249,20 @@ def _build_model_viewer_html(
     tensao: str,
     corrente: str,
     plabel: str,
+    *,
+    compact: bool = False,
 ) -> str:
     src = json.dumps(glb_url)
+    mv_h = 160 if compact else 240
+    hint_block = (
+        ""
+        if compact
+        else '<div class="hint">Malha 3D com camada holográfica (scanline + brilho). Gire com o rato ou um dedo.</div>'
+    )
     return f"""
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
-<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@4.0.0/dist/model-viewer.min.js"></script>
 <style>
   * {{ box-sizing: border-box; }}
   body {{ margin:0; font-family: system-ui, sans-serif; background: transparent; color:#b8e6ff; }}
@@ -252,7 +281,7 @@ def _build_model_viewer_html(
   .mv-holo {{
     position: relative;
     width: 100%;
-    height: 240px;
+    height: {mv_h}px;
     overflow: hidden;
     background: radial-gradient(ellipse 80% 70% at 50% 38%, rgba(34,211,238,0.14), rgba(2,10,22,0.98));
   }}
@@ -301,7 +330,7 @@ def _build_model_viewer_html(
       <span>HOLOGRAMA · GLB</span>
       <span>{plabel}</span>
     </div>
-    <div class="hint">Malha 3D com camada holográfica (scanline + brilho). Gire com o rato ou um dedo.</div>
+    {hint_block}
     <div class="mv-holo">
     <model-viewer
       src={src}
@@ -592,20 +621,32 @@ def render_engine_hologram(
 
     # Varias instancias de model-viewer (WebGL) na mesma pagina esgotam contextos GPU → modelo some.
     force_list_glb = _flag_truthy("HOLOGRAM_LIST_SHOW_GLB")
-    use_model_viewer = bool(glb_url) and (not list_mode or force_list_glb)
+    no_list_glb = _flag_truthy("HOLOGRAM_LIST_NO_GLB")
+    json_list_glb = motor_has_json_hologram_glb_url(m)
+    remote_list_glb = _glb_url_ok_for_list_remote_viewer(glb_url or "")
+    use_model_viewer = bool(glb_url) and (
+        not list_mode
+        or (
+            not no_list_glb
+            and (force_list_glb or json_list_glb or remote_list_glb)
+        )
+    )
 
     # Three.js tambem usa WebGL: N iframes na consulta esgotam contextos (ecra branco / vazio).
     force_list_three = _flag_truthy("HOLOGRAM_LIST_THREEJS")
     list_glb_hint = ""
-    if list_mode and glb_url and not force_list_glb:
+    if list_mode and glb_url and not use_model_viewer:
         list_glb_hint = (
-            " Malha GLB completa: Abrir Detalhes. (Na listagem usamos silhueta CSS sem WebGL; "
-            "HOLOGRAM_LIST_THREEJS=1 força Three.js aqui; HOLOGRAM_LIST_SHOW_GLB=1 força GLB.)"
+            " Malha GLB: Abrir Detalhes; HOLOGRAM_LIST_SHOW_GLB=1 força GLB na lista (incl. starter); "
+            "HOLOGRAM_LIST_THREEJS=1 força Three.js."
         )
 
     if use_model_viewer:
-        doc = _build_model_viewer_html(preset, glb_url, rpm, tensao, corrente, plabel)
-        h = 360
+        compact = bool(list_mode)
+        doc = _build_model_viewer_html(
+            preset, glb_url, rpm, tensao, corrente, plabel, compact=compact
+        )
+        h = 288 if compact else 360
     else:
         carcaca_ctx = hologram_carcaca_context(m)
         legacy_css = _flag_truthy("HOLOGRAM_LEGACY_CSS")
@@ -630,13 +671,23 @@ def render_engine_hologram(
             h = 340
 
     try:
-        if hasattr(st, "iframe"):
-            st.iframe(src=doc, height=h, width="stretch")
-        else:
-            import streamlit.components.v1 as components
+        import streamlit.components.v1 as components
 
-            components.html(doc, height=h, scrolling=False)
+        # components.html costuma ser mais fiável que st.iframe para WebGL + model-viewer no Cloud.
+        components.html(doc, height=h, scrolling=False)
     except Exception:
+        try:
+            if hasattr(st, "iframe"):
+                st.iframe(src=doc, height=h, width="stretch")
+            else:
+                raise RuntimeError("no iframe") from None
+        except Exception:
+            st.caption(
+                f"Holograma: {hologram_choice_label(preset)} ({preset}). RPM {rpm} | V {tensao} | A {corrente}"
+            )
+
+    if _flag_truthy("HOLOGRAM_HOLO_DEBUG"):
+        udbg = (glb_url or "")[:120]
         st.caption(
-            f"Holograma: {hologram_choice_label(preset)} ({preset}). RPM {rpm} | V {tensao} | A {corrente}"
+            f"[HOLO_DEBUG] list_mode={list_mode} use_mv={use_model_viewer} glb={udbg!r} preset={preset}"
         )

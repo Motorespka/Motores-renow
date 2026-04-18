@@ -19,6 +19,8 @@ from services.oficina_parser import (
     to_motores_schema_payload,
 )
 from services.oficina_runtime import diagnostico_motor_oficina_readonly, resumir_diagnostico_oficina
+from services.motor_inteligencia.batch_review import build_batch_review_report
+from services.motor_inteligencia.serialization import prepare_fastapi_batch_payload
 from services.supabase_data import clear_motores_cache, fetch_motor_by_id_cached, fetch_motores_cached
 
 
@@ -256,6 +258,11 @@ def _render_real_diagnosis(ctx) -> None:
     c2.metric("Modelo", _to_text(dados_placa.get("modelo")) or "-")
     c3.metric("Status pos-servico", _to_text(resultado_pos.get("status")) or "Em acompanhamento")
 
+    with st.expander("Camada técnica Moto-Renow (read-only)", expanded=False):
+        from components.motor_inteligencia_panel import render_motor_inteligencia_panel
+
+        render_motor_inteligencia_panel(motor, key_prefix=f"diag_intel_{selected_id}")
+
     st.markdown("#### Diagnostico atual")
     if avisos:
         for aviso in avisos:
@@ -325,6 +332,49 @@ def _render_real_diagnosis(ctx) -> None:
             use_container_width=True,
             key=f"diag_download_{selected_id}",
         )
+
+    if admin_user:
+        st.divider()
+        st.markdown("### Revisao em lote — motor_inteligencia (read-only)")
+        st.caption("Nao grava no Supabase. Usa a lista de motores ja carregada nesta pagina.")
+        cap = max(10, min(len(motores), 2000))
+        lim = int(
+            st.number_input(
+                "Max motores na amostra",
+                min_value=10,
+                max_value=cap,
+                value=min(200, cap),
+                step=10,
+                key="intel_batch_limit",
+            )
+        )
+        if st.button("Gerar relatorio read-only", use_container_width=True, key="intel_batch_btn"):
+            st.session_state["intel_batch_last"] = build_batch_review_report(motores, limit=lim)
+        rep_batch = st.session_state.get("intel_batch_last")
+        if isinstance(rep_batch, dict) and rep_batch.get("meta"):
+            ps = rep_batch.get("por_status") or {}
+            c1, c2, c3, c4, c5 = st.columns(5)
+            c1.metric("Analisados", rep_batch["meta"].get("total_analisado", 0))
+            c2.metric("OK", ps.get("ok", 0))
+            c3.metric("Alerta", ps.get("alerta", 0))
+            c4.metric("Critico", ps.get("critico", 0))
+            c5.metric("Insuficiente", ps.get("insuficiente", 0))
+            st.markdown("**Top issues**")
+            st.write(rep_batch.get("top_issues") or [])
+            st.markdown("**Top warnings**")
+            st.write(rep_batch.get("top_warnings") or [])
+            with st.expander("Exemplos por status", expanded=False):
+                st.json(rep_batch.get("exemplos_por_status") or {}, expanded=False)
+            with st.expander("Quase desbloqueados (poucos campos em falta)", expanded=False):
+                st.json(rep_batch.get("quase_desbloqueados") or [], expanded=False)
+            st.download_button(
+                "Baixar relatorio motor_inteligencia (JSON)",
+                data=json.dumps(prepare_fastapi_batch_payload(rep_batch), ensure_ascii=False, indent=2),
+                file_name="motor_inteligencia_batch_review.json",
+                mime="application/json",
+                use_container_width=True,
+                key="intel_batch_download",
+            )
 
     flags = get_feature_flags()
     dev_mode = is_dev_mode()
