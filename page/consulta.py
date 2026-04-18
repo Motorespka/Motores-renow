@@ -458,8 +458,6 @@ def _trunc_plain(text: str, max_len: int = 120) -> str:
     if len(txt) <= max_len:
         return txt
     return txt[: max_len - 1].rstrip() + "\u2026"
-
-
 def _parse_float_token(token: str) -> float | None:
     txt = str(token or "").strip().replace(",", ".")
     if not txt:
