@@ -9,6 +9,7 @@ from core.calculadora import mensagem_bobinagem_auxiliar_incompleta
 from core.navigation import Route
 from services.supabase_data import fetch_motor_by_id_cached
 from components.motor_hologram import render_engine_hologram
+from utils.motor_hologram_glb import NEMA_56_CARCACA_LEGENDA_COMPLETA
 from utils.motor_normalizer import normalize_motor_row_for_ui
 from utils.motor_view import dados_tecnicos_from_row, friendly, is_empty, normalize_motor_record
 
@@ -171,9 +172,9 @@ def render(ctx) -> None:
     holo_left, holo_right = st.columns([1.25, 1.0], gap="medium")
     with holo_left:
         st.caption(
-            "Holograma GLB: WebGL. JSON: motor.holograma_glb_url. Mecanica, carcaca: NEMA 56, 56C, 56H, 56J, 56Y → "
-            "modelo 56: HOLOGRAM_GLB_NEMA56. Modo só-familia-56, sem generico: HOLOGRAM_CARCACA_NEMA56_STRICT=1. Monofasico: "
-            "HOLOGRAM_GLB_NEMA_MONO. Alem disso, HOLOGRAM_GLB_DEFAULT, WEG/CONTAINS, ou disco."
+            f"Holograma GLB: WebGL. JSON: motor.holograma_glb_url. Mecânica, família NEMA 56: {NEMA_56_CARCACA_LEGENDA_COMPLETA} → "
+            "GLB: HOLOGRAM_GLB_NEMA56 (Cloud) / embed; STRICT: HOLOGRAM_CARCACA_NEMA56_STRICT=1. Monofasico: "
+            "HOLOGRAM_GLB_NEMA_MONO. Senão: HOLOGRAM_GLB_DEFAULT, WEG/CONTAINS, ou disco."
         )
     with holo_right:
         render_engine_hologram(holo_m, key=f"motor_detail_holo_{motor_id}")

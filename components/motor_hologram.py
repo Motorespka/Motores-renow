@@ -20,6 +20,7 @@ import streamlit as st
 
 from utils.motor_hologram import hologram_choice_label, resolve_hologram_preset
 from utils.motor_hologram_glb import (
+    NEMA_56_CARCACA_LEGENDA_COMPLETA,
     consulta_lista_somente_familia_56_activa,
     hologram_carcaca_context,
     hologram_nema56_glb_secret_configurado,
@@ -555,8 +556,8 @@ def _build_css_fallback_html_legacy(
       <span>HOLOGRAMA · SILHUETA</span>
       <span>{plabel}</span>
     </div>
-    <div class="hint">Silhueta (sem WebGL) na consulta. NEMA 56: so dados de ficha
-      (Mecânica, quadro, frame) — nao usamos OCR. GLB: secrets, JSON ou Detalhes para o viewer 3D completo.</div>
+    <div class="hint">Silhueta (sem WebGL) na consulta. NEMA 56: so ficha
+      (Mecânica, quadro) — {html.escape(NEMA_56_CARCACA_LEGENDA_COMPLETA)}. GLB: JSON/Detalhes/viewer 3D.</div>
     <div class="stage" data-host="{hid_attr}">
       <div class="grid"></div>
       <div class="shadow"></div>
@@ -623,8 +624,8 @@ def render_engine_hologram(
     if mecanica_nema56_modo_restrito() and not glb_url and not motor_has_json_hologram_glb_url(m):
         if nema_56_somente_ficha_mecanica(m):
             st.caption(
-                "Holograma 3D: NEMA 56 (ficha) sem URL. Defina o secret `HOLOGRAM_GLB_NEMA56` (URL .glb) no Cloud, "
-                "ou `holograma_glb_url` no JSON do motor."
+                "Holograma 3D: NEMA 56 (ficha) sem URL. Use `holograma_glb_url` no JSON, o secret `HOLOGRAM_GLB_NEMA56`, "
+                "ou o GLB predefinido no repositorio (ou `HOLOGRAM_BAKED_NEMA56_GLB=0` se o desligou a proposito)."
             )
         else:
             st.caption(
@@ -640,7 +641,10 @@ def render_engine_hologram(
             or motor_has_json_hologram_glb_url(m)
             or motor_has_hologram_motor_id_secret(m)
         ):
-            st.caption("3D: NEMA 56, 56C, 56H… (Mecânica) ou GLB no JSON / `HOLOGRAM_GLB_MOTOR_<id>`.")
+            st.caption(
+                f"3D: {NEMA_56_CARCACA_LEGENDA_COMPLETA} (Mecânica / quadro) — "
+                "ou GLB no JSON / `HOLOGRAM_GLB_MOTOR_<id>`."
+            )
             return
 
     fins_n = _fins_html(_preset_fins_count(preset))
