@@ -7,6 +7,7 @@ import streamlit as st
 from core.access_control import is_admin_user, require_paid_access
 from core.navigation import Route
 from services.supabase_data import fetch_motor_by_id_cached
+from components.motor_hologram import render_engine_hologram
 from utils.motor_normalizer import normalize_motor_row_for_ui
 from utils.motor_view import dados_tecnicos_from_row, friendly, is_empty, normalize_motor_record
 
@@ -144,6 +145,24 @@ def render(ctx) -> None:
         f'<div class="metric-tile"><span>Corrente</span><strong>{friendly(m.get("corrente_nominal_a"))}</strong></div>',
         unsafe_allow_html=True,
     )
+
+    holo_m = dict(m)
+    holo_m["dados_tecnicos_json"] = dados
+    holo_m["rpm"] = holo_m.get("rpm_nominal") or holo_m.get("rpm")
+    holo_m["tensao"] = holo_m.get("tensao_v") or holo_m.get("tensao")
+    holo_m["corrente"] = holo_m.get("corrente_nominal_a") or holo_m.get("corrente")
+    holo_m["fases"] = holo_m.get("fases")
+    holo_m["tipo_motor"] = holo_m.get("tipo_motor")
+    if holo_m.get("cadastro_seq") in (None, "") and seq_sess is not None:
+        holo_m["cadastro_seq"] = seq_sess
+    holo_left, holo_right = st.columns([1.25, 1.0], gap="medium")
+    with holo_left:
+        st.caption(
+            "Holograma 3D: amostra Khronos (serra reciprocante) só para validar NEMA 48 + registo #725. "
+            "Para o teu motor real: Editar → URL GLB, ou secret `HOLOGRAM_GLB_NEMA48`."
+        )
+    with holo_right:
+        render_engine_hologram(holo_m, key=f"motor_detail_holo_{motor_id}")
 
     bob_principal = _section(dados, "bobinagem_principal")
     bob_auxiliar = _section(dados, "bobinagem_auxiliar")
