@@ -1,5 +1,12 @@
 # CHANGELOG AI
 
+## 2026-04-18 | Cycle 0045
+- **Change Description:** Biblioteca de cálculos: editor de **testes de bancada** por grupos expansíveis (nome do grupo + linhas tipo Teste 1/2/3 com valores), gravado em `payload.testes_bancada`; leitura do mesmo formato no registo selecionado.
+- **Reason:** Substituir texto solto por estrutura repetível (ex.: “Teste corrente”) alinhada ao fluxo de bancada.
+- **Risk Level:** Baixo.
+- **Rollback Availability:** Alto (reverter `page/biblioteca_calculos.py` + este registro).
+- **Next Predicted Risk:** Editar registo existente na UI (hoje é criação + visualização).
+
 ## 2026-04-18 | Cycle 0044
 - **Change Description:** Biblioteca de cálculos de rebobinagem (`rebobinagem_calculos`) e ordens de serviço (`oficina_ordens_servico`): migração Postgres, tabelas SQLite em `services/database.py`, serviço `services/oficina_workshop.py`, páginas Streamlit **Biblioteca de cálculos** e **Ordens de serviço** (PRO), rotas e navegação. OS com etapas padronizadas e linha do tempo em `payload.eventos`; cálculo opcional vinculado à OS.
 - **Reason:** Fluxo descrito pelo utilizador: pesquisar/criar cálculo e depois acompanhar a OS por etapas até entrega.

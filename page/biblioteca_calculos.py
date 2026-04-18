@@ -36,6 +36,121 @@ def _parse_int_list(raw: str) -> List[Any]:
     return out
 
 
+def _bench_test_state_key(scope: str) -> str:
+    return f"bib_bench_tests_{scope}"
+
+
+def _get_bench_tests(scope: str) -> List[Dict[str, Any]]:
+    key = _bench_test_state_key(scope)
+    value = st.session_state.get(key)
+    if not isinstance(value, list):
+        st.session_state[key] = []
+        return st.session_state[key]  # type: ignore[return-value]
+    return value
+
+
+def _render_bench_tests_editor(scope: str) -> None:
+    st.markdown("**Testes de bancada (opcional)**")
+    st.caption(
+        "Crie grupos como 'Teste corrente', 'Isolamento (megger)', 'Resistencia por fase' "
+        "e adicione quantas linhas quiser (Teste 1/2/3...)."
+    )
+
+    tests = _get_bench_tests(scope)
+
+    c1, c2, c3 = st.columns([1.2, 1.2, 1])
+    with c1:
+        group_name = st.text_input("Nome do grupo", value="", key=f"{scope}_bench_group_name")
+    with c2:
+        line_label = st.text_input("Nome do teste (ex.: Teste 1)", value="", key=f"{scope}_bench_line_label")
+    with c3:
+        line_value = st.text_input("Valor (ex.: 4A)", value="", key=f"{scope}_bench_line_value")
+
+    a1, a2, a3 = st.columns([1, 1, 1])
+    with a1:
+        if st.button("Adicionar grupo", use_container_width=True, key=f"{scope}_bench_add_group"):
+            name = _to_text(group_name) or "Grupo"
+            tests.append({"nome": name, "linhas": []})
+            st.session_state[_bench_test_state_key(scope)] = tests
+            st.rerun()
+    with a2:
+        if st.button("Adicionar linha no grupo", use_container_width=True, key=f"{scope}_bench_add_line"):
+            name = _to_text(group_name)
+            if not name:
+                st.warning("Informe o nome do grupo para adicionar a linha.")
+            else:
+                found = None
+                for g in tests:
+                    if _to_text(g.get("nome")).lower() == name.lower():
+                        found = g
+                        break
+                if found is None:
+                    found = {"nome": name, "linhas": []}
+                    tests.append(found)
+                linhas = found.get("linhas")
+                if not isinstance(linhas, list):
+                    linhas = []
+                linhas.append({"teste": _to_text(line_label) or f"Teste {len(linhas)+1}", "valor": _to_text(line_value)})
+                found["linhas"] = linhas
+                st.session_state[_bench_test_state_key(scope)] = tests
+                st.rerun()
+    with a3:
+        st.checkbox("Confirmo limpar testes", key=f"{scope}_bench_confirm_clear")
+        if st.button("Limpar testes", use_container_width=True, key=f"{scope}_bench_clear"):
+            if st.session_state.get(f"{scope}_bench_confirm_clear"):
+                st.session_state[_bench_test_state_key(scope)] = []
+                st.rerun()
+            else:
+                st.warning("Marque a confirmação antes de limpar.")
+
+    if not tests:
+        st.info("Nenhum grupo de teste ainda.")
+        return
+
+    st.markdown("##### Grupos salvos (na edição atual)")
+    for idx, g in enumerate(tests):
+        nome = _to_text(g.get("nome")) or f"Grupo {idx+1}"
+        linhas = g.get("linhas") if isinstance(g.get("linhas"), list) else []
+        with st.expander(f"{nome} ({len(linhas)} linha(s))", expanded=False):
+            if not linhas:
+                st.caption("Sem linhas.")
+            else:
+                for j, ln in enumerate(linhas):
+                    st.write(f"- **{_to_text(ln.get('teste')) or f'Teste {j+1}'}**: {_to_text(ln.get('valor')) or '—'}")
+            r1, r2 = st.columns(2)
+            with r1:
+                if st.button("Remover última linha", use_container_width=True, key=f"{scope}_bench_pop_{idx}"):
+                    if isinstance(linhas, list) and linhas:
+                        linhas.pop()
+                        g["linhas"] = linhas
+                        st.session_state[_bench_test_state_key(scope)] = tests
+                        st.rerun()
+            with r2:
+                if st.button("Remover grupo", use_container_width=True, key=f"{scope}_bench_del_{idx}"):
+                    tests.pop(idx)
+                    st.session_state[_bench_test_state_key(scope)] = tests
+                    st.rerun()
+
+
+def _render_bench_tests_view(payload: Dict[str, Any]) -> None:
+    tests = payload.get("testes_bancada")
+    if not isinstance(tests, list) or not tests:
+        return
+    st.markdown("#### Testes de bancada")
+    for g in tests:
+        if not isinstance(g, dict):
+            continue
+        nome = _to_text(g.get("nome")) or "Teste"
+        linhas = g.get("linhas") if isinstance(g.get("linhas"), list) else []
+        with st.expander(nome, expanded=False):
+            if not linhas:
+                st.caption("Sem linhas registradas.")
+                continue
+            for idx, ln in enumerate(linhas):
+                if isinstance(ln, dict):
+                    st.write(f"- **{_to_text(ln.get('teste')) or f'Teste {idx+1}'}**: {_to_text(ln.get('valor')) or '—'}")
+
+
 def render(ctx) -> None:
     if not require_paid_access("Biblioteca de calculos", client=ctx.supabase):
         return
@@ -87,6 +202,7 @@ def render(ctx) -> None:
                 st.markdown(rec.get("notas"))
 
             payload = rec.get("payload") if isinstance(rec.get("payload"), dict) else {}
+            _render_bench_tests_view(payload)
             merged: Dict[str, Any] = {
                 "motor": payload.get("motor") or {},
                 "bobinagem_principal": payload.get("bobinagem_principal") or {},
@@ -108,6 +224,9 @@ def render(ctx) -> None:
     st.markdown("#### Novo calculo (ou revisao)")
     if parent_id:
         st.info(f"Modo revisao: novo registro apontara para `{parent_id}`.")
+
+    st.divider()
+    _render_bench_tests_editor("novo")
 
     with st.form("bib_novo_calc"):
         titulo = st.text_input("Titulo (ex.: WEG 10CV 4 polos 220/380)", key="bib_titulo")
@@ -167,6 +286,9 @@ def render(ctx) -> None:
             "distribuicao_bobinas": _to_text(dist),
         }
         payload = build_calc_payload_from_parts(motor=motor, bobinagem_principal=bp, esquema=esq)
+        tests_state = _get_bench_tests("novo")
+        if tests_state:
+            payload["testes_bancada"] = tests_state
         try:
             out = insert_calculo(
                 ctx.supabase,
@@ -186,6 +308,7 @@ def render(ctx) -> None:
             )
             st.success(f"Salvo com id `{out.get('id')}`.")
             st.session_state.pop("bib_calc_revision_parent", None)
+            st.session_state.pop(_bench_test_state_key("novo"), None)
             st.rerun()
         except Exception as exc:
             st.error(str(exc))
