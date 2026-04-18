@@ -302,9 +302,12 @@ def render_engine_hologram(m: Dict[str, Any], key: str = "") -> None:
         h = 310
 
     try:
-        import streamlit.components.v1 as components
+        if hasattr(st, "iframe"):
+            st.iframe(src=doc, height=h, width="stretch")
+        else:
+            import streamlit.components.v1 as components
 
-        components.html(doc, height=h, scrolling=False)
+            components.html(doc, height=h, scrolling=False)
     except Exception:
         st.caption(
             f"Holograma: {hologram_choice_label(preset)} ({preset}). RPM {rpm} | V {tensao} | A {corrente}"

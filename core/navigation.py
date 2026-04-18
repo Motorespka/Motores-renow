@@ -99,24 +99,26 @@ class Route(str, Enum):
     HUB_COMERCIAL = "hub_comercial"
 
 
+class Router:
+    """Router definido antes de AppContext para evitar forward-ref no @dataclass (Cloud/import)."""
+
+    def __init__(self) -> None:
+        self._handlers: Dict[Route, Callable[..., None]] = {}
+
+    def register(self, route: Route, handler: Callable[..., None]) -> None:
+        self._handlers[route] = handler
+
+    def dispatch(self, ctx: "AppContext", route: Route) -> None:
+        if route not in self._handlers:
+            raise RuntimeError(f"Rota nao registrada: {route.value}")
+        self._handlers[route](ctx)
+
+
 @dataclass
 class AppContext:
     supabase: object
     session: object
-    router: "Router"
-
-
-class Router:
-    def __init__(self) -> None:
-        self._handlers: Dict[Route, Callable[[AppContext], None]] = {}
-
-    def register(self, route: Route, handler: Callable[[AppContext], None]) -> None:
-        self._handlers[route] = handler
-
-    def dispatch(self, ctx: AppContext, route: Route) -> None:
-        if route not in self._handlers:
-            raise RuntimeError(f"Rota nao registrada: {route.value}")
-        self._handlers[route](ctx)
+    router: Router
 
 
 def _perform_logout(session, supabase_client=None) -> None:
