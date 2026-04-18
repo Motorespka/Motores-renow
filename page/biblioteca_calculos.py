@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import streamlit as st
 
@@ -13,6 +13,7 @@ from services.oficina_workshop import (
     insert_calculo,
     list_calculos,
     parse_tags_csv,
+    update_calculo,
     workshop_tables_available,
 )
 
@@ -34,6 +35,14 @@ def _parse_int_list(raw: str) -> List[Any]:
         except ValueError:
             out.append(p)
     return out
+
+
+def _list_to_csv(nums: Any) -> str:
+    if nums is None:
+        return ""
+    if isinstance(nums, list):
+        return ", ".join(str(x) for x in nums)
+    return _to_text(nums)
 
 
 def _bench_test_state_key(scope: str) -> str:
@@ -90,7 +99,9 @@ def _render_bench_tests_editor(scope: str) -> None:
                 linhas = found.get("linhas")
                 if not isinstance(linhas, list):
                     linhas = []
-                linhas.append({"teste": _to_text(line_label) or f"Teste {len(linhas)+1}", "valor": _to_text(line_value)})
+                linhas.append(
+                    {"teste": _to_text(line_label) or f"Teste {len(linhas)+1}", "valor": _to_text(line_value)}
+                )
                 found["linhas"] = linhas
                 st.session_state[_bench_test_state_key(scope)] = tests
                 st.rerun()
@@ -151,6 +162,106 @@ def _render_bench_tests_view(payload: Dict[str, Any]) -> None:
                     st.write(f"- **{_to_text(ln.get('teste')) or f'Teste {idx+1}'}**: {_to_text(ln.get('valor')) or '—'}")
 
 
+def _render_mecanica_view(payload: Dict[str, Any]) -> None:
+    m = payload.get("mecanica")
+    if not isinstance(m, dict) or not any(_to_text(v) for v in m.values()):
+        return
+    st.markdown("#### Mecânica / montagem (referência)")
+    with st.expander("Dados mecânicos salvos no cálculo", expanded=False):
+        for k, v in m.items():
+            st.write(f"- **{k}**: {_to_text(v) or '—'}")
+
+
+def _hydrate_edit_session(rec: Dict[str, Any]) -> None:
+    """Preenche `session_state` para o formulário de edição."""
+    pl = rec.get("payload") if isinstance(rec.get("payload"), dict) else {}
+    motor = pl.get("motor") if isinstance(pl.get("motor"), dict) else {}
+    bp = pl.get("bobinagem_principal") if isinstance(pl.get("bobinagem_principal"), dict) else {}
+    esq = pl.get("esquema") if isinstance(pl.get("esquema"), dict) else {}
+    mec = pl.get("mecanica") if isinstance(pl.get("mecanica"), dict) else {}
+
+    st.session_state["bib_e_titulo"] = _to_text(rec.get("titulo"))
+    tags = rec.get("tags") or []
+    st.session_state["bib_e_tags"] = ", ".join(str(t) for t in tags) if isinstance(tags, list) else _to_text(tags)
+    st.session_state["bib_e_fases"] = _to_text(rec.get("fases")) or ""
+    st.session_state["bib_e_cv"] = float(rec.get("potencia_cv") or 0.0)
+    st.session_state["bib_e_rpm"] = int(rec.get("rpm") or 0)
+    st.session_state["bib_e_polos"] = int(rec.get("polos") or 0)
+    st.session_state["bib_e_tensao"] = float(rec.get("tensao_v") or 0.0)
+    st.session_state["bib_e_ran"] = int(rec.get("ranhuras") or 0)
+
+    st.session_state["bib_e_marca"] = _to_text(motor.get("marca"))
+    st.session_state["bib_e_modelo"] = _to_text(motor.get("modelo"))
+    st.session_state["bib_e_pot_txt"] = _to_text(motor.get("potencia"))
+    st.session_state["bib_e_tensao_txt"] = _to_text(motor.get("tensao"))
+
+    st.session_state["bib_e_passos"] = _list_to_csv(bp.get("passos"))
+    st.session_state["bib_e_esp"] = _list_to_csv(bp.get("espiras"))
+    fios = bp.get("fios")
+    if isinstance(fios, list):
+        st.session_state["bib_e_fios"] = ", ".join(str(x) for x in fios)
+    else:
+        st.session_state["bib_e_fios"] = _to_text(fios)
+    st.session_state["bib_e_lig"] = _to_text(bp.get("ligacao"))
+    st.session_state["bib_e_obs_bob"] = _to_text(bp.get("observacoes"))
+
+    st.session_state["bib_e_ran_esq"] = _to_text(esq.get("ranhuras"))
+    st.session_state["bib_e_dist"] = _to_text(esq.get("distribuicao_bobinas"))
+
+    st.session_state["bib_e_notas"] = _to_text(rec.get("notas"))
+    st.session_state["bib_e_rev_lbl"] = _to_text(rec.get("revision_label"))
+
+    st.session_state["bib_e_mec_rl_drive"] = _to_text(mec.get("rolamento_drive"))
+    st.session_state["bib_e_mec_rl_op"] = _to_text(mec.get("rolamento_oposto"))
+    st.session_state["bib_e_mec_carcaca"] = _to_text(mec.get("carcaca_montagem"))
+    st.session_state["bib_e_mec_acoplamento"] = _to_text(mec.get("acoplamento"))
+    st.session_state["bib_e_mec_chaveta"] = _to_text(mec.get("chaveta_eixo"))
+    st.session_state["bib_e_mec_obs"] = _to_text(mec.get("observacoes_mecanica"))
+
+    st.session_state[_bench_test_state_key("edit")] = list(pl.get("testes_bancada") or [])
+
+
+def _merge_payload_save(
+    old_pl: Dict[str, Any],
+    *,
+    motor: Dict[str, Any],
+    bp: Dict[str, Any],
+    esq: Dict[str, Any],
+    mec: Dict[str, Any],
+    tests: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    aux = old_pl.get("bobinagem_auxiliar") if isinstance(old_pl.get("bobinagem_auxiliar"), dict) else {}
+    merged = {**dict(old_pl or {})}
+    np = build_calc_payload_from_parts(motor=motor, bobinagem_principal=bp, bobinagem_auxiliar=aux, esquema=esq)
+    merged.update(np)
+    if tests:
+        merged["testes_bancada"] = tests
+    else:
+        merged.pop("testes_bancada", None)
+    if mec and any(_to_text(v) for v in mec.values()):
+        merged["mecanica"] = mec
+    else:
+        merged.pop("mecanica", None)
+    return merged
+
+
+def _collect_mecanica_from_state(prefix: str) -> Dict[str, str]:
+    keys = {
+        "rolamento_drive": f"{prefix}mec_rl_drive",
+        "rolamento_oposto": f"{prefix}mec_rl_op",
+        "carcaca_montagem": f"{prefix}mec_carcaca",
+        "acoplamento": f"{prefix}mec_acoplamento",
+        "chaveta_eixo": f"{prefix}mec_chaveta",
+        "observacoes_mecanica": f"{prefix}mec_obs",
+    }
+    out: Dict[str, str] = {}
+    for k, sk in keys.items():
+        v = _to_text(st.session_state.get(sk))
+        if v:
+            out[k] = v
+    return out
+
+
 def render(ctx) -> None:
     if not require_paid_access("Biblioteca de calculos", client=ctx.supabase):
         return
@@ -158,7 +269,7 @@ def render(ctx) -> None:
     st.markdown("### Biblioteca de calculos (rebobinagem)")
     st.caption(
         "Guarde receitas reutilizaveis (passo, espiras, fio, ligacao). "
-        "Procure antes de rebobinar; se nao existir, crie e depois duplique como **revisao** quando ajustar o calculo."
+        "Pesquise, edite registos existentes ou crie revisoes. Dados mecanicos sao referencia de montagem."
     )
 
     if not workshop_tables_available(ctx.supabase):
@@ -174,6 +285,12 @@ def render(ctx) -> None:
     parent_id = st.session_state.get("bib_calc_revision_parent")
     if parent_id and st.button("Cancelar modo revisao", key="bib_cancel_rev"):
         st.session_state.pop("bib_calc_revision_parent", None)
+        st.rerun()
+
+    edit_id: Optional[str] = st.session_state.get("bib_edit_id")
+    if edit_id and st.button("Cancelar edicao", key="bib_cancel_edit"):
+        st.session_state.pop("bib_edit_id", None)
+        st.session_state.pop(_bench_test_state_key("edit"), None)
         st.rerun()
 
     q = st.text_input("Buscar (titulo, tags, notas, conteudo)", value="", key="bib_q")
@@ -203,6 +320,7 @@ def render(ctx) -> None:
 
             payload = rec.get("payload") if isinstance(rec.get("payload"), dict) else {}
             _render_bench_tests_view(payload)
+            _render_mecanica_view(payload)
             merged: Dict[str, Any] = {
                 "motor": payload.get("motor") or {},
                 "bobinagem_principal": payload.get("bobinagem_principal") or {},
@@ -216,9 +334,119 @@ def render(ctx) -> None:
             dl = json.dumps(rec, ensure_ascii=False, indent=2, default=str)
             st.download_button("Baixar JSON", data=dl, file_name=f"calculo_{selected_id}.json", mime="application/json", key="bib_dl")
 
-            if st.button("Preparar nova revisao a partir deste", key="bib_rev_btn"):
-                st.session_state["bib_calc_revision_parent"] = str(rec.get("id"))
+            b1, b2, b3 = st.columns(3)
+            with b1:
+                if st.button("Preparar nova revisao a partir deste", key="bib_rev_btn"):
+                    st.session_state["bib_calc_revision_parent"] = str(rec.get("id"))
+                    st.rerun()
+            with b2:
+                if st.button("Carregar para edicao", key="bib_load_edit"):
+                    st.session_state["bib_edit_id"] = str(rec.get("id"))
+                    _hydrate_edit_session(rec)
+                    st.rerun()
+            with b3:
+                pass
+
+    if edit_id:
+        st.markdown("---")
+        st.markdown("#### Editar registro")
+        st.caption(f"Alterando id `{edit_id}`. Salvar grava no mesmo registro.")
+        _render_bench_tests_editor("edit")
+
+        with st.form("bib_edit_calc"):
+            titulo_e = st.text_input("Titulo", key="bib_e_titulo")
+            tags_e = st.text_input("Tags (virgula)", key="bib_e_tags")
+            fases_e = st.selectbox("Fases", ["", "Trifasico", "Monofasico"], key="bib_e_fases")
+            n1, n2, n3, n4 = st.columns(4)
+            with n1:
+                pot_cv_e = st.number_input("Potencia (CV)", min_value=0.0, step=0.5, key="bib_e_cv")
+            with n2:
+                rpm_e = st.number_input("RPM", min_value=0, step=10, key="bib_e_rpm")
+            with n3:
+                polos_e = st.number_input("Polos", min_value=0, step=2, key="bib_e_polos")
+            with n4:
+                tensao_e = st.number_input("Tensao nominal (V)", min_value=0.0, step=10.0, key="bib_e_tensao")
+            ranh_e = st.number_input("Ranhuras", min_value=0, step=1, key="bib_e_ran")
+            st.markdown("**Motor**")
+            em1, em2 = st.columns(2)
+            with em1:
+                marca_e = st.text_input("Marca", key="bib_e_marca")
+                modelo_e = st.text_input("Modelo", key="bib_e_modelo")
+            with em2:
+                pot_txt_e = st.text_input("Potencia texto (opcional)", key="bib_e_pot_txt")
+                tensao_txt_e = st.text_input("Tensao texto", key="bib_e_tensao_txt")
+            st.markdown("**Bobinagem principal**")
+            passos_e = st.text_area("Passos (virgula)", key="bib_e_passos")
+            esp_e = st.text_area("Espiras (virgula)", key="bib_e_esp")
+            fios_e = st.text_area("Fios", key="bib_e_fios")
+            lig_e = st.text_input("Ligacao", key="bib_e_lig")
+            obs_b_e = st.text_area("Obs. bobinagem", key="bib_e_obs_bob")
+            st.markdown("**Esquema**")
+            ranh_esq_e = st.text_input("Ranhuras (esquema)", key="bib_e_ran_esq")
+            dist_e = st.text_input("Distribuicao bobinas", key="bib_e_dist")
+            st.markdown("**Mecanica / montagem (opcional)**")
+            mx1, mx2 = st.columns(2)
+            with mx1:
+                st.text_input("Rolamento lado acoplamento", key="bib_e_mec_rl_drive")
+                st.text_input("Rolamento lado oposto", key="bib_e_mec_rl_op")
+            with mx2:
+                st.text_input("Carcaça / flange (B3, B5...)", key="bib_e_mec_carcaca")
+                st.text_input("Acoplamento / carga", key="bib_e_mec_acoplamento")
+            st.text_input("Chaveta / ponteira eixo", key="bib_e_mec_chaveta")
+            st.text_area("Observacoes mecanicas", key="bib_e_mec_obs")
+            notas_e = st.text_area("Notas da biblioteca", key="bib_e_notas")
+            rev_lbl_e = st.text_input("Rotulo revisao (metadata)", key="bib_e_rev_lbl")
+            save_e = st.form_submit_button("Salvar alteracoes", use_container_width=True)
+
+        if save_e and edit_id:
+            old = get_calculo(ctx.supabase, edit_id)
+            old_pl = old.get("payload") if isinstance(old.get("payload"), dict) else {}
+            motor: Dict[str, Any] = {
+                "marca": _to_text(marca_e),
+                "modelo": _to_text(modelo_e),
+                "potencia": _to_text(pot_txt_e) or (str(pot_cv_e) if pot_cv_e else ""),
+                "rpm": str(int(rpm_e)) if rpm_e else "",
+                "polos": str(int(polos_e)) if polos_e else "",
+                "tensao": _to_text(tensao_txt_e) or (str(tensao_e) if tensao_e else ""),
+                "fases": _to_text(fases_e),
+            }
+            bp: Dict[str, Any] = {
+                "passos": _parse_int_list(passos_e),
+                "espiras": _parse_int_list(esp_e),
+                "fios": [x.strip() for x in _to_text(fios_e).split(",") if x.strip()],
+                "ligacao": _to_text(lig_e),
+                "observacoes": _to_text(obs_b_e),
+            }
+            esq: Dict[str, Any] = {
+                "ranhuras": _to_text(ranh_esq_e) or (str(int(ranh_e)) if ranh_e else ""),
+                "distribuicao_bobinas": _to_text(dist_e),
+            }
+            mec_e = _collect_mecanica_from_state("bib_e_")
+            tests_e = _get_bench_tests("edit")
+            merged_pl = _merge_payload_save(old_pl, motor=motor, bp=bp, esq=esq, mec=mec_e, tests=tests_e)
+            try:
+                update_calculo(
+                    ctx.supabase,
+                    edit_id,
+                    titulo=titulo_e or "Sem titulo",
+                    notas=notas_e,
+                    tags=parse_tags_csv(tags_e),
+                    fases=fases_e,
+                    potencia_cv=float(pot_cv_e) if pot_cv_e else None,
+                    rpm=int(rpm_e) if rpm_e else None,
+                    polos=int(polos_e) if polos_e else None,
+                    tensao_v=float(tensao_e) if tensao_e else None,
+                    ranhuras=int(ranh_e) if ranh_e else None,
+                    payload=merged_pl,
+                    revision_label=rev_lbl_e,
+                )
+                st.success("Registro atualizado.")
                 st.rerun()
+            except Exception as exc:
+                st.error(str(exc))
+
+    if edit_id:
+        st.stop()
 
     st.markdown("---")
     st.markdown("#### Novo calculo (ou revisao)")
@@ -260,12 +488,22 @@ def render(ctx) -> None:
         st.markdown("**Esquema**")
         ranh_esq = st.text_input("Ranhuras (esquema, texto)", key="bib_ran_esq")
         dist = st.text_input("Distribuicao bobinas", key="bib_dist")
+        st.markdown("**Mecanica / montagem (opcional)**")
+        mcol1, mcol2 = st.columns(2)
+        with mcol1:
+            st.text_input("Rolamento lado acoplamento", key="bib_mec_rl_drive")
+            st.text_input("Rolamento lado oposto", key="bib_mec_rl_op")
+        with mcol2:
+            st.text_input("Carcaça / flange (B3, B5...)", key="bib_mec_carcaca")
+            st.text_input("Acoplamento / carga", key="bib_mec_acoplamento")
+        st.text_input("Chaveta / ponteira eixo", key="bib_mec_chaveta")
+        st.text_area("Observacoes mecanicas", key="bib_mec_obs")
         notas = st.text_area("Notas da biblioteca", value="", key="bib_notas")
         rev_label = st.text_input("Rotulo da revisao (se revisao)", value="", key="bib_rev_lbl")
         save = st.form_submit_button("Salvar na biblioteca", use_container_width=True)
 
     if save:
-        motor: Dict[str, Any] = {
+        motor = {
             "marca": _to_text(marca),
             "modelo": _to_text(modelo),
             "potencia": _to_text(pot_txt) or (str(pot_cv) if pot_cv else ""),
@@ -274,21 +512,20 @@ def render(ctx) -> None:
             "tensao": _to_text(tensao_txt) or (str(tensao) if tensao else ""),
             "fases": _to_text(fases),
         }
-        bp: Dict[str, Any] = {
+        bp = {
             "passos": _parse_int_list(passos_raw),
             "espiras": _parse_int_list(espiras_raw),
             "fios": [x.strip() for x in _to_text(fios_raw).split(",") if x.strip()],
             "ligacao": _to_text(ligacao),
             "observacoes": _to_text(obs_bob),
         }
-        esq: Dict[str, Any] = {
+        esq = {
             "ranhuras": _to_text(ranh_esq) or (str(int(ranhuras)) if ranhuras else ""),
             "distribuicao_bobinas": _to_text(dist),
         }
-        payload = build_calc_payload_from_parts(motor=motor, bobinagem_principal=bp, esquema=esq)
+        mec_n = _collect_mecanica_from_state("bib_")
         tests_state = _get_bench_tests("novo")
-        if tests_state:
-            payload["testes_bancada"] = tests_state
+        payload = _merge_payload_save({}, motor=motor, bp=bp, esq=esq, mec=mec_n, tests=tests_state)
         try:
             out = insert_calculo(
                 ctx.supabase,

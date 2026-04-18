@@ -14,6 +14,7 @@ from services.oficina_workshop import (
     link_os_to_calculo,
     list_calculos,
     list_ordens_servico,
+    merge_ordem_servico_payload,
     workshop_tables_available,
 )
 
@@ -116,6 +117,55 @@ def render(ctx) -> None:
         st.caption(f"Calculo vinculado: {cdoc.get('titulo') if cdoc else calc_id_cur}")
     else:
         st.caption("Nenhum calculo da biblioteca vinculado.")
+
+    pl_os = os_row.get("payload") if isinstance(os_row.get("payload"), dict) else {}
+    ficha = pl_os.get("ficha_mecanica") if isinstance(pl_os.get("ficha_mecanica"), dict) else {}
+    with st.expander("Ficha mecanica (rolamentos, alinhamento, antes/depois)", expanded=False):
+        st.caption(
+            "Registo objectivo para manutencao: rolamentos, folgas, alinhamento, vibracao/temperatura em bancada. "
+            "Fica em ``payload.ficha_mecanica``."
+        )
+        if ficha and any(_to_text(v) for v in ficha.values()):
+            for k, v in ficha.items():
+                st.write(f"- **{k}**: {_to_text(v) or '—'}")
+        else:
+            st.caption("Sem dados ainda.")
+
+        fk = f"os_{os_id}_"
+        with st.form(f"os_ficha_mec_{os_id}"):
+            rl_d = st.text_input(
+                "Rolamento lado acoplamento (recebimento)",
+                value=ficha.get("rolamento_drive", "") or "",
+                key=fk + "rl_d",
+            )
+            rl_o = st.text_input("Rolamento lado oposto", value=ficha.get("rolamento_oposto", "") or "", key=fk + "rl_o")
+            alin = st.text_input("Alinhamento / acoplamento", value=ficha.get("alinhamento", "") or "", key=fk + "alin")
+            torque = st.text_input("Torque / parafusos carcaca (referencia)", value=ficha.get("torque_carcaca", "") or "", key=fk + "torque")
+            vib = st.text_input("Vibracao / observacao mecanica", value=ficha.get("vibracao", "") or "", key=fk + "vib")
+            temp = st.text_input("Temperatura em teste (°C max)", value=ficha.get("temperatura_teste", "") or "", key=fk + "temp")
+            antes = st.text_area("Antes (chegada): folgas, ruido, foto ref.", value=ficha.get("obs_antes", "") or "", key=fk + "antes")
+            depois = st.text_area("Depois (entrega): medicao final, observacoes", value=ficha.get("obs_depois", "") or "", key=fk + "depois")
+            sub_f = st.form_submit_button("Salvar ficha mecanica", use_container_width=True)
+
+            if sub_f:
+                patch = {
+                    "rolamento_drive": _to_text(rl_d),
+                    "rolamento_oposto": _to_text(rl_o),
+                    "alinhamento": _to_text(alin),
+                    "torque_carcaca": _to_text(torque),
+                    "vibracao": _to_text(vib),
+                    "temperatura_teste": _to_text(temp),
+                    "obs_antes": _to_text(antes),
+                    "obs_depois": _to_text(depois),
+                }
+                patch = {k: v for k, v in patch.items() if v}
+                try:
+                    merge_ordem_servico_payload(ctx.supabase, os_id, {"ficha_mecanica": patch})
+                    st.success("Ficha mecanica guardada.")
+                    st.session_state["os_selected_id"] = os_id
+                    st.rerun()
+                except Exception as exc:
+                    st.error(str(exc))
 
     with st.form("os_link_calc"):
         cp = st.selectbox("Alterar vinculo do calculo", calc_labels, key="os_relink")

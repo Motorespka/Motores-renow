@@ -61,13 +61,20 @@ def build_calc_payload_from_parts(
     bobinagem_principal: Dict[str, Any],
     bobinagem_auxiliar: Optional[Dict[str, Any]] = None,
     esquema: Optional[Dict[str, Any]] = None,
+    mecanica: Optional[Dict[str, Any]] = None,
+    testes_bancada: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
-    return {
+    out: Dict[str, Any] = {
         "motor": motor if isinstance(motor, dict) else {},
         "bobinagem_principal": bobinagem_principal if isinstance(bobinagem_principal, dict) else {},
         "bobinagem_auxiliar": bobinagem_auxiliar if isinstance(bobinagem_auxiliar, dict) else {},
         "esquema": esquema if isinstance(esquema, dict) else {},
     }
+    if isinstance(mecanica, dict) and mecanica:
+        out["mecanica"] = mecanica
+    if isinstance(testes_bancada, list) and testes_bancada:
+        out["testes_bancada"] = testes_bancada
+    return out
 
 
 def parse_tags_csv(raw: str) -> List[str]:
@@ -162,6 +169,42 @@ def insert_calculo(
     if data:
         return _row_to_dict(data[0])
     raise RuntimeError("Insert calculo retornou vazio.")
+
+
+def update_calculo(
+    client: Any,
+    calc_id: str,
+    *,
+    titulo: str,
+    notas: str = "",
+    tags: Optional[List[str]] = None,
+    fases: str = "",
+    potencia_cv: Optional[float] = None,
+    rpm: Optional[int] = None,
+    polos: Optional[int] = None,
+    tensao_v: Optional[float] = None,
+    ranhuras: Optional[int] = None,
+    payload: Dict[str, Any],
+    revision_label: str = "",
+) -> None:
+    cid = _to_text(calc_id)
+    if not cid:
+        raise ValueError("calc_id vazio.")
+    tags = tags or []
+    row: Dict[str, Any] = {
+        "titulo": titulo.strip() or "Sem titulo",
+        "notas": notas.strip(),
+        "tags": tags,
+        "fases": fases.strip(),
+        "potencia_cv": potencia_cv,
+        "rpm": rpm,
+        "polos": polos,
+        "tensao_v": tensao_v,
+        "ranhuras": ranhuras,
+        "payload": payload or {},
+        "revision_label": _to_text(revision_label),
+    }
+    client.table(TABLE_CALC).update(row).eq("id", cid).execute()
 
 
 def list_ordens_servico(client: Any, *, limit: int = 60) -> List[Dict[str, Any]]:
@@ -266,6 +309,27 @@ def append_os_event(
 def link_os_to_calculo(client: Any, os_id: str, calc_id: Optional[str]) -> None:
     cid = _to_text(calc_id) if calc_id else None
     client.table(TABLE_OS).update({"calc_id": cid}).eq("id", _to_text(os_id)).execute()
+
+
+def merge_ordem_servico_payload(client: Any, os_id: str, patch: Dict[str, Any]) -> None:
+    """Mescla ``patch`` no payload JSON da OS (merge superficial de dicts aninhados para ficha_mecanica)."""
+    row = get_ordem_servico(client, os_id)
+    if not row:
+        raise RuntimeError("OS nao encontrada.")
+    payload = row.get("payload") if isinstance(row.get("payload"), dict) else {}
+    payload = dict(payload)
+    for key, val in (patch or {}).items():
+        if key == "ficha_mecanica" and isinstance(val, dict):
+            prev = payload.get("ficha_mecanica")
+            if isinstance(prev, dict):
+                merged = dict(prev)
+                merged.update(val)
+                payload["ficha_mecanica"] = merged
+            else:
+                payload["ficha_mecanica"] = dict(val)
+        else:
+            payload[key] = val
+    client.table(TABLE_OS).update({"payload": payload}).eq("id", str(row["id"])).execute()
 
 
 def workshop_tables_available(client: Any) -> bool:

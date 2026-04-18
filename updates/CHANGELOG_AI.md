@@ -1,5 +1,12 @@
 # CHANGELOG AI
 
+## 2026-04-18 | Cycle 0046
+- **Change Description:** Biblioteca: **edição in-place** (`update_calculo`), carregar registo para formulário, secção **mecânica/montagem** no payload; OS: **ficha mecânica** em `payload.ficha_mecanica` (rolamentos, alinhamento, antes/depois, vibração/temperatura) com `merge_ordem_servico_payload`.
+- **Reason:** Fechar o fluxo “procurar → ajustar e gravar” e registar dados mecânicos objectivos na OS, como discutido para manutenção/rebobinagem.
+- **Risk Level:** Baixo.
+- **Rollback Availability:** Alto (reverter `page/biblioteca_calculos.py`, `page/ordens_servico.py`, `services/oficina_workshop.py` + este registro).
+- **Next Predicted Risk:** PDF de entrega; fotos anexas; ligar OS ao detalhe do motor com um clique.
+
 ## 2026-04-18 | Cycle 0045
 - **Change Description:** Biblioteca de cálculos: editor de **testes de bancada** por grupos expansíveis (nome do grupo + linhas tipo Teste 1/2/3 com valores), gravado em `payload.testes_bancada`; leitura do mesmo formato no registo selecionado.
 - **Reason:** Substituir texto solto por estrutura repetível (ex.: “Teste corrente”) alinhada ao fluxo de bancada.
