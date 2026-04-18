@@ -71,12 +71,41 @@ def _build_model_viewer_html(
     padding:8px 10px; font-size:10px; letter-spacing:0.14em; color:#67e8f9;
     border-bottom:1px solid rgba(34,211,238,0.2);
   }}
-  .hint {{ font-size:9px; color:#7dd3fc; opacity:0.85; padding:6px 10px 4px; }}
-  model-viewer {{
+  .hint {{ font-size:9px; color:#7dd3fc; opacity:0.88; padding:6px 10px 4px; line-height:1.35; }}
+  .mv-holo {{
+    position: relative;
     width: 100%;
     height: 240px;
-    background: radial-gradient(circle at 50% 40%, rgba(34,211,238,0.12), rgba(2,8,16,0.95));
+    overflow: hidden;
+    background: radial-gradient(ellipse 80% 70% at 50% 38%, rgba(34,211,238,0.14), rgba(2,10,22,0.98));
+  }}
+  .mv-holo model-viewer {{
+    width: 100%;
+    height: 100%;
     --poster-color: transparent;
+    filter: contrast(1.12) saturate(0.92) brightness(1.06)
+      drop-shadow(0 0 18px rgba(34,211,238,0.42));
+  }}
+  .mv-holo::before {{
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    border-radius: 0;
+    box-shadow: inset 0 0 32px rgba(6,182,212,0.18), inset 0 0 2px rgba(103,232,249,0.35);
+  }}
+  .mv-holo::after {{
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 3;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 3px, rgba(34,211,238,0.05) 3px 4px),
+      linear-gradient(115deg, rgba(125,252,255,0.07) 0%, transparent 45%, rgba(34,211,238,0.05) 100%);
+    mix-blend-mode: soft-light;
+    opacity: 0.95;
   }}
   .kpis {{
     display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; padding:8px 10px 10px;
@@ -90,19 +119,22 @@ def _build_model_viewer_html(
 <body>
   <div class="wrap holo-glb--{html.escape(preset)}">
     <div class="head">
-      <span>ENGINE 3D (GLB)</span>
+      <span>HOLOGRAMA · GLB</span>
       <span>{plabel}</span>
     </div>
-    <div class="hint">Gire com o rato ou um dedo (camera integrada)</div>
+    <div class="hint">Malha 3D com camada holográfica (scanline + brilho). Gire com o rato ou um dedo.</div>
+    <div class="mv-holo">
     <model-viewer
       src={src}
       alt="Motor 3D"
       camera-controls
       touch-action="pan-y"
-      shadow-intensity="0.85"
-      exposure="1"
+      shadow-intensity="0.35"
+      exposure="0.72"
+      tone-mapping="commerce"
       interaction-prompt="none"
     ></model-viewer>
+    </div>
     <div class="kpis">
       <div class="kpi">RPM <b>{rpm}</b></div>
       <div class="kpi">V <b>{tensao}</b></div>
@@ -225,7 +257,7 @@ def _build_css_fallback_html(
       <span>ENGINE HOLOGRAM</span>
       <span>{plabel}</span>
     </div>
-    <div class="hint">Arraste na area para girar o modelo (sem GLB configurado)</div>
+    <div class="hint">Silhueta holográfica (sem .glb): arraste para girar. Com URL do teu .glb no cadastro, esta zona mostra a malha 3D com filtro holográfico.</div>
     <div class="stage" data-host="{hid_attr}">
       <div class="grid"></div>
       <div class="shadow"></div>

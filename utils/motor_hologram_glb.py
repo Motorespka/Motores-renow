@@ -1,7 +1,10 @@
 """
 URLs de modelos GLB para o holograma 3D (<model-viewer>).
 Prioridade: motor.holograma_glb_url no JSON > HOLOGRAM_GLB_MOTOR_<id> > env por preset >
-HOLOGRAM_GLB_DEFAULT > NEMA48 (env ou amostra de teste) > demo (opcional).
+HOLOGRAM_GLB_DEFAULT > HOLOGRAM_GLB_NEMA48 (se carcaca NEMA 48) > demo (opcional).
+
+Sem URL valida: UI cai na silhueta CSS (aspecto holograma). Nao carregamos GLB “aleatorio”
+que pareca outra peca — so .glb teu ou secrets.
 """
 
 from __future__ import annotations
@@ -10,14 +13,8 @@ import os
 import re
 from typing import Any, Dict, Optional
 
-# Modelo de demonstração (Google); serve para validar viewer + rede sem teus ficheiros.
+# Modelo de demonstração (Google); só com HOLOGRAM_DEMO=1 — nunca confundir com carcaça real.
 DEMO_GLB_URL = "https://modelviewer.dev/shared-assets/models/Astronaut.glb"
-
-# Amostra mecânica (Khronos via jsDelivr, CORS) — placeholder até um .glb NEMA 48 real no Storage.
-NEMA48_SAMPLE_GLB_URL = (
-    "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/"
-    "2.0/ReciprocatingSaw/glTF-Binary/ReciprocatingSaw.glb"
-)
 
 
 def _read_secret_or_env(*names: str) -> str:
@@ -59,13 +56,6 @@ def _motor_id_str(m: Dict[str, Any]) -> str:
     return ""
 
 
-def _cadastro_seq_str(m: Dict[str, Any]) -> str:
-    v = m.get("cadastro_seq")
-    if v is None:
-        return ""
-    return str(v).strip()
-
-
 def _carcaca_blob(m: Dict[str, Any]) -> str:
     parts = [
         str(m.get("carcaca") or ""),
@@ -84,22 +74,6 @@ def _is_nema_48_frame(m: Dict[str, Any]) -> bool:
     if re.search(r"NEMA\s*[-_]?\s*48\b", s):
         return True
     return "NEMA" in s and "48" in s
-
-
-def _nema48_auto_sample_allowed(m: Dict[str, Any]) -> bool:
-    """Teste pedido: registo #725 (id ou cadastro_seq) + carcaça NEMA 48; ou todos os NEMA48."""
-    if not _is_nema_48_frame(m):
-        return False
-    if _read_secret_or_env("HOLOGRAM_NEMA48_AUTO_ALL", "MOTORES_HOLOGRAM_NEMA48_AUTO_ALL").lower() in (
-        "1",
-        "true",
-        "yes",
-        "on",
-    ):
-        return True
-    if _motor_id_str(m) == "725" or _cadastro_seq_str(m) == "725":
-        return True
-    return False
 
 
 def _path_looks_glb(u: str) -> bool:
@@ -137,11 +111,10 @@ def resolve_model_glb_url(m: Dict[str, Any], preset: str) -> Optional[str]:
         if u and u.lower().startswith(("http://", "https://")) and _path_looks_glb(u):
             return u
 
-    if _nema48_auto_sample_allowed(m):
+    if _is_nema_48_frame(m):
         u = _read_secret_or_env("HOLOGRAM_GLB_NEMA48", "MOTORES_HOLOGRAM_GLB_NEMA48")
         if u and u.lower().startswith(("http://", "https://")) and _path_looks_glb(u):
             return u
-        return NEMA48_SAMPLE_GLB_URL
 
     demo = _read_secret_or_env("HOLOGRAM_DEMO", "MOTORES_HOLOGRAM_DEMO").lower() in (
         "1",
