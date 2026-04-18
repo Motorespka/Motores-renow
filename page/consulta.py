@@ -747,7 +747,7 @@ def render(ctx) -> None:
                     st.caption(f"Feito por: {_to_text(m.get('feito_por'))}")
 
             with right:
-                render_engine_hologram(m, key=motor_key)
+                render_engine_hologram(m, key=motor_key, list_mode=True)
 
             if admin_user:
                 b1, b2, b3 = st.columns(3)

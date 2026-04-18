@@ -257,6 +257,8 @@ def _build_model_viewer_html(
     background: radial-gradient(ellipse 80% 70% at 50% 38%, rgba(34,211,238,0.14), rgba(2,10,22,0.98));
   }}
   .mv-holo model-viewer {{
+    position: relative;
+    z-index: 2;
     width: 100%;
     height: 100%;
     --poster-color: transparent;
@@ -268,7 +270,7 @@ def _build_model_viewer_html(
     position: absolute;
     inset: 0;
     pointer-events: none;
-    z-index: 2;
+    z-index: 1;
     border-radius: 0;
     box-shadow: inset 0 0 32px rgba(6,182,212,0.18), inset 0 0 2px rgba(103,232,249,0.35);
   }}
@@ -308,7 +310,6 @@ def _build_model_viewer_html(
       touch-action="pan-y"
       shadow-intensity="0.35"
       exposure="0.72"
-      tone-mapping="commerce"
       interaction-prompt="none"
     ></model-viewer>
     </div>
@@ -331,6 +332,7 @@ def _build_threejs_procedural_html(
     hid_attr: str,
     hid_plain: str,
     carcaca_raw: str,
+    hint_suffix: str = "",
 ) -> str:
     ctx = {"preset": preset, "carcaca": carcaca_raw}
     ctx_json = json.dumps(ctx, ensure_ascii=False).replace("</", "<\\/")
@@ -388,6 +390,7 @@ def _build_threejs_procedural_html(
     <div class="hint">
       Malha procedural aproximada no browser (Three.js): nao e modelo CAD nem desenho de fabrica.
       Com URL de .glb real no cadastro, substitui por malha tecnica. Orbita: arraste; zoom: roda.
+      {html.escape(hint_suffix) if hint_suffix else ""}
     </div>
     <div class="three-stage" data-host="{hid_attr}">
       <div id="three-holo-root"></div>
@@ -571,7 +574,12 @@ def _build_css_fallback_html_legacy(
 """
 
 
-def render_engine_hologram(m: Dict[str, Any], key: str = "") -> None:
+def render_engine_hologram(
+    m: Dict[str, Any],
+    key: str = "",
+    *,
+    list_mode: bool = False,
+) -> None:
     preset = resolve_hologram_preset(m)
     glb_url = resolve_model_glb_url(m, preset)
     fins_n = _fins_html(_preset_fins_count(preset))
@@ -582,7 +590,18 @@ def render_engine_hologram(m: Dict[str, Any], key: str = "") -> None:
     hid_plain = _host_id(key)
     hid_attr = html.escape(hid_plain)
 
-    if glb_url:
+    # Varias instancias de model-viewer (WebGL) na mesma pagina esgotam contextos GPU → modelo some.
+    force_list_glb = _flag_truthy("HOLOGRAM_LIST_SHOW_GLB")
+    use_model_viewer = bool(glb_url) and (not list_mode or force_list_glb)
+
+    list_glb_hint = ""
+    if list_mode and glb_url and not force_list_glb:
+        list_glb_hint = (
+            " Na listagem usamos só malha leve (Three.js). Abra Detalhes para ver o .glb completo "
+            "(evita limite WebGL do browser). Para forçar GLB aqui: secret HOLOGRAM_LIST_SHOW_GLB=1."
+        )
+
+    if use_model_viewer:
         doc = _build_model_viewer_html(preset, glb_url, rpm, tensao, corrente, plabel)
         h = 360
     else:
@@ -595,7 +614,15 @@ def render_engine_hologram(m: Dict[str, Any], key: str = "") -> None:
             h = 310
         else:
             doc = _build_threejs_procedural_html(
-                preset, rpm, tensao, corrente, plabel, hid_attr, hid_plain, carcaca_ctx
+                preset,
+                rpm,
+                tensao,
+                corrente,
+                plabel,
+                hid_attr,
+                hid_plain,
+                carcaca_ctx,
+                hint_suffix=list_glb_hint,
             )
             h = 340
 

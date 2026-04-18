@@ -158,8 +158,8 @@ def render(ctx) -> None:
     holo_left, holo_right = st.columns([1.25, 1.0], gap="medium")
     with holo_left:
         st.caption(
-            "Holograma: starter pack em `static/glb/` é embutido (data URL) para o viewer funcionar no Cloud; "
-            "`HOLOGRAM_STARTER_PACK_HTTP=1` usa /app/static/ em vez disso. Desligar pack: `HOLOGRAM_USE_STARTER_PACK=0`."
+            "Holograma GLB (starter pack em data URL): aqui há só um viewer WebGL — deve manter-se estável. "
+            "Na consulta a listagem usa Three.js leve; GLB completo neste ecrã."
         )
     with holo_right:
         render_engine_hologram(holo_m, key=f"motor_detail_holo_{motor_id}")
