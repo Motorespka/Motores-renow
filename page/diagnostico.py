@@ -21,7 +21,12 @@ from services.oficina_parser import (
 from services.oficina_runtime import diagnostico_motor_oficina_readonly, resumir_diagnostico_oficina
 from services.motor_inteligencia.batch_review import build_batch_review_report
 from services.motor_inteligencia.serialization import prepare_fastapi_batch_payload
-from services.supabase_data import clear_motores_cache, fetch_motor_by_id_cached, fetch_motores_cached
+from services.supabase_data import (
+    clear_motores_cache,
+    fetch_motor_by_id_cached,
+    fetch_motores_recent_cached,
+    fetch_motores_search_cached,
+)
 
 
 def _estimate_current(cv: float, tensao: float, rendimento: float, fp: float, fases: str) -> float:
@@ -212,23 +217,32 @@ def _render_real_diagnosis(ctx) -> None:
                 clear_motores_cache()
                 st.rerun()
         with c2:
-            st.caption("Dica: use o filtro abaixo para achar o motor mais rápido.")
-    try:
-        motores = fetch_motores_cached(ctx.supabase)
-    except Exception as exc:
-        st.warning(f"Nao foi possivel carregar motores para diagnostico: {exc}")
-        return
-
-    if not motores:
-        st.info("Nenhum motor cadastrado ainda para diagnostico real.")
-        return
+            st.caption("Busca server-side (nao carrega tudo).")
 
     busca = st.text_input(
         "Buscar motor (ID, marca, modelo)",
         value="",
         key="diag_busca_motor",
-        help="Filtra a lista local carregada para facilitar a selecao.",
+        help="Busca no Supabase e retorna ate 200 resultados (mais rapido para bases grandes).",
     ).strip().lower()
+
+    lim = int(st.number_input("Limite de resultados", min_value=20, max_value=500, value=200, step=20, key="diag_busca_limit"))
+
+    try:
+        if busca:
+            motores = fetch_motores_search_cached(ctx.supabase, busca, limit=lim)
+        else:
+            motores = fetch_motores_recent_cached(ctx.supabase, limit=min(200, lim))
+    except Exception as exc:
+        st.warning(f"Nao foi possivel carregar motores para diagnostico: {exc}")
+        return
+
+    if not motores:
+        if busca:
+            st.info("Nenhum motor encontrado com o filtro atual.")
+        else:
+            st.info("Nenhum motor encontrado (lista recente vazia).")
+        return
 
     options: List[tuple[str, Any]] = []
     for row in motores:
@@ -238,14 +252,10 @@ def _render_real_diagnosis(ctx) -> None:
         marca = _to_text(row.get("marca") or row.get("Marca")) or "-"
         modelo = _to_text(row.get("modelo") or row.get("Modelo")) or "-"
         label = f"{marca} | {modelo} | #{motor_id}"
-        if busca:
-            hay = f"{marca} {modelo} {motor_id}".lower()
-            if busca not in hay:
-                continue
         options.append((label, motor_id))
 
     if not options:
-        st.info("Nenhum motor encontrado com o filtro atual.")
+        st.info("Nenhum motor valido encontrado nos resultados.")
         return
 
     current_id = ctx.session.selected_motor_id

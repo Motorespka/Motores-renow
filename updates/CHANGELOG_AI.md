@@ -7,6 +7,13 @@
 - **Rollback Availability:** Alto (reverter `page/diagnostico.py` + este registro).
 - **Next Predicted Risk:** Se o volume de motores crescer muito, o carregamento “lista inteira” pode ficar pesado; próximo passo seria busca/paginação server-side.
 
+## 2026-04-18 | Cycle 0040
+- **Change Description:** Diagnóstico com busca/paginação server-side: novos helpers `fetch_motores_recent_cached` e `fetch_motores_search_cached` em `services/supabase_data.py` e `page/diagnostico.py` passou a usar lista recente (até 200) ou busca no Supabase (até 500) em vez de baixar milhares de linhas.
+- **Reason:** Escalar seleção de motor no diagnóstico sem travar a UI em bases grandes e reduzir roundtrips/payload.
+- **Risk Level:** Baixo-Médio (query com `or_(...ilike...)` pode variar por view; há fallback de colunas e cadeia de fontes).
+- **Rollback Availability:** Alto (voltar para `fetch_motores_cached` + remover helpers).
+- **Next Predicted Risk:** Views com colunas divergentes podem rejeitar `or_` com `marca/modelo`; se ocorrer, fixar `SUPABASE_CONSULTA_TABLE` para uma fonte padrão ou restringir a busca para `motores`.
+
 ## 2026-04-18 | Cycle 0037
 - **Change Description:** Nova camada read-only ``services/motor_rebobinagem`` (normalização passo/espiras/fio/ranhuras/mm, assinatura técnica, validação de coerência, ``analyze_rewinding_coherence``, similaridade futura ``prepare_similarity_query``, serialização FastAPI). UI: linha compacta na consulta + expander em detalhe/cadastro/edição. Testes ``tests/test_motor_rebobinagem.py``.
 - **Reason:** Inteligência de rebobinagem de oficina modular, sem persistência nem alteração de fluxos core; aproveita ``motor_inteligencia`` só como contexto elétrico.

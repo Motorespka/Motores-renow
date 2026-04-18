@@ -1,7 +1,8 @@
 """
 Consultas ao Supabase com cache para reduzir roundtrips e manter API única.
-Fonte de listagem (env): SUPABASE_CONSULTA_TABLE (default vw_motores_para_site),
-fallback SUPABASE_PRIMARY_TABLE (default motores), depois vw_consulta_motores.
+Fonte de listagem (env): SUPABASE_CONSULTA_TABLE; se vazio, tenta primeiro views com
+validação da ficha (vw_motores_consulta_enriquecida → vw_motores_para_site_validacao),
+depois vw_motores_para_site, motores, vw_consulta_motores.
 """
 
 from __future__ import annotations
@@ -59,15 +60,21 @@ def _resolve_fetch_limit() -> int:
 
 
 def _id_column_for_table(table: str) -> str:
-    return "Id" if table.strip().lower() == "vw_motores_para_site" else "id"
+    t = table.strip().lower()
+    if t in {
+        "vw_motores_para_site",
+        "vw_motores_para_site_validacao",
+        "vw_motores_consulta_enriquecida",
+    }:
+        return "Id"
+    return "id"
 
 
 def _resolve_consulta_table_chain() -> List[str]:
     """
-    Ordem de tentativa: SUPABASE_CONSULTA_TABLE (default vw_motores_para_site),
-    depois SUPABASE_PRIMARY_TABLE (default motores), depois demais fontes.
-    MOTORES_SOURCE_TABLE / SUPABASE_MOTORES_SOURCE_TABLE mantém compat quando
-    SUPABASE_CONSULTA_TABLE não está definido.
+    Ordem de tentativa: SUPABASE_CONSULTA_TABLE (se definido) primeiro;
+    senão views com colunas ConsultaProntoUsuario / regras oficina;
+    depois SUPABASE_PRIMARY_TABLE, demais fontes.
     """
     consulta = _read_secret_or_env("SUPABASE_CONSULTA_TABLE", "MOTORES_CONSULTA_TABLE").strip().lower()
     primary = (
@@ -79,7 +86,14 @@ def _resolve_consulta_table_chain() -> List[str]:
         or "motores"
     )
     legacy = _read_secret_or_env("MOTORES_SOURCE_TABLE", "SUPABASE_MOTORES_SOURCE_TABLE").strip().lower()
-    known = {"motores", "vw_consulta_motores", "vw_motores_para_site", "arquivos_motor"}
+    known = {
+        "motores",
+        "vw_consulta_motores",
+        "vw_motores_para_site",
+        "vw_motores_para_site_validacao",
+        "vw_motores_consulta_enriquecida",
+        "arquivos_motor",
+    }
 
     seen: set[str] = set()
     ordered: List[str] = []
@@ -93,10 +107,13 @@ def _resolve_consulta_table_chain() -> List[str]:
 
     if consulta:
         add(consulta)
-    elif legacy and legacy in known:
-        add(legacy)
     else:
+        add("vw_motores_consulta_enriquecida")
+        add("vw_motores_para_site_validacao")
         add("vw_motores_para_site")
+
+    if legacy and legacy in known:
+        add(legacy)
 
     add(primary)
     for t in ("motores", "vw_motores_para_site", "vw_consulta_motores"):
@@ -127,6 +144,17 @@ def _sorted_rows(rows: List[MotorRow]) -> List[MotorRow]:
     return rows
 
 
+def _normalize_search_query(q: str) -> str:
+    return str(q or "").strip()
+
+
+def _query_looks_uuid(q: str) -> bool:
+    s = _normalize_search_query(q)
+    if len(s) < 8:
+        return False
+    return "-" in s and all(ch.isalnum() or ch == "-" for ch in s)
+
+
 @st.cache_data(
     ttl=45,
     show_spinner=False,
@@ -146,6 +174,92 @@ def fetch_motores_cached(supabase: Client) -> List[MotorRow]:
                 return _sorted_rows(data)
         except APIError:
             continue
+        except Exception:
+            continue
+
+    return []
+
+
+@st.cache_data(
+    ttl=45,
+    show_spinner=False,
+    hash_funcs=HASH_FUNCS,
+)
+def fetch_motores_recent_cached(supabase: Client, *, limit: int = 200) -> List[MotorRow]:
+    """
+    Lista pequena (server-side) para telas que só precisam de seleção rápida.
+    Evita baixar milhares de linhas quando não necessário.
+    """
+    lim = max(20, min(int(limit or 200), 500))
+    for table_name in _resolve_source_candidates():
+        try:
+            res = supabase.table(table_name).select("*").limit(lim).execute()
+            data = res.data or []
+            if data:
+                return _sorted_rows(data)
+        except APIError:
+            continue
+        except Exception:
+            continue
+    return []
+
+
+@st.cache_data(
+    ttl=45,
+    show_spinner=False,
+    hash_funcs=HASH_FUNCS,
+)
+def fetch_motores_search_cached(
+    supabase: Client,
+    query: str,
+    *,
+    limit: int = 200,
+) -> List[MotorRow]:
+    """
+    Busca server-side por marca/modelo/id. Tenta a mesma cadeia da consulta.
+    Nota: views/tabelas podem ter colunas (marca/modelo) com nomes diferentes; usamos select(*)
+    e tratamos um fallback para Marca/Modelo.
+    """
+    q = _normalize_search_query(query)
+    if not q:
+        return []
+
+    if _query_looks_uuid(q):
+        hit = fetch_motor_by_id_cached(supabase, q)
+        if hit:
+            return [hit]
+
+    lim = max(10, min(int(limit or 200), 500))
+    q_like = f"%{q}%"
+    for table_name in _resolve_source_candidates():
+        id_col = _id_column_for_table(table_name)
+        try:
+            res = (
+                supabase.table(table_name)
+                .select("*")
+                .or_(f"marca.ilike.{q_like},modelo.ilike.{q_like},{id_col}.ilike.{q_like}")
+                .limit(lim)
+                .execute()
+            )
+            data = res.data or []
+            if data:
+                return _sorted_rows(data)
+        except APIError:
+            pass
+        except Exception:
+            pass
+
+        try:
+            res = (
+                supabase.table(table_name)
+                .select("*")
+                .or_(f"Marca.ilike.{q_like},Modelo.ilike.{q_like},{id_col}.ilike.{q_like}")
+                .limit(lim)
+                .execute()
+            )
+            data = res.data or []
+            if data:
+                return _sorted_rows(data)
         except Exception:
             continue
 
@@ -231,6 +345,8 @@ def fetch_arquivo_by_id_cached(supabase: Client, motor_id: str) -> MotorRow | No
     lookups = [
         ("arquivos_motor", "id"),
         ("motores", "id"),
+        ("vw_motores_consulta_enriquecida", "Id"),
+        ("vw_motores_para_site_validacao", "Id"),
         ("vw_motores_para_site", "Id"),
     ]
 
@@ -256,6 +372,8 @@ def fetch_arquivo_by_id_cached(supabase: Client, motor_id: str) -> MotorRow | No
 
 def clear_motores_cache() -> None:
     fetch_motores_cached.clear()
+    fetch_motores_recent_cached.clear()
+    fetch_motores_search_cached.clear()
     fetch_motor_by_id_cached.clear()
     fetch_variaveis_by_motor_id_cached.clear()
     fetch_arquivo_by_id_cached.clear()
