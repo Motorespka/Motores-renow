@@ -5,6 +5,7 @@ from typing import Any, Dict, List
 import streamlit as st
 
 from core.access_control import require_paid_access
+from services.oficina_pdf import build_os_delivery_pdf_bytes
 from services.oficina_workshop import (
     OS_ETAPAS,
     append_os_event,
@@ -112,11 +113,27 @@ def render(ctx) -> None:
         st.write("**Motor id:**", os_row.get("motor_id") or "—")
 
     calc_id_cur = os_row.get("calc_id")
+    cdoc = None
     if calc_id_cur:
         cdoc = get_calculo(ctx.supabase, str(calc_id_cur))
         st.caption(f"Calculo vinculado: {cdoc.get('titulo') if cdoc else calc_id_cur}")
     else:
         st.caption("Nenhum calculo da biblioteca vinculado.")
+
+    pdf_bytes = None
+    try:
+        pdf_bytes = build_os_delivery_pdf_bytes(os_row=os_row, calc_row=cdoc)
+    except Exception:
+        pdf_bytes = None
+    st.download_button(
+        "Baixar relatorio de entrega (PDF)",
+        data=pdf_bytes or b"",
+        file_name=f"OS_{_to_text(os_row.get('numero') or os_id)}.pdf",
+        mime="application/pdf",
+        use_container_width=True,
+        disabled=pdf_bytes is None,
+        key=f"os_dl_pdf_{os_id}",
+    )
 
     pl_os = os_row.get("payload") if isinstance(os_row.get("payload"), dict) else {}
     ficha = pl_os.get("ficha_mecanica") if isinstance(pl_os.get("ficha_mecanica"), dict) else {}

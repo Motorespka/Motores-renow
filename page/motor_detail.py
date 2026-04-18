@@ -7,7 +7,9 @@ import streamlit as st
 from core.access_control import is_admin_user, require_paid_access
 from core.calculadora import mensagem_bobinagem_auxiliar_incompleta
 from core.navigation import Route
+from services.oficina_workshop import insert_ordem_servico
 from services.supabase_data import fetch_motor_by_id_cached
+from components.consulta_ficha_usuario_banner import render_consulta_ficha_usuario_banner
 from components.motor_hologram import render_engine_hologram
 from utils.motor_hologram_glb import NEMA_56_CARCACA_LEGENDA_COMPLETA
 from utils.motor_normalizer import normalize_motor_row_for_ui
@@ -130,6 +132,31 @@ def render(ctx) -> None:
         unsafe_allow_html=True,
     )
 
+    render_consulta_ficha_usuario_banner(m)
+
+    os_cols = st.columns([1, 1, 2])
+    with os_cols[0]:
+        if st.button("Abrir OS deste motor", use_container_width=True, key=f"md_os_open_{motor_id}"):
+            try:
+                titulo_os = f"{friendly(m.get('marca'))} {friendly(m.get('modelo'))}".strip()
+                row = insert_ordem_servico(
+                    ctx.supabase,
+                    titulo=titulo_os or "Ordem de servico",
+                    motor_id=str(motor_id),
+                    etapa="recebido",
+                    calc_id=None,
+                    created_by=_to_text(st.session_state.get("auth_user_id") or st.session_state.get("auth_user_email")) or None,
+                )
+                st.session_state["os_selected_id"] = str(row.get("id"))
+                ctx.session.set_route(Route.ORDENS_SERVICO)
+                st.rerun()
+            except Exception as exc:
+                st.error(f"Falha ao criar OS: {exc}")
+    with os_cols[1]:
+        if st.button("Ir para Ordens de servico", use_container_width=True, key=f"md_os_go_{motor_id}"):
+            ctx.session.set_route(Route.ORDENS_SERVICO)
+            st.rerun()
+
     k1, k2, k3, k4 = st.columns(4)
     k1.markdown(
         f'<div class="metric-tile"><span>Potência</span><strong>{friendly(m.get("potencia_hp_cv"))}</strong></div>',
@@ -172,9 +199,11 @@ def render(ctx) -> None:
     holo_left, holo_right = st.columns([1.25, 1.0], gap="medium")
     with holo_left:
         st.caption(
-            f"Holograma GLB: WebGL. JSON: motor.holograma_glb_url. Mecânica, família NEMA 56: {NEMA_56_CARCACA_LEGENDA_COMPLETA} → "
-            "GLB: HOLOGRAM_GLB_NEMA56 (Cloud) / embed; STRICT: HOLOGRAM_CARCACA_NEMA56_STRICT=1. Monofasico: "
-            "HOLOGRAM_GLB_NEMA_MONO. Senão: HOLOGRAM_GLB_DEFAULT, WEG/CONTAINS, ou disco."
+            f"Holograma GLB: WebGL. JSON: motor.holograma_glb_url. Famílias na ficha: NEMA 56 "
+            f"({NEMA_56_CARCACA_LEGENDA_COMPLETA}) → HOLOGRAM_GLB_NEMA56 / mono 1 cap "
+            "(HOLOGRAM_GLB_NEMA_MONO_1CAP) / pequeno liso (HOLOGRAM_GLB_NEMA_PEQUENO_CONV_LISO); "
+            "IEC TEFC B3 e IEC63 (HOLOGRAM_GLB_IEC_TEFC_B3_CATALOGO); IEC 100L; bomba / Ex. "
+            "STRICT: HOLOGRAM_CARCACA_NEMA56_STRICT=1. Senão: DEFAULT / WEG / disco."
         )
     with holo_right:
         render_engine_hologram(holo_m, key=f"motor_detail_holo_{motor_id}")
