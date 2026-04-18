@@ -518,7 +518,7 @@ def _build_css_fallback_html_legacy(
       <span>ENGINE HOLOGRAM</span>
       <span>{plabel}</span>
     </div>
-    <div class="hint">Silhueta holográfica (sem .glb): arraste para girar. Com URL do teu .glb no cadastro, esta zona mostra a malha 3D com filtro holográfico.</div>
+    <div class="hint">Silhueta holográfica (sem WebGL): arraste para girar. Malha GLB e viewer 3D: use Detalhes do motor ou cadastro com URL .glb.</div>
     <div class="stage" data-host="{hid_attr}">
       <div class="grid"></div>
       <div class="shadow"></div>
@@ -594,11 +594,13 @@ def render_engine_hologram(
     force_list_glb = _flag_truthy("HOLOGRAM_LIST_SHOW_GLB")
     use_model_viewer = bool(glb_url) and (not list_mode or force_list_glb)
 
+    # Three.js tambem usa WebGL: N iframes na consulta esgotam contextos (ecra branco / vazio).
+    force_list_three = _flag_truthy("HOLOGRAM_LIST_THREEJS")
     list_glb_hint = ""
     if list_mode and glb_url and not force_list_glb:
         list_glb_hint = (
-            " Na listagem usamos só malha leve (Three.js). Abra Detalhes para ver o .glb completo "
-            "(evita limite WebGL do browser). Para forçar GLB aqui: secret HOLOGRAM_LIST_SHOW_GLB=1."
+            " Malha GLB completa: Abrir Detalhes. (Na listagem usamos silhueta CSS sem WebGL; "
+            "HOLOGRAM_LIST_THREEJS=1 força Three.js aqui; HOLOGRAM_LIST_SHOW_GLB=1 força GLB.)"
         )
 
     if use_model_viewer:
@@ -607,7 +609,8 @@ def render_engine_hologram(
     else:
         carcaca_ctx = hologram_carcaca_context(m)
         legacy_css = _flag_truthy("HOLOGRAM_LEGACY_CSS")
-        if legacy_css:
+        use_css_not_three = legacy_css or (list_mode and not force_list_three)
+        if use_css_not_three:
             doc = _build_css_fallback_html_legacy(
                 preset, fins_n, rpm, tensao, corrente, plabel, hid_attr, hid_plain
             )
