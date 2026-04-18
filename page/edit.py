@@ -279,6 +279,12 @@ def render(ctx):
                 key=f"{k}holograma_preset",
                 help="Automatico: estilo a partir do IP e da carcaca.",
             )
+            data["motor"]["holograma_glb_url"] = st.text_input(
+                "URL do modelo GLB (opcional)",
+                value=data["motor"].get("holograma_glb_url", "") or "",
+                key=f"{k}holograma_glb_url",
+                help="HTTPS para .glb; com URL, a consulta mostra modelo 3D interactivo.",
+            )
             data["motor"]["fator_servico"] = st.text_input("Fator de serviÃ§o", value=data["motor"].get("fator_servico", ""), key=f"{k}fator_servico")
         with c3:
             data["motor"]["tipo_motor"] = st.text_input("Tipo do motor", value=data["motor"].get("tipo_motor", ""), key=f"{k}tipo_motor")
@@ -287,6 +293,22 @@ def render(ctx):
             data["motor"]["fases"] = st.selectbox("Fases", options=["", "MonofÃ¡sico", "TrifÃ¡sico"], index=fases_idx, key=f"{k}fases")
             data["motor"]["numero_serie"] = st.text_input("NÃºmero de sÃ©rie", value=data["motor"].get("numero_serie", ""), key=f"{k}numero_serie")
             data["motor"]["data_anotacao"] = st.text_input("Data da anotaÃ§Ã£o", value=data["motor"].get("data_anotacao", ""), key=f"{k}data_anotacao")
+
+        st.caption("Previa do holograma (como na consulta).")
+        try:
+            from components.motor_hologram import render_engine_hologram
+
+            _prev = {
+                "dados_tecnicos_json": data,
+                "rpm": data["motor"].get("rpm"),
+                "tensao": data["motor"].get("tensao"),
+                "corrente": data["motor"].get("corrente"),
+                "fases": data["motor"].get("fases"),
+                "tipo_motor": data["motor"].get("tipo_motor"),
+            }
+            render_engine_hologram(_prev, key=f"{k}holo_preview")
+        except Exception:
+            pass
 
         data["motor"]["tensao"] = _list_editor("TensÃ£o (lista)", data["motor"].get("tensao", []), f"{k}motor_tensao_lista")
         data["motor"]["corrente"] = _list_editor("Corrente (lista)", data["motor"].get("corrente", []), f"{k}motor_corrente_lista")

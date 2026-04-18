@@ -26,6 +26,7 @@ DEFAULT_EXTRACTED: Dict[str, Any] = {
         "numero_serie": "",
         "data_anotacao": "",
         "holograma_preset": "",
+        "holograma_glb_url": "",
     },
     "bobinagem_principal": {
         "passos": [],

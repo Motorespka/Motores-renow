@@ -689,6 +689,11 @@ def render(ctx):
                 format_func=lambda k: holo_labels.get(k, k),
                 help="Automatico: estilo a partir do IP e da carcaca. Ou escolha um preset fixo.",
             )
+            data["motor"]["holograma_glb_url"] = st.text_input(
+                "URL do modelo GLB (opcional)",
+                value=data["motor"].get("holograma_glb_url", "") or "",
+                help="HTTPS para ficheiro .glb (ex.: Supabase Storage). Com URL, a consulta usa <model-viewer> em vez da silhueta CSS.",
+            )
             data["motor"]["fator_servico"] = st.text_input("Fator de servico", value=data["motor"].get("fator_servico", ""))
         with c3:
             data["motor"]["tipo_motor"] = st.text_input("Tipo do motor", value=data["motor"].get("tipo_motor", ""))
@@ -700,7 +705,9 @@ def render(ctx):
             data["motor"]["numero_serie"] = st.text_input("Numero de serie", value=data["motor"].get("numero_serie", ""))
             data["motor"]["data_anotacao"] = st.text_input("Data da anotacao", value=data["motor"].get("data_anotacao", ""))
 
-        st.caption("Previa do holograma (arraste para girar). Na consulta, o mesmo preset aparece no card.")
+        st.caption(
+            "Previa do holograma: com URL GLB valida, use gestos/camera; sem URL, arraste a silhueta CSS. Na consulta, o mesmo aparece no card."
+        )
         try:
             from components.motor_hologram import render_engine_hologram
 
