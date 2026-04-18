@@ -21,6 +21,13 @@
 - **Rollback Availability:** Alto (reverter `page/diagnostico.py` + este registro).
 - **Next Predicted Risk:** Parsing de datas pode variar por fonte; se aparecerem formatos diferentes, ampliar normalização.
 
+## 2026-04-18 | Cycle 0042
+- **Change Description:** Diagnóstico ganhou aba **“Diagnostico manual”**: formulário para inserir dados do motor (potência/RPM/polos/tensão/corrente/frequência/fases/IP/carcaça) e gerar avisos/alertas + snapshot JSON com download, sem depender do Supabase.
+- **Reason:** Alinhar a expectativa do usuário: usar a página para “digitar os dados e diagnosticar”, além do modo baseado em motores já cadastrados.
+- **Risk Level:** Baixo (fluxo read-only, não grava).
+- **Rollback Availability:** Alto (reverter `page/diagnostico.py` + este registro).
+- **Next Predicted Risk:** Usuários podem querer salvar esse manual em um motor existente; próximo passo seria um botão “Aplicar ao motor selecionado” com confirmação.
+
 ## 2026-04-18 | Cycle 0037
 - **Change Description:** Nova camada read-only ``services/motor_rebobinagem`` (normalização passo/espiras/fio/ranhuras/mm, assinatura técnica, validação de coerência, ``analyze_rewinding_coherence``, similaridade futura ``prepare_similarity_query``, serialização FastAPI). UI: linha compacta na consulta + expander em detalhe/cadastro/edição. Testes ``tests/test_motor_rebobinagem.py``.
 - **Reason:** Inteligência de rebobinagem de oficina modular, sem persistência nem alteração de fluxos core; aproveita ``motor_inteligencia`` só como contexto elétrico.

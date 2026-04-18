@@ -475,12 +475,117 @@ def render(ctx):
         unsafe_allow_html=True,
     )
 
-    tabs = st.tabs(["Motor da oficina", "Simulador", "Checklist", "Alertas"])
+    tabs = st.tabs(["Motor da oficina", "Diagnostico manual", "Simulador", "Checklist", "Alertas"])
 
     with tabs[0]:
         _render_real_diagnosis(ctx)
 
     with tabs[1]:
+        st.markdown("### Diagnostico manual (inserir dados)")
+        st.caption(
+            "Preencha os dados basicos do motor para gerar uma validacao/diagnostico. "
+            "Nao grava no Supabase. Para registrar em um motor, use a aba 'Motor da oficina'."
+        )
+
+        with st.form("diag_manual_form"):
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                marca = st.text_input("Marca", value="", key="diag_marca")
+                modelo = st.text_input("Modelo", value="", key="diag_modelo")
+                carcaca = st.text_input("Carcaca (opcional)", value="", key="diag_carcaca")
+            with c2:
+                fases = st.selectbox("Fases", ["Trifasico", "Monofasico", ""], index=0, key="diag_fases")
+                frequencia = st.number_input("Frequencia (Hz)", min_value=0.0, value=60.0, step=1.0, key="diag_freq")
+                polos = st.text_input("Polos (ex.: 2,4,6)", value="", key="diag_polos")
+            with c3:
+                potencia_cv = st.number_input("Potencia (CV)", min_value=0.0, value=0.0, step=0.5, key="diag_cv")
+                rpm = st.number_input("RPM (nominal)", min_value=0.0, value=0.0, step=10.0, key="diag_rpm")
+                ip = st.text_input("IP (opcional)", value="", key="diag_ip")
+
+            e1, e2 = st.columns(2)
+            with e1:
+                tensao = st.number_input("Tensao (V)", min_value=0.0, value=0.0, step=10.0, key="diag_tensao")
+            with e2:
+                corrente = st.number_input("Corrente (A)", min_value=0.0, value=0.0, step=0.1, key="diag_corrente")
+
+            rendimento = st.number_input("Rendimento (0-1)", min_value=0.1, max_value=1.0, value=0.90, step=0.01, key="diag_rend")
+            fp = st.number_input("Fator de potencia (0-1)", min_value=0.1, max_value=1.0, value=0.86, step=0.01, key="diag_fp")
+
+            gerar = st.form_submit_button("Gerar diagnostico", use_container_width=True)
+
+        if gerar:
+            motor_payload = {
+                "motor": {
+                    "marca": _to_text(marca),
+                    "modelo": _to_text(modelo),
+                    "potencia": _to_text(potencia_cv) if potencia_cv else "",
+                    "rpm": _to_text(int(rpm)) if rpm else "",
+                    "polos": _to_text(polos),
+                    "tensao": _to_text(tensao) if tensao else "",
+                    "corrente": _to_text(corrente) if corrente else "",
+                    "frequencia": _to_text(frequencia) if frequencia else "",
+                    "fases": _to_text(fases),
+                    "ip": _to_text(ip),
+                },
+                "mecanica": {"carcaca": _to_text(carcaca)},
+                "oficina": {},
+            }
+            normalized = normalize_extracted_data(motor_payload)
+
+            # Diagnostico read-only (heuristico) + resumo (quando houver).
+            try:
+                resumo = resumir_diagnostico_oficina(normalized)
+            except Exception:
+                resumo = {}
+            try:
+                fallback = diagnostico_motor_oficina_readonly(normalized)
+            except Exception:
+                fallback = {}
+
+            dados_placa = (resumo.get("dados_placa") if isinstance(resumo, dict) else None) or (fallback.get("dados_placa") if isinstance(fallback, dict) else None) or {}
+            avisos = (resumo.get("avisos") if isinstance(resumo, dict) else None) or (fallback.get("avisos") if isinstance(fallback, dict) else None) or []
+            alertas_validacao = (resumo.get("alertas_validacao") if isinstance(resumo, dict) else None) or (fallback.get("alertas_validacao") if isinstance(fallback, dict) else None) or []
+
+            st.markdown("#### Resultado")
+            if avisos:
+                st.markdown("**Diagnostico atual**")
+                for a in avisos:
+                    st.write(f"- {a}")
+            else:
+                st.markdown("**Diagnostico atual**")
+                st.write("- Sem avisos registrados.")
+
+            st.markdown("**Alertas de validacao**")
+            if alertas_validacao:
+                for a in alertas_validacao:
+                    st.write(f"- {a}")
+            else:
+                st.write("- Sem alertas adicionais.")
+
+            # Corrente esperada (simulador embutido no manual).
+            if potencia_cv and tensao:
+                est = _estimate_current(float(potencia_cv), float(tensao), float(rendimento), float(fp), "Monofasico" if fases == "Monofasico" else "Trifasico")
+                st.caption(f"Corrente estimada (aprox.): {est:.2f} A (comparacao rapida)")
+
+            snapshot = _build_diag_snapshot(
+                motor_id="manual",
+                dados_placa=dados_placa if isinstance(dados_placa, dict) else {},
+                avisos=avisos if isinstance(avisos, list) else [],
+                alertas=alertas_validacao if isinstance(alertas_validacao, list) else [],
+                calculos={"manual": True},
+            )
+            with st.expander("Json do diagnostico (manual)", expanded=False):
+                st.json(snapshot, expanded=False)
+                st.download_button(
+                    "Baixar diagnostico (JSON)",
+                    data=json.dumps(snapshot, ensure_ascii=False, indent=2),
+                    file_name="diagnostico_manual.json",
+                    mime="application/json",
+                    use_container_width=True,
+                    key="diag_manual_download",
+                )
+
+    with tabs[2]:
         st.markdown("### Simulador de carga")
         c1, c2, c3, c4 = st.columns(4)
         with c1:
@@ -509,7 +614,7 @@ def render(ctx):
                 unsafe_allow_html=True,
             )
 
-    with tabs[2]:
+    with tabs[3]:
         st.markdown("### Checklist de bancada")
         st.checkbox("Inspecao visual de terminais e isolacao")
         st.checkbox("Medicao de resistencia entre fases")
@@ -517,7 +622,7 @@ def render(ctx):
         st.checkbox("Conferencia de rolamentos e alinhamento")
         st.checkbox("Teste com carga progressiva")
 
-    with tabs[3]:
+    with tabs[4]:
         st.markdown("### Alertas criticos")
         st.markdown(
             """
