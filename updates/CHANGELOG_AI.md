@@ -1,5 +1,19 @@
 # CHANGELOG AI
 
+## 2026-04-18 | Cycle 0048
+- **Change Description:** CSS global: corrigir **barra de rolagem dupla** (`html/body` sem scroll + `stAppViewContainer` como único scroll vertical, `stMain`/blocos com `overflow: visible`); mobile: **safe-area**, inputs **≥16px** (iOS sem zoom ao focar), animação de scan/grid mais leve em `<640px`, botões/tabs com altura mínima de toque, títulos com `clamp` mais legíveis.
+- **Reason:** Testes em telemóveis — menos confusão visual, menos GPU/jank, melhor UX tátil.
+- **Risk Level:** Baixo (só CSS; se o tema Streamlit mudar, pode precisar ajuste seletores).
+- **Rollback Availability:** Alto (reverter `assets/style.css` + este registro).
+- **Next Predicted Risk:** Sidebar/overlays do Streamlit em builds novos podem precisar afinar um seletor.
+
+## 2026-04-18 | Cycle 0047
+- **Change Description:** OS: botão **Baixar relatório de entrega (PDF)** em Ordens de serviço; Detalhe do motor: botões **Abrir OS deste motor** e **Ir para Ordens de serviço**. Novo helper `services/oficina_pdf.py` (PDF simples via `fpdf2`) e dependência adicionada em `requirements.txt`.
+- **Reason:** Facilitar entrega ao cliente (PDF) e reduzir atrito para abrir OS a partir do motor em bancada.
+- **Risk Level:** Baixo-Médio (dependência nova `fpdf2` no Streamlit Cloud).
+- **Rollback Availability:** Alto (reverter `requirements.txt`, `services/oficina_pdf.py`, `page/ordens_servico.py`, `page/motor_detail.py` + este registro).
+- **Next Predicted Risk:** Padronização visual do PDF e anexos (fotos/links) no relatório.
+
 ## 2026-04-18 | Cycle 0046
 - **Change Description:** Biblioteca: **edição in-place** (`update_calculo`), carregar registo para formulário, secção **mecânica/montagem** no payload; OS: **ficha mecânica** em `payload.ficha_mecanica` (rolamentos, alinhamento, antes/depois, vibração/temperatura) com `merge_ordem_servico_payload`.
 - **Reason:** Fechar o fluxo “procurar → ajustar e gravar” e registar dados mecânicos objectivos na OS, como discutido para manutenção/rebobinagem.

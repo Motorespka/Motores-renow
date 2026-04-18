@@ -31,6 +31,24 @@ body,
     font-family: "Rajdhani", "Inter", "Segoe UI", sans-serif !important;
 }
 
+/* --------------------------------------------------------------------------
+   Scroll único + mobile: o Streamlit costuma criar rolagem no "app" e no body.
+   Fix: só um contentor vertical (stAppViewContainer) — menos bugs visuais.
+   -------------------------------------------------------------------------- */
+html {
+    height: 100%;
+    overflow: hidden;
+}
+
+body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    -webkit-tap-highlight-color: rgba(36, 215, 255, 0.12);
+}
+
 html,
 body,
 [data-testid="stApp"],
@@ -56,11 +74,29 @@ body,
 .stApp {
     position: relative;
     isolation: isolate;
+    height: 100% !important;
+    min-height: 0 !important;
+}
+
+#root {
+    height: 100% !important;
 }
 
 [data-testid="stAppViewContainer"] {
     position: relative;
-    overflow-x: hidden;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100vh;
+    max-height: 100dvh;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+}
+
+[data-testid="stMain"] {
+    overflow: visible !important;
+    min-height: 0 !important;
 }
 
 [data-testid="stMainBlockContainer"] {
@@ -69,6 +105,14 @@ body,
     padding-left: 1.2rem;
     padding-right: 1.2rem;
     background: transparent !important;
+    overflow: visible !important;
+}
+
+/* Blocos internos não devem criar segunda barra vertical */
+section.main,
+[data-testid="stMain"] > div {
+    overflow: visible !important;
+    min-height: 0 !important;
 }
 
 .stApp::before {
@@ -95,6 +139,16 @@ body,
     pointer-events: none;
     z-index: -1;
     animation: scanline 28s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .stApp::after {
+        animation: none;
+        opacity: 0.08;
+    }
+    .stApp::before {
+        opacity: 0.04 !important;
+    }
 }
 
 [data-testid="stMain"] {
@@ -1307,13 +1361,44 @@ div[data-testid="stButton"] > button:hover {
 }
 
 @media (max-width: 640px) {
-    .stApp::before,
+    /* Menos trabalho GPU / menos “lag” em telemóveis */
+    .stApp::before {
+        background-size: 48px 48px;
+        opacity: 0.06 !important;
+    }
+
     .stApp::after {
-        opacity: 0.12;
+        animation: none !important;
+        opacity: 0.06 !important;
     }
 
     [data-testid="stSidebar"] > div {
         border-right-color: rgba(82, 132, 173, 0.22);
+    }
+
+    /* iOS: evita zoom ao focar inputs (mínimo ~16px) */
+    input,
+    textarea,
+    select {
+        font-size: 16px !important;
+        line-height: 1.35 !important;
+    }
+
+    /* Área segura (notch / barra home) */
+    [data-testid="stMainBlockContainer"] {
+        padding-bottom: max(1.1rem, env(safe-area-inset-bottom, 0px)) !important;
+        padding-left: max(0.65rem, env(safe-area-inset-left, 0px)) !important;
+        padding-right: max(0.65rem, env(safe-area-inset-right, 0px)) !important;
+    }
+
+    [data-testid="stHeader"] {
+        padding-top: env(safe-area-inset-top, 0px) !important;
+    }
+
+    /* Botões e tabs mais fáceis de tocar */
+    div[data-testid="stButton"] > button,
+    [data-baseweb="tab"] {
+        min-height: 46px !important;
     }
 
     div[data-testid="stVerticalBlockBorderWrapper"] {
@@ -1331,5 +1416,22 @@ div[data-testid="stButton"] > button:hover {
 
     .diag-grid {
         grid-template-columns: 1fr;
+    }
+
+    .consulta-hero h1,
+    .diag-hero h1,
+    .admin-hero h1 {
+        font-size: clamp(1.25rem, 6vw, 1.75rem) !important;
+        line-height: 1.2 !important;
+    }
+
+    .mrw-header__title {
+        font-size: 0.74rem !important;
+        letter-spacing: 0.08em !important;
+    }
+
+    .premium-card,
+    .premium-card-elevated {
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35) !important;
     }
 }
