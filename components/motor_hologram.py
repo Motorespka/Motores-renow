@@ -4,8 +4,8 @@ Na listagem (consulta): http(s) inclui Supabase e pack /app/static/glb/ no Strea
 data: so com HOLOGRAM_LIST_SHOW_GLB=1. HOLOGRAM_LIST_NO_STATIC_GLB=1 esconde pack na lista.
 HOLOGRAM_LIST_NO_GLB=1 força só silhueta na lista.
 
-`HOLOGRAM_CARCACA_NEMA56_STRICT=1` ou `HOLOGRAM_CONSULTA_SOMENTE_56=1` evita
-silhueta CSS falsa (ex. NEMA monofásica) fora da familia 56: ou caption curta, ou GLB no detalhe.
+Na consulta, a silhueta generica fica **desligada** por defeito; `HOLOGRAM_LISTA_SILHUETA_TODOS=1` volta
+ao bloco de silhueta em todos. `HOLOGRAM_CARCACA_NEMA56_STRICT=1` controla a cadeia de resolucao GLB.
 """
 
 from __future__ import annotations
@@ -555,8 +555,8 @@ def _build_css_fallback_html_legacy(
       <span>HOLOGRAMA · SILHUETA</span>
       <span>{plabel}</span>
     </div>
-    <div class="hint">Silhueta (sem WebGL) na consulta. GLB: secrets HOLOGRAM_GLB_NEMA56 ou DEFAULT; NEMA 56
-      detetado em carcaca, quadro, ou texto OCR. Abra Detalhes para o viewer 3D completo.</div>
+    <div class="hint">Silhueta (sem WebGL) na consulta. NEMA 56: so dados de ficha
+      (Mecânica, quadro, frame) — nao usamos OCR. GLB: secrets, JSON ou Detalhes para o viewer 3D completo.</div>
     <div class="stage" data-host="{hid_attr}">
       <div class="grid"></div>
       <div class="shadow"></div>

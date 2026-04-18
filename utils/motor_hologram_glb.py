@@ -480,9 +480,20 @@ def motor_has_hologram_motor_id_secret(m: Dict[str, Any]) -> bool:
 
 def consulta_lista_somente_familia_56_activa() -> bool:
     """
-    Lista (consulta): nao mostrar silhueta CSS falsa; so NEMA 56 ficha, JSON, ou per-motor.
-    Liga com `HOLOGRAM_CARCACA_NEMA56_STRICT` ou com `HOLOGRAM_CONSULTA_SOMENTE_56=1`.
+    Lista (consulta): por defeito nao mostra silhueta CSS falsa; so NEMA 56 em Mecanica (ficha),
+    `holograma_glb_url` no JSON, ou `HOLOGRAM_GLB_MOTOR_<id>`.
+    - `HOLOGRAM_LISTA_SILHUETA_TODOS=1`: reactiva silhueta generica em todos (comportamento antigo).
+    - `HOLOGRAM_CONSULTA_SOMENTE_56=0` (explicito): desactiva o filtro da lista.
+    - `HOLOGRAM_CARCACA_NEMA56_STRICT=1`: inclui a logica de resolucao GLB; o filtro da lista vem
+      desta funcao, nao so do STRICT.
     """
+    if _read_secret_or_env("HOLOGRAM_LISTA_SILHUETA_TODOS", "MOTORES_HOLOGRAM_LISTA_SILHUETA_TODOS").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    ):
+        return False
     if mecanica_nema56_modo_restrito():
         return True
     v = _read_secret_or_env(
@@ -490,8 +501,12 @@ def consulta_lista_somente_familia_56_activa() -> bool:
         "MOTORES_HOLOGRAM_CONSULTA_SOMENTE_56",
         "HOLOGRAM_LISTA_SOMENTE_FAMILIA_56",
         "MOTORES_HOLOGRAM_LISTA_SOMENTE_FAMILIA_56",
-    )
-    return v.strip().lower() in ("1", "true", "yes", "on")
+    ).strip().lower()
+    if v in ("0", "false", "no", "off"):
+        return False
+    if v in ("1", "true", "yes", "on"):
+        return True
+    return True
 
 
 def hologram_nema56_glb_secret_configurado() -> bool:
