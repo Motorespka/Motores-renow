@@ -2,8 +2,8 @@
 URLs de modelos GLB para o holograma 3D (<model-viewer>).
 Prioridade: motor.holograma_glb_url no JSON > HOLOGRAM_GLB_MOTOR_<id> > env por preset >
 HOLOGRAM_GLB_DEFAULT > HOLOGRAM_GLB_NEMA48 (se carcaca NEMA 48) >
-ficheiros em static/glb (starter pack, servidos em /app/static/glb/) > demo (opcional).
-Desligar pack: HOLOGRAM_USE_STARTER_PACK=0. Requer [server] enableStaticServing = true.
+ficheiros em static/glb (starter pack, embutidos em data URL base64 por defeito) > demo (opcional).
+Desligar pack: HOLOGRAM_USE_STARTER_PACK=0. HTTP em vez de data: HOLOGRAM_STARTER_PACK_HTTP=1 (+ static serving).
 
 Sem URL valida: UI usa malha procedural aproximada em Three.js (no browser) ou, com
 `HOLOGRAM_LEGACY_CSS=1`, a silhueta CSS antiga. GLB real continua a ser o unico desenho tecnico fiel.
@@ -11,6 +11,7 @@ Sem URL valida: UI usa malha procedural aproximada em Three.js (no browser) ou, 
 
 from __future__ import annotations
 
+import base64
 import os
 import re
 from pathlib import Path
@@ -76,6 +77,23 @@ def _starter_pack_http_url(filename: str) -> Optional[str]:
     return f"{base}/app/static/glb/{filename}"
 
 
+def _starter_pack_embedded_src(filename: str) -> Optional[str]:
+    """
+    data:...base64 para o model-viewer dentro do iframe srcdoc (evita /app/static/ bloqueado ou origem opaca).
+    """
+    path = _starter_glb_path(filename)
+    if not path.is_file():
+        return None
+    try:
+        raw = path.read_bytes()
+    except OSError:
+        return None
+    if len(raw) > 1_500_000:
+        return None
+    b64 = base64.standard_b64encode(raw).decode("ascii")
+    return f"data:model/gltf-binary;base64,{b64}"
+
+
 def _starter_pack_disabled() -> bool:
     """Desligar com HOLOGRAM_USE_STARTER_PACK=0 (vazio = ligado se existirem ficheiros)."""
     v = _read_secret_or_env("HOLOGRAM_USE_STARTER_PACK", "MOTORES_HOLOGRAM_USE_STARTER_PACK").strip().lower()
@@ -131,7 +149,14 @@ def _resolve_starter_pack_url(m: Dict[str, Any], preset: str) -> Optional[str]:
     if _starter_pack_disabled():
         return None
     name = _pick_starter_pack_filename(m, preset)
-    return _starter_pack_http_url(name)
+    if _read_secret_or_env("HOLOGRAM_STARTER_PACK_HTTP", "MOTORES_HOLOGRAM_STARTER_PACK_HTTP").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    ):
+        return _starter_pack_http_url(name)
+    return _starter_pack_embedded_src(name)
 
 
 def _motor_json(m: Dict[str, Any]) -> Dict[str, Any]:
@@ -186,7 +211,7 @@ def _path_looks_glb(u: str) -> bool:
 
 def resolve_model_glb_url(m: Dict[str, Any], preset: str) -> Optional[str]:
     """
-    Retorna URL absoluta https para .glb, ou None para holograma procedural (Three.js) / CSS legado.
+    Retorna URL https/http, data URL (starter pack), ou None para Three.js / CSS legado.
     """
     motor = _motor_json(m)
     for key in ("holograma_glb_url", "holograma_glb", "HologramaGlbUrl"):
