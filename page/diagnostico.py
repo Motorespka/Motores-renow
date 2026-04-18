@@ -205,6 +205,14 @@ def _apply_diagnostico_to_motor(ctx, motor_id: Any, normalized: Dict[str, Any], 
 def _render_real_diagnosis(ctx) -> None:
     admin_user = is_admin_user()
     st.markdown("### Motor da Oficina")
+    with st.expander("Ferramentas", expanded=False):
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("Recarregar lista (limpar cache)", use_container_width=True, key="diag_refresh_motores"):
+                clear_motores_cache()
+                st.rerun()
+        with c2:
+            st.caption("Dica: use o filtro abaixo para achar o motor mais rápido.")
     try:
         motores = fetch_motores_cached(ctx.supabase)
     except Exception as exc:
@@ -215,6 +223,13 @@ def _render_real_diagnosis(ctx) -> None:
         st.info("Nenhum motor cadastrado ainda para diagnostico real.")
         return
 
+    busca = st.text_input(
+        "Buscar motor (ID, marca, modelo)",
+        value="",
+        key="diag_busca_motor",
+        help="Filtra a lista local carregada para facilitar a selecao.",
+    ).strip().lower()
+
     options: List[tuple[str, Any]] = []
     for row in motores:
         motor_id = row.get("id") if row.get("id") not in (None, "") else row.get("Id")
@@ -222,11 +237,15 @@ def _render_real_diagnosis(ctx) -> None:
             continue
         marca = _to_text(row.get("marca") or row.get("Marca")) or "-"
         modelo = _to_text(row.get("modelo") or row.get("Modelo")) or "-"
-        label = f"#{motor_id} | {marca} | {modelo}"
+        label = f"{marca} | {modelo} | #{motor_id}"
+        if busca:
+            hay = f"{marca} {modelo} {motor_id}".lower()
+            if busca not in hay:
+                continue
         options.append((label, motor_id))
 
     if not options:
-        st.info("Nenhum motor valido encontrado para diagnostico.")
+        st.info("Nenhum motor encontrado com o filtro atual.")
         return
 
     current_id = ctx.session.selected_motor_id
@@ -395,8 +414,11 @@ def _render_real_diagnosis(ctx) -> None:
 
 
 def render(ctx):
+    # Diagnostico e um recurso pago; em development mode, permite abrir para validação.
     if not require_paid_access("Diagnostico tecnico", client=ctx.supabase):
-        return
+        if not is_dev_mode():
+            return
+        st.warning("Acesso liberado por development mode (recurso pago em producao).")
 
     st.markdown(
         """

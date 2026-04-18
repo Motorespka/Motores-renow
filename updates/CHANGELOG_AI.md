@@ -1,5 +1,12 @@
 # CHANGELOG AI
 
+## 2026-04-18 | Cycle 0039
+- **Change Description:** Página `diagnostico` aprimorada: filtro de busca (ID/marca/modelo) para selecionar motor com lista grande, botão de recarregar lista (limpa cache), e bypass de gating pago quando em `development mode` para permitir validação do fluxo sem bloquear a tela.
+- **Reason:** Melhorar operabilidade do diagnóstico na oficina e reduzir fricção/instabilidade em ambientes de teste.
+- **Risk Level:** Baixo.
+- **Rollback Availability:** Alto (reverter `page/diagnostico.py` + este registro).
+- **Next Predicted Risk:** Se o volume de motores crescer muito, o carregamento “lista inteira” pode ficar pesado; próximo passo seria busca/paginação server-side.
+
 ## 2026-04-18 | Cycle 0037
 - **Change Description:** Nova camada read-only ``services/motor_rebobinagem`` (normalização passo/espiras/fio/ranhuras/mm, assinatura técnica, validação de coerência, ``analyze_rewinding_coherence``, similaridade futura ``prepare_similarity_query``, serialização FastAPI). UI: linha compacta na consulta + expander em detalhe/cadastro/edição. Testes ``tests/test_motor_rebobinagem.py``.
 - **Reason:** Inteligência de rebobinagem de oficina modular, sem persistência nem alteração de fluxos core; aproveita ``motor_inteligencia`` só como contexto elétrico.
