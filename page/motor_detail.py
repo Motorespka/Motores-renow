@@ -154,20 +154,26 @@ def render(ctx) -> None:
 
     holo_m = dict(m)
     holo_m["dados_tecnicos_json"] = dados
+    holo_m["_consulta_ui"] = ui
     holo_m["rpm"] = holo_m.get("rpm_nominal") or holo_m.get("rpm")
     holo_m["tensao"] = holo_m.get("tensao_v") or holo_m.get("tensao")
     holo_m["corrente"] = holo_m.get("corrente_nominal_a") or holo_m.get("corrente")
-    holo_m["fases"] = holo_m.get("fases")
-    holo_m["tipo_motor"] = holo_m.get("tipo_motor")
+    if is_empty(holo_m.get("fases")) and not is_empty(motor_info.get("fases")):
+        holo_m["fases"] = motor_info.get("fases")
+    else:
+        holo_m["fases"] = holo_m.get("fases")
+    if is_empty(holo_m.get("tipo_motor")):
+        holo_m["tipo_motor"] = motor_info.get("tipo_motor") or ui.get("tipo_motor")
+    else:
+        holo_m["tipo_motor"] = holo_m.get("tipo_motor")
     if holo_m.get("cadastro_seq") in (None, "") and seq_sess is not None:
         holo_m["cadastro_seq"] = seq_sess
     holo_left, holo_right = st.columns([1.25, 1.0], gap="medium")
     with holo_left:
         st.caption(
-            "Holograma GLB: viewer WebGL. Por motor: holograma_glb_url no JSON. Por carcaça: "
-            "HOLOGRAM_GLB_WEG_STYLE_HOUSING + HOLOGRAM_CARCACA_GLB_CONTAINS (ex.: IP21) ou HOLOGRAM_CARCACA_GLB_RULE. "
-            "Global: HOLOGRAM_GLB_DEFAULT. "
-            "Disco: HOLOGRAM_TEST_DISK_GLB=1."
+            "Holograma GLB: WebGL. JSON: motor.holograma_glb_url. Mecanica, carcaca: NEMA 56, 56C, 56H, 56J, 56Y → "
+            "modelo 56: HOLOGRAM_GLB_NEMA56. Modo só-familia-56, sem generico: HOLOGRAM_CARCACA_NEMA56_STRICT=1. Monofasico: "
+            "HOLOGRAM_GLB_NEMA_MONO. Alem disso, HOLOGRAM_GLB_DEFAULT, WEG/CONTAINS, ou disco."
         )
     with holo_right:
         render_engine_hologram(holo_m, key=f"motor_detail_holo_{motor_id}")

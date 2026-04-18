@@ -1,6 +1,9 @@
 """
 URLs de modelos GLB para o holograma 3D (<model-viewer>).
+NEMA 56: deteção so em **Mecanica (carcaca) e quadro/NEMA** na ficha (sem texto OCR). >
 Prioridade: motor.holograma_glb_url no JSON > HOLOGRAM_GLB_MOTOR_<id> >
+`HOLOGRAM_CARCACA_NEMA56_STRICT=1` → nada alem de JSON/MOTOR/NEMA56 (carcaca) + secret NEMA56; nao starter, nao default. Senao, fluxo completo. >
+HOLOGRAM_GLB_NEMA56 (URL .glb para familia 56, 56C, 56H, 56J, 56Y) >
 GLB por tipo de carcaça (HOLOGRAM_GLB_WEG_STYLE_HOUSING + match); o mesmo URL entra na cadeia DEFAULT
 se HOLOGRAM_GLB_WEG_STYLE_ONLY_MATCHED nao estiver ligado (URL global no Cloud sem regra de carcaca).
 HOLOGRAM_CARCACA_GLB_CONTAINS / HOLOGRAM_CARCACA_GLB_RULE: ver motor_matches_weg_style_carcaca_for_glb. >
@@ -243,6 +246,72 @@ def _carcaca_blob(m: Dict[str, Any]) -> str:
     return " ".join(parts)
 
 
+def _carcaca_ficha_mecanica_motor_ui_upper(m: Dict[str, Any]) -> str:
+    """
+    Só ficha: carcaca (Mecanica, motor, coluna) + quadro/NEMA do JSON (sem texto OCR / bruto).
+    Criterio para NEMA 56: o que o utilizador regista em Mecanica > carcaca (e similares).
+    """
+    parts: list[str] = [_carcaca_blob(m)]
+    for d in (_mecanica_json(m), _motor_json(m)):
+        for k in (
+            "carcaca",
+            "quadro",
+            "quadro_nema",
+            "nema",
+            "nema_frame",
+            "frame",
+            "envelope",
+        ):
+            v = d.get(k) if isinstance(d, dict) else None
+            if v is not None and str(v).strip():
+                parts.append(str(v).strip())
+    return " ".join(parts).upper()
+
+
+def _nema_56_in_plate_string(plate_upper: str) -> bool:
+    b = (plate_upper or "").strip()
+    if not b:
+        return False
+    s = b.strip()
+    if re.match(r"^56[CHJYZH]?\s*$", s) or re.match(
+        r"^NEMA\W*56[CHJYZH]?\s*$", s, re.IGNORECASE
+    ):
+        return True
+    bc = re.sub(r"[\s._\-]+", "", b)
+    for suf in ("C", "H", "J", "Y"):
+        t = f"56{suf}"
+        if t in bc or t in b.replace(" ", ""):
+            return True
+    if re.search(r"NEMA\W*56(?!-)(?![0-9])\b", b) or re.search(
+        r"NEMA\W*56[CHJYZH]\b", b
+    ):
+        return True
+    if re.search(r"QUADRO\W*56[CHJYZH]?\b", b) or re.search(
+        r"FRAME\W*56[CHJYZH]?\b", b
+    ):
+        return True
+    if re.search(
+        r"CARCA\W*56(?!-)(?![0-9]{2,})[CHJYZH]?(?:\b|[^0-9A-Z])", b
+    ) or re.search(
+        r"CARCA\W*56(?!-)(?![0-9])", b
+    ):
+        return True
+    return False
+
+
+def nema_56_somente_ficha_mecanica(m: Dict[str, Any]) -> bool:
+    return _nema_56_in_plate_string(_carcaca_ficha_mecanica_motor_ui_upper(m))
+
+
+def mecanica_nema56_modo_restrito() -> bool:
+    return _read_secret_or_env("HOLOGRAM_CARCACA_NEMA56_STRICT", "MOTORES_HOLOGRAM_CARCACA_NEMA56_STRICT").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+
+
 def hologram_carcaca_context(m: Dict[str, Any]) -> str:
     """Texto agregado da carcaça (NEMA/IEC) para heurísticas do holograma procedural."""
     return _carcaca_blob(m).strip()[:260]
@@ -255,6 +324,19 @@ def _is_nema_48_frame(m: Dict[str, Any]) -> bool:
     if re.search(r"NEMA\s*[-_]?\s*48\b", s):
         return True
     return "NEMA" in s and "48" in s
+
+
+def _is_nema_56_plate_family(m: Dict[str, Any]) -> bool:
+    """
+    NEMA 56, 56C, 56H, 56J, 56Y, etc. apenas a partir de **dados de ficha**
+    (Mecanica > carcaca, motor, quadro…), nao a partir de OCR.
+    """
+    return nema_56_somente_ficha_mecanica(m)
+
+
+def is_motor_nema_56_plate(m: Dict[str, Any]) -> bool:
+    """True se a carcaca/quadro na ficha (Mecanica) for familia NEMA 56 — criterio de ``HOLOGRAM_GLB_NEMA56``."""
+    return nema_56_somente_ficha_mecanica(m)
 
 
 def _path_looks_glb(u: str) -> bool:
@@ -286,11 +368,19 @@ def _motor_identity_blob_upper(m: Dict[str, Any]) -> str:
 
 def _read_carcaca_glb_rule() -> str:
     """
-    weg_or_nema48 (defeito): WEG na identidade OU quadro NEMA 48.
-    weg_only | nema48_only | ip21_only — IP21 / IPW21 na ficha (protecao gotejamento).
+    weg_or_nema48 (defeito): WEG, NEMA 48, ou NEMA 56 (56, 56C, 56H, 56J, 56Y…).
+    weg_only | nema48_only | nema56_only | ip21_only
+    nema48_or_n56 — 48 ou familia 56, sem exigir WEG.
     """
     r = _read_secret_or_env("HOLOGRAM_CARCACA_GLB_RULE", "MOTORES_HOLOGRAM_CARCACA_GLB_RULE").strip().lower()
-    if r in ("weg_only", "nema48_only", "weg_or_nema48", "ip21_only"):
+    if r in (
+        "weg_only",
+        "nema48_only",
+        "nema56_only",
+        "weg_or_nema48",
+        "ip21_only",
+        "nema48_or_n56",
+    ):
         return r
     return "weg_or_nema48"
 
@@ -332,7 +422,8 @@ def motor_matches_weg_style_carcaca_for_glb(m: Dict[str, Any]) -> bool:
     1) Se HOLOGRAM_CARCACA_GLB_CONTAINS estiver definido (ex.: IP21 ou texto da placa),
        qualquer token (separado por virgula) que apareca em marca/modelo/carcaca conta como match.
        HOLOGRAM_CARCACA_GLB_MATCH_ALL=1 exige que todos os tokens apareçam.
-    2) Senao, HOLOGRAM_CARCACA_GLB_RULE: weg_or_nema48 | weg_only | nema48_only | ip21_only.
+    2) Senao, HOLOGRAM_CARCACA_GLB_RULE: weg_or_nema48 | weg_only | nema48_only |
+       nema56_only | nema48_or_n56 | ip21_only.
     """
     tokens = _carcaca_glb_contains_tokens()
     blob, blob_c = _blob_for_carcaca_match(m)
@@ -348,13 +439,18 @@ def motor_matches_weg_style_carcaca_for_glb(m: Dict[str, Any]) -> bool:
     rule = _read_carcaca_glb_rule()
     has_weg = "WEG" in blob
     has_n48 = _is_nema_48_frame(m)
+    has_n56 = _is_nema_56_plate_family(m)
     if rule == "weg_only":
         return has_weg
     if rule == "nema48_only":
         return has_n48
+    if rule == "nema56_only":
+        return has_n56
+    if rule == "nema48_or_n56":
+        return has_n48 or has_n56
     if rule == "ip21_only":
         return _is_ip21_carcaca(m)
-    return has_weg or has_n48
+    return has_weg or has_n48 or has_n56
 
 
 def motor_has_json_hologram_glb_url(m: Dict[str, Any]) -> bool:
@@ -368,6 +464,42 @@ def motor_has_json_hologram_glb_url(m: Dict[str, Any]) -> bool:
         if u.lower().startswith(("http://", "https://")) and _path_looks_glb(u):
             return True
     return False
+
+
+def motor_has_hologram_motor_id_secret(m: Dict[str, Any]) -> bool:
+    """True se houver `HOLOGRAM_GLB_MOTOR_<id>` (ou `MOTORES_`...) com URL .glb."""
+    mid = _motor_id_str(m)
+    if not mid:
+        return False
+    for name in (f"HOLOGRAM_GLB_MOTOR_{mid}", f"MOTORES_HOLOGRAM_GLB_MOTOR_{mid}"):
+        u = _read_secret_or_env(name)
+        if u and u.lower().startswith(("http://", "https://")) and _path_looks_glb(u):
+            return True
+    return False
+
+
+def consulta_lista_somente_familia_56_activa() -> bool:
+    """
+    Lista (consulta): nao mostrar silhueta CSS falsa; so NEMA 56 ficha, JSON, ou per-motor.
+    Liga com `HOLOGRAM_CARCACA_NEMA56_STRICT` ou com `HOLOGRAM_CONSULTA_SOMENTE_56=1`.
+    """
+    if mecanica_nema56_modo_restrito():
+        return True
+    v = _read_secret_or_env(
+        "HOLOGRAM_CONSULTA_SOMENTE_56",
+        "MOTORES_HOLOGRAM_CONSULTA_SOMENTE_56",
+        "HOLOGRAM_LISTA_SOMENTE_FAMILIA_56",
+        "MOTORES_HOLOGRAM_LISTA_SOMENTE_FAMILIA_56",
+    )
+    return v.strip().lower() in ("1", "true", "yes", "on")
+
+
+def hologram_nema56_glb_secret_configurado() -> bool:
+    """True se o secret/ENV `HOLOGRAM_GLB_NEMA56` existir, for http(s) e fizer referencia a .glb."""
+    u = _read_secret_or_env("HOLOGRAM_GLB_NEMA56", "MOTORES_HOLOGRAM_GLB_NEMA56")
+    if not u or not u.lower().startswith(("http://", "https://")) or not _path_looks_glb(u):
+        return False
+    return True
 
 
 def resolve_model_glb_url(m: Dict[str, Any], preset: str) -> Optional[str]:
@@ -385,6 +517,18 @@ def resolve_model_glb_url(m: Dict[str, Any], preset: str) -> Optional[str]:
     mid = _motor_id_str(m)
     if mid:
         u = _read_secret_or_env(f"HOLOGRAM_GLB_MOTOR_{mid}", f"MOTORES_HOLOGRAM_GLB_MOTOR_{mid}")
+        if u and u.lower().startswith(("http://", "https://")) and _path_looks_glb(u):
+            return u
+
+    if mecanica_nema56_modo_restrito():
+        if nema_56_somente_ficha_mecanica(m):
+            u = _read_secret_or_env("HOLOGRAM_GLB_NEMA56", "MOTORES_HOLOGRAM_GLB_NEMA56")
+            if u and u.lower().startswith(("http://", "https://")) and _path_looks_glb(u):
+                return u
+        return None
+
+    if nema_56_somente_ficha_mecanica(m):
+        u = _read_secret_or_env("HOLOGRAM_GLB_NEMA56", "MOTORES_HOLOGRAM_GLB_NEMA56")
         if u and u.lower().startswith(("http://", "https://")) and _path_looks_glb(u):
             return u
 

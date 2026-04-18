@@ -3,6 +3,9 @@ Holograma: GLB via <model-viewer> quando houver URL resolvida.
 Na listagem (consulta): http(s) inclui Supabase e pack /app/static/glb/ no Streamlit Cloud;
 data: so com HOLOGRAM_LIST_SHOW_GLB=1. HOLOGRAM_LIST_NO_STATIC_GLB=1 esconde pack na lista.
 HOLOGRAM_LIST_NO_GLB=1 força só silhueta na lista.
+
+`HOLOGRAM_CARCACA_NEMA56_STRICT=1` ou `HOLOGRAM_CONSULTA_SOMENTE_56=1` evita
+silhueta CSS falsa (ex. NEMA monofásica) fora da familia 56: ou caption curta, ou GLB no detalhe.
 """
 
 from __future__ import annotations
@@ -17,8 +20,13 @@ import streamlit as st
 
 from utils.motor_hologram import hologram_choice_label, resolve_hologram_preset
 from utils.motor_hologram_glb import (
+    consulta_lista_somente_familia_56_activa,
     hologram_carcaca_context,
+    hologram_nema56_glb_secret_configurado,
+    mecanica_nema56_modo_restrito,
+    motor_has_hologram_motor_id_secret,
     motor_has_json_hologram_glb_url,
+    nema_56_somente_ficha_mecanica,
     resolve_model_glb_url,
 )
 
@@ -547,7 +555,8 @@ def _build_css_fallback_html_legacy(
       <span>HOLOGRAMA · SILHUETA</span>
       <span>{plabel}</span>
     </div>
-    <div class="hint">Silhueta holográfica (sem WebGL): arraste para girar. Malha GLB e viewer 3D: use Detalhes do motor ou cadastro com URL .glb.</div>
+    <div class="hint">Silhueta (sem WebGL) na consulta. GLB: secrets HOLOGRAM_GLB_NEMA56 ou DEFAULT; NEMA 56
+      detetado em carcaca, quadro, ou texto OCR. Abra Detalhes para o viewer 3D completo.</div>
     <div class="stage" data-host="{hid_attr}">
       <div class="grid"></div>
       <div class="shadow"></div>
@@ -611,6 +620,29 @@ def render_engine_hologram(
 ) -> None:
     preset = resolve_hologram_preset(m)
     glb_url = resolve_model_glb_url(m, preset)
+    if mecanica_nema56_modo_restrito() and not glb_url and not motor_has_json_hologram_glb_url(m):
+        if nema_56_somente_ficha_mecanica(m):
+            st.caption(
+                "Holograma 3D: NEMA 56 (ficha) sem URL. Defina o secret `HOLOGRAM_GLB_NEMA56` (URL .glb) no Cloud, "
+                "ou `holograma_glb_url` no JSON do motor."
+            )
+        else:
+            st.caption(
+                "Holograma 3D: modo restrito. Familia NEMA 56 (Mecânica) ou `holograma_glb_url` / "
+                "`HOLOGRAM_GLB_MOTOR_<id>`. Fora de 56, sem placeholder genérico."
+            )
+        return
+
+    lista_56 = consulta_lista_somente_familia_56_activa()
+    if list_mode and lista_56:
+        if not (
+            nema_56_somente_ficha_mecanica(m)
+            or motor_has_json_hologram_glb_url(m)
+            or motor_has_hologram_motor_id_secret(m)
+        ):
+            st.caption("3D: NEMA 56, 56C, 56H… (Mecânica) ou GLB no JSON / `HOLOGRAM_GLB_MOTOR_<id>`.")
+            return
+
     fins_n = _fins_html(_preset_fins_count(preset))
     rpm = html.escape(_to_text(m.get("rpm")) or "-")
     tensao = html.escape(_to_text(m.get("tensao")) or "-")
@@ -647,6 +679,12 @@ def render_engine_hologram(
             preset, glb_url, rpm, tensao, corrente, plabel, compact=compact
         )
         h = 288 if compact else 360
+    elif list_mode and lista_56 and glb_url and not _flag_truthy("HOLOGRAM_LIST_NO_GLB"):
+        st.caption(
+            "3D: malha resolvida, mas a consulta nao abre varios WebGL. Abra **Detalhes**; ou "
+            "`HOLOGRAM_LIST_SHOW_GLB=1` (GPU)."
+        )
+        return
     else:
         carcaca_ctx = hologram_carcaca_context(m)
         legacy_css = _flag_truthy("HOLOGRAM_LEGACY_CSS")
@@ -688,6 +726,11 @@ def render_engine_hologram(
 
     if _flag_truthy("HOLOGRAM_HOLO_DEBUG"):
         udbg = (glb_url or "")[:120]
+        ficha56 = nema_56_somente_ficha_mecanica(m)
+        s56 = hologram_nema56_glb_secret_configurado()
+        cctx = (hologram_carcaca_context(m) or "")[:100]
         st.caption(
-            f"[HOLO_DEBUG] list_mode={list_mode} use_mv={use_model_viewer} glb={udbg!r} preset={preset}"
+            f"[HOLO_DEBUG] list={list_mode} use_mv={use_model_viewer} ficha_56={ficha56} "
+            f"secret_nema56_ok={s56} glb={udbg!r} carcaca={cctx!r} preset={preset}. "
+            "Ligue no Cloud (secrets): HOLOGRAM_HOLO_DEBUG; reinicie a app se alterou o GLB."
         )

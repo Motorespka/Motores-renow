@@ -52,8 +52,14 @@ def _infer_preset(m: Dict[str, Any]) -> str:
         or ui.get("carcaca")
         or m.get("carcaca")
     ).upper()
-    fases = _txt(motor.get("fases") or m.get("fases")).lower()
-    tipo = _txt(motor.get("tipo_motor") or m.get("tipo_motor")).lower()
+    fases = _txt(
+        motor.get("fases") or m.get("fases") or (ui.get("fases") if isinstance(ui, dict) else None)
+    ).lower()
+    tipo = _txt(
+        motor.get("tipo_motor")
+        or m.get("tipo_motor")
+        or (ui.get("tipo_motor") if isinstance(ui, dict) else None)
+    ).lower()
     cap = _txt((m.get("dados_tecnicos_json") or {}).get("bobinagem_auxiliar", {}).get("capacitor") if isinstance(m.get("dados_tecnicos_json"), dict) else "")
 
     if "IPW" in ip_raw.upper() or "IP66" in ip_raw.upper() or "IP 66" in ip_raw.upper():
