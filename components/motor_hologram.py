@@ -6,6 +6,9 @@ HOLOGRAM_LIST_NO_GLB=1 força só silhueta na lista.
 
 Na consulta, a silhueta generica fica **desligada** por defeito; `HOLOGRAM_LISTA_SILHUETA_TODOS=1` volta
 ao bloco de silhueta em todos. `HOLOGRAM_CARCACA_NEMA56_STRICT=1` controla a cadeia de resolucao GLB.
+
+GLB (detalhe, nao list): hotspots 3D + `hologram_hotspot_overrides` no JSON; ajuste global
+`hologram_hotspot_scale` / `hologram_hotspot_offset` (motor) em cima dos defaults. `hologram_capacitor_hotspot: false` ou `HOLOGRAM_NO_GLB_HOTSPOTS=1`.
 """
 
 from __future__ import annotations
@@ -21,6 +24,7 @@ import streamlit as st
 from utils.motor_hologram import hologram_choice_label, resolve_hologram_preset
 from utils.motor_hologram_glb import (
     NEMA_56_CARCACA_LEGENDA_COMPLETA,
+    consulta_lista_motor_tem_familia_glb_dedicada_na_ficha,
     consulta_lista_somente_familia_56_activa,
     hologram_carcaca_context,
     hologram_nema56_glb_secret_configurado,
@@ -53,7 +57,8 @@ const preset = HOLO_CTX.preset || 'generico';
 const car = String(HOLO_CTX.carcaca || '');
 const carU = car.toUpperCase();
 const isNema48 = /NEMA\\s*[-_]?\\s*48\\b/i.test(car) || (carU.includes('NEMA') && carU.includes('48'));
-const isNemaFamily = preset === 'nema_mono' || carU.includes('NEMA');
+const nemaLiso = /^(liso_56|nema_mono|nema_footless|cface_56|pump_56j)$/.test(preset);
+const isNemaFamily = nemaLiso || carU.includes('NEMA');
 
 function wf(color) {
   return new THREE.MeshBasicMaterial({
@@ -117,13 +122,13 @@ function buildMotor() {
     g.add(disc);
   }
 
-  if (isNema48 || preset === 'nema_mono') {
+  if (isNema48 || preset === 'liso_56' || preset === 'nema_mono' || preset === 'cface_56' || preset === 'pump_56j') {
     const cap = new THREE.Mesh(new THREE.BoxGeometry(r * 1.25, 0.075, r * 0.95), wf(0xfbbf24));
     cap.position.set(0.04, r + 0.048, 0);
     g.add(cap);
   }
 
-  if (isNema48 || isNemaFamily) {
+  if ((isNema48 || isNemaFamily) && preset !== 'nema_footless') {
     for (const z of [-r * 0.52, r * 0.52]) {
       const foot = new THREE.Mesh(new THREE.BoxGeometry(len * 0.52, 0.022, 0.075), wf(0x5eead4));
       foot.position.set(0.04, -r - 0.018, z);
@@ -239,6 +244,10 @@ def _preset_fins_count(preset: str) -> int:
         "ip55_iso": 10,
         "ip21_aberto": 5,
         "nema_mono": 6,
+        "liso_56": 6,
+        "cface_56": 6,
+        "pump_56j": 6,
+        "nema_footless": 4,
         "iec_w22": 12,
         "trif_grande": 13,
         "servo_compacto": 7,
@@ -251,6 +260,298 @@ def _host_id(key: str) -> str:
     return f"holoeng_{safe}"
 
 
+def _holo_motor_json(m: Any) -> Dict[str, Any]:
+    d = m.get("dados_tecnicos_json") if isinstance(m, dict) and isinstance(m.get("dados_tecnicos_json"), dict) else {}
+    mo = d.get("motor")
+    return mo if isinstance(mo, dict) else {}
+
+
+def _holo_mecanica_json(m: Any) -> Dict[str, Any]:
+    d = m.get("dados_tecnicos_json") if isinstance(m, dict) and isinstance(m.get("dados_tecnicos_json"), dict) else {}
+    mec = d.get("mecanica")
+    return mec if isinstance(mec, dict) else {}
+
+
+def _holo_pick(*vals: Any) -> str:
+    for v in vals:
+        t = _to_text(v)
+        if t:
+            return t
+    return ""
+
+
+def _holo_glb_kpi_pairs(m: dict | None, rpm: str, tensao: str, corrente: str) -> list[tuple[str, str]]:
+    m = m or {}
+    mot, mec = _holo_motor_json(m), _holo_mecanica_json(m)
+    cv = _holo_pick(
+        m.get("potencia"),
+        m.get("potencia_cv"),
+        mot.get("potencia"),
+        mot.get("cv"),
+        m.get("cv"),
+    )
+    fases = _holo_pick(m.get("fases"), mot.get("fases"), mot.get("fase"))
+    if not fases and _holo_pick(mot.get("tipo_motor"), m.get("tipo_motor")):
+        fases = str(_holo_pick(mot.get("tipo_motor"), m.get("tipo_motor")))[:22]
+    pol = _holo_pick(m.get("polos"), mot.get("polos"), mec.get("polos"), mot.get("num_polos"), mec.get("num_polos"))
+    if pol and re.match(r"^\d{1,2}$", str(pol).strip().replace(" ", "")):
+        pol = f"{str(pol).strip()}P"
+    hz = _holo_pick(
+        m.get("frequencia"),
+        mot.get("frequencia"),
+        mec.get("frequencia"),
+        mot.get("frequencia_hz"),
+        m.get("freq"),
+    )
+    if (
+        hz
+        and re.match(r"^[\d.,]+(?:/[\d.,]+)?$", str(hz).replace(" ", ""))
+        and "Hz" not in str(hz)
+        and "H" not in str(hz)
+    ):
+        hz = f"{hz} Hz" if re.search(r"\d", str(hz)) else hz
+    carc = _holo_pick(m.get("carcaca"), m.get("Carcaca"), mec.get("carcaca"), mot.get("carcaca"))
+    qd = _holo_pick(
+        m.get("quadro_nema"),
+        m.get("quadro"),
+        m.get("nema"),
+        mec.get("quadro"),
+        mec.get("nema"),
+        mec.get("nema_frame"),
+        mec.get("frame"),
+        mec.get("envelope"),
+        mot.get("quadro"),
+        mot.get("nema"),
+        mot.get("nema_frame"),
+        mot.get("frame"),
+    )
+    ipx = _holo_pick(
+        m.get("ip"),
+        m.get("classe"),
+        mec.get("ip"),
+        mec.get("classe_de_isolamento"),
+        mec.get("classe_de_isolacao"),
+        mec.get("classe_de_isolacao_motor"),
+        mec.get("is_ip"),
+        mot.get("ip"),
+    )
+    rpm_d = _to_text(rpm) or "—"
+    v_d = _to_text(tensao) or "—"
+    a_d = _to_text(corrente) or "—"
+    rows: list[tuple[str, str]] = [
+        ("CV", cv or "—"),
+        ("RPM", rpm_d),
+        ("V", v_d),
+        ("A", a_d if a_d else "—"),
+        ("Fases", fases or "—"),
+        ("Pólos", pol or "—"),
+        ("Freq.", hz or "—"),
+        ("Carc.", carc or "—"),
+        ("Quadro/NEMA", qd or "—"),
+    ]
+    if str(ipx or "").strip() and not str(ipx or "").lower() in ("0", "false", "n/a"):
+        rows.append(("IP/iso.", str(ipx)[:20]))
+    return rows
+
+
+def _holo_glb_kpi_block(m: dict | None, rpm: str, tensao: str, corrente: str, *, compact: bool) -> str:
+    prs = _holo_glb_kpi_pairs(m, rpm, tensao, corrente)
+    if compact and len(prs) > 6:
+        prs = prs[:6]
+    lines: list[str] = []
+    for lb, v in prs:
+        vs = "—" if (v is None or str(v).strip() in ("", "—", "-")) else str(v)
+        tip = html.escape(f"{lb}: {vs}"[:200])
+        one = f'<div class="kpi" title="{tip}">{html.escape(lb)} <b>{html.escape(vs)}</b></div>'
+        lines.append(one)
+    return "\n    ".join(lines)
+
+
+def _holo_show_capacitor_hotspot(m: dict | None) -> bool:
+    """Motor JSON `hologram_capacitor_hotspot`: 0 / false / hide oculta o ponto do capacitor."""
+    mot = _holo_motor_json(m)
+    v = mot.get("hologram_capacitor_hotspot", mot.get("HologramCapacitorHotspot"))
+    if v is None:
+        return True
+    if v is False or (isinstance(v, (int, float)) and v == 0):
+        return False
+    s = str(v).strip().lower()
+    if s in ("0", "false", "no", "off", "hide", "hidden", "não", "nao"):
+        return False
+    return True
+
+
+def _holo_vec3_tostring(v: Any) -> str | None:
+    if v is None:
+        return None
+    if isinstance(v, str) and re.match(r"^\s*[-+0-9.]+", v):
+        parts = re.split(r"[\s,;]+", v.strip())
+        nums = [p for p in parts if p]
+        if len(nums) >= 3:
+            return f"{float(nums[0]):.4f} {float(nums[1]):.4f} {float(nums[2]):.4f}"
+    if isinstance(v, (list, tuple)) and len(v) >= 3:
+        return f"{float(v[0]):.4f} {float(v[1]):.4f} {float(v[2]):.4f}"
+    if isinstance(v, dict) and "x" in v and "y" in v and "z" in v:
+        return f"{float(v['x']):.4f} {float(v['y']):.4f} {float(v['z']):.4f}"
+    return None
+
+
+def _holo_hotspot_tuning_get(m: dict | None, key: str) -> Any:
+    """Lê de `dados_tecnicos_json.motor` ou, se a chave nao existir, do dict do motor (raiz)."""
+    m = m or {}
+    mot = _holo_motor_json(m)
+    if key in mot:
+        return mot[key]
+    if isinstance(m, dict) and key in m:
+        return m[key]
+    return None
+
+
+def _holo_parse_hotspot_scale(m: dict | None) -> tuple[float, float, float]:
+    r = _holo_hotspot_tuning_get(m, "hologram_hotspot_scale")
+    if r is None or (isinstance(r, str) and r.strip() == ""):
+        r = _holo_hotspot_tuning_get(m, "HologramHotspotScale")
+    if r is None or (isinstance(r, str) and r.strip() == ""):
+        return (1.0, 1.0, 1.0)
+    if isinstance(r, (int, float)) and not isinstance(r, bool):
+        s = float(r)
+        return (s, s, s)
+    if isinstance(r, (list, tuple)) and r:
+        if len(r) == 1 and isinstance((r[0] if r else 0.0), (int, float)) and not isinstance(r[0], bool):
+            s = float(r[0])
+            return (s, s, s)
+        if len(r) >= 3:
+            return (float(r[0]), float(r[1]), float(r[2]))
+    if isinstance(r, dict) and "x" in r:
+        return (float(r["x"]), float(r.get("y", 1.0)), float(r.get("z", 1.0)))
+    if isinstance(r, str) and re.match(r"^\s*[-+0-9.]+", r):
+        parts = re.split(r"[\s,;]+", r.strip())
+        if len(parts) == 1:
+            s = float(parts[0])
+            return (s, s, s)
+        if len(parts) >= 3:
+            return (float(parts[0]), float(parts[1]), float(parts[2]))
+    return (1.0, 1.0, 1.0)
+
+
+def _holo_parse_hotspot_offset(m: dict | None) -> tuple[float, float, float]:
+    r = _holo_hotspot_tuning_get(m, "hologram_hotspot_offset")
+    if r is None or (isinstance(r, str) and r.strip() == ""):
+        r = _holo_hotspot_tuning_get(m, "HologramHotspotOffset")
+    if r is None or (isinstance(r, str) and r.strip() == ""):
+        return (0.0, 0.0, 0.0)
+    t = _holo_vec3_tostring(r)
+    if t is not None:
+        p0, p1, p2 = t.split()
+        return (float(p0), float(p1), float(p2))
+    if isinstance(r, (list, tuple)) and len(r) >= 3:
+        return (float(r[0]), float(r[1]), float(r[2]))
+    if isinstance(r, dict) and "x" in r and "y" in r and "z" in r:
+        return (float(r["x"]), float(r["y"]), float(r["z"]))
+    return (0.0, 0.0, 0.0)
+
+
+def _holo_annotations_merged(m: dict | None) -> list[dict[str, Any]]:
+    """
+    Pontos 3D: defaults + `motor.hologram_hotspot_overrides`.
+    Ajuste global: `hologram_hotspot_scale` (1 número ou "sx sy sz", ou {{x,y,z}}) e
+    `hologram_hotspot_offset` (vetor "x y z"); aplica a cada ponto: p' = p * s + o.
+    """
+    mot = _holo_motor_json(m or {})
+    ov = mot.get("hologram_hotspot_overrides") or mot.get("HologramHotspotOverrides")
+    ovd: dict[str, Any] = {}
+    if isinstance(ov, dict):
+        ovd = dict(ov)
+    elif isinstance(ov, str) and ov.strip():
+        try:
+            t = json.loads(ov)
+            ovd = t if isinstance(t, dict) else {}
+        except Exception:
+            ovd = {}
+    # Normais: frente = +X, trás = -X, cima = +Y (eixo, placa, cap no topo aproximado)
+    sp: list[dict[str, Any]] = [
+        {
+            "id": 0,
+            "key": "rolamento_frente",
+            "p": (0.22, 0.0, 0.0),
+            "n": (1.0, 0.0, 0.0),
+            "l": "Rolamento (frente - eixo)",
+        },
+        {
+            "id": 1,
+            "key": "rolamento_tras",
+            "p": (-0.2, 0.0, 0.0),
+            "n": (-1.0, 0.0, 0.0),
+            "l": "Rolamento (trás - eixo)",
+        },
+        {
+            "id": 2,
+            "key": "placa",
+            "p": (0.0, 0.11, 0.09),
+            "n": (0.0, 0.0, 1.0),
+            "l": "Placa de dados",
+        },
+        {
+            "id": 3,
+            "key": "capacitor",
+            "p": (0.12, 0.13, 0.0),
+            "n": (0.0, 1.0, 0.0),
+            "l": "Capacitor (se houver)",
+        },
+    ]
+    if not _holo_show_capacitor_hotspot(m or {}):
+        sp = [x for x in sp if x["key"] != "capacitor"]
+    for idx, it in enumerate(sp):
+        it["id"] = idx
+    for it in sp:
+        key = it["key"]
+        sub = ovd.get(key) or ovd.get(key.replace("_", ""))
+        if sub is not None and isinstance(sub, dict):
+            ps = _holo_vec3_tostring(
+                sub.get("p") or sub.get("pos") or sub.get("data-position") or sub.get("data_position")
+            )
+            if ps is not None:
+                parts = [float(x) for x in ps.split()]
+                it["p"] = (parts[0], parts[1], parts[2])
+            ns = _holo_vec3_tostring(
+                sub.get("n") or sub.get("normal") or sub.get("data-normal")
+            )
+            if ns is not None:
+                np = [float(x) for x in ns.split()]
+                it["n"] = (np[0], np[1], np[2])
+            tlab = sub.get("label") or sub.get("l") or sub.get("text")
+            if tlab is not None and str(tlab).strip() != "":
+                it["l"] = str(tlab).strip()
+    sx, sy, sz = _holo_parse_hotspot_scale(m)
+    ox, oy, oz = _holo_parse_hotspot_offset(m)
+    for it in sp:
+        p = it["p"]
+        it["p"] = (p[0] * sx + ox, p[1] * sy + oy, p[2] * sz + oz)
+    return sp
+
+
+def _build_model_viewer_hotspots_html(m: dict | None) -> str:
+    rows = _holo_annotations_merged(m)
+    if not rows:
+        return ""
+    out: list[str] = []
+    for it in rows:
+        i = int(it["id"])
+        px, py, pz = it["p"]
+        nx, ny, nz = it["n"]
+        p_s = f"{px:.4f} {py:.4f} {pz:.4f}"
+        n_s = f"{nx:.4f} {ny:.4f} {nz:.4f}"
+        lbl = html.escape(str(it.get("l") or ""))
+        out.append(
+            f'''<button type="button" class="holo-hs" slot="hotspot-{i}" data-position="{p_s}" data-normal="{n_s}">
+  <span class="holo-hs-pt" aria-hidden="true"></span>
+  <span class="holo-hs-rod" aria-hidden="true"></span>
+  <span class="holo-hs-txt">{lbl}</span>
+</button>'''
+        )
+    return "\n".join(out)
+
+
 def _build_model_viewer_html(
     preset: str,
     glb_url: str,
@@ -260,13 +561,22 @@ def _build_model_viewer_html(
     plabel: str,
     *,
     compact: bool = False,
+    motor: dict | None = None,
 ) -> str:
     src = json.dumps(glb_url)
     mv_h = 160 if compact else 240
+    kpi_block = _holo_glb_kpi_block(motor, rpm, tensao, corrente, compact=compact)
+    sp_html = _build_model_viewer_hotspots_html(motor) if (not compact and not _flag_truthy("HOLOGRAM_NO_GLB_HOTSPOTS")) else ""
     hint_block = (
         ""
         if compact
-        else '<div class="hint">Malha 3D com camada holográfica (scanline + brilho). Gire com o rato ou um dedo.</div>'
+        else (
+            '<div class="hint">Malha 3D com camada holográfica (scanline + brilho). Gire com o rato ou um dedo. '
+            "Anotacoes: rolamentos, placa, capacitor. Ajuste com "
+            "<code>hologram_hotspot_overrides</code>, e global "
+            "<code>hologram_hotspot_scale</code> (1 nr ou sx sy sz) e "
+            "<code>hologram_hotspot_offset</code> (x y z) — p' = p*scale+offset.</div>"
+        )
     )
     return f"""
 <!DOCTYPE html>
@@ -296,7 +606,7 @@ def _build_model_viewer_html(
   }}
   .mv-holo model-viewer {{
     position: relative;
-    z-index: 2;
+    z-index: 4;
     width: 100%;
     height: 100%;
     --poster-color: transparent;
@@ -324,8 +634,31 @@ def _build_model_viewer_html(
     mix-blend-mode: soft-light;
     opacity: 0.95;
   }}
-  .kpis {{
-    display:grid; grid-template-columns: repeat(3, 1fr); gap:6px; padding:8px 10px 10px;
+  .holo-hs {{
+    display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 0;
+    background: none; border: 0; margin: 0; padding: 0; min-width: 0; min-height: 0; cursor: pointer;
+  }}
+  .holo-hs-pt {{
+    display: block; width: 8px; height: 8px; border-radius: 50%;
+    background: #22d3ee; box-shadow: 0 0 9px 2px rgba(34,211,238,0.95);
+    border: 1px solid #ecfeff; flex: 0 0 auto; transform: translate(0, 0);
+  }}
+  .holo-hs-rod {{
+    display: block; width: 32px; height: 1px; flex: 0 0 auto; align-self: center;
+    background: linear-gradient(90deg, #67e8f9, rgba(103,232,249,0.25), rgba(6,20,32,0));
+  }}
+  .holo-hs-txt {{
+    display: block; max-width: 7.2em; font: 8px/1.15 system-ui, sans-serif; text-align: left; color: #a5f3fc;
+    text-shadow: 0 0 4px #000, 0 1px 2px #000; flex: 0 1 auto;
+  }}
+  .kpis.holo-glb-kpis {{
+    display:grid;
+    grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
+    gap:5px; padding:8px 8px 10px;
+  }}
+  .holo-glb-kpis .kpi {{
+    font-size:8px; line-height:1.2; padding:4px 6px; text-align:left;
+    min-height:2.1em; word-break:break-word;
   }}
   .kpi {{
     font-size:10px; padding:5px 8px; border-radius:8px;
@@ -349,12 +682,11 @@ def _build_model_viewer_html(
       shadow-intensity="0.35"
       exposure="0.72"
       interaction-prompt="none"
-    ></model-viewer>
+    >{sp_html}
+    </model-viewer>
     </div>
-    <div class="kpis">
-      <div class="kpi">RPM <b>{rpm}</b></div>
-      <div class="kpi">V <b>{tensao}</b></div>
-      <div class="kpi">A <b>{corrente}</b></div>
+    <div class="kpis holo-glb-kpis">
+      {kpi_block}
     </div>
   </div>
 </body></html>
@@ -544,7 +876,12 @@ def _build_css_fallback_html_legacy(
   .hint {{ font-size:9px; color:#7dd3fc; opacity:0.75; padding:0 10px 8px; }}
   .holo-preset--ip55_iso .body {{ border-color: rgba(34,211,238,1); box-shadow: inset 0 0 18px rgba(125,252,255,0.35), 0 0 20px rgba(34,211,238,0.45); }}
   .holo-preset--ip21_aberto .body {{ border-style: dashed; opacity: 0.88; filter: saturate(0.85); }}
-  .holo-preset--nema_mono .scene {{ transform: perspective(640px) rotateX(10deg) rotateY(-18deg) scale(0.92); }}
+  .holo-preset--nema_mono .scene,
+  .holo-preset--liso_56 .scene,
+  .holo-preset--cface_56 .scene,
+  .holo-preset--pump_56j .scene
+    {{ transform: perspective(640px) rotateX(10deg) rotateY(-18deg) scale(0.92); }}
+  .holo-preset--nema_footless .scene {{ transform: perspective(640px) rotateX(8deg) rotateY(-14deg) scale(0.9); }}
   .holo-preset--iec_w22 .holo-fin {{ opacity: 0.95; }}
   .holo-preset--trif_grande .body {{ width:148px; height:58px; top:10px; border-radius:29px; }}
   .holo-preset--servo_compacto .body {{ width:118px; height:46px; border-radius:12px; left:36px; }}
@@ -570,7 +907,7 @@ def _build_css_fallback_html_legacy(
           </div>
           <div class="endb"></div>
           <div class="jbox"></div>
-          {"<div class='cap'></div>" if preset in ("nema_mono", "ip21_aberto") else ""}
+          {"<div class='cap'></div>" if preset in ("liso_56", "nema_mono", "cface_56", "pump_56j", "ip21_aberto") else ""}
         </div>
       </div>
     </div>
@@ -634,16 +971,20 @@ def render_engine_hologram(
             )
         return
 
+    # V200 consulta: o mesmo `resolve_model_glb_url` que no detalhe; se ja ha URL,
+    # nao esconder o cartao por lacuna em `consulta_lista_motor_tem_familia_glb_dedicada_na_ficha`
+    # (ex.: WEG/DEFAULT/preset por secret, ou heuristica alinhada ao detalhe).
     lista_56 = consulta_lista_somente_familia_56_activa()
     if list_mode and lista_56:
         if not (
-            nema_56_somente_ficha_mecanica(m)
+            consulta_lista_motor_tem_familia_glb_dedicada_na_ficha(m)
             or motor_has_json_hologram_glb_url(m)
             or motor_has_hologram_motor_id_secret(m)
+            or bool(glb_url)
         ):
             st.caption(
-                f"3D: {NEMA_56_CARCACA_LEGENDA_COMPLETA} (Mecânica / quadro) — "
-                "ou GLB no JSON / `HOLOGRAM_GLB_MOTOR_<id>`."
+                f"3D: {NEMA_56_CARCACA_LEGENDA_COMPLETA} (NEMA 56); IEC63 / catálogo TEFC B3 (GLB `105 a.glb`); "
+                "IEC 100L; bomba / Ex — ou `motor.holograma_glb_url` / secret `HOLOGRAM_GLB_MOTOR_<id>`."
             )
             return
 
@@ -680,9 +1021,9 @@ def render_engine_hologram(
     if use_model_viewer:
         compact = bool(list_mode)
         doc = _build_model_viewer_html(
-            preset, glb_url, rpm, tensao, corrente, plabel, compact=compact
+            preset, glb_url, rpm, tensao, corrente, plabel, compact=compact, motor=m
         )
-        h = 288 if compact else 360
+        h = 300 if compact else 420
     elif list_mode and lista_56 and glb_url and not _flag_truthy("HOLOGRAM_LIST_NO_GLB"):
         st.caption(
             "3D: malha resolvida, mas a consulta nao abre varios WebGL. Abra **Detalhes**; ou "
