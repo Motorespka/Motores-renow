@@ -244,6 +244,40 @@ def _render_real_diagnosis(ctx) -> None:
             st.info("Nenhum motor encontrado (lista recente vazia).")
         return
 
+    # UX: informar tamanho e possivel truncamento por limite.
+    if busca:
+        st.caption(f"Resultados: {len(motores)} (limite {lim})." + (" Refine a busca para ver mais precisão." if len(motores) >= lim else ""))
+    else:
+        st.caption(f"Lista recente: {len(motores)} (limite {min(200, lim)}).")
+
+    # Filtro adicional (client-side) por data, quando o dataset tem updated_at/created_at.
+    with st.expander("Filtros adicionais", expanded=False):
+        enable_recent = st.checkbox(
+            "Somente atualizados recentemente (se houver data)",
+            value=False,
+            key="diag_recent_only",
+            help="Aplica filtro local se existirem campos updated_at/created_at na fonte.",
+        )
+        days = int(st.slider("Ultimos (dias)", min_value=1, max_value=90, value=14, step=1, key="diag_recent_days"))
+
+    if enable_recent:
+        cutoff = datetime.utcnow().timestamp() - days * 86400
+
+        def _ts(row: Dict[str, Any]) -> float:
+            for k in ("updated_at", "created_at", "UpdatedAt", "CreatedAt"):
+                v = row.get(k)
+                if not v:
+                    continue
+                try:
+                    # ISO: "2026-04-18T12:34:56" ou "2026-04-18 12:34:56"
+                    t = str(v).replace("Z", "").replace("T", " ").split(".")[0].strip()
+                    return datetime.fromisoformat(t).timestamp()
+                except Exception:
+                    continue
+            return 0.0
+
+        motores = [r for r in motores if _ts(r) >= cutoff] or motores
+
     options: List[tuple[str, Any]] = []
     for row in motores:
         motor_id = row.get("id") if row.get("id") not in (None, "") else row.get("Id")
@@ -365,7 +399,7 @@ def _render_real_diagnosis(ctx) -> None:
     if admin_user:
         st.divider()
         st.markdown("### Revisao em lote — motor_inteligencia (read-only)")
-        st.caption("Nao grava no Supabase. Usa a lista de motores ja carregada nesta pagina.")
+        st.caption("Nao grava no Supabase. Usa a lista carregada acima (busca/recentes + filtros locais).")
         cap = max(10, min(len(motores), 2000))
         lim = int(
             st.number_input(
