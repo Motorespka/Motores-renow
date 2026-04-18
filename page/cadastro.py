@@ -680,7 +680,7 @@ def render(ctx):
             data["motor"]["ip"] = st.text_input("IP", value=data["motor"].get("ip", ""))
             holo_keys = [k for k, _ in HOLOGRAM_CHOICES]
             holo_labels = {k: v for k, v in HOLOGRAM_CHOICES}
-            _h_cur = data["motor"].get("holograma_preset", "auto")
+            _h_cur = data["motor"].get("holograma_preset", "auto") or "auto"
             _h_idx = holo_keys.index(_h_cur) if _h_cur in holo_keys else 0
             data["motor"]["holograma_preset"] = st.selectbox(
                 "Holograma 3D (consulta)",
