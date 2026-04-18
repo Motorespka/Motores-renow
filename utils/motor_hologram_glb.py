@@ -2,8 +2,9 @@
 URLs de modelos GLB para o holograma 3D (<model-viewer>).
 Prioridade: motor.holograma_glb_url no JSON > HOLOGRAM_GLB_MOTOR_<id> > env por preset >
 HOLOGRAM_GLB_DEFAULT > HOLOGRAM_GLB_NEMA48 (se carcaca NEMA 48) >
-ficheiros em static/glb (starter pack, embutidos em data URL base64 por defeito) > demo (opcional).
-Desligar pack: HOLOGRAM_USE_STARTER_PACK=0. HTTP em vez de data: HOLOGRAM_STARTER_PACK_HTTP=1 (+ static serving).
+ficheiros em static/glb (starter pack; pequenos em data URL) > demo (opcional).
+GLB de teste grande `electric_motor_3d_model.glb` (se existir): prioridade apos URL no JSON; HTTP se >1.4MB.
+Desligar esse teste: HOLOGRAM_DISABLE_TEST_DOWNLOAD_GLB=1. Pack: HOLOGRAM_USE_STARTER_PACK=0. HTTP pack: HOLOGRAM_STARTER_PACK_HTTP=1.
 
 Sem URL valida: UI usa malha procedural aproximada em Three.js (no browser) ou, com
 `HOLOGRAM_LEGACY_CSS=1`, a silhueta CSS antiga. GLB real continua a ser o unico desenho tecnico fiel.
@@ -80,6 +81,7 @@ def _starter_pack_http_url(filename: str) -> Optional[str]:
 def _starter_pack_embedded_src(filename: str) -> Optional[str]:
     """
     data:...base64 para o model-viewer dentro do iframe srcdoc (evita /app/static/ bloqueado ou origem opaca).
+    Ficheiros > ~1.4MB nao embutimos (limite pratico); usar _starter_resolved_src.
     """
     path = _starter_glb_path(filename)
     if not path.is_file():
@@ -88,10 +90,28 @@ def _starter_pack_embedded_src(filename: str) -> Optional[str]:
         raw = path.read_bytes()
     except OSError:
         return None
-    if len(raw) > 1_500_000:
+    if len(raw) > 1_400_000:
         return None
     b64 = base64.standard_b64encode(raw).decode("ascii")
     return f"data:model/gltf-binary;base64,{b64}"
+
+
+# GLB de teste (~30MB) em static/glb/ — prioridade alta se existir (desligar: HOLOGRAM_DISABLE_TEST_DOWNLOAD_GLB=1).
+TEST_DOWNLOAD_GLB_FILENAME = "electric_motor_3d_model.glb"
+
+
+def _starter_resolved_src(filename: str) -> Optional[str]:
+    """Ficheiros pequenos: data URL; grandes: URL /app/static/ (requer enableStaticServing)."""
+    path = _starter_glb_path(filename)
+    if not path.is_file():
+        return None
+    try:
+        sz = path.stat().st_size
+    except OSError:
+        return None
+    if sz <= 1_400_000:
+        return _starter_pack_embedded_src(filename)
+    return _starter_pack_http_url(filename)
 
 
 def _starter_pack_disabled() -> bool:
@@ -156,7 +176,7 @@ def _resolve_starter_pack_url(m: Dict[str, Any], preset: str) -> Optional[str]:
         "on",
     ):
         return _starter_pack_http_url(name)
-    return _starter_pack_embedded_src(name)
+    return _starter_resolved_src(name)
 
 
 def _motor_json(m: Dict[str, Any]) -> Dict[str, Any]:
@@ -220,6 +240,16 @@ def resolve_model_glb_url(m: Dict[str, Any], preset: str) -> Optional[str]:
             u = str(raw).strip()
             if u.lower().startswith(("http://", "https://")) and _path_looks_glb(u):
                 return u
+
+    if not _read_secret_or_env("HOLOGRAM_DISABLE_TEST_DOWNLOAD_GLB", "MOTORES_HOLOGRAM_DISABLE_TEST_DOWNLOAD_GLB").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    ):
+        u_test = _starter_resolved_src(TEST_DOWNLOAD_GLB_FILENAME)
+        if u_test:
+            return u_test
 
     mid = _motor_id_str(m)
     if mid:
