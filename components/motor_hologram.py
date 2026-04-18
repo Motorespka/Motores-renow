@@ -515,7 +515,7 @@ def _build_css_fallback_html_legacy(
 <body>
   <div class="wrap holo-preset--{html.escape(preset)}" id="{hid_attr}">
     <div class="head">
-      <span>ENGINE HOLOGRAM</span>
+      <span>HOLOGRAMA · SILHUETA</span>
       <span>{plabel}</span>
     </div>
     <div class="hint">Silhueta holográfica (sem WebGL): arraste para girar. Malha GLB e viewer 3D: use Detalhes do motor ou cadastro com URL .glb.</div>

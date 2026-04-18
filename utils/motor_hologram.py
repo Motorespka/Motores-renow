@@ -13,7 +13,7 @@ HOLOGRAM_CHOICES: List[Tuple[str, str]] = [
     ("generico", "Generico IEC"),
     ("ip55_iso", "IP55 fechado (aleta padrao)"),
     ("ip21_aberto", "IP21 / gotejamento"),
-    ("nema_mono", "NEMA monofasico compacto"),
+    ("nema_mono", "NEMA monofásico compacto"),
     ("iec_w22", "IEC ferro W22 / aletas densas"),
     ("trif_grande", "Trifasico grande porte"),
     ("servo_compacto", "IP66 / servo compacto"),
