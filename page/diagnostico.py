@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import math
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import streamlit as st
 
@@ -27,6 +27,16 @@ from services.supabase_data import (
     fetch_motores_recent_cached,
     fetch_motores_search_cached,
 )
+
+BENCH_LOG_KEY = "diag_bench_alternador_log_v1"
+BENCH_NUMERIC_KEYS = (
+    "tensao_bateria_v",
+    "tensao_saida_vazio_v",
+    "tensao_saida_carga_v",
+    "corrente_saida_a",
+    "rpm",
+)
+BENCH_LOG_MAX = 200
 
 
 def _estimate_current(cv: float, tensao: float, rendimento: float, fp: float, fases: str) -> float:
@@ -86,6 +96,72 @@ def _save_snapshot_copy(snapshot: Dict[str, Any]) -> None:
         copies = []
     copies.append(snapshot)
     st.session_state[key] = copies[-60:]
+
+
+def _bench_log_entries() -> List[Dict[str, Any]]:
+    log = st.session_state.get(BENCH_LOG_KEY)
+    if not isinstance(log, list):
+        st.session_state[BENCH_LOG_KEY] = []
+        return st.session_state[BENCH_LOG_KEY]  # type: ignore[return-value]
+    return log
+
+
+def _diff_medidas_numericas(prev: Dict[str, Any], curr: Dict[str, Any]) -> Dict[str, Any]:
+    out: Dict[str, Any] = {}
+    for k in BENCH_NUMERIC_KEYS:
+        a = prev.get(k)
+        b = curr.get(k)
+        if a is None and b is None:
+            continue
+        try:
+            fa = float(a) if a is not None else None
+        except (TypeError, ValueError):
+            fa = None
+        try:
+            fb = float(b) if b is not None else None
+        except (TypeError, ValueError):
+            fb = None
+        if fa is None and fb is None:
+            continue
+        delta: Optional[float] = None
+        if fa is not None and fb is not None:
+            delta = fb - fa
+            if abs(delta) < 1e-9:
+                continue
+        out[k] = {"antes": fa, "depois": fb, "delta": delta}
+    return out
+
+
+def _append_bench_log_to_motor(ctx, motor_id: Any, log_entries: List[Dict[str, Any]], resumo: str) -> None:
+    motor_row = fetch_motor_by_id_cached(ctx.supabase, str(motor_id).strip())
+    if not motor_row:
+        st.error("Motor nao encontrado para este id.")
+        return
+    data = _load_motor_technical_payload(motor_row)
+    oficina = data.get("oficina")
+    if not isinstance(oficina, dict):
+        oficina = {}
+    historico = oficina.get("historico_tecnico")
+    if not isinstance(historico, list):
+        historico = []
+    ts = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    historico.append(
+        {
+            "data": ts,
+            "evento": "bancada_alternador",
+            "resumo": resumo or f"Log de bancada com {len(log_entries)} entrada(s).",
+            "payload": {"entries": log_entries},
+        }
+    )
+    oficina["historico_tecnico"] = historico[-60:]
+    data["oficina"] = oficina
+    payload = {"dados_tecnicos_json": data, "leitura_gemini_json": data}
+    try:
+        ctx.supabase.table("motores").update(payload).eq("id", motor_id).execute()
+    except Exception:
+        schema_payload = to_motores_schema_payload(data, image_paths=[], image_names=[])
+        ctx.supabase.table("motores").update(schema_payload).eq("id", motor_id).execute()
+    clear_motores_cache()
 
 
 def _build_laudo_raw_payload(
@@ -475,7 +551,16 @@ def render(ctx):
         unsafe_allow_html=True,
     )
 
-    tabs = st.tabs(["Motor da oficina", "Diagnostico manual", "Simulador", "Checklist", "Alertas"])
+    tabs = st.tabs(
+        [
+            "Motor da oficina",
+            "Diagnostico manual",
+            "Historico bancada (alternador)",
+            "Simulador",
+            "Checklist",
+            "Alertas",
+        ]
+    )
 
     with tabs[0]:
         _render_real_diagnosis(ctx)
@@ -586,6 +671,221 @@ def render(ctx):
                 )
 
     with tabs[2]:
+        st.markdown("### Historico de bancada (alternador)")
+        st.caption(
+            "Cada clique em **Registrar teste** adiciona uma linha ao historico desta sessao. "
+            "Se entre um teste e outro voce mudou regulagem, peca ou ligacao, marque **Houve alteracao** "
+            "e descreva; as medidas numericas sao comparadas automaticamente com o teste anterior (antes / depois)."
+        )
+
+        log = _bench_log_entries()
+
+        titulo_sessao = st.text_input(
+            "Identificacao do trabalho (ex.: alternador / cliente / placa)",
+            value="",
+            key="bench_sessao_titulo",
+        )
+
+        if is_admin_user():
+            st.markdown("#### Anexar ao motor (opcional)")
+            st.caption(
+                "Grava uma entrada em **oficina.historico_tecnico** do motor (UUID), com copia do log atual. "
+                "Nao substitui outros dados do motor."
+            )
+            c_a1, c_a2 = st.columns(2)
+            with c_a1:
+                bench_motor_uuid = st.text_input("Motor id (UUID)", value="", key="bench_motor_uuid")
+            with c_a2:
+                bench_resumo_anexo = st.text_input(
+                    "Resumo do evento (opcional)",
+                    value="Log bancada alternador",
+                    key="bench_resumo_anexo",
+                )
+            if st.button("Anexar log atual ao historico do motor", use_container_width=True, key="bench_attach"):
+                if not log:
+                    st.warning("Nao ha linhas no log para anexar.")
+                elif not _to_text(bench_motor_uuid):
+                    st.warning("Informe o UUID do motor.")
+                else:
+                    _append_bench_log_to_motor(
+                        ctx,
+                        bench_motor_uuid.strip(),
+                        list(log),
+                        _to_text(bench_resumo_anexo),
+                    )
+                    st.success("Entrada adicionada ao historico tecnico do motor.")
+
+        t1, t2, t3, t4 = st.columns(4)
+        with t1:
+            if st.button("Remover ultimo teste", use_container_width=True, key="bench_pop"):
+                if log:
+                    log.pop()
+                    st.rerun()
+        with t2:
+            st.checkbox("Confirmo limpar todo o log", key="bench_confirm_clear")
+        with t3:
+            if st.button("Limpar todo o historico", use_container_width=True, key="bench_clear_all"):
+                if st.session_state.get("bench_confirm_clear"):
+                    st.session_state[BENCH_LOG_KEY] = []
+                    st.rerun()
+                else:
+                    st.warning("Marque a confirmacao ao lado antes de limpar.")
+        with t4:
+            export_obj = {
+                "exportado_em": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                "trabalho": _to_text(titulo_sessao),
+                "entries": log,
+            }
+            st.download_button(
+                "Baixar historico (JSON)",
+                data=json.dumps(export_obj, ensure_ascii=False, indent=2),
+                file_name=f"bancada_alternador_{datetime.utcnow().strftime('%Y%m%d_%H%M')}.json",
+                mime="application/json",
+                use_container_width=True,
+                disabled=not log,
+                key="bench_dl_json",
+            )
+
+        with st.form("bench_alternador_form", clear_on_submit=True):
+            r1, r2 = st.columns(2)
+            with r1:
+                tensao_bateria_v = st.number_input(
+                    "Tensao bateria (V)",
+                    min_value=0.0,
+                    value=12.6,
+                    step=0.1,
+                    format="%.2f",
+                    key="bench_tb",
+                )
+                tensao_saida_vazio_v = st.number_input(
+                    "Tensao saida em vazio (V)",
+                    min_value=0.0,
+                    value=0.0,
+                    step=0.1,
+                    format="%.2f",
+                    key="bench_tv",
+                )
+            with r2:
+                tensao_saida_carga_v = st.number_input(
+                    "Tensao saida com carga (V)",
+                    min_value=0.0,
+                    value=0.0,
+                    step=0.1,
+                    format="%.2f",
+                    key="bench_tc",
+                )
+                corrente_saida_a = st.number_input(
+                    "Corrente saida (A)",
+                    min_value=0.0,
+                    value=0.0,
+                    step=0.1,
+                    format="%.2f",
+                    key="bench_ca",
+                )
+            rpm_bench = st.number_input(
+                "RPM ou velocidade do motor de arraste (opcional, 0 = nao informar)",
+                min_value=0.0,
+                value=0.0,
+                step=50.0,
+                format="%.0f",
+                key="bench_rpm",
+            )
+            resultado_bench = st.selectbox(
+                "Resultado do teste",
+                ["Indefinido", "OK", "Alerta", "Falha"],
+                index=0,
+                key="bench_res",
+            )
+            problema_bench = st.text_area(
+                "O que apareceu / sintoma observado",
+                value="",
+                height=72,
+                key="bench_prob",
+            )
+            houve_bench = st.checkbox(
+                "Houve alteracao desde o teste anterior (regulagem, peca, escova, diodo, conexao...)",
+                value=False,
+                key="bench_houve",
+            )
+            desc_alt_bench = st.text_input(
+                "Se houve alteracao, descreva o que mudou",
+                value="",
+                key="bench_desc_alt",
+            )
+            notas_bench = st.text_area("Notas gerais (opcional)", value="", height=56, key="bench_notas")
+            registrar_bench = st.form_submit_button("Registrar teste (salvar linha)", use_container_width=True)
+
+        if registrar_bench:
+            medidas: Dict[str, Any] = {
+                "tensao_bateria_v": float(tensao_bateria_v),
+                "tensao_saida_vazio_v": float(tensao_saida_vazio_v),
+                "tensao_saida_carga_v": float(tensao_saida_carga_v),
+                "corrente_saida_a": float(corrente_saida_a),
+                "rpm": float(rpm_bench) if rpm_bench else None,
+            }
+            prev = log[-1] if log else None
+            prev_med = prev.get("medidas") if isinstance(prev, dict) else {}
+            if not isinstance(prev_med, dict):
+                prev_med = {}
+            diff_vs = _diff_medidas_numericas(prev_med, medidas) if prev else {}
+
+            entry: Dict[str, Any] = {
+                "sequencia": len(log) + 1,
+                "data": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+                "trabalho": _to_text(st.session_state.get("bench_sessao_titulo")),
+                "medidas": medidas,
+                "resultado": resultado_bench,
+                "problema_observado": _to_text(problema_bench),
+                "houve_alteracao": bool(houve_bench),
+                "descricao_alteracao": _to_text(desc_alt_bench),
+                "notas": _to_text(notas_bench),
+                "diff_vs_anterior": diff_vs,
+                "usuario": _to_text(st.session_state.get("auth_user_email") or st.session_state.get("auth_user_id")),
+            }
+            log.append(entry)
+            st.session_state[BENCH_LOG_KEY] = log[-BENCH_LOG_MAX:]
+            st.success(f"Teste #{entry['sequencia']} registrado.")
+            if diff_vs:
+                st.markdown("**Alteracao numerica vs. teste anterior**")
+                for k, v in diff_vs.items():
+                    st.write(f"- **{k}**: antes {v.get('antes')} → depois {v.get('depois')} (delta {v.get('delta')})")
+            elif prev and houve_bench:
+                st.info("Alteracao marcada como manual; sem diferenca numerica nas medidas padrao.")
+
+        st.markdown(f"#### Historico na sessao ({len(log)} teste(s))")
+        if not log:
+            st.info("Nenhum teste registrado ainda.")
+        else:
+            for entry in reversed(log):
+                seq = int(entry.get("sequencia") or 0)
+                d = _to_text(entry.get("data"))
+                res = _to_text(entry.get("resultado"))
+                label = f"#{seq} — {d} — {res}"
+                with st.expander(label, expanded=(seq == len(log))):
+                    st.write("**Trabalho:**", entry.get("trabalho") or "—")
+                    st.json(entry.get("medidas") or {}, expanded=False)
+                    st.write("**Sintoma / observacao:**", entry.get("problema_observado") or "—")
+                    if entry.get("houve_alteracao"):
+                        st.write("**Alteracao feita:**", entry.get("descricao_alteracao") or "(sem descricao)")
+                    if entry.get("notas"):
+                        st.caption(entry.get("notas"))
+                    diff_e = entry.get("diff_vs_anterior") or {}
+                    if isinstance(diff_e, dict) and diff_e:
+                        st.markdown("**Antes → depois (automatico)**")
+                        rows = []
+                        for k, v in diff_e.items():
+                            if isinstance(v, dict):
+                                rows.append(
+                                    {
+                                        "medida": k,
+                                        "antes": v.get("antes"),
+                                        "depois": v.get("depois"),
+                                        "delta": v.get("delta"),
+                                    }
+                                )
+                        st.dataframe(rows, use_container_width=True, hide_index=True)
+
+    with tabs[3]:
         st.markdown("### Simulador de carga")
         c1, c2, c3, c4 = st.columns(4)
         with c1:
@@ -614,7 +914,7 @@ def render(ctx):
                 unsafe_allow_html=True,
             )
 
-    with tabs[3]:
+    with tabs[4]:
         st.markdown("### Checklist de bancada")
         st.checkbox("Inspecao visual de terminais e isolacao")
         st.checkbox("Medicao de resistencia entre fases")
@@ -622,7 +922,7 @@ def render(ctx):
         st.checkbox("Conferencia de rolamentos e alinhamento")
         st.checkbox("Teste com carga progressiva")
 
-    with tabs[4]:
+    with tabs[5]:
         st.markdown("### Alertas criticos")
         st.markdown(
             """

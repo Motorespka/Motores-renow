@@ -95,6 +95,8 @@ class Route(str, Enum):
     DETALHE = "detalhe"
     EDIT = "edit"
     DIAGNOSTICO = "diagnostico"
+    BIBLIOTECA_CALCULOS = "biblioteca_calculos"
+    ORDENS_SERVICO = "ordens_servico"
     ADMIN = "admin"
     HUB_COMERCIAL = "hub_comercial"
 
@@ -254,6 +256,8 @@ def render_navigation_sidebar(session, supabase_client=None) -> None:
         _group("ANÁLISE TÉCNICA")
         if paid_allowed:
             _nav_button("Diagnóstico", Route.DIAGNOSTICO, badge="PRO", badge_kind="warning")
+            _nav_button("Biblioteca de cálculos", Route.BIBLIOTECA_CALCULOS, badge="PRO", badge_kind="warning")
+            _nav_button("Ordens de serviço", Route.ORDENS_SERVICO, badge="PRO", badge_kind="warning")
 
         if flags.any_marketplace_enabled() or dev_mode:
             _group("ECOSSISTEMA")
@@ -276,6 +280,18 @@ def render_route_header(route: Route) -> None:
         Route.CONSULTA.value: ("CONSULTA TÉCNICA", "Base de motores cadastrados", "BASE", "accent"),
         Route.CADASTRO.value: ("CADASTRO / OCR", "Leitura de plaqueta e revisão assistida", "OCR", "primary"),
         Route.DIAGNOSTICO.value: ("DIAGNÓSTICO TÉCNICO", "Análise assistida de condição", "PRO", "warning"),
+        Route.BIBLIOTECA_CALCULOS.value: (
+            "BIBLIOTECA DE CÁLCULOS",
+            "Receitas de rebobinagem reutilizáveis e revisões",
+            "PRO",
+            "warning",
+        ),
+        Route.ORDENS_SERVICO.value: (
+            "ORDENS DE SERVIÇO",
+            "Fluxo oficina: recebe até entrega",
+            "PRO",
+            "warning",
+        ),
         Route.ADMIN.value: ("ADMINISTRAÇÃO", "Controle do workspace", "ADMIN", "destructive"),
         Route.ATUALIZACOES.value: ("ATUALIZAÇÕES", "Notas de versão e mudanças do sistema", "NEW", "accent"),
         Route.DETALHE.value: ("DETALHE DO MOTOR", "Visualização técnica e histórico", "MOTOR", "primary"),

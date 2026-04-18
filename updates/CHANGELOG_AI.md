@@ -1,5 +1,19 @@
 # CHANGELOG AI
 
+## 2026-04-18 | Cycle 0044
+- **Change Description:** Biblioteca de cálculos de rebobinagem (`rebobinagem_calculos`) e ordens de serviço (`oficina_ordens_servico`): migração Postgres, tabelas SQLite em `services/database.py`, serviço `services/oficina_workshop.py`, páginas Streamlit **Biblioteca de cálculos** e **Ordens de serviço** (PRO), rotas e navegação. OS com etapas padronizadas e linha do tempo em `payload.eventos`; cálculo opcional vinculado à OS.
+- **Reason:** Fluxo descrito pelo utilizador: pesquisar/criar cálculo e depois acompanhar a OS por etapas até entrega.
+- **Risk Level:** Baixo-Médio (novas tabelas; Supabase exige aplicar SQL manualmente; RLS não incluído — usar políticas conforme projeto).
+- **Rollback Availability:** Alto (reverter ficheiros + `drop table` se necessário).
+- **Next Predicted Risk:** Ajustar RLS/policies no Supabase para multi-tenant; enriquecer OS com fotos e PDF; espelhar fluxo no Next.js.
+
+## 2026-04-18 | Cycle 0043
+- **Change Description:** Diagnostico: nova aba **Historico bancada (alternador)** — log em sessao (linhas ilimitadas ate 200 na sessao) com medidas, sintoma, flag de alteracao manual, diff numerico vs. teste anterior, export JSON, remover ultimo / limpar com confirmacao; admins podem anexar o log a `oficina.historico_tecnico` de um motor por UUID.
+- **Reason:** Fluxo operacional tipo bancada: registrar testes em sequencia, ver antes/depois nas medidas e manter historico exportavel ou ligado ao cadastro do motor.
+- **Risk Level:** Baixo (sessao por defeito; escrita Supabase so admin + UUID explicito).
+- **Rollback Availability:** Alto (reverter `page/diagnostico.py` + este registro).
+- **Next Predicted Risk:** Persistencia dedicada (tabela propria) se o log precisar sobreviver a fechar o browser sem anexar ao motor.
+
 ## 2026-04-18 | Cycle 0039
 - **Change Description:** Página `diagnostico` aprimorada: filtro de busca (ID/marca/modelo) para selecionar motor com lista grande, botão de recarregar lista (limpa cache), e bypass de gating pago quando em `development mode` para permitir validação do fluxo sem bloquear a tela.
 - **Reason:** Melhorar operabilidade do diagnóstico na oficina e reduzir fricção/instabilidade em ambientes de teste.

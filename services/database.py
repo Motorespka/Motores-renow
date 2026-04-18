@@ -46,7 +46,37 @@ ORDENS_SERVICO_COLUMNS: Dict[str, str] = {
     "updated_at": "TEXT",
 }
 
-LIST_JSON_COLUMNS = {"imagens_origem", "imagens_urls"}
+REBOBINAGEM_CALCULOS_COLUMNS: Dict[str, str] = {
+    "titulo": "TEXT",
+    "notas": "TEXT",
+    "tags": "TEXT",
+    "fases": "TEXT",
+    "potencia_cv": "REAL",
+    "rpm": "INTEGER",
+    "polos": "INTEGER",
+    "tensao_v": "REAL",
+    "ranhuras": "INTEGER",
+    "payload": "TEXT",
+    "revision_of": "TEXT",
+    "revision_label": "TEXT",
+    "created_by": "TEXT",
+    "created_at": "TEXT",
+    "updated_at": "TEXT",
+}
+
+OFICINA_ORDENS_SERVICO_COLUMNS: Dict[str, str] = {
+    "numero": "TEXT",
+    "titulo": "TEXT",
+    "motor_id": "TEXT",
+    "etapa": "TEXT",
+    "calc_id": "TEXT",
+    "payload": "TEXT",
+    "created_by": "TEXT",
+    "created_at": "TEXT",
+    "updated_at": "TEXT",
+}
+
+LIST_JSON_COLUMNS = {"imagens_origem", "imagens_urls", "tags"}
 DICT_JSON_COLUMNS = {
     "dados_tecnicos_json",
     "leitura_gemini_json",
@@ -54,6 +84,7 @@ DICT_JSON_COLUMNS = {
     "bobinagem_auxiliar_json",
     "mecanica_json",
     "esquema_json",
+    "payload",
 }
 JSON_COLUMNS = LIST_JSON_COLUMNS | DICT_JSON_COLUMNS
 
@@ -120,6 +151,24 @@ def _ensure_base_tables(conn: sqlite3.Connection) -> None:
         """
     )
     _ensure_columns(conn, "ordens_servico", ORDENS_SERVICO_COLUMNS)
+
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS rebobinagem_calculos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT
+        )
+        """
+    )
+    _ensure_columns(conn, "rebobinagem_calculos", REBOBINAGEM_CALCULOS_COLUMNS)
+
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS oficina_ordens_servico (
+            id INTEGER PRIMARY KEY AUTOINCREMENT
+        )
+        """
+    )
+    _ensure_columns(conn, "oficina_ordens_servico", OFICINA_ORDENS_SERVICO_COLUMNS)
 
     cur.execute(
         """

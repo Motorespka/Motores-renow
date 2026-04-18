@@ -28,7 +28,19 @@ from core.development_mode import (
 from core.feature_flags import get_feature_flags
 from core.navigation import AppContext, Route, Router, render_navigation_sidebar, render_route_header
 from core.session_manager import SessionManager
-from page import admin_panel, atualizacoes, cadastro, consulta, diagnostico, edit, hub_comercial, motor_detail, visao_geral
+from page import (
+    admin_panel,
+    atualizacoes,
+    biblioteca_calculos,
+    cadastro,
+    consulta,
+    diagnostico,
+    edit,
+    hub_comercial,
+    motor_detail,
+    ordens_servico,
+    visao_geral,
+)
 from services.database import bootstrap_database, build_local_runtime_client
 from services.supabase_data import clear_motores_cache
 
@@ -189,6 +201,8 @@ def build_router() -> Router:
     router.register(Route.DETALHE, motor_detail.show)
     router.register(Route.EDIT, edit.show)
     router.register(Route.DIAGNOSTICO, diagnostico.show)
+    router.register(Route.BIBLIOTECA_CALCULOS, biblioteca_calculos.show)
+    router.register(Route.ORDENS_SERVICO, ordens_servico.show)
     router.register(Route.ADMIN, admin_panel.show)
     router.register(Route.HUB_COMERCIAL, hub_comercial.show)
     return router
@@ -428,7 +442,17 @@ def main() -> None:
             if current_route in {"", "login"}:
                 _set_route_state(session, "dashboard")
         else:
-            if current_route in {"", "login", "cadastro", "edit", "diagnostico", "detalhe", "admin"}:
+            if current_route in {
+                "",
+                "login",
+                "cadastro",
+                "edit",
+                "diagnostico",
+                "biblioteca_calculos",
+                "ordens_servico",
+                "detalhe",
+                "admin",
+            }:
                 _set_route_state(session, "dashboard")
 
     current_route_after = _read_route_state(session)
@@ -450,7 +474,12 @@ def main() -> None:
         _set_route_state(session, "consulta")
         st.rerun()
 
-    if access.get("authenticated") and (not paid_allowed) and route in ("diagnostico", "detalhe"):
+    if access.get("authenticated") and (not paid_allowed) and route in (
+        "diagnostico",
+        "detalhe",
+        "biblioteca_calculos",
+        "ordens_servico",
+    ):
         _set_route_state(session, "consulta")
         st.rerun()
 
