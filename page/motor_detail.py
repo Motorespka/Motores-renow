@@ -158,8 +158,8 @@ def render(ctx) -> None:
     holo_left, holo_right = st.columns([1.25, 1.0], gap="medium")
     with holo_left:
         st.caption(
-            "Holograma: sem .glb, vês malha procedural Three.js (aproximação visual). "
-            "Silhueta CSS antiga: `HOLOGRAM_LEGACY_CSS=1`. Malha técnica: URL GLB ou `HOLOGRAM_GLB_NEMA48`."
+            "Holograma: com `static/glb/` (starter pack) e static serving, usa .glb local por carcaça; "
+            "senão Three.js procedural. Desligar pack: `HOLOGRAM_USE_STARTER_PACK=0`. CSS antigo: `HOLOGRAM_LEGACY_CSS=1`."
         )
     with holo_right:
         render_engine_hologram(holo_m, key=f"motor_detail_holo_{motor_id}")
