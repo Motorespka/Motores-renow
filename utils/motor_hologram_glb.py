@@ -3,8 +3,8 @@ URLs de modelos GLB para o holograma 3D (<model-viewer>).
 Prioridade: motor.holograma_glb_url no JSON > HOLOGRAM_GLB_MOTOR_<id> > env por preset >
 HOLOGRAM_GLB_DEFAULT > HOLOGRAM_GLB_NEMA48 (se carcaca NEMA 48) > demo (opcional).
 
-Sem URL valida: UI cai na silhueta CSS (aspecto holograma). Nao carregamos GLB “aleatorio”
-que pareca outra peca — so .glb teu ou secrets.
+Sem URL valida: UI usa malha procedural aproximada em Three.js (no browser) ou, com
+`HOLOGRAM_LEGACY_CSS=1`, a silhueta CSS antiga. GLB real continua a ser o unico desenho tecnico fiel.
 """
 
 from __future__ import annotations
@@ -67,6 +67,11 @@ def _carcaca_blob(m: Dict[str, Any]) -> str:
     return " ".join(parts)
 
 
+def hologram_carcaca_context(m: Dict[str, Any]) -> str:
+    """Texto agregado da carcaça (NEMA/IEC) para heurísticas do holograma procedural."""
+    return _carcaca_blob(m).strip()[:260]
+
+
 def _is_nema_48_frame(m: Dict[str, Any]) -> bool:
     s = _carcaca_blob(m).upper()
     if not s.strip():
@@ -83,7 +88,7 @@ def _path_looks_glb(u: str) -> bool:
 
 def resolve_model_glb_url(m: Dict[str, Any], preset: str) -> Optional[str]:
     """
-    Retorna URL absoluta https para .glb, ou None para usar holograma CSS.
+    Retorna URL absoluta https para .glb, ou None para holograma procedural (Three.js) / CSS legado.
     """
     motor = _motor_json(m)
     for key in ("holograma_glb_url", "holograma_glb", "HologramaGlbUrl"):

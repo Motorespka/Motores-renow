@@ -158,8 +158,8 @@ def render(ctx) -> None:
     holo_left, holo_right = st.columns([1.25, 1.0], gap="medium")
     with holo_left:
         st.caption(
-            "Holograma: sem URL de .glb da carcaça, vês a silhueta cyan. "
-            "Com ficheiro real (Editar → URL GLB ou secret `HOLOGRAM_GLB_NEMA48`), a malha aparece com filtro holográfico."
+            "Holograma: sem .glb, vês malha procedural Three.js (aproximação visual). "
+            "Silhueta CSS antiga: `HOLOGRAM_LEGACY_CSS=1`. Malha técnica: URL GLB ou `HOLOGRAM_GLB_NEMA48`."
         )
     with holo_right:
         render_engine_hologram(holo_m, key=f"motor_detail_holo_{motor_id}")
