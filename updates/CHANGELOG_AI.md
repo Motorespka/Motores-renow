@@ -28,6 +28,13 @@
 - **Rollback Availability:** Alto (reverter `core/calculadora.py`, `services/oficina_runtime.py`, `page/cadastro.py`, `page/edit.py`, `page/motor_detail.py`).
 - **Next Predicted Risk:** Casos raros de rascunho parcial; o fluxo correto é completar os três campos auxiliares.
 
+## 2026-04-18 | Cycle 0038
+- **Change Description:** Adicionada auditoria técnica automática de coerência dos cálculos na página `consulta` (expander “Análise técnica dos cálculos”). A triagem classifica os motores em três grupos: (1) cálculos aparentemente certos/coerentes, (2) faltando dados essenciais, (3) totalmente desnivelados. A validação cruza potência/RPM/tensão/corrente/polos/fase com heurísticas de plausibilidade (incluindo verificação aproximada de corrente esperada por fase e compatibilidade RPM × polos × frequência).
+- **Reason:** Atender pedido de análise técnica prática dos cadastros da consulta com retorno objetivo dos motores “ok”, “incompletos” e “desnivelados”.
+- **Risk Level:** Baixo-Médio (lógica heurística de diagnóstico pode gerar falso positivo/negativo em casos especiais de aplicação; não altera dados persistidos).
+- **Rollback Availability:** Alto (reverter `page/consulta.py` para remover a auditoria).
+- **Next Predicted Risk:** Motores especiais (partida, tensão não padrão, aplicação específica) podem exigir regra de exceção; recomendado adicionar tolerâncias por tipo de motor/serviço no próximo ciclo.
+
 ## 2026-04-17 | Cycle 0033
 - **Change Description:** Reorganizada a experiência Consulta/Detalhes dos motores. Na página `consulta`, os cards passaram a exibir somente informações essenciais para triagem rápida (RPM, potência/cavalaria, corrente, fases/mono-trifásico, polos e resumo de eixo em X/Y). O conteúdo técnico denso (bobinagem, mecânica detalhada, esquema e leitura IA) foi removido da listagem e concentrado na página `motor_detail`, que agora apresenta visão limpa e completa em abas (Visão geral, Rebobinagem, Mecânica, Oficina & IA).
 - **Reason:** Atender pedido de reduzir poluição visual na consulta e usar “Abrir detalhes” como tela técnica completa, melhorando fluxo operacional e leitura em desktop/mobile.

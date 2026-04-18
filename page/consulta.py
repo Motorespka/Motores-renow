@@ -2,6 +2,7 @@
 
 import html
 import json
+import math
 import os
 import re
 from typing import Any, Dict, List
@@ -459,6 +460,259 @@ def _trunc_plain(text: str, max_len: int = 120) -> str:
     return txt[: max_len - 1].rstrip() + "\u2026"
 
 
+def _parse_float_token(token: str) -> float | None:
+    txt = str(token or "").strip().replace(",", ".")
+    if not txt:
+        return None
+    if "/" in txt:
+        parts = [p.strip() for p in txt.split("/") if p.strip()]
+        if len(parts) == 2:
+            try:
+                num = float(parts[0])
+                den = float(parts[1])
+                if den != 0:
+                    return num / den
+            except Exception:
+                pass
+    try:
+        return float(txt)
+    except Exception:
+        return None
+
+
+def _parse_power_kw(potencia: Any) -> float | None:
+    txt = _to_text(potencia).lower()
+    if not txt:
+        return None
+    number_match = re.search(r"(\d+(?:[.,]\d+)?(?:\s*/\s*\d+(?:[.,]\d+)?)?)", txt)
+    if not number_match:
+        return None
+    raw_value = number_match.group(1).replace(" ", "")
+    base = _parse_float_token(raw_value)
+    if base is None or base <= 0:
+        return None
+
+    if "kw" in txt:
+        return base
+    if "hp" in txt:
+        return base * 0.746
+    # Base principal da plataforma costuma estar em CV/cavalaria.
+    return base * 0.7355
+
+
+def _parse_numeric_list(value: Any) -> List[float]:
+    txt = _to_text(value)
+    if not txt:
+        return []
+    tokens = re.findall(r"\d+(?:[.,]\d+)?", txt)
+    out: List[float] = []
+    for token in tokens:
+        try:
+            n = float(token.replace(",", "."))
+        except Exception:
+            continue
+        out.append(n)
+    return out
+
+
+def _parse_voltage_options(value: Any) -> List[float]:
+    vals = [v for v in _parse_numeric_list(value) if 24 <= v <= 15000]
+    if not vals:
+        return []
+    dedup = sorted(set(vals))
+    return dedup[:4]
+
+
+def _parse_poles(polos: Any) -> int | None:
+    txt = _to_text(polos).upper()
+    if not txt:
+        return None
+    match = re.search(r"(\d{1,2})", txt)
+    if not match:
+        return None
+    try:
+        n = int(match.group(1))
+    except Exception:
+        return None
+    return n if n > 0 else None
+
+
+def _phase_kind(fases: Any) -> str:
+    txt = _to_text(fases).lower()
+    if not txt:
+        return "unknown"
+    if "tri" in txt or "3" in txt:
+        return "trifasico"
+    if "mono" in txt or "1" in txt:
+        return "monofasico"
+    return "unknown"
+
+
+def _estimate_nominal_current(power_kw: float, voltage: float, phase_kind: str) -> float:
+    # Estimativa prática para triagem em campo (faixas amplas por falta de η e cosφ reais).
+    if phase_kind == "trifasico":
+        eff_pf = 0.72
+        return (power_kw * 1000.0) / (math.sqrt(3.0) * voltage * eff_pf)
+    eff_pf = 0.62
+    return (power_kw * 1000.0) / (voltage * eff_pf)
+
+
+def _evaluate_motor_consistency(m: Dict[str, Any]) -> Dict[str, Any]:
+    data = m.get("dados_tecnicos_json", {})
+    motor_info = _section(data, "motor")
+    mecanica = _section(data, "mecanica")
+    eixo_x, eixo_y = _extract_eixo_xy(mecanica)
+
+    fase_txt = _to_text(m.get("fases")) or _to_text(motor_info.get("fases"))
+    polos_txt = _to_text(m.get("polos")) or _to_text(motor_info.get("polos"))
+    rpm_txt = _to_text(m.get("rpm")) or _to_text(motor_info.get("rpm"))
+    pot_txt = _to_text(m.get("potencia")) or _to_text(motor_info.get("potencia") or motor_info.get("cv"))
+    corrente_txt = _to_text(m.get("corrente")) or _to_text(motor_info.get("corrente"))
+    tensao_txt = _to_text(m.get("tensao")) or _to_text(motor_info.get("tensao"))
+
+    missing: List[str] = []
+    essentials = {
+        "rpm": rpm_txt,
+        "cavalaria": pot_txt,
+        "amperagem": corrente_txt,
+        "polaridade": polos_txt,
+        "fase (mono/trifásico)": fase_txt,
+        "eixo x": eixo_x if eixo_x != "-" else "",
+        "eixo y": eixo_y if eixo_y != "-" else "",
+    }
+    for label, value in essentials.items():
+        if not _to_text(value):
+            missing.append(label)
+
+    warnings: List[str] = []
+    severe: List[str] = []
+
+    phase_kind = _phase_kind(fase_txt)
+    if phase_kind == "unknown":
+        warnings.append("Tipo de fase não identificado com clareza (mono/trifásico).")
+
+    poles = _parse_poles(polos_txt)
+    if poles is not None and poles not in {2, 4, 6, 8, 10, 12}:
+        severe.append(f"Polaridade fora do padrão industrial comum: {poles}.")
+
+    rpm_values = [v for v in _parse_numeric_list(rpm_txt) if 100 <= v <= 10000]
+    rpm = rpm_values[0] if rpm_values else None
+    freq_values = [v for v in _parse_numeric_list(motor_info.get("frequencia")) if 40 <= v <= 70]
+    freq = freq_values[0] if freq_values else 60.0
+
+    if rpm is not None and poles is not None and poles > 0:
+        ns = (120.0 * freq) / poles
+        ratio = rpm / ns if ns > 0 else 0.0
+        if ratio > 1.04 or ratio < 0.45:
+            severe.append(
+                f"RPM ({rpm:.0f}) muito incompatível com {poles} polos @ {freq:.0f}Hz (síncrona ~{ns:.0f})."
+            )
+        elif ratio > 1.00 or ratio < 0.70:
+            warnings.append(
+                f"RPM ({rpm:.0f}) fora da faixa típica para {poles} polos @ {freq:.0f}Hz."
+            )
+
+    power_kw = _parse_power_kw(pot_txt)
+    currents = [v for v in _parse_numeric_list(corrente_txt) if v > 0]
+    voltages = _parse_voltage_options(tensao_txt)
+    if power_kw and currents and voltages and phase_kind in {"trifasico", "monofasico"}:
+        estimated = [_estimate_nominal_current(power_kw, v, phase_kind) for v in voltages if v > 0]
+        if estimated:
+            best_rel = min(abs(i_m - i_e) / max(i_e, 0.1) for i_m in currents for i_e in estimated)
+            if best_rel > 1.8:
+                severe.append("Amperagem muito fora do esperado para potência/tensão/fase informadas.")
+            elif best_rel > 0.9:
+                warnings.append("Amperagem com desvio alto em relação ao esperado para potência/tensão/fase.")
+    elif power_kw and phase_kind in {"trifasico", "monofasico"} and not voltages:
+        warnings.append("Sem tensão válida para conferir coerência da amperagem.")
+
+    if power_kw is None and pot_txt:
+        warnings.append("Potência/CV informada em formato não interpretável para validação.")
+
+    if len(missing) >= 4 and (warnings or severe):
+        severe.append("Dados essenciais insuficientes para confiança técnica no cadastro.")
+
+    if severe:
+        categoria = "desnivelados"
+    elif missing:
+        categoria = "faltando_essencial"
+    else:
+        categoria = "aparentemente_certos"
+
+    score = max(0, min(100, 100 - (30 * len(severe)) - (12 * len(warnings)) - (10 * len(missing))))
+    motor_label = f"{_to_text(m.get('marca')) or 'Motor'} {_to_text(m.get('modelo')) or ''}".strip()
+    return {
+        "id": _to_text(m.get("id")) or "-",
+        "motor": motor_label,
+        "categoria": categoria,
+        "score": int(score),
+        "faltas": missing,
+        "alertas": severe + warnings,
+    }
+
+
+def _to_report_table(entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    out: List[Dict[str, Any]] = []
+    for e in entries:
+        out.append(
+            {
+                "ID": e.get("id"),
+                "Motor": e.get("motor"),
+                "Score": e.get("score"),
+                "Faltas essenciais": ", ".join(e.get("faltas") or []) or "-",
+                "Alertas técnicos": ", ".join(e.get("alertas") or []) or "-",
+            }
+        )
+    return out
+
+
+def _render_consistency_report(motores: List[Dict[str, Any]]) -> None:
+    if not motores:
+        st.caption("Sem motores para analisar com os filtros atuais.")
+        return
+
+    analyzed = [_evaluate_motor_consistency(m) for m in motores]
+    groups = {
+        "aparentemente_certos": [e for e in analyzed if e["categoria"] == "aparentemente_certos"],
+        "faltando_essencial": [e for e in analyzed if e["categoria"] == "faltando_essencial"],
+        "desnivelados": [e for e in analyzed if e["categoria"] == "desnivelados"],
+    }
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Aparentemente certos", len(groups["aparentemente_certos"]))
+    c2.metric("Faltando essencial", len(groups["faltando_essencial"]))
+    c3.metric("Totalmente desnivelados", len(groups["desnivelados"]))
+    st.caption(
+        "Análise automática de triagem técnica (heurística). Sempre confirme em bancada/engenharia antes de decisão final."
+    )
+
+    tab_ok, tab_missing, tab_bad = st.tabs(
+        [
+            "Cálculos certos / coerentes",
+            "Faltando essencial",
+            "Totalmente desnivelados",
+        ]
+    )
+
+    with tab_ok:
+        if groups["aparentemente_certos"]:
+            st.dataframe(_to_report_table(groups["aparentemente_certos"]), use_container_width=True, hide_index=True)
+        else:
+            st.caption("Nenhum motor caiu neste grupo com os filtros atuais.")
+
+    with tab_missing:
+        if groups["faltando_essencial"]:
+            st.dataframe(_to_report_table(groups["faltando_essencial"]), use_container_width=True, hide_index=True)
+        else:
+            st.caption("Nenhum motor com falta essencial nos filtros atuais.")
+
+    with tab_bad:
+        if groups["desnivelados"]:
+            st.dataframe(_to_report_table(groups["desnivelados"]), use_container_width=True, hide_index=True)
+        else:
+            st.caption("Nenhum motor classificado como totalmente desnivelado nos filtros atuais.")
+
+
 def _delete_motor(ctx, motor_id: Any) -> None:
     motor_id_txt = _to_text(motor_id)
     if not motor_id_txt:
@@ -623,6 +877,9 @@ def render(ctx) -> None:
     if not filtrados:
         st.warning("Nenhum motor encontrado com os filtros atuais.")
         return
+
+    with st.expander("Analise tecnica dos calculos (Consulta)", expanded=False):
+        _render_consistency_report(filtrados)
 
     pg1, pg2, pg3 = st.columns([1.2, 1.0, 3.0], gap="small")
     with pg1:
