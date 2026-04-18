@@ -342,7 +342,12 @@ def render(ctx):
         with st.expander("Coerencia de rebobinagem (read-only)", expanded=False):
             from components.motor_rebobinagem_panel import render_rebobinagem_panel
 
-            render_rebobinagem_panel(data, key_prefix=f"edit_rb_{id_motor}", title="Inteligencia de rebobinagem")
+            render_rebobinagem_panel(
+                data,
+                key_prefix=f"edit_rb_{id_motor}",
+                title="Inteligencia de rebobinagem",
+                show_download=False,
+            )
 
         st.markdown("### D. MecÃ¢nica")
         data["mecanica"]["rolamentos"] = _list_editor("Rolamentos", data["mecanica"].get("rolamentos", []), f"{k}mec_rolamentos")
@@ -383,6 +388,11 @@ def render(ctx):
             salvar = st.form_submit_button("ðŸ’¾ SALVAR ALTERAÃ‡Ã•ES", use_container_width=True)
         with c2:
             voltar = st.form_submit_button("ðŸ”™ VOLTAR", use_container_width=True)
+
+    with st.expander("Baixar JSON rebobinagem (fora do formulario)", expanded=False):
+        from components.motor_rebobinagem_panel import render_rebobinagem_json_download_button
+
+        render_rebobinagem_json_download_button(data, key_prefix=f"edit_rb_{id_motor}")
 
     if voltar:
         ctx.session.set_route(Route.DETALHE)

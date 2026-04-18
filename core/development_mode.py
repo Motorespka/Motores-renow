@@ -3,11 +3,12 @@ from __future__ import annotations
 import os
 import re
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import streamlit as st
 
-from core.feature_flags import FeatureFlags
+if TYPE_CHECKING:
+    from core.feature_flags import FeatureFlags
 
 
 DEV_MODE_KEY = "dev_mode"
@@ -127,7 +128,7 @@ def resolve_client_ip() -> str:
     return ""
 
 
-def render_dev_banner_if_needed(flags: FeatureFlags) -> None:
+def render_dev_banner_if_needed(flags: Any) -> None:
     if not flags.enable_dev_banner:
         return
     if not is_dev_mode():

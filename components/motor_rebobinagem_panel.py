@@ -46,12 +46,34 @@ def render_rebobinagem_consulta_inline(raw_or_row: Dict[str, Any], *, key_prefix
         st.caption(line)
 
 
+def render_rebobinagem_json_download_button(
+    raw_or_row: Dict[str, Any],
+    *,
+    key_prefix: str = "rb",
+    label: str = "Baixar análise rebobinagem (JSON)",
+) -> None:
+    """Fora de `st.form()` — Streamlit não permite `st.download_button` dentro de forms."""
+    try:
+        rep = analyze_rewinding_coherence(_payload(raw_or_row))
+    except Exception as exc:
+        st.warning(f"Análise de rebobinagem indisponível: {exc}")
+        return
+    st.download_button(
+        label,
+        data=json.dumps(prepare_fastapi_rebobinagem_payload(rep), ensure_ascii=False, indent=2),
+        file_name=f"{key_prefix}_rebobinagem.json",
+        mime="application/json",
+        key=f"{key_prefix}_dl_rb",
+    )
+
+
 def render_rebobinagem_panel(
     raw_or_row: Dict[str, Any],
     *,
     key_prefix: str = "rb",
     title: str = "Inteligência de rebobinagem (read-only)",
     expanded_json: bool = False,
+    show_download: bool = True,
 ) -> None:
     try:
         rep = analyze_rewinding_coherence(_payload(raw_or_row))
@@ -72,10 +94,16 @@ def render_rebobinagem_panel(
             "future_calculations": rep.get("future_calculations"),
         }
         st.json(slim, expanded=False)
-        st.download_button(
-            "Baixar análise rebobinagem (JSON)",
-            data=json.dumps(prepare_fastapi_rebobinagem_payload(rep), ensure_ascii=False, indent=2),
-            file_name=f"{key_prefix}_rebobinagem.json",
-            mime="application/json",
-            key=f"{key_prefix}_dl_rb",
-        )
+        if show_download:
+            st.download_button(
+                "Baixar análise rebobinagem (JSON)",
+                data=json.dumps(prepare_fastapi_rebobinagem_payload(rep), ensure_ascii=False, indent=2),
+                file_name=f"{key_prefix}_rebobinagem.json",
+                mime="application/json",
+                key=f"{key_prefix}_dl_rb",
+            )
+        else:
+            st.caption(
+                "Use o botao 'Baixar JSON rebobinagem' abaixo do formulario "
+                "(Streamlit nao permite download dentro do form)."
+            )

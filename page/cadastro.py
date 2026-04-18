@@ -755,7 +755,12 @@ def render(ctx):
         with st.expander("Coerencia de rebobinagem (read-only)", expanded=False):
             from components.motor_rebobinagem_panel import render_rebobinagem_panel
 
-            render_rebobinagem_panel(data, key_prefix="cadastro_rb", title="Inteligencia de rebobinagem")
+            render_rebobinagem_panel(
+                data,
+                key_prefix="cadastro_rb",
+                title="Inteligencia de rebobinagem",
+                show_download=False,
+            )
 
         st.markdown("### D. Mecanica")
         data["mecanica"]["rolamentos"] = _list_editor("Rolamentos", data["mecanica"].get("rolamentos", []), "mec_rolamentos")
@@ -818,6 +823,11 @@ def render(ctx):
             render_motor_inteligencia_panel(data, key_prefix="cadastro_intel")
 
         salvar = st.form_submit_button("Salvar", use_container_width=True)
+
+    with st.expander("Baixar JSON rebobinagem (fora do formulario)", expanded=False):
+        from components.motor_rebobinagem_panel import render_rebobinagem_json_download_button
+
+        render_rebobinagem_json_download_button(data, key_prefix="cadastro_rb")
 
     if salvar:
         if not data["motor"].get("marca") and not data["motor"].get("modelo"):
