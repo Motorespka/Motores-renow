@@ -16,6 +16,7 @@ from services.oficina_parser import (
     build_normalized_from_motor_row,
     extract_consulta_parser_snapshot,
 )
+from components.motor_hologram import render_engine_hologram
 from services.supabase_data import clear_motores_cache, fetch_motores_cached
 from utils.motor_normalizer import normalize_motor_row_for_ui
 
@@ -746,23 +747,7 @@ def render(ctx) -> None:
                     st.caption(f"Feito por: {_to_text(m.get('feito_por'))}")
 
             with right:
-                st.markdown(
-                    f"""
-                    <div class="motor-visual">
-                        <div class="motor-visual__label">Engine Hologram</div>
-                        <div class="holo-stage">
-                            <div class="holo-core"></div>
-                            <div class="holo-ring"></div>
-                            <div class="holo-ring ring-2"></div>
-                            <div class="holo-ring ring-3"></div>
-                            <div class="holo-stat stat-a">RPM {_safe(m.get("rpm"))}</div>
-                            <div class="holo-stat stat-b">V {_safe(m.get("tensao"))}</div>
-                            <div class="holo-stat stat-c">A {_safe(m.get("corrente"))}</div>
-                        </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+                render_engine_hologram(m, key=motor_key)
 
             if admin_user:
                 b1, b2, b3 = st.columns(3)

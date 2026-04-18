@@ -21,6 +21,7 @@ from services.oficina_parser import (
 )
 from services.oficina_runtime import enriquecer_motor_oficina
 from services.supabase_data import clear_motores_cache, fetch_motor_by_id_cached
+from utils.motor_hologram import HOLOGRAM_CHOICES
 from utils.motor_normalizer import normalize_motor_row_for_ui
 from utils.motor_view import dados_tecnicos_from_row
 
@@ -266,6 +267,18 @@ def render(ctx):
             data["motor"]["frequencia"] = st.text_input("FrequÃªncia", value=data["motor"].get("frequencia", ""), key=f"{k}frequencia")
             data["motor"]["isolacao"] = st.text_input("IsolaÃ§Ã£o", value=data["motor"].get("isolacao", ""), key=f"{k}isolacao")
             data["motor"]["ip"] = st.text_input("IP", value=data["motor"].get("ip", ""), key=f"{k}ip")
+            holo_keys = [x for x, _ in HOLOGRAM_CHOICES]
+            holo_labels = {x: y for x, y in HOLOGRAM_CHOICES}
+            _h_cur = data["motor"].get("holograma_preset", "auto") or "auto"
+            _h_idx = holo_keys.index(_h_cur) if _h_cur in holo_keys else 0
+            data["motor"]["holograma_preset"] = st.selectbox(
+                "Holograma 3D (consulta)",
+                options=holo_keys,
+                index=_h_idx,
+                format_func=lambda x: holo_labels.get(x, x),
+                key=f"{k}holograma_preset",
+                help="Automatico: estilo a partir do IP e da carcaca.",
+            )
             data["motor"]["fator_servico"] = st.text_input("Fator de serviÃ§o", value=data["motor"].get("fator_servico", ""), key=f"{k}fator_servico")
         with c3:
             data["motor"]["tipo_motor"] = st.text_input("Tipo do motor", value=data["motor"].get("tipo_motor", ""), key=f"{k}tipo_motor")

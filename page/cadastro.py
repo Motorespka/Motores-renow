@@ -32,6 +32,7 @@ from services.oficina_parser import (
 )
 from services.oficina_runtime import enriquecer_motor_oficina
 from services.supabase_data import clear_motores_cache
+from utils.motor_hologram import HOLOGRAM_CHOICES
 
 SUPPORTED_TYPES = ["jpg", "jpeg", "png", "heic", "heif", "webp", "jfif", "avif"]
 
@@ -677,6 +678,17 @@ def render(ctx):
             data["motor"]["frequencia"] = st.text_input("Frequencia", value=data["motor"].get("frequencia", ""))
             data["motor"]["isolacao"] = st.text_input("Isolacao", value=data["motor"].get("isolacao", ""))
             data["motor"]["ip"] = st.text_input("IP", value=data["motor"].get("ip", ""))
+            holo_keys = [k for k, _ in HOLOGRAM_CHOICES]
+            holo_labels = {k: v for k, v in HOLOGRAM_CHOICES}
+            _h_cur = data["motor"].get("holograma_preset", "auto")
+            _h_idx = holo_keys.index(_h_cur) if _h_cur in holo_keys else 0
+            data["motor"]["holograma_preset"] = st.selectbox(
+                "Holograma 3D (consulta)",
+                options=holo_keys,
+                index=_h_idx,
+                format_func=lambda k: holo_labels.get(k, k),
+                help="Automatico: estilo a partir do IP e da carcaca. Ou escolha um preset fixo.",
+            )
             data["motor"]["fator_servico"] = st.text_input("Fator de servico", value=data["motor"].get("fator_servico", ""))
         with c3:
             data["motor"]["tipo_motor"] = st.text_input("Tipo do motor", value=data["motor"].get("tipo_motor", ""))
@@ -687,6 +699,22 @@ def render(ctx):
             )
             data["motor"]["numero_serie"] = st.text_input("Numero de serie", value=data["motor"].get("numero_serie", ""))
             data["motor"]["data_anotacao"] = st.text_input("Data da anotacao", value=data["motor"].get("data_anotacao", ""))
+
+        st.caption("Previa do holograma (arraste para girar). Na consulta, o mesmo preset aparece no card.")
+        try:
+            from components.motor_hologram import render_engine_hologram
+
+            _prev = {
+                "dados_tecnicos_json": data,
+                "rpm": data["motor"].get("rpm"),
+                "tensao": data["motor"].get("tensao"),
+                "corrente": data["motor"].get("corrente"),
+                "fases": data["motor"].get("fases"),
+                "tipo_motor": data["motor"].get("tipo_motor"),
+            }
+            render_engine_hologram(_prev, key="cadastro_holo_preview")
+        except Exception:
+            pass
 
         data["motor"]["tensao"] = _list_editor("Tensao (lista)", data["motor"].get("tensao", []), "motor_tensao_lista")
         data["motor"]["corrente"] = _list_editor("Corrente (lista)", data["motor"].get("corrente", []), "motor_corrente_lista")
