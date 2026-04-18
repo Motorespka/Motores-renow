@@ -5,7 +5,14 @@ Presets visuais do holograma (consulta/cadastro) mapeados por IP/carcaca ou esco
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional
+
+from utils.motor_hologram_glb import (
+    iec63_etiqueta_na_carcaca_sem_ne_ma,
+    infer_hologram_preset_familia_nema_silueta,
+    motor_familia_iec_tefc_b3_catalogo_silhueta_somente_ficha,
+    nema_56_somente_ficha_mecanica,
+)
 
 # (id interno, rotulo na UI)
 HOLOGRAM_CHOICES: List[Tuple[str, str]] = [
@@ -13,7 +20,11 @@ HOLOGRAM_CHOICES: List[Tuple[str, str]] = [
     ("generico", "Generico IEC"),
     ("ip55_iso", "IP55 fechado (aleta padrao)"),
     ("ip21_aberto", "IP21 / gotejamento"),
-    ("nema_mono", "NEMA monofásico compacto"),
+    ("liso_56", "Liso, peq., c/ pes (48, 56, 56H-D-L-Y, mesma silh. 3D)"),
+    ("cface_56", "NEMA 56C / 48C / C-face (flange)"),
+    ("pump_56j", "Bomba / 56J (montagem diametro)"),
+    ("nema_footless", "Sem pes / so face (silhueta distinta)"),
+    ("nema_mono", "NEMA monofasico compacto (legado)"),
     ("iec_w22", "IEC ferro W22 / aletas densas"),
     ("trif_grande", "Trifasico grande porte"),
     ("servo_compacto", "IP66 / servo compacto"),
@@ -73,13 +84,21 @@ def _infer_preset(m: Dict[str, Any]) -> str:
             return "ip55_iso"
         if code in {"21", "20", "22", "23"}:
             return "ip21_aberto"
-    if "NEMA" in car or "Nema" in car:
-        return "nema_mono"
+    car_cmp = re.sub(r"[\s._\-/]+", "", car)
+    if "IEC63" in car_cmp and "NEMA" not in car and not nema_56_somente_ficha_mecanica(m):
+        if motor_familia_iec_tefc_b3_catalogo_silhueta_somente_ficha(m) or iec63_etiqueta_na_carcaca_sem_ne_ma(m):
+            return "generico"
+    pr_nema: Optional[str] = infer_hologram_preset_familia_nema_silueta(m)
+    if pr_nema:
+        return pr_nema
     if "W22" in car or "W21" in car or "WEG" in car:
         return "iec_w22"
-
-    if "mono" in fases or "mono" in tipo or cap:
-        return "nema_mono"
+    if "TEFC" in car and ("ALET" in car or "ALETA" in car or "W22" in car or "W21" in car):
+        return "iec_w22"
+    if "NEMA" in car:
+        return "liso_56"
+    if ("mono" in fases or "mono" in tipo or cap) and "IEC63" not in car_cmp:
+        return "liso_56"
 
     pot = _txt(m.get("potencia") or motor.get("potencia"))
     nums = re.findall(r"\d+", pot)
@@ -96,6 +115,11 @@ def resolve_hologram_preset(m: Dict[str, Any]) -> str:
     motor = _motor_block(m)
     explicit = _txt(motor.get("holograma_preset")).lower().replace(" ", "_")
     if explicit and explicit != "auto" and explicit in HOLOGRAM_LABELS:
+        if explicit in ("nema_mono", "liso_56") and not nema_56_somente_ficha_mecanica(m):
+            if motor_familia_iec_tefc_b3_catalogo_silhueta_somente_ficha(m) or iec63_etiqueta_na_carcaca_sem_ne_ma(
+                m
+            ):
+                return "generico"
         return explicit
     return _infer_preset(m)
 
