@@ -769,6 +769,13 @@ def _build_threejs_procedural_html(
 """
 
 
+def _css_silhouette_hint(for_list_card: bool) -> str:
+    """Texto curto no iframe da silhueta — evita legenda NEMA longa nos cartões da consulta."""
+    if for_list_card:
+        return "Lista: silhueta 2D (sem WebGL). Malha 3D no ecrã Detalhes."
+    return "Silhueta sem WebGL; GLB técnico no cadastro (Detalhes / holograma_glb_url)."
+
+
 def _build_css_fallback_html_legacy(
     preset: str,
     fins_n: str,
@@ -778,6 +785,8 @@ def _build_css_fallback_html_legacy(
     plabel: str,
     hid_attr: str,
     hid_plain: str,
+    *,
+    for_list_card: bool = False,
 ) -> str:
     return f"""
 <!DOCTYPE html>
@@ -866,7 +875,7 @@ def _build_css_fallback_html_legacy(
     border:1px solid rgba(34,211,238,0.32); background: rgba(6,50,70,0.35); color:#a5f3fc;
   }}
   .kpi b {{ color:#ecfeff; font-weight:700; }}
-  .hint {{ font-size:9px; color:#7dd3fc; opacity:0.75; padding:0 10px 8px; }}
+  .hint {{ font-size:9px; color:#7dd3fc; opacity:0.75; padding:0 10px 6px; line-height:1.35; max-height:2.8em; overflow:hidden; }}
   .holo-preset--ip55_iso .body {{ border-color: rgba(34,211,238,1); box-shadow: inset 0 0 18px rgba(125,252,255,0.35), 0 0 20px rgba(34,211,238,0.45); }}
   .holo-preset--ip21_aberto .body {{ border-style: dashed; opacity: 0.88; filter: saturate(0.85); }}
   .holo-preset--nema_mono .scene,
@@ -886,8 +895,7 @@ def _build_css_fallback_html_legacy(
       <span>HOLOGRAMA · SILHUETA</span>
       <span>{plabel}</span>
     </div>
-    <div class="hint">Silhueta (sem WebGL) na consulta. NEMA 56: so ficha
-      (Mecânica, quadro) — {html.escape(NEMA_56_CARCACA_LEGENDA_COMPLETA)}. GLB: JSON/Detalhes/viewer 3D.</div>
+    <div class="hint">{html.escape(_css_silhouette_hint(for_list_card))}</div>
     <div class="stage" data-host="{hid_attr}">
       <div class="grid"></div>
       <div class="shadow"></div>
@@ -985,7 +993,10 @@ def render_engine_hologram(
     rpm = html.escape(_to_text(m.get("rpm")) or "-")
     tensao = html.escape(_to_text(m.get("tensao")) or "-")
     corrente = html.escape(_to_text(m.get("corrente")) or "-")
-    plabel = html.escape(hologram_choice_label(preset))
+    raw_plabel = hologram_choice_label(preset)
+    if list_mode and len(raw_plabel) > 42:
+        raw_plabel = raw_plabel[:39].rstrip() + "…"
+    plabel = html.escape(raw_plabel)
     hid_plain = _host_id(key)
     hid_attr = html.escape(hid_plain)
 
@@ -1022,7 +1033,15 @@ def render_engine_hologram(
         use_css_not_three = legacy_css or (list_mode and not force_list_three)
         if use_css_not_three:
             doc = _build_css_fallback_html_legacy(
-                preset, fins_n, rpm, tensao, corrente, plabel, hid_attr, hid_plain
+                preset,
+                fins_n,
+                rpm,
+                tensao,
+                corrente,
+                plabel,
+                hid_attr,
+                hid_plain,
+                for_list_card=bool(list_mode),
             )
             h = 310
         else:
