@@ -225,19 +225,6 @@ def _motor_detail_page_fragment() -> None:
         holo_m["tipo_motor"] = holo_m.get("tipo_motor")
     if holo_m.get("cadastro_seq") in (None, "") and seq_sess is not None:
         holo_m["cadastro_seq"] = seq_sess
-    holo_left, holo_right = st.columns([1.25, 1.0], gap="medium")
-    with holo_left:
-        st.caption(
-            f"Holograma GLB: WebGL. JSON: motor.holograma_glb_url. Famílias na ficha: NEMA 56 "
-            f"({NEMA_56_CARCACA_LEGENDA_COMPLETA}) → HOLOGRAM_GLB_NEMA56 / mono 1 cap "
-            "(HOLOGRAM_GLB_NEMA_MONO_1CAP) / pequeno liso (HOLOGRAM_GLB_NEMA_PEQUENO_CONV_LISO); "
-            "NEMA 42 (HOLOGRAM_GLB_NEMA42 / HOLOGRAM_BAKED_NEMA42_GLB; quadro/frame conta na deteção); "
-            "IEC 132 (HOLOGRAM_GLB_IEC132 / HOLOGRAM_BAKED_IEC132_GLB); NEMA 48 (HOLOGRAM_GLB_NEMA48); "
-            "IEC TEFC B3 e IEC63 (HOLOGRAM_GLB_IEC_TEFC_B3_CATALOGO); IEC 100L; bomba / Ex. "
-            "STRICT: HOLOGRAM_CARCACA_NEMA56_STRICT=1. Senão: DEFAULT / WEG / disco."
-        )
-    with holo_right:
-        render_engine_hologram(holo_m, key=f"motor_detail_holo_{motor_id}")
 
     bob_principal = _section(dados, "bobinagem_principal")
     bob_auxiliar = _section(dados, "bobinagem_auxiliar")
@@ -297,6 +284,19 @@ def _motor_detail_page_fragment() -> None:
             _render_data_panel("Número de série", campo_ou_nao_consta(motor_info.get("numero_serie")))
             _render_data_panel("IP", campo_ou_nao_consta(motor_info.get("ip")))
             _render_data_panel("Isolação", campo_ou_nao_consta(motor_info.get("isolacao")))
+
+        st.divider()
+        with st.expander("Referência GLB / secrets (só operadores)", expanded=False):
+            st.caption(
+                f"Holograma GLB: WebGL. JSON: motor.holograma_glb_url. Famílias na ficha: NEMA 56 "
+                f"({NEMA_56_CARCACA_LEGENDA_COMPLETA}) → HOLOGRAM_GLB_NEMA56 / mono 1 cap "
+                "(HOLOGRAM_GLB_NEMA_MONO_1CAP) / pequeno liso (HOLOGRAM_GLB_NEMA_PEQUENO_CONV_LISO); "
+                "NEMA 42 (HOLOGRAM_GLB_NEMA42 / HOLOGRAM_BAKED_NEMA42_GLB; quadro/frame conta na deteção); "
+                "IEC 132 (HOLOGRAM_GLB_IEC132 / HOLOGRAM_BAKED_IEC132_GLB); NEMA 48 (HOLOGRAM_GLB_NEMA48); "
+                "IEC TEFC B3 e IEC63 (HOLOGRAM_GLB_IEC_TEFC_B3_CATALOGO); IEC 100L; bomba / Ex. "
+                "STRICT: HOLOGRAM_CARCACA_NEMA56_STRICT=1. Senão: DEFAULT / WEG / disco."
+            )
+        render_engine_hologram(holo_m, key=f"motor_detail_holo_{motor_id}")
 
     with tab2:
         bb1, bb2 = st.columns(2)
