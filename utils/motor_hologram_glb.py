@@ -853,7 +853,7 @@ def iec63_etiqueta_na_carcaca_sem_ne_ma(m: Dict[str, Any]) -> bool:
 def motor_familia_iec_tefc_b3_catalogo_silhueta_somente_ficha(m: Dict[str, Any]) -> bool:
     """
     Familia visual unica: IEC TEFC, montagem B3 (B3/B3T/B3D/B3L), pes, corpo aletado, sem flange B5/B14/B35.
-    Quadros: IEC63 (etiqueta compacta), 63S, 63M, 63L, 90S, 90L, 100L, 112M, 132S (dados de ficha).
+    Quadros: IEC63 (etiqueta compacta), 63S, 63M, 63L, 90S, 90L, 100L, 112S, 112M, IEC112/IEC 112, 132S (dados de ficha).
     Para IEC63 sem texto B3/TEFC na ficha, assume-se mesma silhueta de catalogo (GLB 105 a.glb).
     Nao aplica com ambiguidade (bomba/J, NEMA, sem pes).
     B5/B14/B35: so na string de carcaca (evita rejeitar IEC63 quando `frame`/`quadro` trazem letras B5 noutro contexto).
@@ -877,6 +877,9 @@ def motor_familia_iec_tefc_b3_catalogo_silhueta_somente_ficha(m: Dict[str, Any])
         return False
     if "IEC63" in c.upper():
         return True
+    # IEC 112 / IEC112 na ficha (sem sufixo 112M) — mesmo pacote visual do catalogo TEFC B3.
+    if re.search(r"\bIEC\s*112\b|\bIEC112\b", raw_u, re.IGNORECASE):
+        return True
     b3_ok = (
         "B3T" in c
         or "B3D" in c
@@ -887,7 +890,7 @@ def motor_familia_iec_tefc_b3_catalogo_silhueta_somente_ficha(m: Dict[str, Any])
         return False
     if "TEFC" not in c and re.search(r"ALET|ALETADO|ALETAS", raw_u, re.IGNORECASE) is None:
         return False
-    for fr in ("63S", "63M", "63L", "90S", "90L", "100L", "112M", "132S", "132M"):
+    for fr in ("63S", "63M", "63L", "90S", "90L", "100L", "112S", "112M", "132S", "132M"):
         if re.search(rf"(?<![0-9.]){re.escape(fr)}(?![0-9])", c, re.IGNORECASE):
             return True
     return False
@@ -1598,6 +1601,10 @@ def resolve_model_glb_url(m: Dict[str, Any], preset: str) -> Optional[str]:
         u = _read_secret_or_env("HOLOGRAM_GLB_NEMA48", "MOTORES_HOLOGRAM_GLB_NEMA48")
         if u and u.lower().startswith(("http://", "https://")) and _path_looks_glb(u):
             return u
+        # URL NEMA48 invalida/ausente: fallback para o mesmo GLB NEMA 56 (carcaca aproximada na lista/detalhe).
+        u56_fb = nema56_glb_url_efectiva_para_motor(m)
+        if u56_fb:
+            return u56_fb
 
     u_disk = _resolve_opt_in_disk_test_glb()
     if u_disk:

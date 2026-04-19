@@ -3,7 +3,7 @@ Holograma: GLB via <model-viewer> quando houver URL resolvida.
 Na listagem (consulta): com URL ``https://…``.glb`` (ex.: Supabase) usa o **mesmo** ``model-viewer`` que no Detalhe
 (``loading="lazy"`` por cartão). Silhueta CSS só quando não há GLB ou com ``HOLOGRAM_LIST_NO_GLB=1``.
 ``HOLOGRAM_LIST_HIDE_REMOTE_GLB=1`` força silhueta mesmo com HTTPS. ``HOLOGRAM_LIST_SHOW_GLB=1`` inclui também ``data:`` /
-pack estático (salvo ``HOLOGRAM_LIST_NO_STATIC_GLB=1``). ``HOLOGRAM_LIST_GLB_NO_HOTSPOTS=1`` oculta hotspots só na lista.
+pack estático (salvo ``HOLOGRAM_LIST_NO_STATIC_GLB=1``). ``HOLOGRAM_LIST_GLB_HOTSPOTS=1`` activa hotspots na lista (por defeito desligados para evitar falhas de parse no iframe).
 
 Na consulta, a silhueta generica fica **desligada** por defeito; `HOLOGRAM_LISTA_SILHUETA_TODOS=1` volta
 ao bloco de silhueta em todos. `HOLOGRAM_CARCACA_NEMA56_STRICT=1` controla a cadeia de resolucao GLB.
@@ -559,8 +559,8 @@ def _build_model_viewer_html(
     mv_h = 200 if compact else 240
     kpi_block = _holo_glb_kpi_block(motor, rpm, tensao, corrente, compact=compact)
     no_hs = _flag_truthy("HOLOGRAM_NO_GLB_HOTSPOTS")
-    list_no_hs = compact and _flag_truthy("HOLOGRAM_LIST_GLB_NO_HOTSPOTS")
-    sp_html = _build_model_viewer_hotspots_html(motor) if (not no_hs and not list_no_hs) else ""
+    list_hs_ok = (not compact) or _flag_truthy("HOLOGRAM_LIST_GLB_HOTSPOTS")
+    sp_html = _build_model_viewer_hotspots_html(motor) if (not no_hs and list_hs_ok) else ""
     hint_block = (
         ""
         if compact
@@ -570,7 +570,9 @@ def _build_model_viewer_html(
             "<code>hologram_hotspot_offset</code>.</div>"
         )
     )
-    mv_lazy_attr = ' loading="lazy"' if compact else ""
+    # Sem loading=lazy no iframe do Streamlit (pode nunca disparar e deixar o GLB em branco).
+    mv_wrap_class = "mv-holo mv-holo--compact" if compact else "mv-holo"
+    cors_attr = "" if compact else ' crossorigin="anonymous"'
     return f"""
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
@@ -596,6 +598,9 @@ def _build_model_viewer_html(
     height: {mv_h}px;
     overflow: hidden;
     background: radial-gradient(ellipse 80% 70% at 50% 38%, rgba(34,211,238,0.14), rgba(2,10,22,0.98));
+  }}
+  .mv-holo--compact::after {{
+    opacity: 0.22;
   }}
   .mv-holo model-viewer {{
     position: relative;
@@ -666,16 +671,15 @@ def _build_model_viewer_html(
       <span>{plabel}</span>
     </div>
     {hint_block}
-    <div class="mv-holo">
+    <div class="{mv_wrap_class}">
     <model-viewer
       src={src}
-      alt="Motor 3D"
-      crossorigin="anonymous"
+      alt="Motor 3D"{cors_attr}
       camera-controls
       touch-action="pan-y"
       shadow-intensity="0.35"
       exposure="0.72"
-      interaction-prompt="none"{mv_lazy_attr}
+      interaction-prompt="none"
     >{sp_html}
     </model-viewer>
     </div>
