@@ -3,12 +3,12 @@
     {
       "versao": "V21.0.14",
       "data": "2026-04-18",
-      "titulo": "Consulta estavel: sem fragment na busca global; filtros na area principal (V21.0.14)",
+      "titulo": "Consulta técnica mais estável e filtros mais visíveis",
       "adicoes": [],
       "correcoes": [
-        "**Streamlit** — `StreamlitAPIException` na Consulta ( `_enqueue` / `markdown` ): o corpo **pago** da Consulta **nao** usa `@st.fragment`; **filtros** passaram da `st.sidebar` para uma **coluna Filtros** na area principal (mesmas keys de sessao).",
-        "**Busca global** (header) — removido `@st.fragment` desse bloco para o Streamlit nao deixar a pagina seguinte num contexto invalido ao renderizar a Consulta.",
-        "**Deploy** — o Streamlit Cloud so ve o que esta no **Git**; e necessario **commit + push** para estas correcoes chegarem ao ambiente em `/mount/src/...`."
+        "**Consulta (acesso completo)** — corrigido um problema que podia interromper a página ao consultar motores. Os **filtros** (marca, polos, tipo, fases, faixa de RPM) ficam agora numa **coluna à esquerda** no ecrã principal, ao lado da lista — mais fáceis de ver e de usar do que escondidos na barra lateral.",
+        "**Pesquisa no topo** — ajuste para a busca global e a Consulta funcionarem em conjunto sem bloquear a navegação entre áreas.",
+        "**Notas de atualização** — passamos a escrever estas notas em **linguagem de oficina**; pormenores técnicos internos ficam na documentação da equipa."
       ]
     },
     {

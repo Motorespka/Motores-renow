@@ -88,19 +88,19 @@ def _render_release_card(item: Dict[str, object], preview: bool = False) -> None
         unsafe_allow_html=True,
     )
 
-    st.markdown("**Adicoes**")
+    st.markdown("**Novidades**")
     if isinstance(adicoes, list) and adicoes:
         for row in adicoes:
             st.write(f"- {row}")
     else:
-        st.caption("Sem adicoes registradas.")
+        st.caption("Sem novidades registadas nesta versao.")
 
-    st.markdown("**Bugs corrigidos**")
+    st.markdown("**Correcoes e melhorias**")
     if isinstance(correcoes, list) and correcoes:
         for row in correcoes:
             st.write(f"- {row}")
     else:
-        st.caption("Sem correcoes registradas.")
+        st.caption("Sem correcoes registadas nesta versao.")
 
     st.divider()
 
@@ -121,7 +121,7 @@ def _atualizacoes_page_fragment() -> None:
         <div class="consulta-hero">
             <div class="consulta-hero__tag">RELEASE NOTES</div>
             <h1>Atualizacoes do Sistema</h1>
-            <p>Historico de versoes, melhorias adicionadas e bugs corrigidos.</p>
+            <p>Novidades, melhorias e correcoes — em linguagem clara para a oficina.</p>
         </div>
         """,
         unsafe_allow_html=True,

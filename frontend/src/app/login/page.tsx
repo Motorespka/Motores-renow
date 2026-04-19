@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { getCurrentSession } from "@/lib/auth";
@@ -151,15 +152,37 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-4 flex items-center justify-between text-[11px]">
-          <button
-            className="text-muted-foreground hover:text-foreground transition-colors font-tech"
-            onClick={() => setMode((prev) => (prev === "login" ? "register" : "login"))}
-            type="button"
-          >
-            {mode === "login" ? "Criar nova conta" : "Já tenho conta"}
-          </button>
-          <span className="text-muted-foreground/70 font-mono-tech">/login</span>
+        <div className="mt-4 flex flex-col gap-2 text-[11px]">
+          <div className="flex items-center justify-between">
+            <button
+              className="text-muted-foreground hover:text-foreground transition-colors font-tech"
+              onClick={() => setMode((prev) => (prev === "login" ? "register" : "login"))}
+              type="button"
+            >
+              {mode === "login" ? "Criar nova conta" : "Já tenho conta"}
+            </button>
+            <span className="text-muted-foreground/70 font-mono-tech">/login</span>
+          </div>
+          <div className="flex flex-wrap gap-x-3 gap-y-1 font-tech text-muted-foreground/90">
+            <Link href="/" className="hover:text-primary transition-colors">
+              ← Início / venda
+            </Link>
+            <Link href="/para-oficinas" className="hover:text-primary transition-colors">
+              Para oficinas
+            </Link>
+            <Link href="/engenharia" className="hover:text-primary transition-colors">
+              Manutenção elétrica
+            </Link>
+            <Link href="/funcionalidades" className="hover:text-primary transition-colors">
+              Funcionalidades
+            </Link>
+            <Link href="/planos" className="hover:text-primary transition-colors">
+              Planos
+            </Link>
+            <Link href="/como-comecar" className="hover:text-primary transition-colors">
+              Como começar
+            </Link>
+          </div>
         </div>
       </div>
     </div>

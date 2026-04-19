@@ -35,7 +35,7 @@ export default function AtualizacoesPage() {
   return (
     <AppShell
       title="Atualizações do sistema"
-      subtitle="Release notes alinhadas ao app Streamlit"
+      subtitle="O que mudou na plataforma — linguagem clara para a oficina"
       isAdmin={me.profile.is_admin}
       userLabel={me.profile.display_name || me.profile.username || me.profile.email}
       canAccessCadastro={me.profile.cadastro_allowed}
@@ -46,10 +46,9 @@ export default function AtualizacoesPage() {
           <span className="text-[10px] font-semibold tracking-[0.2em]">RELEASE NOTES</span>
         </div>
         <h2 className="mt-2 font-display text-lg tracking-wide text-foreground">Atualizações do sistema</h2>
-        <p className="mt-1 text-[12px] text-muted-foreground font-tech max-w-2xl leading-relaxed">
-          Fonte única: <code className="text-primary/90">data/releases.json</code> na raiz do repositório (Streamlit e
-          Next.js leem o mesmo ficheiro). Pré-visualização de development no Next: defina{" "}
-          <code className="text-primary/90">NEXT_PUBLIC_DEV_RELEASE_NOTES=1</code>.
+        <p className="mt-1 text-[12px] text-muted-foreground max-w-2xl leading-relaxed">
+          Lista alinhada com a app da oficina. Versões antigas podem ainda mostrar algum termo técnico nas notas; as
+          entradas novas privilegiam o que importa para quem trabalha na bancada e na gestão.
         </p>
       </div>
 
@@ -101,7 +100,7 @@ export default function AtualizacoesPage() {
             <h3 className="mt-1 font-display text-sm tracking-wide text-foreground">{item.titulo}</h3>
 
             <div className="mt-3 text-[11px]">
-              <div className="font-semibold text-muted-foreground tracking-wide mb-1">Adições</div>
+              <div className="font-semibold text-muted-foreground tracking-wide mb-1">Novidades</div>
               {item.adicoes.length ? (
                 <ul className="list-disc pl-4 space-y-1 text-muted-foreground leading-relaxed">
                   {item.adicoes.map((row, i) => (
@@ -109,12 +108,12 @@ export default function AtualizacoesPage() {
                   ))}
                 </ul>
               ) : (
-                <p className="text-muted-foreground/70">Sem adições registradas.</p>
+                <p className="text-muted-foreground/70">Sem novidades nesta versão.</p>
               )}
             </div>
 
             <div className="mt-3 text-[11px]">
-              <div className="font-semibold text-muted-foreground tracking-wide mb-1">Correções</div>
+              <div className="font-semibold text-muted-foreground tracking-wide mb-1">Correções e melhorias</div>
               {item.correcoes.length ? (
                 <ul className="list-disc pl-4 space-y-1 text-muted-foreground leading-relaxed">
                   {item.correcoes.map((row, i) => (
