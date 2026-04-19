@@ -204,7 +204,8 @@ def _restore_user_from_persisted_refresh_token(client):
         _clear_persisted_auth_query_param()
         return None
 
-    _persist_auth_response(auth_response)
+    # Sessao fica no cliente Supabase; nao regravar refresh na URL (evita partilhar ?mrw_auth=).
+    _clear_persisted_auth_query_param()
 
     user = getattr(auth_response, "user", None)
     if user and getattr(user, "id", None):
@@ -534,7 +535,6 @@ def try_restore_auth_session(session, client) -> bool:
     perfil = _build_profile(perfil, user, email)
     _ensure_usuario_app_profile(client, user, email, perfil)
     _set_authenticated_state(session, user, email, perfil)
-    _persist_supabase_refresh_token(client)
     return True
 
 
@@ -573,7 +573,6 @@ def sync_authenticated_profile(session, client) -> None:
         st.session_state.pop("_admin_cache_value", None)
 
     st.session_state["_auth_profile_sync_ts"] = now
-    _persist_supabase_refresh_token(client)
 
 
 def logout_and_clear(session, client=None) -> None:
@@ -652,7 +651,12 @@ def _render_local_login(session) -> bool:
 
 def render_login(session, client) -> bool:
     if session.is_authenticated:
-        _persist_supabase_refresh_token(client)
+        if not _is_local_runtime(client):
+            try:
+                if _read_query_param(PERSISTED_AUTH_QP_KEY):
+                    _clear_persisted_auth_query_param()
+            except Exception:
+                pass
         return True
 
     if _is_local_runtime(client):
@@ -690,8 +694,7 @@ def render_login(session, client) -> bool:
                     perfil = _build_profile(perfil, user, email_norm)
                     _ensure_usuario_app_profile(client, user, email_norm, perfil)
                     _set_authenticated_state(session, user, email_norm, perfil)
-                    _persist_auth_response(auth_response)
-                    _persist_supabase_refresh_token(client)
+                    _clear_persisted_auth_query_param()
                     st.success("Login realizado!")
                     st.rerun()
                 except APIError as api_exc:

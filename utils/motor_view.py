@@ -72,7 +72,7 @@ def is_empty(value: Any) -> bool:
         return True
     if isinstance(value, str):
         raw = value.strip().lower()
-        return raw in {"", "-", "none", "nan", "null", "n/d", "na", "n.a."}
+        return raw in {"", "-", "none", "nan", "null", "n/d", "na", "n.a.", "."}
     return False
 
 
@@ -140,6 +140,21 @@ def normalize_motor_record(row: Dict[str, Any]) -> Dict[str, Any]:
                 motor["modelo"] = f"Registro #{friendly(seq)}"
         else:
             motor["modelo"] = f"Registro #{friendly(motor.get('id'))}"
+
+    # Views vw_motores_para_site_validacao / vw_motores_consulta_enriquecida (Supabase)
+    pv = motor.get("ConsultaProntoUsuario")
+    if pv is not None:
+        if isinstance(pv, bool):
+            motor["consulta_pronto_usuario"] = pv
+        elif isinstance(pv, (int, float)):
+            motor["consulta_pronto_usuario"] = bool(int(pv))
+        else:
+            tx = str(pv).strip().lower()
+            motor["consulta_pronto_usuario"] = tx in {"true", "t", "1", "yes", "sim"} if tx else None
+    pm = motor.get("ConsultaMensagemUsuarioPt")
+    if pm is not None and str(pm).strip():
+        motor["consulta_mensagem_usuario_pt"] = str(pm).strip()
+
     return motor
 
 

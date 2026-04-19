@@ -1,8 +1,8 @@
 """
 Holograma: GLB via <model-viewer> quando houver URL resolvida.
-Na listagem (consulta): http(s) inclui Supabase e pack /app/static/glb/ no Streamlit Cloud;
-data: so com HOLOGRAM_LIST_SHOW_GLB=1. HOLOGRAM_LIST_NO_STATIC_GLB=1 esconde pack na lista.
-HOLOGRAM_LIST_NO_GLB=1 força só silhueta na lista.
+Na listagem (consulta): URL http(s) a ``.glb`` usa ``model-viewer`` por defeito; ``HOLOGRAM_LIST_HIDE_REMOTE_GLB=1`` desliga
+esse viewer nos cards (mostra silhueta CSS / Three.js procedural). ``HOLOGRAM_LIST_SHOW_GLB=1`` força tambem ``data:`` / pack.
+``HOLOGRAM_LIST_NO_STATIC_GLB=1`` esconde ``/app/static/glb/``. ``HOLOGRAM_LIST_NO_GLB=1`` força só silhueta (sem ``model-viewer``).
 
 Na consulta, a silhueta generica fica **desligada** por defeito; `HOLOGRAM_LISTA_SILHUETA_TODOS=1` volta
 ao bloco de silhueta em todos. `HOLOGRAM_CARCACA_NEMA56_STRICT=1` controla a cadeia de resolucao GLB.
@@ -32,6 +32,7 @@ from utils.motor_hologram_glb import (
     motor_has_hologram_motor_id_secret,
     motor_has_json_hologram_glb_url,
     nema_56_somente_ficha_mecanica,
+    nema42_glb_url_efectiva,
     resolve_model_glb_url,
 )
 
@@ -56,7 +57,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 const preset = HOLO_CTX.preset || 'generico';
 const car = String(HOLO_CTX.carcaca || '');
 const carU = car.toUpperCase();
-const isNema48 = /NEMA\\s*[-_]?\\s*48\\b/i.test(car) || (carU.includes('NEMA') && carU.includes('48'));
+const isNema48 = /NEMA(?:\\s*[-_]?\\s*)?48\\b/i.test(carU);
+const isNema42 = /NEMA(?:\\s*[-_]?\\s*)?42\\b/i.test(carU);
 const nemaLiso = /^(liso_56|nema_mono|nema_footless|cface_56|pump_56j)$/.test(preset);
 const isNemaFamily = nemaLiso || carU.includes('NEMA');
 
@@ -78,7 +80,10 @@ function buildMotor() {
 
   let r = 0.125;
   let len = 0.34;
-  if (isNema48) {
+  if (isNema42) {
+    r = 0.078;
+    len = 0.14;
+  } else if (isNema48) {
     r = 0.092;
     len = 0.19;
   } else if (isNemaFamily) {
@@ -677,6 +682,7 @@ def _build_model_viewer_html(
     <model-viewer
       src={src}
       alt="Motor 3D"
+      crossorigin="anonymous"
       camera-controls
       touch-action="pan-y"
       shadow-intensity="0.35"
@@ -984,7 +990,7 @@ def render_engine_hologram(
         ):
             st.caption(
                 f"3D: {NEMA_56_CARCACA_LEGENDA_COMPLETA} (NEMA 56); IEC63 / catálogo TEFC B3 (GLB `105 a.glb`); "
-                "IEC 100L; bomba / Ex — ou `motor.holograma_glb_url` / secret `HOLOGRAM_GLB_MOTOR_<id>`."
+                "IEC 132 (GLB dedicado); IEC 100L; bomba / Ex — ou `motor.holograma_glb_url` / secret `HOLOGRAM_GLB_MOTOR_<id>`."
             )
             return
 
@@ -999,23 +1005,37 @@ def render_engine_hologram(
     # Varias instancias de model-viewer (WebGL) na mesma pagina esgotam contextos GPU → modelo some.
     force_list_glb = _flag_truthy("HOLOGRAM_LIST_SHOW_GLB")
     no_list_glb = _flag_truthy("HOLOGRAM_LIST_NO_GLB")
+    hide_remote_glb = _flag_truthy("HOLOGRAM_LIST_HIDE_REMOTE_GLB")
     json_list_glb = motor_has_json_hologram_glb_url(m)
     remote_list_glb = _glb_url_ok_for_list_remote_viewer(glb_url or "")
     use_model_viewer = bool(glb_url) and (
         not list_mode
         or (
             not no_list_glb
-            and (force_list_glb or json_list_glb or remote_list_glb)
+            and (
+                force_list_glb
+                or json_list_glb
+                or (remote_list_glb and not hide_remote_glb)
+            )
         )
     )
+    # Lista + GLB publico em https://… .glb (ex.: Supabase): activar viewer por defeito.
+    # Opt-out: HOLOGRAM_LIST_NO_GLB=1 ou HOLOGRAM_LIST_HIDE_REMOTE_GLB=1 nos secrets.
+    if list_mode and bool(glb_url) and not no_list_glb and not hide_remote_glb:
+        u0 = str(glb_url).strip().lower()
+        if u0.startswith("https://"):
+            base = u0.split("?", 1)[0].split("#", 1)[0].rstrip("/")
+            if base.endswith(".glb"):
+                use_model_viewer = True
 
     # Three.js tambem usa WebGL: N iframes na consulta esgotam contextos (ecra branco / vazio).
     force_list_three = _flag_truthy("HOLOGRAM_LIST_THREEJS")
     list_glb_hint = ""
     if list_mode and glb_url and not use_model_viewer:
         list_glb_hint = (
-            " Malha GLB: Abrir Detalhes; HOLOGRAM_LIST_SHOW_GLB=1 força GLB na lista (incl. starter); "
-            "HOLOGRAM_LIST_THREEJS=1 força Three.js."
+            " GLB resolvido, mas o viewer 3D na lista esta desligado (veja secrets: "
+            "`HOLOGRAM_LIST_NO_GLB` / `HOLOGRAM_LIST_HIDE_REMOTE_GLB`). "
+            "Silhueta abaixo; malha completa em **Detalhes**."
         )
 
     if use_model_viewer:
@@ -1024,12 +1044,6 @@ def render_engine_hologram(
             preset, glb_url, rpm, tensao, corrente, plabel, compact=compact, motor=m
         )
         h = 300 if compact else 420
-    elif list_mode and lista_56 and glb_url and not _flag_truthy("HOLOGRAM_LIST_NO_GLB"):
-        st.caption(
-            "3D: malha resolvida, mas a consulta nao abre varios WebGL. Abra **Detalhes**; ou "
-            "`HOLOGRAM_LIST_SHOW_GLB=1` (GPU)."
-        )
-        return
     else:
         carcaca_ctx = hologram_carcaca_context(m)
         legacy_css = _flag_truthy("HOLOGRAM_LEGACY_CSS")
@@ -1073,9 +1087,10 @@ def render_engine_hologram(
         udbg = (glb_url or "")[:120]
         ficha56 = nema_56_somente_ficha_mecanica(m)
         s56 = hologram_nema56_glb_secret_configurado()
+        n42_url = bool(nema42_glb_url_efectiva())
         cctx = (hologram_carcaca_context(m) or "")[:100]
         st.caption(
             f"[HOLO_DEBUG] list={list_mode} use_mv={use_model_viewer} ficha_56={ficha56} "
-            f"secret_nema56_ok={s56} glb={udbg!r} carcaca={cctx!r} preset={preset}. "
+            f"nema_familia_glb_ok={s56} nema42_url_ok={n42_url} glb={udbg!r} carcaca={cctx!r} preset={preset}. "
             "Ligue no Cloud (secrets): HOLOGRAM_HOLO_DEBUG; reinicie a app se alterou o GLB."
         )

@@ -114,10 +114,67 @@ class TestAnalyze(unittest.TestCase):
 
     def test_serialization(self):
         rep = analyze_rewinding_coherence(
-            _payload(bobinagem_principal={"passos": ["1"], "espiras": ["1"], "fios": ["1x20"]})
+            _payload(bobinagem_principal={"passos": ["1:8"], "espiras": ["20"], "fios": ["1x20"]})
         )
         out = prepare_fastapi_rebobinagem_payload(rep)
         self.assertIsInstance(out, dict)
+
+    def test_sparse_motor_not_ok_with_bobinagem(self):
+        rep = analyze_rewinding_coherence(
+            {
+                "motor": {"polos": "2", "tipo_motor": "monofasico"},
+                "bobinagem_principal": {
+                    "passos": ["20:32:48:48"],
+                    "espiras": ["20:32:48:48"],
+                    "fios": ["1x20"],
+                },
+                "bobinagem_auxiliar": {},
+                "esquema": {},
+                "mecanica": {},
+            }
+        )
+        self.assertEqual(rep["validation"]["status"], "alerta")
+        codes = [w["code"] for w in rep["validation"].get("warnings", [])]
+        self.assertIn("motor_eletrico_incompleto_rebob", codes)
+
+    def test_passo_identical_espiras_warning(self):
+        rep = analyze_rewinding_coherence(
+            _payload(
+                bobinagem_principal={
+                    "passos": ["20:32:48:48"],
+                    "espiras": ["20:32:48:48"],
+                    # Secao explicita alta para nao misturar com alerta fio x corrente (10 A na placa base).
+                    "fios": ["15 mm2 cobre"],
+                },
+            )
+        )
+        codes = [w["code"] for w in rep["validation"].get("warnings", [])]
+        self.assertIn("passo_igual_espiras", codes)
+        self.assertNotEqual(rep["validation"]["status"], "ok")
+
+    def test_fio_vs_corrente_awg_apertado(self):
+        rep = analyze_rewinding_coherence(
+            _payload(
+                motor={
+                    "rpm": "1750",
+                    "polos": "4",
+                    "frequencia": "60",
+                    "tensao": ["380"],
+                    "corrente": ["80"],
+                    "fases": "Trifasico",
+                    "potencia": "50 cv",
+                    "fator_potencia": "0.85",
+                    "rendimento": "0.85",
+                },
+                bobinagem_principal={
+                    "passos": ["1:8"],
+                    "espiras": ["10"],
+                    "fios": ["AWG 24"],
+                },
+            )
+        )
+        codes = [w["code"] for w in rep["validation"].get("warnings", [])]
+        self.assertIn("fio_vs_corrente_placa", codes)
 
 
 if __name__ == "__main__":

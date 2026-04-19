@@ -12,6 +12,13 @@ from services.supabase_data import fetch_motor_by_id_cached
 from components.consulta_ficha_usuario_banner import render_consulta_ficha_usuario_banner
 from components.motor_hologram import render_engine_hologram
 from utils.motor_hologram_glb import NEMA_56_CARCACA_LEGENDA_COMPLETA
+from utils.motor_display_hints import (
+    campo_ou_nao_consta,
+    corrente_identificacao_display,
+    potencia_identificacao_display,
+    rpm_identificacao_display,
+    tensao_identificacao_display,
+)
 from utils.motor_normalizer import normalize_motor_row_for_ui
 from utils.motor_view import dados_tecnicos_from_row, friendly, is_empty, normalize_motor_record
 
@@ -158,20 +165,24 @@ def render(ctx) -> None:
             st.rerun()
 
     k1, k2, k3, k4 = st.columns(4)
+    _pot_tile = html.escape(potencia_identificacao_display(m, motor_info))
+    _rpm_tile = html.escape(rpm_identificacao_display(m, motor_info))
+    _ten_tile = html.escape(tensao_identificacao_display(m, motor_info))
+    _cur_tile = html.escape(corrente_identificacao_display(m, motor_info))
     k1.markdown(
-        f'<div class="metric-tile"><span>Potência</span><strong>{friendly(m.get("potencia_hp_cv"))}</strong></div>',
+        f'<div class="metric-tile"><span>Potência</span><strong>{_pot_tile}</strong></div>',
         unsafe_allow_html=True,
     )
     k2.markdown(
-        f'<div class="metric-tile"><span>RPM</span><strong>{friendly(m.get("rpm_nominal"))}</strong></div>',
+        f'<div class="metric-tile"><span>RPM</span><strong>{_rpm_tile}</strong></div>',
         unsafe_allow_html=True,
     )
     k3.markdown(
-        f'<div class="metric-tile"><span>Tensão</span><strong>{friendly(m.get("tensao_v"))}</strong></div>',
+        f'<div class="metric-tile"><span>Tensão</span><strong>{_ten_tile}</strong></div>',
         unsafe_allow_html=True,
     )
     k4.markdown(
-        f'<div class="metric-tile"><span>Corrente</span><strong>{friendly(m.get("corrente_nominal_a"))}</strong></div>',
+        f'<div class="metric-tile"><span>Corrente</span><strong>{_cur_tile}</strong></div>',
         unsafe_allow_html=True,
     )
 
@@ -202,6 +213,8 @@ def render(ctx) -> None:
             f"Holograma GLB: WebGL. JSON: motor.holograma_glb_url. Famílias na ficha: NEMA 56 "
             f"({NEMA_56_CARCACA_LEGENDA_COMPLETA}) → HOLOGRAM_GLB_NEMA56 / mono 1 cap "
             "(HOLOGRAM_GLB_NEMA_MONO_1CAP) / pequeno liso (HOLOGRAM_GLB_NEMA_PEQUENO_CONV_LISO); "
+            "NEMA 42 (HOLOGRAM_GLB_NEMA42 / HOLOGRAM_BAKED_NEMA42_GLB; quadro/frame conta na deteção); "
+            "IEC 132 (HOLOGRAM_GLB_IEC132 / HOLOGRAM_BAKED_IEC132_GLB); NEMA 48 (HOLOGRAM_GLB_NEMA48); "
             "IEC TEFC B3 e IEC63 (HOLOGRAM_GLB_IEC_TEFC_B3_CATALOGO); IEC 100L; bomba / Ex. "
             "STRICT: HOLOGRAM_CARCACA_NEMA56_STRICT=1. Senão: DEFAULT / WEG / disco."
         )
@@ -231,25 +244,41 @@ def render(ctx) -> None:
         st.warning(_msg_bob)
 
     with tab1:
+        el1, el2, el3, el4 = st.columns(4)
+        with el1:
+            _render_data_panel("RPM (placa ou referência)", rpm_identificacao_display(m, motor_info))
+        with el2:
+            _render_data_panel("Cavalaria / potência", potencia_identificacao_display(m, motor_info))
+        with el3:
+            _render_data_panel("Tensão", tensao_identificacao_display(m, motor_info))
+        with el4:
+            _render_data_panel("Corrente", corrente_identificacao_display(m, motor_info))
         c1, c2, c3 = st.columns(3)
         with c1:
-            _render_data_panel("Marca", m.get("marca") or motor_info.get("marca"))
-            _render_data_panel("Modelo", m.get("modelo") or motor_info.get("modelo"))
+            _render_data_panel("Marca", campo_ou_nao_consta(m.get("marca") or motor_info.get("marca")))
+            _render_data_panel("Modelo", campo_ou_nao_consta(m.get("modelo") or motor_info.get("modelo")))
             _render_data_panel(
                 "Tipo do motor",
-                motor_info.get("tipo_motor") or ui.get("tipo_motor") or m.get("fases"),
+                campo_ou_nao_consta(
+                    motor_info.get("tipo_motor") or ui.get("tipo_motor") or m.get("fases"),
+                ),
             )
         with c2:
-            _render_data_panel("Fases", m.get("fases") or motor_info.get("fases"))
-            _render_data_panel("Polos", m.get("polos") or ui.get("polos"))
+            _render_data_panel("Fases", campo_ou_nao_consta(m.get("fases") or motor_info.get("fases")))
+            _render_data_panel(
+                "Polos",
+                campo_ou_nao_consta(m.get("polos") or ui.get("polos") or motor_info.get("polos")),
+            )
             _render_data_panel(
                 "Frequência",
-                motor_info.get("frequencia") or m.get("frequencia_hz") or ui.get("frequencia"),
+                campo_ou_nao_consta(
+                    motor_info.get("frequencia") or m.get("frequencia_hz") or ui.get("frequencia"),
+                ),
             )
         with c3:
-            _render_data_panel("Número de série", motor_info.get("numero_serie"))
-            _render_data_panel("IP", motor_info.get("ip"))
-            _render_data_panel("Isolação", motor_info.get("isolacao"))
+            _render_data_panel("Número de série", campo_ou_nao_consta(motor_info.get("numero_serie")))
+            _render_data_panel("IP", campo_ou_nao_consta(motor_info.get("ip")))
+            _render_data_panel("Isolação", campo_ou_nao_consta(motor_info.get("isolacao")))
 
     with tab2:
         bb1, bb2 = st.columns(2)

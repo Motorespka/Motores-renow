@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Cpu, FileJson, Gauge, Tag } from "lucide-react";
+import { Cpu, FileJson, Gauge, Pencil, Tag } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { MotorHologramPanel } from "@/components/MotorHologramPanel";
 import { apiFetch } from "@/lib/api";
 import { requireSession } from "@/lib/auth";
 import { fetchMotorDetailFromSupabase, shouldFetchMotorsFromSupabase } from "@/lib/motors-supabase";
@@ -111,12 +112,27 @@ export default function MotorDetailPage() {
                   )}
                 </div>
               </div>
-              <Link
-                href="/motors"
-                className="text-[11px] px-3 py-2 rounded-xl border border-border/40 bg-muted/20 hover:bg-muted/40 text-muted-foreground hover:text-foreground transition-colors shrink-0"
-              >
-                Voltar
-              </Link>
+              <div className="flex items-center gap-2 shrink-0">
+                {me.profile.is_admin ? (
+                  <Link
+                    href={
+                      cadastroSeqQ
+                        ? `/motors/${encodeURIComponent(motorId)}/edit?cadastro_seq=${encodeURIComponent(cadastroSeqQ)}`
+                        : `/motors/${encodeURIComponent(motorId)}/edit`
+                    }
+                    className="text-[11px] px-3 py-2 rounded-xl border border-primary/30 bg-primary/10 text-primary hover:bg-primary/15 transition-colors inline-flex items-center gap-1.5"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    Editar
+                  </Link>
+                ) : null}
+                <Link
+                  href="/motors"
+                  className="text-[11px] px-3 py-2 rounded-xl border border-border/40 bg-muted/20 hover:bg-muted/40 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Voltar
+                </Link>
+              </div>
             </div>
 
             <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -159,24 +175,27 @@ export default function MotorDetailPage() {
             </div>
           </div>
 
-          <div className="premium-card-elevated p-5">
-            <div className="font-display text-sm tracking-wider">AÇÕES</div>
-            <div className="text-[11px] text-muted-foreground font-tech mt-1">Atalhos relacionados a este motor.</div>
+          <div className="space-y-3">
+            <div className="premium-card-elevated p-5">
+              <div className="font-display text-sm tracking-wider">AÇÕES</div>
+              <div className="text-[11px] text-muted-foreground font-tech mt-1">Atalhos relacionados a este motor.</div>
 
-            <div className="mt-4 grid gap-2">
-              <Link
-                href="/motors"
-                className="w-full text-center h-10 flex items-center justify-center rounded-xl bg-muted/30 border border-border/40 text-foreground/90 hover:bg-muted/50 transition-colors"
-              >
-                Voltar para lista
-              </Link>
-              <Link
-                href="/cadastro"
-                className="w-full text-center h-10 flex items-center justify-center rounded-xl bg-primary/15 border border-primary/25 text-primary font-semibold tracking-wider hover:bg-primary/20 transition-colors"
-              >
-                Novo cadastro / OCR
-              </Link>
+              <div className="mt-4 grid gap-2">
+                <Link
+                  href="/motors"
+                  className="w-full text-center h-10 flex items-center justify-center rounded-xl bg-muted/30 border border-border/40 text-foreground/90 hover:bg-muted/50 transition-colors"
+                >
+                  Voltar para lista
+                </Link>
+                <Link
+                  href="/cadastro"
+                  className="w-full text-center h-10 flex items-center justify-center rounded-xl bg-primary/15 border border-primary/25 text-primary font-semibold tracking-wider hover:bg-primary/20 transition-colors"
+                >
+                  Novo cadastro / OCR
+                </Link>
+              </div>
             </div>
+            <MotorHologramPanel raw={detail.raw} item={detail.item} />
           </div>
         </div>
       ) : null}

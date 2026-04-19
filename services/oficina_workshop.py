@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import re
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 TABLE_CALC = "rebobinagem_calculos"
@@ -82,18 +82,52 @@ def parse_tags_csv(raw: str) -> List[str]:
     return [p.strip() for p in parts if p.strip()]
 
 
-def list_calculos(client: Any, *, q: str = "", limit: int = 80) -> List[Dict[str, Any]]:
+def _row_tag_match(row: Dict[str, Any], tag_needle: str) -> bool:
+    if not tag_needle:
+        return True
+    tags = row.get("tags") or []
+    if not isinstance(tags, list):
+        return tag_needle in _to_text(tags).lower()
+    for t in tags:
+        if tag_needle in str(t).lower():
+            return True
+    return False
+
+
+def list_calculos(
+    client: Any,
+    *,
+    q: str = "",
+    limit: int = 80,
+    tag: str = "",
+    only_created_by: str = "",
+) -> List[Dict[str, Any]]:
     lim = max(1, min(int(limit), 200))
+    owner = _to_text(only_created_by)
     try:
         if _is_local_client(client):
-            res = client.table(TABLE_CALC).select("*").order("updated_at", desc=True).limit(lim * 2).execute()
+            res = client.table(TABLE_CALC).select("*").order("updated_at", desc=True).limit(lim * 3).execute()
+        elif owner:
+            res = (
+                client.table(TABLE_CALC)
+                .select("*")
+                .eq("created_by", owner)
+                .order("updated_at", desc=True)
+                .limit(lim * 3)
+                .execute()
+            )
         else:
-            qb = client.table(TABLE_CALC).select("*").order("updated_at", desc=True).limit(lim * 2)
+            qb = client.table(TABLE_CALC).select("*").order("updated_at", desc=True).limit(lim * 3)
             res = qb.execute()
     except Exception:
         return []
 
     rows = [_row_to_dict(r) for r in (res.data or [])]
+    if owner and _is_local_client(client):
+        rows = [r for r in rows if _to_text(r.get("created_by")) == owner]
+    tg = _to_text(tag).lower()
+    if tg:
+        rows = [r for r in rows if _row_tag_match(r, tg)]
     qt = _to_text(q).lower()
     if not qt:
         return rows[:lim]
@@ -207,13 +241,71 @@ def update_calculo(
     client.table(TABLE_CALC).update(row).eq("id", cid).execute()
 
 
-def list_ordens_servico(client: Any, *, limit: int = 60) -> List[Dict[str, Any]]:
-    lim = max(1, min(int(limit), 200))
+def _parse_ts(value: Any) -> Optional[datetime]:
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s:
+        return None
     try:
-        res = client.table(TABLE_OS).select("*").order("updated_at", desc=True).limit(lim).execute()
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        return datetime.fromisoformat(s.replace(" ", "T", 1) if "T" not in s and " " in s else s)
+    except Exception:
+        return None
+
+
+def list_ordens_servico(
+    client: Any,
+    *,
+    limit: int = 60,
+    etapa: str = "",
+    motor_q: str = "",
+    texto: str = "",
+    since_days: int = 0,
+    only_created_by: str = "",
+) -> List[Dict[str, Any]]:
+    lim = max(1, min(int(limit), 200))
+    fetch = min(lim * 8, 500)
+    try:
+        res = client.table(TABLE_OS).select("*").order("updated_at", desc=True).limit(fetch).execute()
     except Exception:
         return []
-    return [_row_to_dict(r) for r in (res.data or [])]
+
+    rows = [_row_to_dict(r) for r in (res.data or [])]
+    et = _to_text(etapa).lower()
+    mq = _to_text(motor_q).lower()
+    tx = _to_text(texto).lower()
+    owner = _to_text(only_created_by)
+    cutoff: Optional[datetime] = None
+    if since_days > 0:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=int(since_days))
+
+    out: List[Dict[str, Any]] = []
+    for r in rows:
+        if owner and _to_text(r.get("created_by")) != owner:
+            continue
+        if et and _to_text(r.get("etapa")).lower() != et:
+            continue
+        mid = _to_text(r.get("motor_id")).lower()
+        if mq and mq not in mid:
+            continue
+        if cutoff:
+            ts = _parse_ts(r.get("updated_at")) or _parse_ts(r.get("created_at"))
+            if ts is None:
+                continue
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            if ts < cutoff:
+                continue
+        if tx:
+            blob = f"{r.get('numero')} {r.get('titulo')} {json.dumps(r.get('payload'), default=str)}".lower()
+            if tx not in blob:
+                continue
+        out.append(r)
+        if len(out) >= lim:
+            break
+    return out
 
 
 def get_ordem_servico(client: Any, os_id: str) -> Optional[Dict[str, Any]]:

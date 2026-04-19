@@ -8,6 +8,8 @@ const sectionTitles: Record<string, { title: string; subtitle: string }> = {
   dashboard: { title: "VISÃO GERAL", subtitle: "Painel operacional do workspace" },
   motors: { title: "CONSULTA TÉCNICA", subtitle: "Base de motores cadastrados" },
   cadastro: { title: "CADASTRO / OCR", subtitle: "Leitura de plaqueta e revisão assistida" },
+  releases: { title: "ATUALIZAÇÕES", subtitle: "Notas de versão e melhorias do sistema" },
+  commercial: { title: "HUB COMERCIAL", subtitle: "Classificados, empresas e vagas (migração)" },
   diagnostic: { title: "DIAGNÓSTICO TÉCNICO", subtitle: "Análise assistida de condição" },
   conference: { title: "CONFERÊNCIA TÉCNICA", subtitle: "Checklist de validação e aprovação" },
   admin: { title: "ADMINISTRAÇÃO", subtitle: "Controle do workspace" },

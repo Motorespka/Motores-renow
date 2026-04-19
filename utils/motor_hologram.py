@@ -12,6 +12,7 @@ from utils.motor_hologram_glb import (
     infer_hologram_preset_familia_nema_silueta,
     motor_familia_iec_tefc_b3_catalogo_silhueta_somente_ficha,
     nema_56_somente_ficha_mecanica,
+    _is_nema_42_frame,
 )
 
 # (id interno, rotulo na UI)
@@ -20,7 +21,7 @@ HOLOGRAM_CHOICES: List[Tuple[str, str]] = [
     ("generico", "Generico IEC"),
     ("ip55_iso", "IP55 fechado (aleta padrao)"),
     ("ip21_aberto", "IP21 / gotejamento"),
-    ("liso_56", "Liso, peq., c/ pes (48, 56, 56H-D-L-Y, mesma silh. 3D)"),
+    ("liso_56", "Liso, peq., c/ pes (42, 48, 56, 56H-D-L-Y, mesma silh. 3D)"),
     ("cface_56", "NEMA 56C / 48C / C-face (flange)"),
     ("pump_56j", "Bomba / 56J (montagem diametro)"),
     ("nema_footless", "Sem pes / so face (silhueta distinta)"),
@@ -59,9 +60,13 @@ def _infer_preset(m: Dict[str, Any]) -> str:
     ip_raw = _txt(motor.get("ip") or m.get("ip") or m.get("Ip"))
     car = _txt(
         mec.get("carcaca")
+        or mec.get("Carcaca")
         or motor.get("carcaca")
+        or motor.get("Carcaca")
         or ui.get("carcaca")
+        or ui.get("Carcaca")
         or m.get("carcaca")
+        or m.get("Carcaca")
     ).upper()
     fases = _txt(
         motor.get("fases") or m.get("fases") or (ui.get("fases") if isinstance(ui, dict) else None)
@@ -115,7 +120,11 @@ def resolve_hologram_preset(m: Dict[str, Any]) -> str:
     motor = _motor_block(m)
     explicit = _txt(motor.get("holograma_preset")).lower().replace(" ", "_")
     if explicit and explicit != "auto" and explicit in HOLOGRAM_LABELS:
-        if explicit in ("nema_mono", "liso_56") and not nema_56_somente_ficha_mecanica(m):
+        if (
+            explicit in ("nema_mono", "liso_56")
+            and not nema_56_somente_ficha_mecanica(m)
+            and not _is_nema_42_frame(m)
+        ):
             if motor_familia_iec_tefc_b3_catalogo_silhueta_somente_ficha(m) or iec63_etiqueta_na_carcaca_sem_ne_ma(
                 m
             ):

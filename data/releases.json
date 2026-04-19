@@ -1,0 +1,307 @@
+{
+  "changelog": [
+    {
+      "versao": "V21.0.10",
+      "data": "2026-04-18",
+      "titulo": "Oficina interna, fio x corrente, bancada OK/FORA e holograma (V21.0.10)",
+      "adicoes": [
+        "**Ordens de servico** — expander **Operacao interna (sem dados de cliente)**: prazo **AAAA-MM-DD**, orcamento e custos (material / mao-de-obra) em **R$** gravados em **centavos**, referencia curta interna; **margem** calculada no PDF quando ha orcamento e custos.",
+        "**PDF de entrega** — nova secao **Operacao interna** com esses campos; nos **testes de bancada** do calculo vinculado, cada linha pode mostrar **[OK]/[FORA]** e **ref:** (limite ou criterio).",
+        "**Biblioteca de calculos** — ao adicionar linha de teste de bancada: campos opcionais **Limite / criterio** e **Resultado** (OK ou FORA), gravados no `payload` e reflectidos no PDF.",
+        "**Guia da oficina** — passos actualizados: operacao interna na OS e testes com limite/resultado.",
+        "**Coerencia de rebobinagem** — alerta **fio vs corrente da placa** quando a bitola estimada (AWG→mm² aproximado, ou **mm²** explicito no texto do fio) parece apertada face a corrente nominal, usando referencia interna conservativa (~2 A/mm²); nao substitui norma nem desenho.",
+        "**Holograma / consulta** — NEMA 42 detectado tambem a partir de **Modelo** / **modelo_nema** e de JSON com chaves **Mecanica** ou **Motor** (PascalCase); na **lista da consulta**, GLB `https://...glb` tende a abrir o viewer por defeito (opt-out: `HOLOGRAM_LIST_NO_GLB` / `HOLOGRAM_LIST_HIDE_REMOTE_GLB` nos secrets)."
+      ],
+      "correcoes": [
+        "**Nova OS** — texto de ajuda alinhado a **referencia interna** do servico (sem sugerir dados pessoais de cliente).",
+        "**Mensagem antiga WebGL na lista** — se ainda aparecer texto desactualizado sobre varios WebGL, **reinicie o processo Streamlit** apos deploy (o ramo antigo foi removido).",
+        "**Atualizacoes (Streamlit)** — a pagina le `data/releases.json` **em cada visita**, sem `st.cache_data` (evitava ver entradas novas ate reiniciar a app); mostra na legenda a **versao mais recente** do ficheiro e a **data de alteracao** no servidor."
+      ]
+    },
+    {
+      "versao": "V21.0.9",
+      "data": "2026-04-18",
+      "titulo": "Oficina, PDF, atualizacoes no site e fiabilidade (pacote V21.0.9)",
+      "adicoes": [
+        "**Guia da oficina** — nova pagina no menu Operacao (todos os utilizadores autenticados). Explica o fluxo: Consulta → Biblioteca de calculos → Ordens de servico → texto ao cliente, anexos por URL e PDF de entrega; aponta para RLS, variaveis de ambiente do PDF e ficheiro `runtime.txt`.",
+        "**Ordens de servico** — barra de filtros: etapa exata, texto no motor id, pesquisa livre em numero/titulo/conteudo do payload, ultimos N dias, opcao **So as minhas** (alinhada ao campo `created_by`).",
+        "**Ordens de servico** — quando a lista esta vazia, mensagem clara e botao para abrir o **Guia da oficina**; na **Nova OS**, textos de ajuda (`?`) em titulo, motor id e vinculo ao calculo.",
+        "**Ordens de servico** — exportacao para arquivo interno: botao **Exportar JSON** (OS + calculo vinculado) e **Exportar CSV** (uma linha com coluna `payload_json`).",
+        "**Ordens de servico** — expander **Capa do PDF e anexos**: campo **Responsavel / oficina** (`payload.capa_responsavel`) e area **URLs de anexos** (uma por linha → `payload.anexos_urls`); o PDF lista os links sem embutir ficheiros grandes.",
+        "**Ordens de servico** — bloco **Texto para o cliente** continua a gravar em `payload.texto_relatorio_entrega` e aparece no relatorio PDF apos a capa.",
+        "**Biblioteca de calculos** — filtros: **Tag contem**, **So os meus** (filtra por `created_by` na cloud), **Max. registos**; ajuda na caixa de busca; mensagem quando nao ha resultados; legenda com link ao Guia.",
+        "**PDF de entrega** — capa com numero da OS em destaque, nome da empresa e endereco opcionais (`MOTORES_PDF_EMPRESA`, `MOTORES_PDF_ENDERECO`), responsavel (payload ou `MOTORES_PDF_RESPONSAVEL`), logo opcional em `assets/logo.png` (ou `logo_mrw.png`, `brand.png`, `logo.jpg`).",
+        "**PDF de entrega** — fontes Unicode quando o servidor tem DejaVu (Linux/Streamlit Cloud) ou Arial/Calibri (Windows); variaveis `MOTORES_PDF_FONT_REGULAR` / `MOTORES_PDF_FONT_BOLD` para TTF proprios; fallback Helvetica com texto normalizado.",
+        "**PDF de entrega** — secao **Anexos / referencias (URLs)** a listar links guardados na OS; corpo do PDF com `multi_cell` corrigido para fpdf2 recente (evita erro de largura zero entre blocos).",
+        "**Supabase** — nova migracao opcional `backend/migrations/20260418_0049_oficina_workshop_rls.sql`: RLS em `rebobinagem_calculos` e `oficina_ordens_servico` por `auth.uid()` e `created_by`; linhas antigas com `created_by` null continuam visiveis a qualquer sessao autenticada ate fazer backfill.",
+        "**Ambiente** — ficheiro `runtime.txt` com `python-3.11` para alinhar o Streamlit Cloud ao Python 3.11; `requirements.txt` com versoes minimas (streamlit, fpdf2, supabase, etc.).",
+        "**CI** — workflow GitHub Actions `.github/workflows/ci.yml`: `pip install -r requirements.txt` e `pytest tests/` em Python 3.11 em cada push/PR para `main` ou `master`.",
+        "**Testes** — `tests/test_oficina_pdf.py` e `tests/test_oficina_export.py` para regressao do PDF e dos exports.",
+        "**Atualizacoes (esta aba)** — leitura a partir de `data/releases.json` na raiz do repo (mesma fonte que o Next.js).",
+        "**Next.js** (site novo) — `images.remotePatterns` em `frontend/next.config.mjs` para imagens em `*.supabase.co/storage/...` e `lh3.googleusercontent.com`, preparando cards com fotos remotas.",
+        "**Detalhe do motor** — atalhos para **Ordens de servico** (abrir OS deste motor / ir à lista) quando o plano inclui oficina PRO, para ligar trabalho de campo ao fluxo da OS.",
+        "**Mobile** — leitura e scroll no telemovel continuam afinados em `assets/style.css` (uma zona de scroll, inputs legiveis, menos animacao pesada em ecras pequenos).",
+        "**Lembrete modulo oficina** — tabelas `rebobinagem_calculos` e `oficina_ordens_servico` vêm da migracao `20260418_0044_rebobinagem_calculos_oficina_os.sql`; em DEV local, SQLite cria equivalente ao reiniciar.",
+        "**Guia / OS** — atalho **Ir para Consulta** no Guia da oficina; nas OS, botao **Limpar filtros** e linha **Filtros ativos**.",
+        "**Auth** — apos login ou restauracao por refresh, o parametro `mrw_auth` e removido da URL (sessao fica no cliente Supabase na sessao Streamlit; evita partilhar link com token).",
+        "**PDF (fpdf2)** — cabecalho/rodape e celulas usam `new_x`/`new_y`; saida via `BytesIO` em vez de `output(dest=)` deprecado."
+      ],
+      "correcoes": [
+        "PDF (fpdf2): apos cada `multi_cell`, o cursor voltava a margem esquerda (`new_x`/`new_y`) para evitar `Not enough horizontal space` em sequencias de texto.",
+        "PDF: estilo italico removido na linha do responsavel quando a fonte MRBody nao tem variante obliqua registada (compatibilidade com fpdf2).",
+        "Sessao Supabase no Streamlit: a chave de cache do cliente inclui o `session_id` do Streamlit para nao partilhar o mesmo objeto `create_client` entre browsers quando o fingerprint HTTP (UA vazio, mesmo host/idioma) coincidia."
+      ]
+    },
+    {
+      "versao": "V21.0.8",
+      "data": "2026-04-18",
+      "titulo": "Consulta: marca/modelo reais na assinatura e titulo",
+      "adicoes": [
+        "Quando a linha traz placeholder (Motor, Registro N), usa marca/modelo de dados_tecnicos_json.motor se existirem.",
+        "Busca geral passa a indexar esses valores de exibicao."
+      ],
+      "correcoes": []
+    },
+    {
+      "versao": "V21.0.7",
+      "data": "2026-04-18",
+      "titulo": "Streamlit: scroll reset sem components.v1.html",
+      "adicoes": [],
+      "correcoes": [
+        "Substituido components.html por st.iframe no reset de scroll (App.py), conforme aviso de deprecacao Streamlit.",
+        "Fallback para components.html apenas se st.iframe nao existir (Streamlit antigo)."
+      ]
+    },
+    {
+      "versao": "V21.0.6",
+      "data": "2026-04-18",
+      "titulo": "Consulta: chip Revisao tecnica nos cards",
+      "adicoes": [
+        "Badge visivel ao lado do tipo de motor quando parser/oficina pedem revisao.",
+        "Funcao snap_requires_review compartilhada entre chip, aviso e filtro."
+      ],
+      "correcoes": []
+    },
+    {
+      "versao": "V21.0.5",
+      "data": "2026-04-18",
+      "titulo": "Consulta: filtro de revisao visivel na area principal",
+      "adicoes": [
+        "Controle Revisao tecnica (parser) ao lado da Busca geral, sempre visivel sem rolar a sidebar.",
+        "Ajuda inline explicando que os demais filtros permanecem na barra lateral."
+      ],
+      "correcoes": [
+        "Evita que o filtro V21.0.4 ficasse escondido abaixo do menu na sidebar em ecras pequenos."
+      ]
+    },
+    {
+      "versao": "V21.0.4",
+      "data": "2026-04-18",
+      "titulo": "Consulta: filtro read-only por revisao tecnica",
+      "adicoes": [
+        "Filtro lateral na consulta paga: Todos / Somente com revisao sugerida / Sem pendencia de revisao.",
+        "Usa apenas dados ja carregados (oficina.parser_tecnico) sem nova query nem gravacao."
+      ],
+      "correcoes": []
+    },
+    {
+      "versao": "V21.0.3",
+      "data": "2026-04-17",
+      "titulo": "Consulta: assinatura tecnica e sinal de revisao (V200 Streamlit)",
+      "adicoes": [
+        "Linha de assinatura tecnica (Marca, Modelo, CV, RPM, Polos, Tensao, Freq) em cada card.",
+        "Aviso read-only quando parser/oficina indicam revisao; nota do parser truncada e escapada.",
+        "KPIs Trifasicos/Monofasicos alinhados a tipo_motor e motor em JSON quando fases vem vazia."
+      ],
+      "correcoes": []
+    },
+    {
+      "versao": "V21.0",
+      "data": "2026-04-11",
+      "titulo": "Modulo isolado de development + hub comercial + laudo pro",
+      "adicoes": [
+        "Feature flags centralizadas para development, laudo pro, WhatsApp e modulo comercial.",
+        "Controle de MODO DEVELOPMENT no admin com banner forte de ambiente de teste.",
+        "Nova rota Hub Comercial com Classificados, Empresas, Fornecedores, Vagas e Termos.",
+        "Moderacao minima no admin para pausar/remover itens e bloquear usuario/empresa por modulo.",
+        "Laudo tecnico profissional aditivo no Diagnostico, com formatacao premium.",
+        "WhatsApp do laudo com numero temporario (sem persistencia em banco)."
+      ],
+      "correcoes": [
+        "Estrutura nova isolada do fluxo principal, sem alterar cadastro/consulta existentes.",
+        "Persistencia do novo modulo preparada com fallback local para evitar impacto em producao."
+      ]
+    },
+    {
+      "versao": "V20.9",
+      "data": "2026-04-11",
+      "titulo": "Patch surpresa: parser tecnico fase 1",
+      "adicoes": [
+        "Camada parser_tecnico adicionada no backend com normalizacao de passo/espiras e ligacao eletrica.",
+        "Estrutura candidate_alternatives preparada para evolucao futura (Fase 2).",
+        "Camada sugestao_historica adicionada como opcional, sem ativacao de consulta pesada."
+      ],
+      "correcoes": [
+        "Heuristica de ruido OCR reforcada com marcacao obrigatoria de revisao.",
+        "Status de revisao padronizado em ok/revisar com TODO explicito para evolucao do validator."
+      ]
+    },
+    {
+      "versao": "V20.8",
+      "data": "2026-04-11",
+      "titulo": "Hotfix de roteamento Consulta/Cadastro",
+      "adicoes": [
+        "Consulta volta a respeitar a rota escolhida no menu, sem redirecionamento forcado."
+      ],
+      "correcoes": [
+        "Removida regra que convertia automaticamente 'consulta' em 'cadastro' para usuarios com acesso de cadastro."
+      ]
+    },
+    {
+      "versao": "V20.7",
+      "data": "2026-04-11",
+      "titulo": "Hotfix de compatibilidade Streamlit Cloud",
+      "adicoes": [
+        "Reset de scroll mantido com renderizacao compatível na API components.html."
+      ],
+      "correcoes": [
+        "Removido parametro invalido que causava TypeError ao abrir telas no Streamlit Cloud."
+      ]
+    },
+    {
+      "versao": "V20.6",
+      "data": "2026-04-11",
+      "titulo": "Compatibilidade ampliada com RLS",
+      "adicoes": [
+        "Cadastro agora envia hints de ownership (user_id/owner_id/created_by...) para atender policies RLS comuns.",
+        "Fallback admin aceita multiplos nomes de secret para service role."
+      ],
+      "correcoes": [
+        "Mensagem de bloqueio RLS atualizada com nomes alternativos de chave administrativa."
+      ]
+    },
+    {
+      "versao": "V20.5",
+      "data": "2026-04-11",
+      "titulo": "Scroll reset reforcado na navegacao",
+      "adicoes": [
+        "Navegacao lateral agora faz rerun imediato apos trocar rota.",
+        "Reset de scroll executa no fim da renderizacao e atinge containers do Streamlit."
+      ],
+      "correcoes": [
+        "Corrigido caso de abrir nova tela mantendo posicao de scroll anterior."
+      ]
+    },
+    {
+      "versao": "V20.4",
+      "data": "2026-04-11",
+      "titulo": "Fallback RLS no cadastro",
+      "adicoes": [
+        "Quando o insert em motores falha por RLS, o sistema tenta fallback com service role (se configurada)."
+      ],
+      "correcoes": [
+        "Mensagem de erro de cadastro agora orienta claramente quando falta permissao RLS."
+      ]
+    },
+    {
+      "versao": "V20.3",
+      "data": "2026-04-11",
+      "titulo": "Navegacao com scroll reset",
+      "adicoes": [
+        "Toda troca de tela agora reposiciona automaticamente no topo da pagina."
+      ],
+      "correcoes": [
+        "Removido comportamento de abrir nova tela no mesmo ponto de scroll da tela anterior."
+      ]
+    },
+    {
+      "versao": "V20.2",
+      "data": "2026-04-11",
+      "titulo": "Remocao de O.S. no cadastro tecnico",
+      "adicoes": [
+        "Fluxo de cadastro focado somente em motor tecnico."
+      ],
+      "correcoes": [
+        "Removido bloco de Cadastro de O.S. que causava erro de API na tabela ordens_servico."
+      ]
+    },
+    {
+      "versao": "V20.1",
+      "data": "2026-04-11",
+      "titulo": "Cadastro resiliente e consulta mais objetiva",
+      "adicoes": [
+        "Acao de exclusao de motor com confirmacao, disponivel apenas para admin.",
+        "Previa tecnica no card da consulta com dados de rebobinagem e mecanica."
+      ],
+      "correcoes": [
+        "Cadastro agora remove automaticamente colunas inexistentes no schema antes do insert.",
+        "Removido bloco redundante de resumo tecnico para evitar informacao duplicada na consulta."
+      ]
+    },
+    {
+      "versao": "V20.0",
+      "data": "2026-04-11",
+      "titulo": "Cadastro robusto e anti-duplicacao",
+      "adicoes": [
+        "Bloqueio de duplicacao no cadastro antes do insert em motores.",
+        "Historico de atualizacoes mantido na propria interface."
+      ],
+      "correcoes": [
+        "Cadastro de usuario passa a ter fallback por username no perfil.",
+        "Fluxo de consulta otimizado para reduzir lentidao no site."
+      ]
+    },
+    {
+      "versao": "V10.3",
+      "data": "2026-04-10",
+      "titulo": "Estabilidade de consulta e desempenho",
+      "adicoes": [
+        "Aba Atualizacoes adicionada ao menu principal.",
+        "Paginacao na consulta de motores para renderizar lotes menores."
+      ],
+      "correcoes": [
+        "Leitura de motores otimizada com menos roundtrips no Supabase.",
+        "Sincronizacao de perfil de login com cache curto para reduzir latencia.",
+        "Auto-upsert de usuario em usuarios_app no login/cadastro quando permitido."
+      ]
+    },
+    {
+      "versao": "V10.2",
+      "data": "2026-04-10",
+      "titulo": "Sessao persistente no refresh",
+      "adicoes": [
+        "Persistencia de refresh token assinada em query param tecnico."
+      ],
+      "correcoes": [
+        "F5 nao derruba login quando a sessao do Supabase ainda e valida.",
+        "Logout limpa token persistido para evitar reautenticacao indevida."
+      ]
+    },
+    {
+      "versao": "V10.1",
+      "data": "2026-04-10",
+      "titulo": "Confiabilidade de runtime por navegador",
+      "adicoes": [
+        "Chave de runtime por navegador (mrw_sid) para isolar sessoes."
+      ],
+      "correcoes": [
+        "Removida instabilidade por troca de cache key entre reruns."
+      ]
+    }
+  ],
+  "dev_preview_changelog": [
+    {
+      "versao": "V21.1.2",
+      "data": "2026-04-12",
+      "titulo": "Sandbox real de development + admin limpo no principal",
+      "adicoes": [
+        "Development agora usa banco local isolado por sessao para testes sem impacto na producao.",
+        "Saida do development limpa estado local e remove residuos da sessao de teste.",
+        "Feature flags da sessao ficaram restritas ao development ativo."
+      ],
+      "correcoes": [
+        "Removida exposicao de controles de teste no admin principal fora do development."
+      ]
+    }
+  ]
+}

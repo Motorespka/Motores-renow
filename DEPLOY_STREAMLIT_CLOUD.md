@@ -31,3 +31,8 @@ Opcional (controle de ambiente):
 - No Streamlit Cloud, volte o deploy para o **commit anterior** (ou branch anterior).
 - Alternativa: mantenha um branch `stable-streamlit` apontando para a versão “antiga” e troque o branch do app no Streamlit Cloud.
 
+### 5) O Streamlit em produção não mostra o que eu alterei no PC (causa mais comum)
+- O Cloud faz deploy do **GitHub** (branch configurado, ex.: `main`), **não** da pasta local até fazer **`git push`**.
+- Confirme: `git show origin/main:page/atualizacoes.py` deve ser igual ao ficheiro local que está a editar; se o remoto ainda tiver lista **hardcoded** em Python e o local já usar `data/releases.json`, falta **push** (e `git add data/releases.json` — o ficheiro tem de estar **commitado**, senão o Cloud não o recebe).
+- Depois do push: no Streamlit Cloud use **Reboot app** ou aguarde o rebuild automático.
+

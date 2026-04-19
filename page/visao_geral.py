@@ -82,41 +82,6 @@ def _kpi(label: str, value: Any, hint: str = "", *, icon: str = "MR", variant: s
     )
 
 
-def _pick_motor_title(row: Dict[str, Any]) -> str:
-    marca = _to_text(row.get("marca")) or "Motor"
-    modelo = (
-        _to_text(row.get("modelo"))
-        or _to_text(row.get("modelo_iec"))
-        or _to_text(row.get("modelo_nema"))
-        or ""
-    )
-    if modelo:
-        return f"{marca} — {modelo}"
-    return marca
-
-
-def _row_stage(row: Dict[str, Any]) -> tuple[str, str, int]:
-    has_ocr = bool(_to_dict(row.get("leitura_gemini_json")) or _to_dict(row.get("dados_tecnicos_json")))
-    obs = _to_text(row.get("observacoes")).lower()
-    if "inconsist" in obs or "revis" in obs:
-        return ("REVISÃO", "badge-warning", 80)
-    if has_ocr:
-        return ("EM ANÁLISE", "badge-primary", 60)
-    return ("PENDENTE", "", 15)
-
-
-def _eta_label(row: Dict[str, Any]) -> str:
-    dt = _parse_dt(row.get("created_at")) or _parse_dt(row.get("updated_at"))
-    if not dt:
-        return "—"
-    age_h = (datetime.utcnow() - dt).total_seconds() / 3600.0
-    if age_h < 20:
-        return "Hoje"
-    if age_h < 48:
-        return "Amanhã"
-    return "2+ dias"
-
-
 def show(ctx) -> None:
     paid_user = can_access_paid_features(ctx.supabase)
     admin_user = is_admin_user()
@@ -154,56 +119,27 @@ def show(ctx) -> None:
               <div class="panel-header">
                 <div>
                   <div class="panel-title">FILA DE TRABALHO</div>
-                  <div class="panel-subtitle">Motores em análise técnica neste workspace</div>
+                  <div class="panel-subtitle">Prioridades e tarefas em destaque (quando existirem)</div>
                 </div>
-                <span class="badge-premium badge-primary">ATIVOS</span>
+                <span class="badge-premium">—</span>
               </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
-        recent = list(reversed(motores))[-6:]
-        if recent:
-            st.markdown('<div class="premium-card-elevated">', unsafe_allow_html=True)
-            for r in reversed(recent):
-                motor_id = _to_text(r.get("id") or r.get("Id") or "") or "M-—"
-                title = _pick_motor_title(r)
-                status_label, status_cls, progress = _row_stage(r)
-                eta = _eta_label(r)
-                badge = (
-                    f'<span class="badge-premium {status_cls}">{status_label}</span>'
-                    if status_cls
-                    else f'<span class="badge-premium">{status_label}</span>'
-                )
-                st.markdown(
-                    f"""
-                    <div class="queue-item">
-                      <div class="queue-row">
-                        <div class="queue-icon">MR</div>
-                        <div class="queue-meta">
-                          <div class="queue-idline">
-                            <span class="queue-id">{motor_id}</span>
-                            {badge}
-                          </div>
-                          <div class="queue-title">{title}</div>
-                          <div class="queue-stage">Etapa: {status_label.title()}</div>
-                        </div>
-                        <div class="queue-right">
-                          <div class="queue-right-top">
-                            <span>Progresso</span><span class="queue-id">{progress}%</span>
-                          </div>
-                          <div class="progress-premium">
-                            <div class="progress-premium-fill" style="width:{progress}%"></div>
-                          </div>
-                          <div class="queue-eta">ETA: {eta}</div>
-                        </div>
-                      </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-            st.markdown("</div>", unsafe_allow_html=True)
+        # Fila real (OS, revisões, etc.) será alimentada noutra fase; não usar "últimos motores" como fila fictícia.
+        st.markdown(
+            """
+            <div class="premium-card-elevated" style="padding:18px 20px;">
+              <div class="panel-subtitle" style="margin:0;">
+                Nenhum item na fila neste momento. Use <strong>Consulta</strong> para rever motores
+                ou <strong>Ordens de serviço</strong> (plano PRO) para o fluxo de oficina.
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
         a, b, c = st.columns(3, gap="small")
         with a:

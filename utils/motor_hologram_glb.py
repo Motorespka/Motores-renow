@@ -8,20 +8,22 @@ liso; desligar com `HOLOGRAM_48_SAME_LISO_56=0` (distingue `monofasico_48.glb` n
 Prioridade: motor.holograma_glb_url no JSON > HOLOGRAM_GLB_MOTOR_<id> > NEMA mono 1 cap (PSC)
 (`HOLOGRAM_GLB_NEMA_MONO_1CAP` / embed) > NEMA pequeno convencional liso
 (`HOLOGRAM_GLB_NEMA_PEQUENO_CONV_LISO` / embed; senao `HOLOGRAM_GLB_NEMA56` / Nema56.glb) >
+NEMA 42 (quadro na ficha) `HOLOGRAM_GLB_NEMA42` / embed `HOLOGRAM_DEFAULT_NEMA42_GLB_URL`; `HOLOGRAM_BAKED_NEMA42_GLB=0` desliga >
 familia bomba close-coupled
 (`pump_close_coupled`: BOMBA/MONOBLOC/PUMP, JM/JP/56J, …) `HOLOGRAM_GLB_PUMP_CLOSE_COUPLED` / embed >
 familia Ex / prova de explosao com pes (`explosion_proof_footed`) `HOLOGRAM_GLB_EXPLOSION_PROOF_FOOTED` / embed >
 familia IEC TEFC B3 (catalogo
 IEC63, 63S/M/L, 90S/L, 100L, 112M, 132S + B3/B3T/B3D/B3L; sem B5/B14/B35) `HOLOGRAM_GLB_IEC_TEFC_B3_CATALOGO` / embed;
 GLB embebido `HOLOGRAM_DEFAULT_IEC63_CATALOG_SILHUETA_GLB_URL` (= `105%20a.glb`) >
+familia **IEC 132** (etiqueta IEC132 / 132S / 132M + mesmas exclusoes que TEFC B3) `HOLOGRAM_GLB_IEC132` / embed `HOLOGRAM_DEFAULT_IEC132_GLB_URL` >
 familia IEC 100L (so carcaca 100L sem essa silhueta B3+TEFC) `HOLOGRAM_GLB_IEC100L` / `HOLOGRAM_DEFAULT_IEC100L_GLB_URL` >
-`HOLOGRAM_CARCACA_NEMA56_STRICT=1` -> nada alem de JSON/MOTOR/NEMA56 (carcaca) + URL NEMA56 (Cloud ou embed `HOLOGRAM_DEFAULT_NEMA56_GLB_URL`); nao starter, nao DEFAULT geral. Senao, fluxo completo. >
+`HOLOGRAM_CARCACA_NEMA56_STRICT=1` -> nada alem de JSON/MOTOR/NEMA56 (carcaca) + URL NEMA56 (Cloud ou embed `HOLOGRAM_DEFAULT_NEMA56_GLB_URL`), NEMA 42 (`HOLOGRAM_GLB_NEMA42` / embed), catalogo IEC/100L; nao starter, nao DEFAULT geral. Senao, fluxo completo. >
 `HOLOGRAM_GLB_NEMA56` (Cloud) > fallback `HOLOGRAM_DEFAULT_NEMA56_GLB_URL` (Supabase no repo) > `NEMA_56_CARCACA_LEGENDA_COMPLETA` (56 + sufixos); `HOLOGRAM_BAKED_NEMA56_GLB=0` desliga o embed. >
 GLB por tipo de carcaça (HOLOGRAM_GLB_WEG_STYLE_HOUSING + match); o mesmo URL entra na cadeia DEFAULT
 se HOLOGRAM_GLB_WEG_STYLE_ONLY_MATCHED nao estiver ligado (URL global no Cloud sem regra de carcaca).
 HOLOGRAM_CARCACA_GLB_CONTAINS / HOLOGRAM_CARCACA_GLB_RULE: ver motor_matches_weg_style_carcaca_for_glb. >
 HOLOGRAM_GLB_DEFAULT (global Cloud; antes dos presets para nao ficar preso a GLB antigo por preset) >
-env HOLOGRAM_GLB_<PRESET> > HOLOGRAM_GLB_NEMA48 (se carcaca NEMA 48) >
+env HOLOGRAM_GLB_<PRESET> > HOLOGRAM_GLB_NEMA48 (carcaca 48 sem silhueta fundida a 56) >
 GLB em disco opt-in (HOLOGRAM_TEST_DISK_GLB=1; HOLOGRAM_TEST_DISK_GLB_FILE) >
 ficheiros em static/glb (starter pack; pequenos em data URL) > demo (opcional).
 Pack: HOLOGRAM_USE_STARTER_PACK=0. HTTP pack: HOLOGRAM_STARTER_PACK_HTTP=1.
@@ -75,6 +77,14 @@ HOLOGRAM_DEFAULT_PUMP_CLOSE_COUPLED_GLB_URL = (
 # URL: `HOLOGRAM_GLB_EXPLOSION_PROOF_FOOTED` / embed; substituir constante por GLB Ex dedicado se existir.
 HOLOGRAM_DEFAULT_EXPLOSION_PROOF_FOOTED_GLB_URL = (
     "https://rpdbothdubddwltsdwlj.supabase.co/storage/v1/object/public/holograms/pump.glb"
+)
+# NEMA 42 (carcaca fechada); `HOLOGRAM_GLB_NEMA42` / `MOTORES_...`; `HOLOGRAM_BAKED_NEMA42_GLB=0` desliga o embed.
+HOLOGRAM_DEFAULT_NEMA42_GLB_URL = (
+    "https://rpdbothdubddwltsdwlj.supabase.co/storage/v1/object/public/holograms/nema%2042%20closed%20(1).glb"
+)
+# IEC 132 (carcaça dedicada); `HOLOGRAM_GLB_IEC132` / `MOTORES_...`; `HOLOGRAM_BAKED_IEC132_GLB=0` desliga o embed.
+HOLOGRAM_DEFAULT_IEC132_GLB_URL = (
+    "https://rpdbothdubddwltsdwlj.supabase.co/storage/v1/object/public/holograms/269c0156-2633-44cf-9d80-98c14483011c.glb"
 )
 
 
@@ -276,12 +286,16 @@ def _resolve_starter_pack_url(m: Dict[str, Any], preset: str) -> Optional[str]:
 def _motor_json(m: Dict[str, Any]) -> Dict[str, Any]:
     data = m.get("dados_tecnicos_json") if isinstance(m.get("dados_tecnicos_json"), dict) else {}
     motor = data.get("motor") if isinstance(data.get("motor"), dict) else {}
+    if not motor and isinstance(data.get("Motor"), dict):
+        motor = data["Motor"]
     return motor if isinstance(motor, dict) else {}
 
 
 def _mecanica_json(m: Dict[str, Any]) -> Dict[str, Any]:
     data = m.get("dados_tecnicos_json") if isinstance(m.get("dados_tecnicos_json"), dict) else {}
     mec = data.get("mecanica") if isinstance(data.get("mecanica"), dict) else {}
+    if not mec and isinstance(data.get("Mecanica"), dict):
+        mec = data["Mecanica"]
     return mec if isinstance(mec, dict) else {}
 
 
@@ -294,13 +308,18 @@ def _motor_id_str(m: Dict[str, Any]) -> str:
 
 
 def _carcaca_blob(m: Dict[str, Any]) -> str:
+    def _car(d: Any) -> str:
+        if not isinstance(d, dict):
+            return ""
+        return str(d.get("carcaca") or d.get("Carcaca") or "")
+
     parts = [
-        str(m.get("carcaca") or ""),
-        str(_mecanica_json(m).get("carcaca") or ""),
-        str(_motor_json(m).get("carcaca") or ""),
+        str(m.get("carcaca") or m.get("Carcaca") or ""),
+        _car(_mecanica_json(m)),
+        _car(_motor_json(m)),
     ]
     ui = m.get("_consulta_ui") if isinstance(m.get("_consulta_ui"), dict) else {}
-    parts.append(str(ui.get("carcaca") or ""))
+    parts.append(_car(ui))
     return " ".join(parts)
 
 
@@ -322,6 +341,7 @@ def _carcaca_ficha_mecanica_motor_ui_upper(m: Dict[str, Any]) -> str:
     for d in (_mecanica_json(m), _motor_json(m)):
         for k in (
             "carcaca",
+            "Carcaca",
             "quadro",
             "quadro_nema",
             "nema",
@@ -418,12 +438,42 @@ def hologram_carcaca_context(m: Dict[str, Any]) -> str:
 
 
 def _is_nema_48_frame(m: Dict[str, Any]) -> bool:
-    s = _carcaca_blob(m).upper()
+    s = _carcaca_ficha_mecanica_motor_ui_upper(m)
     if not s.strip():
         return False
-    if re.search(r"NEMA\s*[-_]?\s*48\b", s):
+    if re.search(r"NEMA(?:\s*[-_]?\s*)?48\b", s):
         return True
     return "NEMA" in s and "48" in s
+
+
+def _texto_modelo_identificacao_para_hologram(m: Dict[str, Any]) -> str:
+    """Modelo / modelo NEMA na placa — muitas fichas trazem o quadro aqui em vez de Carcaça."""
+    mo = _motor_json(m)
+    bits: list[str] = []
+    if isinstance(mo, dict):
+        for k in ("modelo", "modelo_nema", "modelo_iec", "Modelo", "ModeloNema"):
+            v = mo.get(k)
+            if v is not None and str(v).strip():
+                bits.append(str(v).strip())
+    if isinstance(m, dict):
+        for k in ("modelo", "Modelo"):
+            v = m.get(k)
+            if v is not None and str(v).strip():
+                bits.append(str(v).strip())
+    return " ".join(bits).upper()
+
+
+def _is_nema_42_frame(m: Dict[str, Any]) -> bool:
+    """NEMA 42, NEMA-42, NEMA42 (sem espaço entre letras e número).
+
+    Usa ficha completa (quadro/frame/nema no JSON), nao so o campo carcaca — evita falhar quando
+    o quadro esta em ``mecanica.quadro`` / ``motor.quadro``. Inclui ``motor.modelo`` / ``modelo_nema``
+    e JSON com ``Mecanica`` / ``Motor`` em PascalCase.
+    """
+    s = (_carcaca_ficha_mecanica_motor_ui_upper(m) + " " + _texto_modelo_identificacao_para_hologram(m)).strip()
+    if not s:
+        return False
+    return bool(re.search(r"NEMA(?:\s*[-_]?\s*)?42\b", s))
 
 
 def n48_mesma_silueta_que_motor_liso_56_activa() -> bool:
@@ -490,8 +540,9 @@ def infer_hologram_preset_familia_nema_silueta(
     ficha_u = _carcaca_ficha_mecanica_motor_ui_upper(m)
     nema_56_plate = nema_56_somente_ficha_mecanica(m)
     n48 = _is_nema_48_frame(m)
+    n42 = _is_nema_42_frame(m)
     if not fup.strip() or not (
-        re.search(r"\bNEMA\b", fup) or nema_56_plate or n48 or re.search(
+        re.search(r"\bNEMA\b", fup) or nema_56_plate or n48 or n42 or re.search(
             r"\bD56\b|L56\b|56D\b|56H\b|56L\b|56Y\b|56Z\b", fup, re.IGNORECASE
         )
     ):
@@ -541,6 +592,8 @@ def infer_hologram_preset_familia_nema_silueta(
         if n48_aceita_mesma_silueta_motor_liso_nema_56(m):
             return "liso_56"
         return "nema_mono"
+    if n42:
+        return "liso_56"
     if nema_56_plate and "56C" not in c and "48C" not in c and "56J" not in c and not re.search(
         r"(?<![0-9A-Z])56J", fup
     ):
@@ -583,14 +636,14 @@ def _motor_identity_blob_upper(m: Dict[str, Any]) -> str:
         str(m.get("modelo") or ""),
         str(motor.get("marca") or ""),
         str(motor.get("modelo") or ""),
-        str(motor.get("carcaca") or ""),
+        str(motor.get("carcaca") or motor.get("Carcaca") or ""),
     ]
     ui = m.get("_consulta_ui") if isinstance(m.get("_consulta_ui"), dict) else {}
     parts.extend(
         [
             str(ui.get("marca") or ""),
             str(ui.get("modelo") or ""),
-            str(ui.get("carcaca") or ""),
+            str(ui.get("carcaca") or ui.get("Carcaca") or ""),
         ]
     )
     return " ".join(parts).upper()
@@ -598,7 +651,7 @@ def _motor_identity_blob_upper(m: Dict[str, Any]) -> str:
 
 def _read_carcaca_glb_rule() -> str:
     """
-    weg_or_nema48 (defeito): WEG, NEMA 48, ou NEMA 56 (56, 56C, 56H, 56J, 56Y…).
+    weg_or_nema48 (defeito): WEG, NEMA 48, NEMA 42, ou NEMA 56 (56, 56C, 56H, 56J, 56Y…).
     weg_only | nema48_only | nema56_only | ip21_only
     nema48_or_n56 — 48 ou familia 56, sem exigir WEG.
     """
@@ -653,7 +706,7 @@ def motor_matches_weg_style_carcaca_for_glb(m: Dict[str, Any]) -> bool:
        qualquer token (separado por virgula) que apareca em marca/modelo/carcaca conta como match.
        HOLOGRAM_CARCACA_GLB_MATCH_ALL=1 exige que todos os tokens apareçam.
     2) Senao, HOLOGRAM_CARCACA_GLB_RULE: weg_or_nema48 | weg_only | nema48_only |
-       nema56_only | nema48_or_n56 | ip21_only.
+       nema56_only | nema48_or_n56 | ip21_only. No defeito weg_or_nema48 conta tambem NEMA 42 na ficha.
     """
     tokens = _carcaca_glb_contains_tokens()
     blob, blob_c = _blob_for_carcaca_match(m)
@@ -670,6 +723,7 @@ def motor_matches_weg_style_carcaca_for_glb(m: Dict[str, Any]) -> bool:
     has_weg = "WEG" in blob
     has_n48 = _is_nema_48_frame(m)
     has_n56 = _is_nema_56_plate_family(m)
+    has_n42 = _is_nema_42_frame(m)
     if rule == "weg_only":
         return has_weg
     if rule == "nema48_only":
@@ -680,7 +734,7 @@ def motor_matches_weg_style_carcaca_for_glb(m: Dict[str, Any]) -> bool:
         return has_n48 or has_n56
     if rule == "ip21_only":
         return _is_ip21_carcaca(m)
-    return has_weg or has_n48 or has_n56
+    return has_weg or has_n48 or has_n56 or has_n42
 
 
 def motor_has_json_hologram_glb_url(m: Dict[str, Any]) -> bool:
@@ -809,7 +863,7 @@ def motor_familia_iec_tefc_b3_catalogo_silhueta_somente_ficha(m: Dict[str, Any])
         return False
     c = re.sub(r"[\s._\-/]+", "", raw_u)
     c_carc = _carcaca_somente_compact_upper(m)
-    if nema_56_somente_ficha_mecanica(m) or _is_nema_48_frame(m):
+    if nema_56_somente_ficha_mecanica(m) or _is_nema_48_frame(m) or _is_nema_42_frame(m):
         return False
     if "B35" in c_carc or "B14" in c_carc or "B5" in c_carc:
         return False
@@ -833,10 +887,69 @@ def motor_familia_iec_tefc_b3_catalogo_silhueta_somente_ficha(m: Dict[str, Any])
         return False
     if "TEFC" not in c and re.search(r"ALET|ALETADO|ALETAS", raw_u, re.IGNORECASE) is None:
         return False
-    for fr in ("63S", "63M", "63L", "90S", "90L", "100L", "112M", "132S"):
+    for fr in ("63S", "63M", "63L", "90S", "90L", "100L", "112M", "132S", "132M"):
         if re.search(rf"(?<![0-9.]){re.escape(fr)}(?![0-9])", c, re.IGNORECASE):
             return True
     return False
+
+
+def _baked_iec132_glb_activo() -> bool:
+    v = _read_secret_or_env("HOLOGRAM_BAKED_IEC132_GLB", "MOTORES_HOLOGRAM_BAKED_IEC132_GLB").strip().lower()
+    if v in ("0", "false", "no", "off"):
+        return False
+    return True
+
+
+def motor_familia_iec132_silhueta_somente_ficha(m: Dict[str, Any]) -> bool:
+    """
+    Carcaça IEC 132 (etiqueta ``IEC 132`` / ``IEC132`` ou quadro ``132S`` / ``132M`` com B3+TEFC/aletas).
+    Prioridade em ``resolve_model_glb_url`` acima do catálogo genérico ``105 a.glb``.
+    """
+    raw_u = f"{_carcaca_ficha_mecanica_motor_ui_upper(m)} {_carcaca_blob(m).upper()}"
+    if not raw_u.strip():
+        return False
+    c = re.sub(r"[\s._\-/]+", "", raw_u)
+    c_carc = _carcaca_somente_compact_upper(m)
+    if nema_56_somente_ficha_mecanica(m) or _is_nema_48_frame(m) or _is_nema_42_frame(m):
+        return False
+    if "B35" in c_carc or "B14" in c_carc or "B5" in c_carc:
+        return False
+    if re.search(r"SEM\W*P(E|Ê)S|FOOTLESS|NO\W*FOOT", raw_u):
+        return False
+    if re.search(
+        r"(?<![0-9A-Z])56J(?![0-9A-Z])|JET\W*PUMP|PUMP\W*MOT|MONOBLOC|\bBOMBA\b",
+        raw_u,
+        re.IGNORECASE,
+    ):
+        return False
+    if re.search(r"\bIEC\W*132\b", raw_u, re.IGNORECASE) or "IEC132" in c:
+        return True
+    b3_ok = (
+        "B3T" in c
+        or "B3D" in c
+        or "B3L" in c
+        or re.search(r"(?<=[0-9LMSm])B3(?![0-9])", c, re.IGNORECASE) is not None
+    )
+    if not b3_ok:
+        return False
+    if "TEFC" not in c and re.search(r"ALET|ALETADO|ALETAS", raw_u, re.IGNORECASE) is None:
+        return False
+    for fr in ("132S", "132M"):
+        if re.search(rf"(?<![0-9.]){re.escape(fr)}(?![0-9])", c, re.IGNORECASE):
+            return True
+    return False
+
+
+def iec132_glb_url_efectiva() -> str:
+    """Secret ``HOLOGRAM_GLB_IEC132`` / ``MOTORES_`` ou embed ``HOLOGRAM_DEFAULT_IEC132_GLB_URL``."""
+    u = _read_secret_or_env("HOLOGRAM_GLB_IEC132", "MOTORES_HOLOGRAM_GLB_IEC132")
+    if u and u.lower().startswith(("http://", "https://")) and _path_looks_glb(u):
+        return u.strip()
+    if _baked_iec132_glb_activo() and HOLOGRAM_DEFAULT_IEC132_GLB_URL:
+        s = str(HOLOGRAM_DEFAULT_IEC132_GLB_URL).strip()
+        if s.lower().startswith(("http://", "https://")) and _path_looks_glb(s):
+            return s
+    return ""
 
 
 def iec_tefc_b3_catalogo_silhueta_glb_url_efectiva() -> str:
@@ -1297,11 +1410,13 @@ def nema56_glb_url_efectiva_para_motor(m: Dict[str, Any]) -> str:
 
 
 def hologram_nema56_glb_secret_configurado() -> bool:
-    """True se houver URL NEMA 56, NEMA pequeno convencional ou NEMA mono 1 cap (secret, ENV ou embeds)."""
+    """True se houver URL NEMA 56, pequeno liso, mono 1 cap, NEMA 42 ou IEC132 (secret, ENV ou embeds activos)."""
     return bool(
         nema56_glb_url_efectiva()
         or nema_pequeno_convencional_liso_glb_url_efectiva()
         or nema_single_phase_one_cap_small_glb_url_efectiva()
+        or nema42_glb_url_efectiva()
+        or iec132_glb_url_efectiva()
     )
 
 
@@ -1316,13 +1431,36 @@ def consulta_lista_motor_tem_familia_glb_dedicada_na_ficha(m: Dict[str, Any]) ->
         return True
     if motor_familia_iec_tefc_b3_catalogo_silhueta_somente_ficha(m):
         return True
+    if motor_familia_iec132_silhueta_somente_ficha(m):
+        return True
     if motor_familia_iec_100l_somente_ficha(m):
         return True
     if motor_familia_pump_close_coupled_somente_ficha(m):
         return True
     if motor_familia_explosion_proof_footed_somente_ficha(m):
         return True
+    if _is_nema_42_frame(m):
+        return True
     return False
+
+
+def _baked_nema42_glb_activo() -> bool:
+    v = _read_secret_or_env("HOLOGRAM_BAKED_NEMA42_GLB", "MOTORES_HOLOGRAM_BAKED_NEMA42_GLB").strip().lower()
+    if v in ("0", "false", "no", "off"):
+        return False
+    return True
+
+
+def nema42_glb_url_efectiva() -> str:
+    """Secret `HOLOGRAM_GLB_NEMA42` / `MOTORES_` ou URL embebida `HOLOGRAM_DEFAULT_NEMA42_GLB_URL`."""
+    u = _read_secret_or_env("HOLOGRAM_GLB_NEMA42", "MOTORES_HOLOGRAM_GLB_NEMA42")
+    if u and u.lower().startswith(("http://", "https://")) and _path_looks_glb(u):
+        return u.strip()
+    if _baked_nema42_glb_activo() and HOLOGRAM_DEFAULT_NEMA42_GLB_URL:
+        s = str(HOLOGRAM_DEFAULT_NEMA42_GLB_URL).strip()
+        if s.lower().startswith(("http://", "https://")) and _path_looks_glb(s):
+            return s
+    return ""
 
 
 def _glb_url_catalogo_iec_tefc_b3_se_ficha(m: Dict[str, Any]) -> str:
@@ -1370,6 +1508,14 @@ def resolve_model_glb_url(m: Dict[str, Any], preset: str) -> Optional[str]:
             u = nema56_glb_url_efectiva_para_motor(m)
             if u:
                 return u
+        if _is_nema_42_frame(m):
+            u = nema42_glb_url_efectiva()
+            if u:
+                return u
+        if motor_familia_iec132_silhueta_somente_ficha(m):
+            u = iec132_glb_url_efectiva()
+            if u:
+                return u
         u = _glb_url_catalogo_iec_tefc_b3_se_ficha(m)
         if u:
             return u
@@ -1381,6 +1527,16 @@ def resolve_model_glb_url(m: Dict[str, Any], preset: str) -> Optional[str]:
 
     if nema_56_somente_ficha_mecanica(m):
         u = nema56_glb_url_efectiva_para_motor(m)
+        if u:
+            return u
+
+    if _is_nema_42_frame(m):
+        u = nema42_glb_url_efectiva()
+        if u:
+            return u
+
+    if motor_familia_iec132_silhueta_somente_ficha(m):
+        u = iec132_glb_url_efectiva()
         if u:
             return u
 

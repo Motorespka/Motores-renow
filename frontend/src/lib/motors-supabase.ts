@@ -132,6 +132,39 @@ async function selectMotoresFlexible(table: string, fetchLimit: number) {
   return await supabase.from(table).select("*").limit(fetchLimit);
 }
 
+export type DashboardMotorRow = { raw: Record<string, unknown>; item: MotorRecord };
+
+/**
+ * Lê até `maxRows` motores (ordem recente primeiro) para KPIs, fila e origem dos dados.
+ * Retorna `null` quando o modo Supabase-direct não está activo.
+ */
+export async function fetchMotorDashboardFromSupabase(maxRows = 400): Promise<DashboardMotorRow[] | null> {
+  if (!shouldFetchMotorsFromSupabase()) return null;
+
+  const lim = Math.min(Math.max(maxRows, 1), 500);
+  let rows: Record<string, unknown>[] | null = null;
+  for (const table of resolveMotorTableChain()) {
+    const r = await selectMotoresFlexible(table, lim);
+    if (!r.error && r.data && r.data.length) {
+      rows = r.data as Record<string, unknown>[];
+      break;
+    }
+  }
+
+  if (!rows) return [];
+
+  const n = rows.length;
+  const numbered = rows.map((r, i) => ({ ...r, cadastro_seq: n - i }));
+  return numbered.map((r) => ({ raw: r, item: rowToMotorRecord(r) }));
+}
+
+export async function fetchDiagnosticsCountSupabase(): Promise<number | null> {
+  if (!SUPABASE_CONFIGURED) return null;
+  const { count, error } = await supabase.from("diagnostics").select("id", { count: "exact", head: true });
+  if (error) return null;
+  return typeof count === "number" ? count : 0;
+}
+
 export async function fetchMotorListFromSupabase(q: string, limit: number): Promise<MotorListResponse | null> {
   if (!shouldFetchMotorsFromSupabase()) return null;
 
@@ -159,6 +192,26 @@ export async function fetchMotorListFromSupabase(q: string, limit: number): Prom
 
   const items = filtered.map((r) => rowToMotorRecord(r));
   return { mode: "full", total: items.length, items };
+}
+
+function primaryMotoresTable(): string {
+  return (process.env.NEXT_PUBLIC_SUPABASE_PRIMARY_TABLE || "motores").trim().toLowerCase();
+}
+
+/**
+ * Atualiza linha na tabela principal (`motores` por defeito). Respeita RLS com o JWT atual.
+ * Não tenta views só de leitura — use sempre a tabela física configurada.
+ */
+export async function updateMotorPrimaryRow(
+  motorId: string,
+  patch: Record<string, unknown>,
+): Promise<{ error: string | null }> {
+  if (!SUPABASE_CONFIGURED) {
+    return { error: "Supabase nao configurado." };
+  }
+  const table = primaryMotoresTable();
+  const { error } = await supabase.from(table).update(patch).eq("id", motorId);
+  return { error: error?.message ?? null };
 }
 
 export async function fetchMotorDetailFromSupabase(

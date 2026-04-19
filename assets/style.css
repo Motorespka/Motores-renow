@@ -1020,6 +1020,9 @@ div[data-testid="stButton"] > button:hover {
     font-weight: 700;
     display: block;
     margin-top: 4px;
+    line-height: 1.25;
+    word-break: break-word;
+    hyphens: auto;
 }
 
 .inline-pill {

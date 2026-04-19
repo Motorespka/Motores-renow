@@ -51,10 +51,13 @@ def _probe_url_ok(url: str) -> bool:
 
 
 def _render_external_links() -> None:
-    st.caption("Novo sistema (migração incremental)")
-
+    """Atalhos opcionais para Next/API quando configurados em secrets/env. Sem expander de documentação."""
     next_url = _read_env_url("NEXTJS_URL", "NEXT_PUBLIC_APP_URL", "FRONTEND_URL")
     api_url = _read_env_url("FASTAPI_URL", "API_URL", "BACKEND_URL")
+    if not next_url and not api_url:
+        return
+
+    st.caption("Novo sistema (migração incremental)")
 
     if next_url:
         next_ok = _probe_url_ok(next_url)
@@ -73,24 +76,13 @@ def _render_external_links() -> None:
             st.markdown(f"[Abrir API docs]({docs_url})")
         st.caption("Docs: online" if docs_ok else "Docs: indisponível (legado segue funcional)")
 
-    # No Cloud, secrets opcionais costumam faltar: evita dois `st.info` azuis que mudam a "cara" do shell.
-    if not next_url or not api_url:
-        with st.expander("Integrações opcionais (Next / API)", expanded=False):
-            st.caption(
-                "O Streamlit funciona sozinho. Para botões do app novo e da API, "
-                "adicione secrets no Streamlit Cloud (veja DEPLOY_STREAMLIT_CLOUD.md)."
-            )
-            if not next_url:
-                st.markdown("- `NEXTJS_URL` ou `FRONTEND_URL` — URL do Next.js")
-            if not api_url:
-                st.markdown("- `FASTAPI_URL`, `API_URL` ou `BACKEND_URL` — base da API (docs em `/docs`)")
-
     st.divider()
 
 class Route(str, Enum):
     DASHBOARD = "dashboard"
     CADASTRO = "cadastro"
     CONSULTA = "consulta"
+    GUIA_OFICINA = "guia_oficina"
     ATUALIZACOES = "atualizacoes"
     DETALHE = "detalhe"
     EDIT = "edit"
@@ -248,6 +240,7 @@ def render_navigation_sidebar(session, supabase_client=None) -> None:
 
         _group("OPERAÇÃO")
         _nav_button("Consulta", Route.CONSULTA, badge="BASE", badge_kind="accent")
+        _nav_button("Guia oficina", Route.GUIA_OFICINA, badge="AJUDA", badge_kind="accent")
         _nav_button("Visão geral", Route.DASHBOARD)
         _nav_button("Atualizações", Route.ATUALIZACOES, badge="NEW", badge_kind="accent")
         if cadastro_allowed:
@@ -278,6 +271,12 @@ def render_route_header(route: Route) -> None:
     titles: dict[str, tuple[str, str, str, str]] = {
         Route.DASHBOARD.value: ("VISÃO GERAL", "Painel operacional do workspace", "DASH", "accent"),
         Route.CONSULTA.value: ("CONSULTA TÉCNICA", "Base de motores cadastrados", "BASE", "accent"),
+        Route.GUIA_OFICINA.value: (
+            "GUIA DA OFICINA",
+            "Fluxo biblioteca, OS, PDF e boas práticas",
+            "AJUDA",
+            "accent",
+        ),
         Route.CADASTRO.value: ("CADASTRO / OCR", "Leitura de plaqueta e revisão assistida", "OCR", "primary"),
         Route.DIAGNOSTICO.value: ("DIAGNÓSTICO TÉCNICO", "Análise assistida de condição", "PRO", "warning"),
         Route.BIBLIOTECA_CALCULOS.value: (

@@ -12,6 +12,8 @@ import {
   ScanLine,
   Settings,
   Shield,
+  Sparkles,
+  Store,
   Wrench,
 } from "lucide-react";
 
@@ -44,7 +46,12 @@ export function CyberSidebar({
         { href: "/dashboard", label: "Visão Geral", icon: LayoutDashboard, visible: true },
         { href: "/motors", label: "Consulta Técnica", icon: Database, visible: true },
         { href: "/cadastro", label: "Cadastro / OCR", icon: ScanLine, badge: "OCR", badgeType: "primary", visible: canAccessCadastro },
+        { href: "/atualizacoes", label: "Atualizações", icon: Sparkles, visible: true },
       ],
+    },
+    {
+      label: "COMERCIAL",
+      items: [{ href: "/comercial", label: "Hub comercial", icon: Store, visible: true }],
     },
     {
       label: "ANÁLISE TÉCNICA",

@@ -149,7 +149,7 @@ def parse_fio_field(value: Any) -> Dict[str, Any]:
             awg = re.search(r"awg\s*(\d+)", s, re.I)
             if awg:
                 gauge = awg.group(1)
-                notes.append("Fio: referência AWG — comparação mm² não feita nesta versão.")
+                notes.append("Fio: referência AWG — checagem conservadora vs corrente da placa na coerência.")
             else:
                 nums = re.findall(r"\d+(?:[.,]\d+)?", s.replace(",", "."))
                 if nums:

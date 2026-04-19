@@ -17,6 +17,7 @@ from services.oficina_parser import (
     build_normalized_from_motor_row,
     extract_consulta_parser_snapshot,
 )
+from components.consulta_ficha_usuario_banner import pick_consulta_validacao, render_consulta_ficha_usuario_banner
 from components.motor_hologram import render_engine_hologram
 from components.motor_inteligencia_panel import render_intel_consulta_inline
 from components.motor_rebobinagem_panel import render_rebobinagem_consulta_inline
@@ -227,6 +228,7 @@ def _normalize_motor_record(row: Dict[str, Any]) -> Dict[str, Any]:
     feito_por = _extract_feito_por(row, data)
 
     ui = normalize_motor_row_for_ui(row)
+    consulta_pronto, consulta_msg = pick_consulta_validacao(row)
 
     return {
         "id": motor_id,
@@ -279,6 +281,8 @@ def _normalize_motor_record(row: Dict[str, Any]) -> Dict[str, Any]:
         "observacoes": _to_text(row.get("observacoes") or row.get("Observacoes") or data.get("observacoes_gerais")),
         "feito_por": feito_por,
         "_consulta_ui": ui,
+        "consulta_pronto_usuario": consulta_pronto,
+        "consulta_mensagem_usuario_pt": consulta_msg,
     }
 
 
@@ -954,6 +958,14 @@ def render(ctx) -> None:
             )
             st.caption(assinatura)
 
+            carc_disp = _merge_display_fields(
+                mecanica.get("carcaca"),
+                m.get("carcaca"),
+                consulta_ui.get("carcaca"),
+            )
+            if _to_text(carc_disp):
+                st.caption(f"Carcaça: {_safe(carc_disp)}")
+
             if snap_requires_review(snap):
                 st.warning(
                     "Revisao tecnica sugerida: conferir placa/bobinagem antes de usar como referencia definitiva."
@@ -961,6 +973,8 @@ def render(ctx) -> None:
             note_raw = _to_text(snap.get("parse_note"))
             if note_raw:
                 st.caption(f"Nota do parser: {html.escape(_trunc_plain(note_raw, 120))}")
+
+            render_consulta_ficha_usuario_banner(m)
 
             render_intel_consulta_inline(m, key_prefix=f"consulta_intel_{motor_key}")
             render_rebobinagem_consulta_inline(m, key_prefix=f"consulta_rb_{motor_key}")

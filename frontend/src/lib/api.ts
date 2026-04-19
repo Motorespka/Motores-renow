@@ -52,6 +52,9 @@ function mockFetch<T>(path: string, init?: RequestInit): T {
     ];
     return { mode: "full", total: items.length, items } as T;
   }
+  if (cleanPath.startsWith("/motors/") && (init?.method || "GET").toUpperCase() === "PATCH") {
+    return { ok: true, message: "Motor atualizado (mock dev)." } as T;
+  }
   if (cleanPath.startsWith("/motors/")) {
     const id = decodeURIComponent(cleanPath.replace("/motors/", ""));
     return {

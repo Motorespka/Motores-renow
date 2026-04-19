@@ -12,6 +12,7 @@ from . import cadastro
 from . import consulta
 from . import diagnostico
 from . import edit
+from . import guia_oficina
 from . import hub_comercial
 from . import motor_detail
 from . import ordens_servico
@@ -25,6 +26,7 @@ __all__ = [
     "consulta",
     "diagnostico",
     "edit",
+    "guia_oficina",
     "hub_comercial",
     "motor_detail",
     "ordens_servico",

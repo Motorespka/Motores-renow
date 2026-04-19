@@ -21,6 +21,8 @@ def _coerce_payload(raw_or_row: Dict[str, Any]) -> Dict[str, Any]:
         "dados_tecnicos_json" in raw_or_row
         or "rpm_nominal" in raw_or_row
         or "potencia_hp_cv" in raw_or_row
+        or raw_or_row.get("id") is not None
+        or raw_or_row.get("Id") is not None
     ):
         return coerce_supabase_motor_row(raw_or_row)
     return raw_or_row

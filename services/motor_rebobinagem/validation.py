@@ -11,6 +11,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from core.calculadora import mensagem_bobinagem_auxiliar_incompleta
 
+from services.motor_rebobinagem.wire_gauge import check_wire_vs_plate_current
+
 
 def _has_nums(blob: Dict[str, Any]) -> bool:
     n = blob.get("numbers")
@@ -30,6 +32,35 @@ def _electric_ns_rpm(electric_norm: Dict[str, Any]) -> Optional[float]:
         return 120.0 * float(f) / float(p)
     except Exception:
         return None
+
+
+def _rewinding_evidence(
+    pr_p: Dict[str, Any],
+    pr_e: Dict[str, Any],
+    ax_p: Dict[str, Any],
+    ax_e: Dict[str, Any],
+    ran: Dict[str, Any],
+    d_mm: Dict[str, Any],
+    p_mm: Dict[str, Any],
+) -> bool:
+    return (
+        _has_tokens(pr_p)
+        or _has_nums(pr_p)
+        or _has_nums(pr_e)
+        or _has_tokens(ax_p)
+        or _has_nums(ax_p)
+        or _has_nums(ax_e)
+        or ran.get("value") is not None
+        or bool(d_mm.get("value_mm"))
+        or bool(p_mm.get("value_mm"))
+    )
+
+
+def _same_number_sequence(a: Dict[str, Any], b: Dict[str, Any]) -> bool:
+    na, nb = a.get("numbers"), b.get("numbers")
+    if not na or not nb or len(na) != len(nb):
+        return False
+    return na == nb
 
 
 def _detect_ocr_numeric_conflict(raw: Dict[str, Any], electric_norm: Dict[str, Any]) -> bool:
@@ -62,6 +93,38 @@ def run_rewinding_validation(
     ran = (rew_norm.get("esquema") or {}).get("ranhuras") or {}
     d_mm = (rew_norm.get("mecanica") or {}).get("diametro_mm") or {}
     p_mm = (rew_norm.get("mecanica") or {}).get("pacote_mm") or {}
+
+    if _rewinding_evidence(pr_p, pr_e, ax_p, ax_e, ran, d_mm, p_mm):
+        rpm_ok = electric_norm.get("rpm_nominal") is not None
+        power_ok = electric_norm.get("power_kw") is not None
+        if not rpm_ok or not power_ok:
+            missing: List[str] = []
+            if not rpm_ok:
+                missing.append("RPM nominal")
+            if not power_ok:
+                missing.append("potência (CV/kW)")
+            joiner = " nem " if len(missing) == 2 else ""
+            msg = (
+                "Ficha elétrica sem "
+                + joiner.join(missing)
+                + " — não dá para validar rebobinagem contra a placa; só checagem de formato/campos."
+            )
+            ns_hint = _electric_ns_rpm(electric_norm)
+            if not rpm_ok and ns_hint is not None:
+                fhz = electric_norm.get("frequency_hz")
+                pol = electric_norm.get("poles")
+                msg += (
+                    f" Rotação síncrona teórica ({pol} polos, {fhz:g} Hz) ≈ {int(round(ns_hint))} rpm "
+                    "(RPM na placa costuma ser um pouco menor por escorregamento)."
+                )
+            warnings.append(
+                {
+                    "code": "motor_eletrico_incompleto_rebob",
+                    "severity": "alerta",
+                    "message": msg,
+                    "heuristic": True,
+                }
+            )
 
     # --- Crítico: RPM placa > síncrona (reuso elétrico) ---
     ns = _electric_ns_rpm(electric_norm)
@@ -123,6 +186,31 @@ def run_rewinding_validation(
                     "heuristic": True,
                 }
             )
+        if _same_number_sequence(pr_p, pr_e):
+            warnings.append(
+                {
+                    "code": "passo_igual_espiras",
+                    "severity": "alerta",
+                    "message": (
+                        "Passo(s) principal(is) e espiras com a mesma sequência numérica — "
+                        "conferir cópia engano ou OCR (são grandezas diferentes na prática)."
+                    ),
+                    "heuristic": True,
+                }
+            )
+
+    if _same_number_sequence(ax_p, ax_e):
+        warnings.append(
+            {
+                "code": "passo_igual_espiras_aux",
+                "severity": "alerta",
+                "message": (
+                    "Passo(s) auxiliar(es) e espiras com a mesma sequência numérica — "
+                    "conferir cópia engano ou OCR."
+                ),
+                "heuristic": True,
+            }
+        )
 
     # --- Geometria pacote / diâmetro ---
     dv, pv = d_mm.get("value_mm"), p_mm.get("value_mm")
@@ -160,6 +248,13 @@ def run_rewinding_validation(
                 "heuristic": True,
             }
         )
+
+    wv = check_wire_vs_plate_current(
+        pr_f=pr_f,
+        current_line_a=electric_norm.get("current_a"),
+    )
+    if wv:
+        warnings.append(wv)
 
     # --- Lacunas ---
     has_any = (
@@ -239,7 +334,10 @@ def build_rewinding_summary_one_liner(validation: Dict[str, Any], rew_norm: Dict
         return str(validation["warnings"][0].get("message") or "")[:140]
     if validation.get("needs_human_review"):
         return "Revisão humana sugerida: leitura OCR ou formato de campo a conferir, sem condenação automática."
-    return "Coerência de rebobinagem compatível com o modelo heurístico atual (sempre confirmar em oficina)."
+    return (
+        "Sem alertas formais; ficha com RPM e potência permite cruzar rebobinagem com contexto de placa "
+        "(sempre confirmar em oficina)."
+    )
 
 
 def build_rewinding_summary_full(validation: Dict[str, Any], rew_norm: Dict[str, Any]) -> str:

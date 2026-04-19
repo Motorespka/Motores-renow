@@ -1,5 +1,26 @@
 # CHANGELOG AI
 
+## 2026-04-18 | Cycle 0051
+- **Change Description:** `page/atualizacoes.py`: removido `st.cache_data` na leitura de `data/releases.json`; cada visita rele o ficheiro e mostra legenda com versao mais recente + `mtime` UTC. `data/releases.json` (V21.0.10 correcoes) alinhado.
+- **Reason:** Utilizador via lista de atualizacoes desactualizada em producao (cache/mtime); garantir que deploy do JSON se reflecte de imediato.
+- **Risk Level:** Baixo (ficheiro pequeno; custo I/O irrelevante nesta pagina).
+- **Rollback Availability:** Alto.
+- **Next Predicted Risk:** Nenhum significativo.
+
+## 2026-04-18 | Cycle 0050
+- **Change Description:** Oficina **sem PII**: OS com `payload` opcional `prazo_entrega_previsto` (AAAA-MM-DD), `orcamento_centavos` / `custo_material_centavos` / `custo_mao_obra_centavos`, `referencia_interna_os` (texto curto); UI em `page/ordens_servico.py`; PDF (`services/oficina_pdf.py`) secção “Operação interna”. Técnico: `services/motor_rebobinagem/wire_gauge.py` (AWG→mm², mm² explícito no texto, checagem conservadora **fio × corrente da placa** em `validation.py`). Biblioteca: linhas de teste de bancada com `limite_ref` e `resultado` OK/FORA + PDF. Testes: `tests/test_oficina_os_operacao.py`, `tests/test_wire_gauge.py`, extensão `tests/test_motor_rebobinagem.py`. Guia oficina actualizado.
+- **Reason:** Pedido de evolução ordenada (donos de oficina + técnico) mantendo OS só atreladas a motor, sem dados sensíveis de clientes.
+- **Risk Level:** Baixo-Médio (heurística AWG 8–36 e densidade ~2 A/mm² podem gerar falsos positivos em fichas ambíguas).
+- **Rollback Availability:** Alto (reverter ficheiros listados + este registro).
+- **Next Predicted Risk:** Calibração fina da heurística `Nx##` quando `##` não é AWG; integração com classe de isolamento.
+
+## 2026-04-18 | Cycle 0049
+- **Change Description:** Holograma 3D: familia **NEMA 42** na ficha (Mecânica / quadro) resolve para o GLB público `nema%2042%20closed.glb` no Supabase; overrides `HOLOGRAM_GLB_NEMA42` / `NEXT_PUBLIC_HOLOGRAM_GLB_NEMA42` e opt-out `HOLOGRAM_BAKED_NEMA42_GLB=0`. Espelho em `frontend/src/lib/motor-hologram.ts` (Next.js). IEC TEFC B3 deixa de aplicar quando a ficha indica NEMA 42; preset inferido `liso_56`. **Correcção:** texto **NEMA42** sem espaço e coluna **`Carcaca`** (PascalCase) passam a contar; regex NEMA 48 alinhada (`NEMA48`). **Paridade:** `hologram_nema56_glb_secret_configurado` inclui URL NEMA42; regra `weg_or_nema48` conta NEMA42; preset `motor_hologram` lê `Carcaca` e não converte `liso_56` explícito para `generico` em ficha NEMA42; malha procedural Three.js com `isNema42`; legenda detalhe e label `liso_56` alinhados a NEMA 48/56.
+- **Reason:** Pedido do utilizador para ligar o modelo GLB NEMA 42 fechado já alojado no bucket `holograms`.
+- **Risk Level:** Baixo (deteção por texto de ficha; falso positivo improvável com `\b42\b` / `NEMA 42`).
+- **Rollback Availability:** Alto (reverter `utils/motor_hologram_glb.py`, `frontend/src/lib/motor-hologram.ts`, `page/motor_detail.py` + este registro).
+- **Next Predicted Risk:** Fichas ambíguas (NEMA 42 + 56); hoje prevalece NEMA 56 por ordem de resolução.
+
 ## 2026-04-18 | Cycle 0048
 - **Change Description:** CSS global: corrigir **barra de rolagem dupla** (`html/body` sem scroll + `stAppViewContainer` como único scroll vertical, `stMain`/blocos com `overflow: visible`); mobile: **safe-area**, inputs **≥16px** (iOS sem zoom ao focar), animação de scan/grid mais leve em `<640px`, botões/tabs com altura mínima de toque, títulos com `clamp` mais legíveis.
 - **Reason:** Testes em telemóveis — menos confusão visual, menos GPU/jank, melhor UX tátil.

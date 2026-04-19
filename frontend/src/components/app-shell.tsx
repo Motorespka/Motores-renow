@@ -38,6 +38,8 @@ export function AppShell({
 
   const activeSection = useMemo(() => {
     if (pathname.startsWith("/motors")) return "motors";
+    if (pathname.startsWith("/atualizacoes")) return "releases";
+    if (pathname.startsWith("/comercial")) return "commercial";
     if (pathname.startsWith("/cadastro")) return "cadastro";
     if (pathname.startsWith("/admin")) return "admin";
     if (pathname.startsWith("/diagnostico")) return "diagnostic";

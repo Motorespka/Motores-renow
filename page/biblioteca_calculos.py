@@ -74,6 +74,16 @@ def _render_bench_tests_editor(scope: str) -> None:
         line_label = st.text_input("Nome do teste (ex.: Teste 1)", value="", key=f"{scope}_bench_line_label")
     with c3:
         line_value = st.text_input("Valor (ex.: 4A)", value="", key=f"{scope}_bench_line_value")
+    c4, c5 = st.columns(2)
+    with c4:
+        line_limite = st.text_input("Limite / criterio (ex.: IR min 1 M)", value="", key=f"{scope}_bench_line_limite")
+    with c5:
+        line_resultado = st.selectbox(
+            "Resultado",
+            ("", "OK", "FORA"),
+            key=f"{scope}_bench_line_resultado",
+            help="Opcional: registo objectivo para laudo / PDF.",
+        )
 
     a1, a2, a3 = st.columns([1, 1, 1])
     with a1:
@@ -99,9 +109,15 @@ def _render_bench_tests_editor(scope: str) -> None:
                 linhas = found.get("linhas")
                 if not isinstance(linhas, list):
                     linhas = []
-                linhas.append(
-                    {"teste": _to_text(line_label) or f"Teste {len(linhas)+1}", "valor": _to_text(line_value)}
-                )
+                row_ln: Dict[str, Any] = {
+                    "teste": _to_text(line_label) or f"Teste {len(linhas)+1}",
+                    "valor": _to_text(line_value),
+                }
+                if _to_text(line_limite):
+                    row_ln["limite_ref"] = _to_text(line_limite)
+                if _to_text(line_resultado):
+                    row_ln["resultado"] = _to_text(line_resultado).upper()
+                linhas.append(row_ln)
                 found["linhas"] = linhas
                 st.session_state[_bench_test_state_key(scope)] = tests
                 st.rerun()
@@ -127,7 +143,12 @@ def _render_bench_tests_editor(scope: str) -> None:
                 st.caption("Sem linhas.")
             else:
                 for j, ln in enumerate(linhas):
-                    st.write(f"- **{_to_text(ln.get('teste')) or f'Teste {j+1}'}**: {_to_text(ln.get('valor')) or '—'}")
+                    suf = ""
+                    if _to_text(ln.get("limite_ref")):
+                        suf += f" | ref: {_to_text(ln.get('limite_ref'))}"
+                    if _to_text(ln.get("resultado")):
+                        suf += f" | **{_to_text(ln.get('resultado'))}**"
+                    st.write(f"- **{_to_text(ln.get('teste')) or f'Teste {j+1}'}**: {_to_text(ln.get('valor')) or '—'}{suf}")
             r1, r2 = st.columns(2)
             with r1:
                 if st.button("Remover última linha", use_container_width=True, key=f"{scope}_bench_pop_{idx}"):
@@ -159,7 +180,12 @@ def _render_bench_tests_view(payload: Dict[str, Any]) -> None:
                 continue
             for idx, ln in enumerate(linhas):
                 if isinstance(ln, dict):
-                    st.write(f"- **{_to_text(ln.get('teste')) or f'Teste {idx+1}'}**: {_to_text(ln.get('valor')) or '—'}")
+                    suf = ""
+                    if _to_text(ln.get("limite_ref")):
+                        suf += f" | ref: {_to_text(ln.get('limite_ref'))}"
+                    if _to_text(ln.get("resultado")):
+                        suf += f" | **{_to_text(ln.get('resultado'))}**"
+                    st.write(f"- **{_to_text(ln.get('teste')) or f'Teste {idx+1}'}**: {_to_text(ln.get('valor')) or '—'}{suf}")
 
 
 def _render_mecanica_view(payload: Dict[str, Any]) -> None:
@@ -269,7 +295,8 @@ def render(ctx) -> None:
     st.markdown("### Biblioteca de calculos (rebobinagem)")
     st.caption(
         "Guarde receitas reutilizaveis (passo, espiras, fio, ligacao). "
-        "Pesquise, edite registos existentes ou crie revisoes. Dados mecanicos sao referencia de montagem."
+        "Pesquise, edite registos existentes ou crie revisoes. Dados mecanicos sao referencia de montagem. "
+        "Veja **Guia oficina** no menu para o fluxo com Ordens de servico e PDF."
     )
 
     if not workshop_tables_available(ctx.supabase):
@@ -293,9 +320,33 @@ def render(ctx) -> None:
         st.session_state.pop(_bench_test_state_key("edit"), None)
         st.rerun()
 
-    q = st.text_input("Buscar (titulo, tags, notas, conteudo)", value="", key="bib_q")
-    rows = list_calculos(ctx.supabase, q=q, limit=100)
+    q = st.text_input(
+        "Buscar (titulo, tags, notas, conteudo)",
+        value="",
+        key="bib_q",
+        help="Filtra na lista ja carregada (texto livre). Combine com filtro de tag e *So os meus*.",
+    )
+    bf1, bf2, bf3 = st.columns(3)
+    with bf1:
+        tag_f = st.text_input("Tag contem", value="", key="bib_tag_f", help="Ex.: WEG, 4P, trifasico.")
+    with bf2:
+        mine_f = st.checkbox("So os meus", value=False, key="bib_mine_f", help="Usa created_by = utilizador da sessao.")
+    with bf3:
+        lim_f = st.number_input("Max. registos", min_value=10, max_value=200, value=100, step=10, key="bib_lim_f")
+
+    rows = list_calculos(
+        ctx.supabase,
+        q=q,
+        limit=int(lim_f),
+        tag=tag_f,
+        only_created_by=uid if mine_f else "",
+    )
     st.caption(f"{len(rows)} registro(s) listados.")
+
+    if not rows:
+        st.info(
+            "Nenhum calculo com estes filtros. Limpe a busca, desmarque **So os meus** ou crie um **Novo calculo** mais abaixo."
+        )
 
     sel_options = {f"{r.get('id')} — {r.get('titulo', '')}": str(r.get("id")) for r in rows if r.get("id") is not None}
     pick = st.selectbox("Abrir registro", options=[""] + list(sel_options.keys()), key="bib_pick")

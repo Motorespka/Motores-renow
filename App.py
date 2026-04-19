@@ -36,6 +36,7 @@ from page import (
     consulta,
     diagnostico,
     edit,
+    guia_oficina,
     hub_comercial,
     motor_detail,
     ordens_servico,
@@ -149,11 +150,30 @@ def _resolve_browser_cache_key() -> str:
     host = str(headers.get("host", "")).strip()
     has_fingerprint_signal = bool(cookies) or bool(user_agent) or bool(accept_language) or bool(host)
 
+    # Isolamento por sessão Streamlit: sem isto, Chrome/Edge (ou WebViews) com o mesmo host/idioma
+    # e UA vazio podem gerar a mesma chave → @st.cache_resource devolve o MESMO cliente Supabase
+    # e a última conta autenticada “aparece” noutro browser após F5.
+    streamlit_sid = ""
+    try:
+        from streamlit.runtime.scriptrunner import get_script_run_ctx
+
+        run_ctx = get_script_run_ctx()
+        if run_ctx is not None:
+            streamlit_sid = str(getattr(run_ctx, "session_id", "") or "")
+    except Exception:
+        streamlit_sid = ""
+    if not streamlit_sid:
+        streamlit_sid = str(st.session_state.get("_mrw_tab_isolation_id") or "")
+        if not streamlit_sid:
+            streamlit_sid = uuid.uuid4().hex
+            st.session_state["_mrw_tab_isolation_id"] = streamlit_sid
+
     fingerprint = {
         "cookies": cookies,
         "user_agent": user_agent,
         "accept_language": accept_language,
         "host": host,
+        "streamlit_session_id": streamlit_sid,
     }
     if has_fingerprint_signal:
         serialized = json.dumps(fingerprint, sort_keys=True, ensure_ascii=True)
@@ -172,6 +192,7 @@ def _resolve_browser_cache_key() -> str:
 
 @st.cache_resource
 def init_connection(mode: str, cache_key: str):
+    """Um cliente Supabase por (mode, cache_key). cache_key deve ser único por sessão Streamlit."""
     _ = cache_key
     if mode == "DEV":
         return build_local_runtime_client(mode="DEV")
@@ -197,6 +218,7 @@ def build_router() -> Router:
     router.register(Route.DASHBOARD, visao_geral.show)
     router.register(Route.CADASTRO, cadastro.show)
     router.register(Route.CONSULTA, consulta.show)
+    router.register(Route.GUIA_OFICINA, guia_oficina.show)
     router.register(Route.ATUALIZACOES, atualizacoes.show)
     router.register(Route.DETALHE, motor_detail.show)
     router.register(Route.EDIT, edit.show)
