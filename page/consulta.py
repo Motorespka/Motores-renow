@@ -734,6 +734,86 @@ def _delete_motor(ctx, motor_id: Any) -> None:
     raise RuntimeError(f"Nao foi possivel excluir o motor {motor_id_txt}: {last_error}")
 
 
+def _consulta_clamp_select(key: str, options: List[str]) -> None:
+    """Garante que o valor em session_state existe nas opcoes (lista de motores muda)."""
+    if not options:
+        return
+    cur = st.session_state.get(key)
+    if cur not in options:
+        st.session_state[key] = options[0]
+
+
+def _consulta_reset_filters() -> None:
+    for k in (
+        "consulta_busca_geral",
+        "consulta_filtro_marca",
+        "consulta_filtro_polos",
+        "consulta_filtro_tipo_motor",
+        "consulta_filtro_fases",
+        "consulta_filtro_rpm_range",
+        "consulta_filtro_revisao_v2104",
+    ):
+        st.session_state.pop(k, None)
+    st.session_state["consulta_page_num"] = 1
+
+
+_RECENT_MOTOR_KEY = "consulta_recent_motor_ids"
+_RECENT_MOTOR_CAP = 12
+
+
+def _consulta_push_recent_motor(motor_id: Any) -> None:
+    id_txt = _to_text(motor_id)
+    if not id_txt:
+        return
+    cur = list(st.session_state.get(_RECENT_MOTOR_KEY) or [])
+    cur = [x for x in cur if str(x) != id_txt]
+    cur.insert(0, id_txt)
+    st.session_state[_RECENT_MOTOR_KEY] = cur[:_RECENT_MOTOR_CAP]
+
+
+def _consulta_card_title(m: Dict[str, Any]) -> str:
+    data = m.get("dados_tecnicos_json") if isinstance(m.get("dados_tecnicos_json"), dict) else {}
+    motor_info = _section(data, "motor")
+    marca_disp = _consulta_marca_display(m, motor_info)
+    modelo_disp = _consulta_modelo_display(m, motor_info)
+    t = f"{_to_text(marca_disp)} {_to_text(modelo_disp)}".strip()
+    return t or f"#{_to_text(m.get('cadastro_seq') or m.get('id'))}"
+
+
+def _render_consulta_recent_bar(ctx, motores: List[Dict[str, Any]]) -> None:
+    ids = list(st.session_state.get(_RECENT_MOTOR_KEY) or [])
+    if not ids:
+        return
+    by_id: Dict[str, Dict[str, Any]] = {}
+    for x in motores:
+        k = _to_text(x.get("id"))
+        if k:
+            by_id[k] = x
+    with st.container(border=True):
+        st.caption("Ultimos motores abertos nesta sessao (atalho rapido)")
+        n = min(8, len(ids))
+        cols = st.columns(n)
+        for i, mid in enumerate(ids[:8]):
+            m = by_id.get(str(mid))
+            label = _consulta_card_title(m) if m else str(mid)[:14]
+            if len(label) > 24:
+                label = label[:21] + "…"
+            key_mid = re.sub(r"[^a-zA-Z0-9_-]", "_", str(mid))
+            with cols[i]:
+                if st.button(
+                    label,
+                    key=f"consulta_recent_{i}_{key_mid}",
+                    use_container_width=True,
+                    help="Abrir detalhes deste motor",
+                ):
+                    if m:
+                        _remember_motor_cadastro_seq(m["id"], int(m.get("cadastro_seq") or 0))
+                    ctx.session.selected_motor_id = mid
+                    _consulta_push_recent_motor(mid)
+                    ctx.session.set_route(Route.DETALHE)
+                    st.rerun()
+
+
 def _render_consulta_header(total: int, filtrados: int, trifasicos: int, monofasicos: int) -> None:
     st.markdown(
         """
@@ -838,26 +918,55 @@ def render(ctx) -> None:
 
     col_busca, col_revisao = st.columns([2.35, 1.0], gap="medium")
     with col_busca:
-        busca = st.text_input(
+        st.text_input(
             "Busca geral",
             placeholder="Marca, modelo, potencia, rpm, tensao, corrente, polos...",
-        ).strip().lower()
+            key="consulta_busca_geral",
+        )
+        busca = str(st.session_state.get("consulta_busca_geral") or "").strip().lower()
     with col_revisao:
+        opts_rev = ["Todos", "Somente com revisao sugerida", "Sem pendencia de revisao"]
+        _consulta_clamp_select("consulta_filtro_revisao_v2104", opts_rev)
         revisao_filtro = st.selectbox(
             "Revisao tecnica (parser)",
-            ["Todos", "Somente com revisao sugerida", "Sem pendencia de revisao"],
-            index=0,
+            opts_rev,
             key="consulta_filtro_revisao_v2104",
             help="Filtro read-only sobre dados ja carregados. Marca, polos e demais filtros continuam na barra lateral.",
         )
     filtrados = [m for m in motores if busca in _search_blob(m)] if busca else motores
 
     st.sidebar.markdown("### Filtros")
-    marca = st.sidebar.selectbox("Marca", ["Todas"] + _unique(motores, "marca"))
-    polos = st.sidebar.selectbox("Polos", ["Todos"] + _unique(motores, "polos"))
-    tipo = st.sidebar.selectbox("Tipo do motor", ["Todos"] + _unique(motores, "tipo_motor"))
-    fases = st.sidebar.selectbox("Fases", ["Todos"] + _unique(motores, "fases"))
-    rpm_range = st.sidebar.slider("Faixa RPM", 0, 5000, (0, 5000), step=50)
+    st.sidebar.caption(
+        "Filtros e busca mantem-se ao **Abrir detalhes** / **Editar** e voltar para a Consulta (mesma sessao do browser)."
+    )
+    marcas_opts = ["Todas"] + _unique(motores, "marca")
+    _consulta_clamp_select("consulta_filtro_marca", marcas_opts)
+    marca = st.sidebar.selectbox("Marca", marcas_opts, key="consulta_filtro_marca")
+
+    polos_opts = ["Todos"] + _unique(motores, "polos")
+    _consulta_clamp_select("consulta_filtro_polos", polos_opts)
+    polos = st.sidebar.selectbox("Polos", polos_opts, key="consulta_filtro_polos")
+
+    tipos_opts = ["Todos"] + _unique(motores, "tipo_motor")
+    _consulta_clamp_select("consulta_filtro_tipo_motor", tipos_opts)
+    tipo = st.sidebar.selectbox("Tipo do motor", tipos_opts, key="consulta_filtro_tipo_motor")
+
+    fases_opts = ["Todos"] + _unique(motores, "fases")
+    _consulta_clamp_select("consulta_filtro_fases", fases_opts)
+    fases = st.sidebar.selectbox("Fases", fases_opts, key="consulta_filtro_fases")
+
+    rpm_range = st.sidebar.slider(
+        "Faixa RPM",
+        0,
+        5000,
+        (0, 5000),
+        step=50,
+        key="consulta_filtro_rpm_range",
+    )
+
+    if st.sidebar.button("Limpar filtros da consulta", key="consulta_btn_limpar_filtros"):
+        _consulta_reset_filters()
+        st.rerun()
 
     if marca != "Todas":
         filtrados = [m for m in filtrados if _to_text(m.get("marca")) == marca]
@@ -877,6 +986,7 @@ def render(ctx) -> None:
     tri_count = sum(1 for m in filtrados if _detect_fase_bucket(m) == "tri")
     mono_count = sum(1 for m in filtrados if _detect_fase_bucket(m) == "mono")
     _render_consulta_header(len(motores), len(filtrados), tri_count, mono_count)
+    _render_consulta_recent_bar(ctx, motores)
 
     if not filtrados:
         st.warning("Nenhum motor encontrado com os filtros atuais.")
@@ -1030,12 +1140,14 @@ def render(ctx) -> None:
                 with b1:
                     if st.button("Editar", key=f"edit_{motor_key}", use_container_width=True):
                         _remember_motor_cadastro_seq(m["id"], int(m.get("cadastro_seq") or 0))
+                        _consulta_push_recent_motor(m["id"])
                         ctx.session.selected_motor_id = m["id"]
                         ctx.session.set_route(Route.EDIT)
                         st.rerun()
                 with b2:
                     if st.button("Abrir detalhes", key=f"detail_{motor_key}", use_container_width=True):
                         _remember_motor_cadastro_seq(m["id"], int(m.get("cadastro_seq") or 0))
+                        _consulta_push_recent_motor(m["id"])
                         ctx.session.selected_motor_id = m["id"]
                         ctx.session.set_route(Route.DETALHE)
                         st.rerun()
@@ -1062,6 +1174,7 @@ def render(ctx) -> None:
             else:
                 if st.button("Abrir detalhes", key=f"detail_{motor_key}", use_container_width=True):
                     _remember_motor_cadastro_seq(m["id"], int(m.get("cadastro_seq") or 0))
+                    _consulta_push_recent_motor(m["id"])
                     ctx.session.selected_motor_id = m["id"]
                     ctx.session.set_route(Route.DETALHE)
                     st.rerun()
