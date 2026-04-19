@@ -22,7 +22,7 @@ from core.development_mode import (
 from core.feature_flags import get_feature_flags
 from core.navigation import AppContext, Route, Router, render_navigation_sidebar
 from core.session_manager import SessionManager
-from page import admin_panel, atualizacoes, cadastro, consulta, diagnostico, edit, hub_comercial, motor_detail
+from page import admin_panel, atualizacoes, cadastro, consulta, diagnostico, edit, hub_comercial, motor_detail, site_moto_renow
 from services.database import bootstrap_database, build_local_runtime_client
 from services.supabase_data import clear_motores_cache
 
@@ -176,6 +176,7 @@ def bootstrap_styles() -> None:
 
 def build_router() -> Router:
     router = Router()
+    router.register(Route.SITE_MOTO_RENOW, site_moto_renow.show)
     router.register(Route.CADASTRO, cadastro.show)
     router.register(Route.CONSULTA, consulta.show)
     router.register(Route.ATUALIZACOES, atualizacoes.show)

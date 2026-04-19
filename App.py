@@ -42,6 +42,7 @@ from page import (
     hub_comercial,
     motor_detail,
     ordens_servico,
+    site_moto_renow,
     visao_geral,
 )
 from services.database import bootstrap_database, build_local_runtime_client
@@ -218,6 +219,7 @@ def bootstrap_styles() -> None:
 def build_router() -> Router:
     router = Router()
     router.register(Route.DASHBOARD, visao_geral.show)
+    router.register(Route.SITE_MOTO_RENOW, site_moto_renow.show)
     router.register(Route.CADASTRO, cadastro.show)
     router.register(Route.CONSULTA, consulta.show)
     router.register(Route.GUIA_OFICINA, guia_oficina.show)

@@ -5,7 +5,6 @@ from enum import Enum
 from typing import Any, Callable, Dict
 
 import json
-import os
 from pathlib import Path
 
 import streamlit as st
@@ -52,64 +51,9 @@ def _releases_head_caption() -> str:
         return ""
 
 
-def _read_env_url(*names: str) -> str:
-    for name in names:
-        value = ""
-        try:
-            # `st.secrets` pode não existir localmente (ou não ter secrets.toml).
-            value = str(st.secrets.get(name) or "").strip()  # type: ignore[attr-defined]
-        except Exception:
-            value = ""
-        if value:
-            return value
-        value = str(os.environ.get(name) or "").strip()
-        if value:
-            return value
-    return ""
-
-
-@st.cache_data(ttl=10, show_spinner=False)
-def _probe_url_ok(url: str) -> bool:
-    url = str(url or "").strip()
-    if not url:
-        return False
-    try:
-        import urllib.request
-
-        req = urllib.request.Request(url, headers={"User-Agent": "Moto-Renow/streamlit-shell"})
-        with urllib.request.urlopen(req, timeout=1.5) as resp:
-            return 200 <= int(getattr(resp, "status", 200) or 200) < 500
-    except Exception:
-        return False
-
-
 def _render_external_links() -> None:
-    """Atalhos opcionais para Next/API quando configurados em secrets/env. Sem expander de documentação."""
-    next_url = _read_env_url("NEXTJS_URL", "NEXT_PUBLIC_APP_URL", "FRONTEND_URL")
-    api_url = _read_env_url("FASTAPI_URL", "API_URL", "BACKEND_URL")
-    if not next_url and not api_url:
-        return
-
-    st.caption("Novo sistema (migração incremental)")
-
-    if next_url:
-        next_ok = _probe_url_ok(next_url)
-        if hasattr(st, "link_button"):
-            st.link_button("Abrir sistema novo", next_url, use_container_width=True)
-        else:
-            st.markdown(f"[Abrir sistema novo]({next_url})")
-        st.caption("Status: online" if next_ok else "Status: indisponível (fallback para legado ativo)")
-
-    if api_url:
-        docs_url = api_url.rstrip("/") + "/docs"
-        docs_ok = _probe_url_ok(docs_url)
-        if hasattr(st, "link_button"):
-            st.link_button("Abrir API docs", docs_url, use_container_width=True)
-        else:
-            st.markdown(f"[Abrir API docs]({docs_url})")
-        st.caption("Docs: online" if docs_ok else "Docs: indisponível (legado segue funcional)")
-
-    st.divider()
+    """Reservado: conteúdo comercial e ajuda passaram para a rota **Sobre a plataforma** (sem Next.js nem FastAPI)."""
+    return
 
 class Route(str, Enum):
     DASHBOARD = "dashboard"
@@ -124,6 +68,7 @@ class Route(str, Enum):
     ORDENS_SERVICO = "ordens_servico"
     ADMIN = "admin"
     HUB_COMERCIAL = "hub_comercial"
+    SITE_MOTO_RENOW = "site_moto_renow"
 
 
 class Router:
@@ -271,6 +216,9 @@ def render_navigation_sidebar(session, supabase_client=None) -> None:
                     unsafe_allow_html=True,
                 )
 
+        _group("SITE")
+        _nav_button("Sobre a plataforma", Route.SITE_MOTO_RENOW, badge="INFO", badge_kind="accent")
+
         _group("OPERAÇÃO")
         _nav_button("Consulta", Route.CONSULTA, badge="BASE", badge_kind="accent")
         _nav_button("Guia oficina", Route.GUIA_OFICINA, badge="AJUDA", badge_kind="accent")
@@ -347,7 +295,7 @@ def _render_route_header_search() -> None:
         )
     with cols[1]:
         st.markdown(
-            '<div class="mrw-header__hint">Historico automatico (cada alteracao) · menos rerun nesta zona</div>',
+            '<div class="mrw-header__hint">Historico de sessao (cada alteracao no texto)</div>',
             unsafe_allow_html=True,
         )
     if st.button("Limpar historico de busca", key="mrw_search_hist_clear"):
@@ -397,6 +345,12 @@ def render_route_header(route: Route, session: Any = None) -> None:
         Route.DETALHE.value: ("DETALHE DO MOTOR", "Visualização técnica e histórico", "MOTOR", "primary"),
         Route.EDIT.value: ("EDIÇÃO", "Ajustes e correções do cadastro", "EDIT", "warning"),
         Route.HUB_COMERCIAL.value: ("HUB COMERCIAL", "Integrações e marketplace", "HUB", "accent"),
+        Route.SITE_MOTO_RENOW.value: (
+            "SOBRE A PLATAFORMA",
+            "Informação para oficina — donos, técnicos e planos",
+            "INFO",
+            "accent",
+        ),
     }
     title, subtitle, tag, tag_kind = titles.get(route_value, ("MOTO-RENOW", "Plataforma técnica", "", "primary"))
     tag_html = (
