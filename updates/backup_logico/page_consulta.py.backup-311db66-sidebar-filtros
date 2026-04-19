@@ -12,6 +12,7 @@ import streamlit as st
 
 from core.access_control import can_access_paid_features, is_admin_user
 from core.navigation import Route
+from core.streamlit_perf import maybe_fragment
 from core.supabase_errors import format_supabase_client_error
 from core.ui_feedback import mrw_feedback_success, mrw_render_banner_zone
 from services.oficina_parser import (
@@ -897,13 +898,8 @@ def _render_teaser_consulta(motores: List[Dict[str, Any]], admin_user: bool = Fa
         st.caption(f"Mostrando {len(amostra)} de {len(motores)} motores no teaser.")
 
 
-def _consulta_paid_body() -> None:
-    """Corpo da consulta paga (fora de `@st.fragment`).
-
-    Os filtros ficam na area principal (coluna), nao em `st.sidebar`, para evitar
-    `StreamlitAPIException` quando o contexto de execucao nao e o script principal
-    (ex.: interacao com fragment da busca global no header).
-    """
+@maybe_fragment
+def _consulta_paid_fragment_fn() -> None:
     ctx = st.session_state.get("_consulta_render_ctx")
     admin_user = bool(st.session_state.get("_consulta_render_admin", False))
     if ctx is None:
@@ -941,48 +937,42 @@ def _consulta_paid_body_impl(ctx, admin_user: bool) -> None:
             "Revisao tecnica (parser)",
             opts_rev,
             key="consulta_filtro_revisao_v2104",
-            help="Filtro read-only sobre dados ja carregados. Marca, polos e demais filtros estao na coluna **Filtros** abaixo.",
+            help="Filtro read-only sobre dados ja carregados. Marca, polos e demais filtros continuam na barra lateral.",
         )
     filtrados = [m for m in motores if busca in _search_blob(m)] if busca else motores
 
-    # Filtros na area principal (nao em st.sidebar): compativel com fragment da busca global no header
-    # e com versoes do Streamlit que restringem sidebar ao script principal de forma estrita.
-    # Filtros à esquerda; lista + cartões (holograma) na coluna principal — tudo na mesma coluna à direita
-    # para o mesmo encadeamento Streamlit que antes ocupava a área principal a largura quase total.
-    filt_col, lista_col = st.columns([1, 3.25], gap="medium")
-    with filt_col:
-        st.markdown("### Filtros")
-        st.caption(
-            "Filtros e busca mantem-se ao **Abrir detalhes** / **Editar** e voltar para a Consulta (mesma sessao do browser)."
-        )
-        marcas_opts = ["Todas"] + _unique(motores, "marca")
-        _consulta_clamp_select("consulta_filtro_marca", marcas_opts)
-        marca = st.selectbox("Marca", marcas_opts, key="consulta_filtro_marca")
+    st.sidebar.markdown("### Filtros")
+    st.sidebar.caption(
+        "Filtros e busca mantem-se ao **Abrir detalhes** / **Editar** e voltar para a Consulta (mesma sessao do browser)."
+    )
+    marcas_opts = ["Todas"] + _unique(motores, "marca")
+    _consulta_clamp_select("consulta_filtro_marca", marcas_opts)
+    marca = st.sidebar.selectbox("Marca", marcas_opts, key="consulta_filtro_marca")
 
-        polos_opts = ["Todos"] + _unique(motores, "polos")
-        _consulta_clamp_select("consulta_filtro_polos", polos_opts)
-        polos = st.selectbox("Polos", polos_opts, key="consulta_filtro_polos")
+    polos_opts = ["Todos"] + _unique(motores, "polos")
+    _consulta_clamp_select("consulta_filtro_polos", polos_opts)
+    polos = st.sidebar.selectbox("Polos", polos_opts, key="consulta_filtro_polos")
 
-        tipos_opts = ["Todos"] + _unique(motores, "tipo_motor")
-        _consulta_clamp_select("consulta_filtro_tipo_motor", tipos_opts)
-        tipo = st.selectbox("Tipo do motor", tipos_opts, key="consulta_filtro_tipo_motor")
+    tipos_opts = ["Todos"] + _unique(motores, "tipo_motor")
+    _consulta_clamp_select("consulta_filtro_tipo_motor", tipos_opts)
+    tipo = st.sidebar.selectbox("Tipo do motor", tipos_opts, key="consulta_filtro_tipo_motor")
 
-        fases_opts = ["Todos"] + _unique(motores, "fases")
-        _consulta_clamp_select("consulta_filtro_fases", fases_opts)
-        fases = st.selectbox("Fases", fases_opts, key="consulta_filtro_fases")
+    fases_opts = ["Todos"] + _unique(motores, "fases")
+    _consulta_clamp_select("consulta_filtro_fases", fases_opts)
+    fases = st.sidebar.selectbox("Fases", fases_opts, key="consulta_filtro_fases")
 
-        rpm_range = st.slider(
-            "Faixa RPM",
-            0,
-            5000,
-            (0, 5000),
-            step=50,
-            key="consulta_filtro_rpm_range",
-        )
+    rpm_range = st.sidebar.slider(
+        "Faixa RPM",
+        0,
+        5000,
+        (0, 5000),
+        step=50,
+        key="consulta_filtro_rpm_range",
+    )
 
-        if st.button("Limpar filtros da consulta", key="consulta_btn_limpar_filtros"):
-            _consulta_reset_filters()
-            st.rerun()
+    if st.sidebar.button("Limpar filtros da consulta", key="consulta_btn_limpar_filtros"):
+        _consulta_reset_filters()
+        st.rerun()
 
     if marca != "Todas":
         filtrados = [m for m in filtrados if _to_text(m.get("marca")) == marca]
@@ -999,202 +989,201 @@ def _consulta_paid_body_impl(ctx, admin_user: bool) -> None:
     elif revisao_filtro == "Sem pendencia de revisao":
         filtrados = [m for m in filtrados if not _motor_needs_review_flag(m)]
 
-    with lista_col:
-        tri_count = sum(1 for m in filtrados if _detect_fase_bucket(m) == "tri")
-        mono_count = sum(1 for m in filtrados if _detect_fase_bucket(m) == "mono")
-        _render_consulta_header(len(motores), len(filtrados), tri_count, mono_count)
-        _render_consulta_recent_bar(ctx, motores)
+    tri_count = sum(1 for m in filtrados if _detect_fase_bucket(m) == "tri")
+    mono_count = sum(1 for m in filtrados if _detect_fase_bucket(m) == "mono")
+    _render_consulta_header(len(motores), len(filtrados), tri_count, mono_count)
+    _render_consulta_recent_bar(ctx, motores)
 
-        if not filtrados:
-            st.warning("Nenhum motor encontrado com os filtros atuais.")
-            return
+    if not filtrados:
+        st.warning("Nenhum motor encontrado com os filtros atuais.")
+        return
 
-        with st.expander("Analise tecnica dos calculos (Consulta)", expanded=False):
-            _render_consistency_report(filtrados)
+    with st.expander("Analise tecnica dos calculos (Consulta)", expanded=False):
+        _render_consistency_report(filtrados)
 
-        pg1, pg2, pg3 = st.columns([1.2, 1.0, 3.0], gap="small")
-        with pg1:
-            page_size = st.selectbox("Itens por pagina", [10, 20, 50, 100], index=1, key="consulta_page_size")
-        total_pages = max(1, (len(filtrados) + int(page_size) - 1) // int(page_size))
-        current_page = int(st.session_state.get("consulta_page_num", 1) or 1)
-        if current_page > total_pages:
-            current_page = total_pages
-            st.session_state["consulta_page_num"] = current_page
-        with pg2:
-            page_num = int(
-                st.number_input(
-                    "Pagina",
-                    min_value=1,
-                    max_value=total_pages,
-                    value=current_page,
-                    step=1,
-                    key="consulta_page_num",
-                )
+    pg1, pg2, pg3 = st.columns([1.2, 1.0, 3.0], gap="small")
+    with pg1:
+        page_size = st.selectbox("Itens por pagina", [10, 20, 50, 100], index=1, key="consulta_page_size")
+    total_pages = max(1, (len(filtrados) + int(page_size) - 1) // int(page_size))
+    current_page = int(st.session_state.get("consulta_page_num", 1) or 1)
+    if current_page > total_pages:
+        current_page = total_pages
+        st.session_state["consulta_page_num"] = current_page
+    with pg2:
+        page_num = int(
+            st.number_input(
+                "Pagina",
+                min_value=1,
+                max_value=total_pages,
+                value=current_page,
+                step=1,
+                key="consulta_page_num",
             )
-        with pg3:
-            start = (page_num - 1) * int(page_size)
-            end = start + int(page_size)
-            st.caption(f"Mostrando {start + 1}-{min(end, len(filtrados))} de {len(filtrados)} motores.")
+        )
+    with pg3:
+        start = (page_num - 1) * int(page_size)
+        end = start + int(page_size)
+        st.caption(f"Mostrando {start + 1}-{min(end, len(filtrados))} de {len(filtrados)} motores.")
 
-        motores_visiveis = filtrados[start:end]
+    motores_visiveis = filtrados[start:end]
 
-        for m in motores_visiveis:
-            with st.container(border=True):
-                data = m.get("dados_tecnicos_json", {})
-                motor_info = _section(data, "motor")
-                mecanica = _section(data, "mecanica")
-    
-                motor_id_txt = _to_text(m.get("id")) or "sem_id"
-                motor_key = re.sub(r"[^a-zA-Z0-9_-]", "_", motor_id_txt)
-                consulta_ui = m.get("_consulta_ui") if isinstance(m.get("_consulta_ui"), dict) else {}
-                eixo_x, eixo_y = _extract_eixo_xy(mecanica, consulta_ui)
-                fase_txt = _to_text(m.get("fases")) or _to_text(motor_info.get("fases"))
-    
-                snap = extract_consulta_parser_snapshot(data)
-                rev_chip = ""
-                if snap_requires_review(snap):
-                    rev_chip = '<div class="motor-chip motor-chip--review">Revisao tecnica</div>'
-    
-                marca_disp = _consulta_marca_display(m, motor_info)
-                modelo_disp = _consulta_modelo_display(m, motor_info)
-    
-                st.markdown(
-                    f"""
-                    <div class="motor-headline">
-                        <div>
-                            <div class="motor-id">#{_safe(m.get("cadastro_seq") or m.get("id"))}</div>
-                            <div class="motor-title">{_safe(marca_disp)} <span>{_safe(modelo_disp)}</span></div>
-                        </div>
-                        <div class="motor-chip-row">
-                            <div class="motor-chip">{_safe(m.get('tipo_motor'), fallback='Tipo nao informado')}</div>{rev_chip}
-                        </div>
+    for m in motores_visiveis:
+        with st.container(border=True):
+            data = m.get("dados_tecnicos_json", {})
+            motor_info = _section(data, "motor")
+            mecanica = _section(data, "mecanica")
+
+            motor_id_txt = _to_text(m.get("id")) or "sem_id"
+            motor_key = re.sub(r"[^a-zA-Z0-9_-]", "_", motor_id_txt)
+            consulta_ui = m.get("_consulta_ui") if isinstance(m.get("_consulta_ui"), dict) else {}
+            eixo_x, eixo_y = _extract_eixo_xy(mecanica, consulta_ui)
+            fase_txt = _to_text(m.get("fases")) or _to_text(motor_info.get("fases"))
+
+            snap = extract_consulta_parser_snapshot(data)
+            rev_chip = ""
+            if snap_requires_review(snap):
+                rev_chip = '<div class="motor-chip motor-chip--review">Revisao tecnica</div>'
+
+            marca_disp = _consulta_marca_display(m, motor_info)
+            modelo_disp = _consulta_modelo_display(m, motor_info)
+
+            st.markdown(
+                f"""
+                <div class="motor-headline">
+                    <div>
+                        <div class="motor-id">#{_safe(m.get("cadastro_seq") or m.get("id"))}</div>
+                        <div class="motor-title">{_safe(marca_disp)} <span>{_safe(modelo_disp)}</span></div>
                     </div>
-                    """,
-                    unsafe_allow_html=True,
+                    <div class="motor-chip-row">
+                        <div class="motor-chip">{_safe(m.get('tipo_motor'), fallback='Tipo nao informado')}</div>{rev_chip}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            freq_txt = _merge_display_fields(motor_info.get("frequencia"), m.get("frequencia"))
+            assinatura = build_assinatura_tecnica_consulta(
+                marca_disp,
+                modelo_disp,
+                _to_text(m.get("potencia")),
+                _to_text(m.get("rpm")),
+                _to_text(m.get("polos")),
+                _to_text(m.get("tensao")),
+                freq_txt,
+            )
+            st.caption(assinatura)
+
+            carc_disp = _merge_display_fields(
+                mecanica.get("carcaca"),
+                m.get("carcaca"),
+                consulta_ui.get("carcaca"),
+            )
+            if _to_text(carc_disp):
+                st.caption(f"Carcaça: {_safe(carc_disp)}")
+
+            if snap_requires_review(snap):
+                st.warning(
+                    "Revisao tecnica sugerida: conferir placa/bobinagem antes de usar como referencia definitiva."
                 )
-    
-                freq_txt = _merge_display_fields(motor_info.get("frequencia"), m.get("frequencia"))
-                assinatura = build_assinatura_tecnica_consulta(
-                    marca_disp,
-                    modelo_disp,
-                    _to_text(m.get("potencia")),
-                    _to_text(m.get("rpm")),
-                    _to_text(m.get("polos")),
-                    _to_text(m.get("tensao")),
-                    freq_txt,
-                )
-                st.caption(assinatura)
-    
-                carc_disp = _merge_display_fields(
-                    mecanica.get("carcaca"),
-                    m.get("carcaca"),
-                    consulta_ui.get("carcaca"),
-                )
-                if _to_text(carc_disp):
-                    st.caption(f"Carcaça: {_safe(carc_disp)}")
-    
-                if snap_requires_review(snap):
-                    st.warning(
-                        "Revisao tecnica sugerida: conferir placa/bobinagem antes de usar como referencia definitiva."
+            note_raw = _to_text(snap.get("parse_note"))
+            if note_raw:
+                st.caption(f"Nota do parser: {html.escape(_trunc_plain(note_raw, 120))}")
+
+            render_consulta_ficha_usuario_banner(m)
+
+            render_intel_consulta_inline(m, key_prefix=f"consulta_intel_{motor_key}")
+            render_rebobinagem_consulta_inline(m, key_prefix=f"consulta_rb_{motor_key}")
+
+            left, right = st.columns([1.45, 1.0], gap="large")
+            with left:
+                with st.expander("Informacoes essenciais do motor", expanded=False):
+                    k1, k2, k3 = st.columns(3)
+                    k1.markdown(
+                        f'<div class="metric-tile"><span>Cavalaria</span><strong>{_safe(m.get("potencia"))}</strong></div>',
+                        unsafe_allow_html=True,
                     )
-                note_raw = _to_text(snap.get("parse_note"))
-                if note_raw:
-                    st.caption(f"Nota do parser: {html.escape(_trunc_plain(note_raw, 120))}")
-    
-                render_consulta_ficha_usuario_banner(m)
-    
-                render_intel_consulta_inline(m, key_prefix=f"consulta_intel_{motor_key}")
-                render_rebobinagem_consulta_inline(m, key_prefix=f"consulta_rb_{motor_key}")
-    
-                left, right = st.columns([1.45, 1.0], gap="large")
-                with left:
-                    with st.expander("Informacoes essenciais do motor", expanded=False):
-                        k1, k2, k3 = st.columns(3)
-                        k1.markdown(
-                            f'<div class="metric-tile"><span>Cavalaria</span><strong>{_safe(m.get("potencia"))}</strong></div>',
-                            unsafe_allow_html=True,
-                        )
-                        k2.markdown(
-                            f'<div class="metric-tile"><span>RPM</span><strong>{_safe(m.get("rpm"))}</strong></div>',
-                            unsafe_allow_html=True,
-                        )
-                        k3.markdown(
-                            f'<div class="metric-tile"><span>Amperagem</span><strong>{_safe(m.get("corrente"))}</strong></div>',
-                            unsafe_allow_html=True,
-                        )
-    
-                        d1, d2, d3 = st.columns(3)
-                        d1.markdown(
-                            f'<div class="inline-pill">Polaridade: <b>{_safe(m.get("polos"))}</b></div>',
-                            unsafe_allow_html=True,
-                        )
-                        d2.markdown(
-                            f'<div class="inline-pill">Fase: <b>{_safe(fase_txt)}</b></div>',
-                            unsafe_allow_html=True,
-                        )
-                        d3.markdown(
-                            f'<div class="inline-pill">Tensao: <b>{_safe(m.get("tensao"))}</b></div>',
-                            unsafe_allow_html=True,
-                        )
-    
-                        e1, e2 = st.columns(2)
-                        e1.markdown(
-                            f'<div class="inline-pill">Eixo X: <b>{_safe(eixo_x)}</b></div>',
-                            unsafe_allow_html=True,
-                        )
-                        e2.markdown(
-                            f'<div class="inline-pill">Eixo Y: <b>{_safe(eixo_y)}</b></div>',
-                            unsafe_allow_html=True,
-                        )
-                    if _to_text(m.get("feito_por")):
-                        st.caption(f"Feito por: {_to_text(m.get('feito_por'))}")
-    
-                with right:
-                    render_engine_hologram(m, key=motor_key, list_mode=True)
-    
-                if admin_user:
-                    b1, b2, b3 = st.columns(3)
-                    with b1:
-                        if st.button("Editar", key=f"edit_{motor_key}", use_container_width=True):
-                            _remember_motor_cadastro_seq(m["id"], int(m.get("cadastro_seq") or 0))
-                            _consulta_push_recent_motor(m["id"])
-                            ctx.session.selected_motor_id = m["id"]
-                            ctx.session.set_route(Route.EDIT)
-                            st.rerun()
-                    with b2:
-                        if st.button("Abrir detalhes", key=f"detail_{motor_key}", use_container_width=True):
-                            _remember_motor_cadastro_seq(m["id"], int(m.get("cadastro_seq") or 0))
-                            _consulta_push_recent_motor(m["id"])
-                            ctx.session.selected_motor_id = m["id"]
-                            ctx.session.set_route(Route.DETALHE)
-                            st.rerun()
-                    with b3:
-                        if st.button("Excluir", key=f"delete_{motor_key}", use_container_width=True):
-                            st.session_state[f"confirm_delete_{motor_key}"] = True
-    
-                    if st.session_state.get(f"confirm_delete_{motor_key}"):
-                        st.warning("Exclusao definitiva. Confirme abaixo para remover este motor do cadastro.")
-                        c_confirm, c_cancel = st.columns(2)
-                        with c_confirm:
-                            if st.button("Confirmar exclusao", key=f"confirm_delete_btn_{motor_key}", use_container_width=True):
-                                try:
-                                    _delete_motor(ctx, m.get("id"))
-                                    st.session_state.pop(f"confirm_delete_{motor_key}", None)
-                                    mrw_feedback_success("Motor excluido com sucesso.")
-                                    st.rerun()
-                                except Exception as exc:
-                                    st.error(f"Falha ao excluir motor: {exc}")
-                        with c_cancel:
-                            if st.button("Cancelar", key=f"cancel_delete_btn_{motor_key}", use_container_width=True):
-                                st.session_state.pop(f"confirm_delete_{motor_key}", None)
-                                st.rerun()
-                else:
+                    k2.markdown(
+                        f'<div class="metric-tile"><span>RPM</span><strong>{_safe(m.get("rpm"))}</strong></div>',
+                        unsafe_allow_html=True,
+                    )
+                    k3.markdown(
+                        f'<div class="metric-tile"><span>Amperagem</span><strong>{_safe(m.get("corrente"))}</strong></div>',
+                        unsafe_allow_html=True,
+                    )
+
+                    d1, d2, d3 = st.columns(3)
+                    d1.markdown(
+                        f'<div class="inline-pill">Polaridade: <b>{_safe(m.get("polos"))}</b></div>',
+                        unsafe_allow_html=True,
+                    )
+                    d2.markdown(
+                        f'<div class="inline-pill">Fase: <b>{_safe(fase_txt)}</b></div>',
+                        unsafe_allow_html=True,
+                    )
+                    d3.markdown(
+                        f'<div class="inline-pill">Tensao: <b>{_safe(m.get("tensao"))}</b></div>',
+                        unsafe_allow_html=True,
+                    )
+
+                    e1, e2 = st.columns(2)
+                    e1.markdown(
+                        f'<div class="inline-pill">Eixo X: <b>{_safe(eixo_x)}</b></div>',
+                        unsafe_allow_html=True,
+                    )
+                    e2.markdown(
+                        f'<div class="inline-pill">Eixo Y: <b>{_safe(eixo_y)}</b></div>',
+                        unsafe_allow_html=True,
+                    )
+                if _to_text(m.get("feito_por")):
+                    st.caption(f"Feito por: {_to_text(m.get('feito_por'))}")
+
+            with right:
+                render_engine_hologram(m, key=motor_key, list_mode=True)
+
+            if admin_user:
+                b1, b2, b3 = st.columns(3)
+                with b1:
+                    if st.button("Editar", key=f"edit_{motor_key}", use_container_width=True):
+                        _remember_motor_cadastro_seq(m["id"], int(m.get("cadastro_seq") or 0))
+                        _consulta_push_recent_motor(m["id"])
+                        ctx.session.selected_motor_id = m["id"]
+                        ctx.session.set_route(Route.EDIT)
+                        st.rerun()
+                with b2:
                     if st.button("Abrir detalhes", key=f"detail_{motor_key}", use_container_width=True):
                         _remember_motor_cadastro_seq(m["id"], int(m.get("cadastro_seq") or 0))
                         _consulta_push_recent_motor(m["id"])
                         ctx.session.selected_motor_id = m["id"]
                         ctx.session.set_route(Route.DETALHE)
                         st.rerun()
+                with b3:
+                    if st.button("Excluir", key=f"delete_{motor_key}", use_container_width=True):
+                        st.session_state[f"confirm_delete_{motor_key}"] = True
+
+                if st.session_state.get(f"confirm_delete_{motor_key}"):
+                    st.warning("Exclusao definitiva. Confirme abaixo para remover este motor do cadastro.")
+                    c_confirm, c_cancel = st.columns(2)
+                    with c_confirm:
+                        if st.button("Confirmar exclusao", key=f"confirm_delete_btn_{motor_key}", use_container_width=True):
+                            try:
+                                _delete_motor(ctx, m.get("id"))
+                                st.session_state.pop(f"confirm_delete_{motor_key}", None)
+                                mrw_feedback_success("Motor excluido com sucesso.")
+                                st.rerun()
+                            except Exception as exc:
+                                st.error(f"Falha ao excluir motor: {exc}")
+                    with c_cancel:
+                        if st.button("Cancelar", key=f"cancel_delete_btn_{motor_key}", use_container_width=True):
+                            st.session_state.pop(f"confirm_delete_{motor_key}", None)
+                            st.rerun()
+            else:
+                if st.button("Abrir detalhes", key=f"detail_{motor_key}", use_container_width=True):
+                    _remember_motor_cadastro_seq(m["id"], int(m.get("cadastro_seq") or 0))
+                    _consulta_push_recent_motor(m["id"])
+                    ctx.session.selected_motor_id = m["id"]
+                    ctx.session.set_route(Route.DETALHE)
+                    st.rerun()
 
 
 def render(ctx) -> None:
@@ -1219,7 +1208,7 @@ def render(ctx) -> None:
 
     st.session_state["_consulta_render_ctx"] = ctx
     st.session_state["_consulta_render_admin"] = admin_user
-    _consulta_paid_body()
+    _consulta_paid_fragment_fn()
 
 
 def show(ctx) -> None:
