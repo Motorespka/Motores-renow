@@ -4,7 +4,10 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, Dict
 
+import json
 import os
+from pathlib import Path
+
 import streamlit as st
 
 from core.access_control import (
@@ -251,6 +254,15 @@ def render_navigation_sidebar(session, supabase_client=None) -> None:
             _nav_button("Diagnóstico", Route.DIAGNOSTICO, badge="PRO", badge_kind="warning")
             _nav_button("Biblioteca de cálculos", Route.BIBLIOTECA_CALCULOS, badge="PRO", badge_kind="warning")
             _nav_button("Ordens de serviço", Route.ORDENS_SERVICO, badge="PRO", badge_kind="warning")
+            if st.button(
+                "Minhas OS",
+                use_container_width=True,
+                key="nav_shortcut_os_mine",
+                help="Abre Ordens de servico com o filtro So as minhas activo.",
+            ):
+                st.session_state["os_f_mine"] = True
+                session.set_route(Route.ORDENS_SERVICO)
+                st.rerun()
 
         if flags.any_marketplace_enabled() or dev_mode:
             _group("ECOSSISTEMA")
@@ -262,6 +274,18 @@ def render_navigation_sidebar(session, supabase_client=None) -> None:
 
         st.divider()
         st.caption(f"Rota atual: {current_route.value}")
+        if admin_user:
+            rel = Path(__file__).resolve().parent.parent / "data" / "releases.json"
+            if rel.is_file():
+                try:
+                    ch = json.loads(rel.read_text(encoding="utf-8")).get("changelog") or []
+                    head = ch[0] if ch else {}
+                    ver = str(head.get("versao") or "?").strip() or "?"
+                    data = str(head.get("data") or "").strip()
+                    hint = f"Referencia: {ver}" + (f" ({data})" if data else "")
+                    st.caption(hint)
+                except Exception:
+                    pass
         if st.button("Logout", use_container_width=True, key="nav_logout"):
             _perform_logout(session, supabase_client=supabase_client)
 
