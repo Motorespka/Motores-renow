@@ -897,20 +897,6 @@ def _render_teaser_consulta(motores: List[Dict[str, Any]], admin_user: bool = Fa
         st.caption(f"Mostrando {len(amostra)} de {len(motores)} motores no teaser.")
 
 
-def _consulta_paid_body() -> None:
-    """Corpo da consulta paga (fora de `@st.fragment`).
-
-    Os filtros ficam na area principal (coluna), nao em `st.sidebar`, para evitar
-    `StreamlitAPIException` quando o contexto de execucao nao e o script principal
-    (ex.: interacao com fragment da busca global no header).
-    """
-    ctx = st.session_state.get("_consulta_render_ctx")
-    admin_user = bool(st.session_state.get("_consulta_render_admin", False))
-    if ctx is None:
-        return
-    _consulta_paid_body_impl(ctx, admin_user)
-
-
 def _consulta_paid_body_impl(ctx, admin_user: bool) -> None:
     mrw_render_banner_zone()
     try:
@@ -952,9 +938,7 @@ def _consulta_paid_body_impl(ctx, admin_user: bool) -> None:
     filt_col, lista_col = st.columns([1, 3.25], gap="medium")
     with filt_col:
         st.markdown("### Filtros")
-        st.caption(
-            "Filtros e busca mantem-se ao **Abrir detalhes** / **Editar** e voltar para a Consulta (mesma sessao do browser)."
-        )
+        st.caption("Filtros persistem ao voltar de Detalhe/Editar (mesma sessão).")
         marcas_opts = ["Todas"] + _unique(motores, "marca")
         _consulta_clamp_select("consulta_filtro_marca", marcas_opts)
         marca = st.selectbox("Marca", marcas_opts, key="consulta_filtro_marca")
@@ -1217,9 +1201,7 @@ def render(ctx) -> None:
         _render_teaser_consulta(motores, admin_user=admin_user)
         return
 
-    st.session_state["_consulta_render_ctx"] = ctx
-    st.session_state["_consulta_render_admin"] = admin_user
-    _consulta_paid_body()
+    _consulta_paid_body_impl(ctx, admin_user)
 
 
 def show(ctx) -> None:

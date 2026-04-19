@@ -80,20 +80,15 @@ def rpm_identificacao_display(m: Dict[str, Any], motor_info: Dict[str, Any]) -> 
     if p is not None and fhz is not None:
         ns = synchronous_rpm_theoretical(fhz, p)
         nsi = int(round(ns))
-        return (
-            f"≈ {nsi} rpm (referência: rotação síncrona teórica a {fhz:g} Hz e {p} polos — "
-            "RPM nominal da placa não consta nesta ficha)"
-        )
-    return (
-        "— (RPM da placa não consta nesta ficha; informe polos e frequência para exibir a referência síncrona)"
-    )
+        return f"≈ {nsi} rpm (síncrono {fhz:g} Hz · {p}p; RPM placa não consta)"
+    return "— (RPM placa: informe polos + Hz)"
 
 
 def potencia_identificacao_display(m: Dict[str, Any], motor_info: Dict[str, Any]) -> str:
     for src in (m.get("potencia_hp_cv"), motor_info.get("potencia")):
         if not is_empty(src):
             return _as_joined_text(src)
-    return "— (CV/kW não consta nesta ficha — preencha quando tiver a placa)"
+    return "— (CV/kW não consta)"
 
 
 def tensao_identificacao_display(m: Dict[str, Any], motor_info: Dict[str, Any]) -> str:
@@ -101,7 +96,7 @@ def tensao_identificacao_display(m: Dict[str, Any], motor_info: Dict[str, Any]) 
         t = _as_joined_text(src)
         if t and not is_empty(t):
             return t
-    return "— (tensão não consta nesta ficha)"
+    return "— (tensão não consta)"
 
 
 def corrente_identificacao_display(m: Dict[str, Any], motor_info: Dict[str, Any]) -> str:
@@ -109,10 +104,10 @@ def corrente_identificacao_display(m: Dict[str, Any], motor_info: Dict[str, Any]
         t = _as_joined_text(src)
         if t and not is_empty(t):
             return t
-    return "— (corrente não consta nesta ficha)"
+    return "— (corrente não consta)"
 
 
-def campo_ou_nao_consta(value: Any, *, empty_msg: str = "— (não consta nesta ficha)") -> str:
+def campo_ou_nao_consta(value: Any, *, empty_msg: str = "—") -> str:
     t = _as_joined_text(value)
     if t and not is_empty(t):
         return t

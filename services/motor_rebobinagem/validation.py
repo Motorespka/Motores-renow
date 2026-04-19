@@ -329,15 +329,12 @@ def build_rewinding_summary_one_liner(validation: Dict[str, Any], rew_norm: Dict
     if validation.get("issues"):
         return str(validation["issues"][0].get("message") or "")[:140]
     if st == "insuficiente":
-        return "Dados de oficina insuficientes (passo, espiras, ranhuras ou dimensões) para validar rebobinagem com força."
+        return "Oficina: faltam passo/espiras/ranhuras/dimensões para validar com força."
     if validation.get("warnings"):
         return str(validation["warnings"][0].get("message") or "")[:140]
     if validation.get("needs_human_review"):
-        return "Revisão humana sugerida: leitura OCR ou formato de campo a conferir, sem condenação automática."
-    return (
-        "Sem alertas formais; ficha com RPM e potência permite cruzar rebobinagem com contexto de placa "
-        "(sempre confirmar em oficina)."
-    )
+        return "Rever OCR/formato (sem reprovação automática)."
+    return "Sem alertas formais; confirmar sempre em oficina."
 
 
 def build_rewinding_summary_full(validation: Dict[str, Any], rew_norm: Dict[str, Any]) -> str:
@@ -345,8 +342,5 @@ def build_rewinding_summary_full(validation: Dict[str, Any], rew_norm: Dict[str,
     extra: List[str] = []
     for w in (validation.get("warnings") or [])[1:3]:
         extra.append(str(w.get("message") or ""))
-    tail = (
-        " Limites: sem tabela AWG/mm² nem modelo de ranhura; "
-        "não substitui projeto de bobina nem laudo de conformidade."
-    )
+    tail = " Apoio técnico — não substitui projeto nem laudo."
     return (one + (" " + " ".join(x for x in extra if x)).strip() + tail).strip()

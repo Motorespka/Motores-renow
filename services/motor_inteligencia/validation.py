@@ -227,32 +227,32 @@ def build_summary_one_liner(
     normalized: Dict[str, Any],
     derived: Dict[str, Any],
     validation: Dict[str, Any],
-    max_len: int = 140,
+    max_len: int = 118,
 ) -> str:
     """Uma linha curta para cards (consulta); prioriza mensagem acionável em português."""
     st = str(validation.get("status") or "insuficiente")
     if validation.get("issues"):
         msg = str(validation["issues"][0].get("message") or "")
-        return (msg[: max_len - 1] + "…") if len(msg) > max_len else msg
+        if len(msg) > max_len:
+            return msg[: max_len - 1].rstrip() + "…"
+        return msg
     if st == "insuficiente":
         miss = normalized.get("insufficient_for") or []
         if miss:
             tip = str(miss[0])
-            base = (
-                "Dados insuficientes para validar a parte elétrica completa; em destaque: "
-                f"{tip}. Sugestão: revisar tensão, corrente e fator de potência na placa."
-            )
+            if len(tip) > 52:
+                tip = tip[:49].rstrip() + "…"
+            base = f"Elétrico incompleto: {tip}."
         else:
-            base = (
-                "Indicadores principais incompletos (RPM, polos, frequência, tensão, etc.) "
-                "— cadastro ainda não permite análise elétrica fechada."
-            )
+            base = "Ficha sem RPM/polos/Hz/tensão suficientes para análise elétrica fechada."
         return (base[: max_len - 1] + "…") if len(base) > max_len else base
     if st == "alerta" and validation.get("warnings"):
         msg = str(validation["warnings"][0].get("message") or "")
-        return (msg[: max_len - 1] + "…") if len(msg) > max_len else msg
+        if len(msg) > max_len:
+            return msg[: max_len - 1].rstrip() + "…"
+        return msg
     if st == "alerta":
-        return "Revisão sugerida: metadados de leitura/OCR ou formato a conferir sem condenação automática."
+        return "Alerta: rever OCR/formato (sem reprovação automática)."
 
     ns = _ns_value(derived)
     rpm = _rpm_value(normalized)
@@ -283,9 +283,6 @@ def build_technical_summary(
         extras.append(validation["issues"][1].get("message", ""))
     if validation.get("warnings") and len(validation["warnings"]) > 1:
         extras.append(validation["warnings"][1].get("message", ""))
-    tail = (
-        " Esta camada não modela capacitor auxiliar, inversor nem rebobinagem; "
-        "valores são heurísticas de apoio, não laudo de conformidade."
-    )
+    tail = " Heurística de apoio — não substitui laudo nem projeto de bobina."
     extra_txt = (" " + " ".join(x for x in extras if x)).strip()
     return (one + extra_txt + tail).strip()
