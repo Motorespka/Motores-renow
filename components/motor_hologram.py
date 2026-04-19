@@ -1,9 +1,9 @@
 """
 Holograma: GLB via <model-viewer> quando houver URL resolvida.
-Na listagem (consulta): por defeito **não** se usa ``model-viewer`` (vários WebGL na mesma página esgotam a GPU e o cartão fica
-vazio). Silhueta CSS (ou Three.js se ``HOLOGRAM_LIST_THREEJS=1``). Para GLB nos cards: ``HOLOGRAM_LIST_SHOW_GLB=1`` ou URL
-``.glb`` no JSON do motor (``holograma_glb_url``). ``HOLOGRAM_LIST_NO_GLB=1`` força só silhueta mesmo com esses opt-ins.
-``HOLOGRAM_LIST_NO_STATIC_GLB=1`` evita pack em ``/app/static/glb/`` quando o SHOW_GLB estiver ligado.
+Na listagem (consulta): com URL ``https://…``.glb`` (ex.: Supabase) usa o **mesmo** ``model-viewer`` que no Detalhe
+(``loading="lazy"`` por cartão). Silhueta CSS só quando não há GLB ou com ``HOLOGRAM_LIST_NO_GLB=1``.
+``HOLOGRAM_LIST_HIDE_REMOTE_GLB=1`` força silhueta mesmo com HTTPS. ``HOLOGRAM_LIST_SHOW_GLB=1`` inclui também ``data:`` /
+pack estático (salvo ``HOLOGRAM_LIST_NO_STATIC_GLB=1``). ``HOLOGRAM_LIST_GLB_NO_HOTSPOTS=1`` oculta hotspots só na lista.
 
 Na consulta, a silhueta generica fica **desligada** por defeito; `HOLOGRAM_LISTA_SILHUETA_TODOS=1` volta
 ao bloco de silhueta em todos. `HOLOGRAM_CARCACA_NEMA56_STRICT=1` controla a cadeia de resolucao GLB.
@@ -556,20 +556,21 @@ def _build_model_viewer_html(
     motor: dict | None = None,
 ) -> str:
     src = json.dumps(glb_url)
-    mv_h = 160 if compact else 240
+    mv_h = 200 if compact else 240
     kpi_block = _holo_glb_kpi_block(motor, rpm, tensao, corrente, compact=compact)
-    sp_html = _build_model_viewer_hotspots_html(motor) if (not compact and not _flag_truthy("HOLOGRAM_NO_GLB_HOTSPOTS")) else ""
+    no_hs = _flag_truthy("HOLOGRAM_NO_GLB_HOTSPOTS")
+    list_no_hs = compact and _flag_truthy("HOLOGRAM_LIST_GLB_NO_HOTSPOTS")
+    sp_html = _build_model_viewer_hotspots_html(motor) if (not no_hs and not list_no_hs) else ""
     hint_block = (
         ""
         if compact
         else (
-            '<div class="hint">Malha 3D com camada holográfica (scanline + brilho). Gire com o rato ou um dedo. '
-            "Anotacoes: rolamentos, placa, capacitor. Ajuste com "
-            "<code>hologram_hotspot_overrides</code>, e global "
-            "<code>hologram_hotspot_scale</code> (1 nr ou sx sy sz) e "
-            "<code>hologram_hotspot_offset</code> (x y z) — p' = p*scale+offset.</div>"
+            '<div class="hint">Malha 3D + scanline. Gire com o rato. Hotspots: '
+            "<code>hologram_hotspot_overrides</code>, <code>hologram_hotspot_scale</code>, "
+            "<code>hologram_hotspot_offset</code>.</div>"
         )
     )
+    mv_lazy_attr = ' loading="lazy"' if compact else ""
     return f"""
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
@@ -674,7 +675,7 @@ def _build_model_viewer_html(
       touch-action="pan-y"
       shadow-intensity="0.35"
       exposure="0.72"
-      interaction-prompt="none"
+      interaction-prompt="none"{mv_lazy_attr}
     >{sp_html}
     </model-viewer>
     </div>
@@ -770,10 +771,10 @@ def _build_threejs_procedural_html(
 
 
 def _css_silhouette_hint(for_list_card: bool) -> str:
-    """Texto curto no iframe da silhueta — evita legenda NEMA longa nos cartões da consulta."""
+    """Texto curto no iframe da silhueta (ASCII) — evita problemas de encoding no iframe."""
     if for_list_card:
-        return "Lista: silhueta 2D (sem WebGL). Malha 3D no ecrã Detalhes."
-    return "Silhueta sem WebGL; GLB técnico no cadastro (Detalhes / holograma_glb_url)."
+        return "Lista: silhueta 2D (sem WebGL). Mesmo GLB em Detalhes."
+    return "Silhueta sem WebGL; GLB em Detalhes ou holograma_glb_url no JSON."
 
 
 def _build_css_fallback_html_legacy(
@@ -875,7 +876,7 @@ def _build_css_fallback_html_legacy(
     border:1px solid rgba(34,211,238,0.32); background: rgba(6,50,70,0.35); color:#a5f3fc;
   }}
   .kpi b {{ color:#ecfeff; font-weight:700; }}
-  .hint {{ font-size:9px; color:#7dd3fc; opacity:0.75; padding:0 10px 6px; line-height:1.35; max-height:2.8em; overflow:hidden; }}
+  .hint {{ font-size:9px; color:#7dd3fc; opacity:0.75; padding:0 10px 6px; line-height:1.35; }}
   .holo-preset--ip55_iso .body {{ border-color: rgba(34,211,238,1); box-shadow: inset 0 0 18px rgba(125,252,255,0.35), 0 0 20px rgba(34,211,238,0.45); }}
   .holo-preset--ip21_aberto .body {{ border-style: dashed; opacity: 0.88; filter: saturate(0.85); }}
   .holo-preset--nema_mono .scene,
@@ -1000,14 +1001,20 @@ def render_engine_hologram(
     hid_plain = _host_id(key)
     hid_attr = html.escape(hid_plain)
 
-    # Varias instancias de model-viewer (WebGL) na mesma pagina esgotam contextos GPU → modelo some.
+    # Varias instancias de model-viewer (WebGL) na mesma pagina podem esgotar GPU; lista usa lazy + HTTPS por defeito.
     force_list_glb = _flag_truthy("HOLOGRAM_LIST_SHOW_GLB")
     no_list_glb = _flag_truthy("HOLOGRAM_LIST_NO_GLB")
+    hide_remote_glb = _flag_truthy("HOLOGRAM_LIST_HIDE_REMOTE_GLB")
     json_list_glb = motor_has_json_hologram_glb_url(m)
-    # Lista = silhueta CSS por defeito (comportamento estável). GLB no card só com opt-in ou URL no JSON do motor.
     use_model_viewer = bool(glb_url) and not no_list_glb and (
         not list_mode or force_list_glb or json_list_glb
     )
+    if list_mode and bool(glb_url) and not no_list_glb and not hide_remote_glb:
+        u0 = str(glb_url).strip().lower()
+        if u0.startswith(("https://", "http://")):
+            base = u0.split("?", 1)[0].split("#", 1)[0].rstrip("/")
+            if base.endswith(".glb"):
+                use_model_viewer = True
     if list_mode and use_model_viewer and glb_url and _flag_truthy("HOLOGRAM_LIST_NO_STATIC_GLB"):
         if "/app/static/glb/" in str(glb_url).lower():
             use_model_viewer = False
@@ -1017,8 +1024,8 @@ def render_engine_hologram(
     list_glb_hint = ""
     if list_mode and glb_url and not use_model_viewer:
         list_glb_hint = (
-            " GLB resolvido; na lista usamos silhueta CSS (sem N× WebGL). "
-            "`HOLOGRAM_LIST_SHOW_GLB=1` activa o viewer 3D aqui; malha completa em **Detalhes**."
+            " GLB resolvido; silhueta na lista (HTTPS .glb desligado ou `HOLOGRAM_LIST_NO_GLB=1`). "
+            "Detalhes: viewer completo."
         )
 
     if use_model_viewer:
@@ -1026,7 +1033,7 @@ def render_engine_hologram(
         doc = _build_model_viewer_html(
             preset, glb_url, rpm, tensao, corrente, plabel, compact=compact, motor=m
         )
-        h = 300 if compact else 420
+        h = 340 if compact else 420
     else:
         carcaca_ctx = hologram_carcaca_context(m)
         legacy_css = _flag_truthy("HOLOGRAM_LEGACY_CSS")
