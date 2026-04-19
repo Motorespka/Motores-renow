@@ -35,8 +35,8 @@ def _guia_oficina_page_fragment() -> None:
     st.markdown("#### 1. Consulta e motor")
     st.markdown(
         "- Na **Consulta**, localize o motor pelo número de série, fabricante ou texto livre.\n"
-        "- No **detalhe do motor**, pode abrir uma OS já associada ao `motor_id` (atalho quando existir).\n"
-        "- Use a **busca global** no topo como atalho; os filtros finos ficam em cada página."
+        "- No **detalhe do motor**, pode abrir uma **ordem de serviço** ligada a esse motor (quando existir atalho).\n"
+        "- Use a **busca** no topo como atalho; os filtros mais finos ficam em cada página."
     )
 
     st.markdown("#### 2. Biblioteca de cálculos (PRO)")
@@ -51,48 +51,49 @@ def _guia_oficina_page_fragment() -> None:
 
     st.markdown("#### 3. Ordem de serviço (PRO)")
     st.markdown(
-        "- **Nova OS:** título/referência, `motor_id` opcional (UUID do motor na base), etapa inicial, vínculo a um cálculo.\n"
+        "- **Nova OS:** título ou referência interna, identificador do motor (opcional), etapa inicial e vínculo a um cálculo da biblioteca.\n"
         "- **Etapas típicas:** recebido → busca/criação de cálculo → limpeza → rebobinagem → impregnação → montagem → "
         "teste → peças → entrega → encerrado. Cada mudança fica na **linha do tempo**.\n"
         "- **Ficha mecânica:** rolamentos, alinhamento, torque, vibração, temperatura em teste, observações antes/depois.\n"
         "- **Texto para o cliente:** aparece no topo do PDF (garantia, escopo, observações de entrega).\n"
-        "- **Anexos:** uma URL por linha (fotos no Storage, Google Drive, etc.); o PDF lista os links (não embute ficheiros grandes).\n"
-        "- **Responsável na capa do PDF:** campo opcional na OS ou variável de ambiente `MOTORES_PDF_RESPONSAVEL`.\n"
-        "- **Exportação:** JSON completo ou CSV (uma linha + coluna `payload_json`) para arquivo interno.\n"
-        "- **Operação interna (sem cliente):** prazo AAAA-MM-DD, orçamento/custos em R$ (gravados em centavos) e "
-        "referência curta — aparecem no PDF; não use para dados pessoais.\n"
-        "- **Filtros:** etapa, texto no número/título/payload, motor id parcial, últimos N dias, só as minhas OS."
+        "- **Anexos:** uma URL por linha (fotos na nuvem, partilha, etc.); o PDF lista os links (não embute ficheiros grandes).\n"
+        "- **Responsável na capa do PDF:** pode preencher na própria OS ou pedir ao administrador para configurar texto fixo no servidor.\n"
+        "- **Exportação:** ficheiros para arquivo interno (JSON completo ou CSV resumido), úteis para cópia de segurança.\n"
+        "- **Operação interna (sem cliente):** prazo em data, orçamento e custos em reais e referência curta — aparecem no PDF; "
+        "não use para dados pessoais.\n"
+        "- **Filtros:** etapa, texto na OS, parte do identificador do motor, últimos dias, só as minhas ordens."
     )
 
     st.markdown("#### 4. PDF e identidade visual")
     st.markdown(
-        "- O PDF tenta **DejaVu** (Linux/Streamlit Cloud) ou **Arial** (Windows) para português com acentos.\n"
-        "- Coloque um logo em `assets/logo.png` (ou `logo_mrw.png`, `brand.png`) para aparecer na **capa**.\n"
-        "- `MOTORES_PDF_EMPRESA`, `MOTORES_PDF_ENDERECO`, `MOTORES_PDF_RESPONSAVEL` personalizam o cabeçalho/capa.\n"
-        "- `MOTORES_PDF_FONT_REGULAR` / `MOTORES_PDF_FONT_BOLD` forçam tipos TTF próprios, se necessário."
+        "- O PDF usa fontes comuns do sistema para **português com acentos** (o servidor escolhe automaticamente).\n"
+        "- **Logo na capa:** o administrador configura no **servidor** uma imagem de marca; se não estiver definida, o PDF segue só com texto.\n"
+        "- **Cabeçalho da empresa:** nome, morada e responsável podem ser definidos pelo administrador nas **definições do servidor** "
+        "(aqui ficam só as indicações de fluxo).\n"
+        "- **Tipos de letra próprios:** só em casos especiais, também via configuração no servidor."
     )
 
-    st.markdown("#### 5. Segurança (Supabase)")
+    st.markdown("#### 5. Segurança e partilha de dados")
     st.markdown(
-        "- Migração **`20260418_0049_oficina_workshop_rls.sql`:** políticas RLS por `created_by` = `auth.uid()`.\n"
-        "- Recomendação: mantenha `created_by` preenchido ao criar cálculos e OS (o Streamlit já envia o id da sessão).\n"
-        "- Linhas antigas com `created_by` nulo continuam acessíveis a qualquer sessão autenticada até fazer **backfill**."
+        "- Na **cloud**, as ordens e cálculos podem ficar visíveis sobretudo a **quem os criou** (políticas de acesso na base de dados).\n"
+        "- Ao criar cálculos e OS, a aplicação regista **quem está ligado** — ajuda a saber de quem é cada ficha.\n"
+        "- Registos antigos sem autor definido podem continuar visíveis a toda a equipa até o administrador alinhar dados em falta."
     )
 
     st.markdown("#### 6. Atualizações e ambiente")
     st.markdown(
-        "- A página **Atualizações** lê `data/releases.json` (mesma fonte que o site Next.js).\n"
-        "- **Python 3.11:** ficheiro `runtime.txt` na raiz para o Streamlit Cloud; dependências em `requirements.txt`.\n"
-        "- CI no GitHub Actions executa `pytest` em 3.11 em cada push/PR."
+        "- A página **Atualizações** mostra **o que mudou** entre versões (notas para a equipa).\n"
+        "- O **servidor na nuvem** usa a versão de Python e bibliotecas acordadas com o administrador; em caso de dúvida, peça ao admin.\n"
+        "- **Qualidade:** há testes automáticos no repositório antes de publicar alterações (processo interno de equipa)."
     )
 
     st.markdown("#### 7. Teclado e ritmo (producao)")
     st.markdown(
         "- **Tab** / **Shift+Tab**: navegar entre campos e botoes.\n"
-        "- **Enter**: em **formularios** Streamlit, envia quando o foco esta no botao de submissao.\n"
+        "- **Enter**: em **formularios**, envia quando o foco esta no botao de envio.\n"
         "- **Espaco**: alternar checkbox.\n"
-        "- **Busca global**: historico **automatico** a cada alteracao; a barra corre em **fragment** (menos latencia).\n"
-        "- **Ctrl+S** do navegador tenta guardar a pagina HTML — use sempre o botao **Salvar** da app para gravar dados."
+        "- **Busca no topo:** o historico de termos atualiza-se sozinho; a zona de busca é mais leve para não atrasar o resto do ecrã.\n"
+        "- **Ctrl+S** do navegador guarda a **pagina**, não a ficha na base — use sempre o botao **Salvar** / **Guardar** da aplicação."
     )
 
     c0, c1, c2 = st.columns(3)

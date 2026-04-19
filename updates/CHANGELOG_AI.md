@@ -1,5 +1,11 @@
 # CHANGELOG AI
 
+## 2026-04-18 | Cycle 0054
+- **Change Description:** `page/guia_oficina.py` — texto do guia orientado ao utilizador da oficina (sem paths, env vars, SQL, termos de repo); `data/releases.json` V21.0.13.
+- **Reason:** Feedback de UX: o guia não deve expor nomes internos do repositório a quem usa o Streamlit no dia a dia.
+- **Risk Level:** Baixo.
+- **Rollback Availability:** Alto.
+
 ## 2026-04-18 | Cycle 0053
 - **Change Description:** `st.fragment` generalizado (Biblioteca, OS, Detalhe, Diagnostico, Cadastro, Edicao, Visao geral, Guia, Atualizacoes, Admin, Hub); busca global em fragment com historico **automatico** por tecla; `core/revision_diff.py` + diff na **Edicao** e **Biblioteca**; `summarize_open_os_by_creator` + painel na Visao geral; Guia sec. teclado; `data/releases.json` V21.0.12.
 - **Reason:** Pedido explicito do utilizador para rerun reduzido em todas as paginas, historico automatico, atalhos/diff/painel por tecnico.

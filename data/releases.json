@@ -1,6 +1,15 @@
 {
   "changelog": [
     {
+      "versao": "V21.0.13",
+      "data": "2026-04-18",
+      "titulo": "Guia da oficina: texto para utilizador (sem nomes internos do repo)",
+      "adicoes": [],
+      "correcoes": [
+        "**Guia da oficina** — removidos caminhos de ficheiros, variáveis de ambiente, nomes de migração SQL e jargão de código das secções visíveis; mantém-se o fluxo operacional (OS, PDF, segurança em linguagem simples)."
+      ]
+    },
+    {
       "versao": "V21.0.12",
       "data": "2026-04-18",
       "titulo": "Fragment em todas as paginas, historico de busca por tecla, diff de revisao e OS por responsavel (V21.0.12)",
