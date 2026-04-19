@@ -27,6 +27,8 @@ from core.development_mode import (
 )
 from core.feature_flags import get_feature_flags
 from core.navigation import AppContext, Route, Router, render_navigation_sidebar, render_route_header
+from core.supabase_errors import format_supabase_client_error
+from core.ui_feedback import mrw_render_banner_zone
 from core.session_manager import SessionManager
 from page import (
     admin_panel,
@@ -414,14 +416,14 @@ def main() -> None:
     try:
         bootstrap_system(session)
     except Exception as exc:
-        st.error(f"Falha na inicializacao do sistema: {exc}")
+        st.error(f"Falha na inicializacao do sistema: {format_supabase_client_error(exc)}")
         return
 
     runtime_mode = resolve_runtime_mode()
     try:
         client = connect_runtime_client(runtime_mode)
     except Exception as exc:
-        st.error(f"Falha ao conectar no banco de producao: {exc}")
+        st.error(f"Falha ao conectar no banco de producao: {format_supabase_client_error(exc)}")
         st.stop()
     st.session_state["_supabase_client"] = client
 
@@ -510,7 +512,11 @@ def main() -> None:
     router = build_router()
     render_navigation_sidebar(session, client)
     try:
-        render_route_header(session.get_route())
+        render_route_header(session.get_route(), session=session)
+    except Exception:
+        pass
+    try:
+        mrw_render_banner_zone()
     except Exception:
         pass
 

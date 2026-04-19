@@ -1,6 +1,24 @@
 {
   "changelog": [
     {
+      "versao": "V21.0.11",
+      "data": "2026-04-18",
+      "titulo": "Ritmo no Streamlit: menos rerun na Consulta, feedback no topo, OS no dashboard (V21.0.11)",
+      "adicoes": [
+        "**Consulta (plano pago)** — painel principal em `@st.fragment` (Streamlit ≥ 1.33): interaccoes na lista, filtros laterais e paginacao tendem a **reexecutar só o fragmento**, reduzindo latencia e preservando melhor o contexto da shell.",
+        "**Feedback** — `core/ui_feedback.py`: gravacoes em **Ordens**, **Biblioteca**, **Cadastro**, **Edicao** e exclusao na Consulta disparam **toast** (quando disponivel) e **alerta no topo** da area principal (apos o header), em vez de `st.success` perdido no fim da pagina.",
+        "**Navegacao** — no **Detalhe** / **Edicao**: botoes **← Consulta** e **Ordens**; campo **Buscar** com **Memorizar** e chips de **historico de busca** (sessao); legenda com **versao** lida de `data/releases.json` para todos os utilizadores.",
+        "**Erros Supabase/rede** — `core/supabase_errors.py`: mensagens de ligacao com **dicas accionaveis** (rede, JWT, DNS, migracoes); usado na Consulta e na inicializacao em `App.py`.",
+        "**Visao geral** — utilizadores PRO com tabelas de oficina: **metricas** OS tocadas (24 h), abertas e **minhas** abertas + atalhos **Ordens** / **Minhas OS** / **Guia**.",
+        "**CSS** — `stDataFrame` com tipo ligeiramente maior; **:focus-visible** em botoes e inputs; alertas com canto mais suave.",
+        "**Requisitos** — `streamlit>=1.33.0` para suportar `st.fragment` (Streamlit Cloud: redeploy apos bump)."
+      ],
+      "correcoes": [
+        "**Edicao** — texto de sucesso com caracteres corruptos passou a mensagem ASCII segura.",
+        "**Limitacoes honestas** — atalhos globais de teclado (Guardar/PDF) continuam limitados pelo Streamlit; **diff** ao gravar revisao e **ultima alteracao** em massa dependem de campos/API e ficam para ciclos seguintes."
+      ]
+    },
+    {
       "versao": "V21.0.10",
       "data": "2026-04-18",
       "titulo": "Oficina interna, fio x corrente, bancada OK/FORA e holograma (V21.0.10)",

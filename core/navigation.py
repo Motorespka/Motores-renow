@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Dict
+from typing import Any, Callable, Dict
 
 import json
 import os
@@ -21,6 +21,36 @@ from core.access_control import (
 from core.development_mode import is_dev_mode
 from core.feature_flags import get_feature_flags
 from core.user_identity import resolve_current_user_identity
+
+MRW_SEARCH_HIST_KEY = "mrw_global_search_history"
+MRW_SEARCH_HIST_MAX = 12
+
+
+def _append_mrw_search_hist(term: str) -> None:
+    t = str(term or "").strip()
+    if len(t) < 2:
+        return
+    prev = list(st.session_state.get(MRW_SEARCH_HIST_KEY) or [])
+    prev = [x for x in prev if str(x).lower() != t.lower()]
+    prev.insert(0, t)
+    st.session_state[MRW_SEARCH_HIST_KEY] = prev[:MRW_SEARCH_HIST_MAX]
+
+
+def _releases_head_caption() -> str:
+    rel = Path(__file__).resolve().parent.parent / "data" / "releases.json"
+    if not rel.is_file():
+        return ""
+    try:
+        ch = json.loads(rel.read_text(encoding="utf-8")).get("changelog") or []
+        head = ch[0] if ch else {}
+        ver = str(head.get("versao") or "").strip()
+        dt = str(head.get("data") or "").strip()
+        if not ver:
+            return ""
+        return f"Versao do sistema (releases): **{ver}**" + (f" · {dt}" if dt else "")
+    except Exception:
+        return ""
+
 
 def _read_env_url(*names: str) -> str:
     for name in names:
@@ -290,7 +320,7 @@ def render_navigation_sidebar(session, supabase_client=None) -> None:
             _perform_logout(session, supabase_client=supabase_client)
 
 
-def render_route_header(route: Route) -> None:
+def render_route_header(route: Route, session: Any = None) -> None:
     route_value = str(getattr(route, "value", route) or "").strip().lower()
     titles: dict[str, tuple[str, str, str, str]] = {
         Route.DASHBOARD.value: ("VISÃO GERAL", "Painel operacional do workspace", "DASH", "accent"),
@@ -346,6 +376,33 @@ def render_route_header(route: Route) -> None:
         unsafe_allow_html=True,
     )
 
+    rel_cap = _releases_head_caption()
+    if rel_cap:
+        st.caption(rel_cap)
+
+    if session is not None and route_value in (Route.DETALHE.value, Route.EDIT.value):
+        b1, b2, b3 = st.columns([1.05, 1.05, 3.9])
+        with b1:
+            if st.button(
+                "← Consulta",
+                key="mrw_bc_consulta",
+                help="Volta ao catalogo; filtros e busca da Consulta mantem-se na mesma sessao.",
+            ):
+                session.set_route(Route.CONSULTA)
+                st.rerun()
+        with b2:
+            if st.button(
+                "Ordens",
+                key="mrw_bc_os",
+                help="Abre Ordens de servico (plano PRO).",
+            ):
+                session.set_route(Route.ORDENS_SERVICO)
+                st.rerun()
+        with b3:
+            st.caption(
+                "Atalho de fluxo: use o campo **Buscar** abaixo para copiar texto para a Consulta manualmente."
+            )
+
     # Busca global opcional (não interfere na lógica das páginas).
     cols = st.columns([2, 1])
     with cols[0]:
@@ -361,3 +418,26 @@ def render_route_header(route: Route) -> None:
             '<div class="mrw-header__hint">Dica: use a busca como filtro manual nas telas</div>',
             unsafe_allow_html=True,
         )
+
+    m1, m2 = st.columns([1, 5])
+    with m1:
+        if st.button(
+            "Memorizar",
+            key="mrw_search_memorize",
+            help="Guarda o texto actual do campo Buscar no historico desta sessao (atalhos rapidos).",
+        ):
+            _append_mrw_search_hist(str(st.session_state.get("_global_search") or ""))
+            st.rerun()
+    hist_list = list(st.session_state.get(MRW_SEARCH_HIST_KEY) or [])
+    with m2:
+        if hist_list:
+            st.caption("Historico de busca (sessao) — clique para repor o campo")
+            nh = min(6, len(hist_list))
+            hcols = st.columns(nh)
+            for i, term in enumerate(hist_list[:6]):
+                short = term if len(term) <= 22 else term[:19] + "…"
+                tid = abs(hash(f"{term}|{i}")) % 1_000_000_000
+                with hcols[i]:
+                    if st.button(short, key=f"mrw_hist_pick_{i}_{tid}", help="Repor Buscar com este termo"):
+                        st.session_state["_global_search"] = term
+                        st.rerun()

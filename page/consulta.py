@@ -12,6 +12,8 @@ import streamlit as st
 
 from core.access_control import can_access_paid_features, is_admin_user
 from core.navigation import Route
+from core.supabase_errors import format_supabase_client_error
+from core.ui_feedback import mrw_feedback_success, mrw_render_banner_zone
 from services.oficina_parser import (
     build_assinatura_tecnica_consulta,
     build_normalized_from_motor_row,
@@ -895,14 +897,28 @@ def _render_teaser_consulta(motores: List[Dict[str, Any]], admin_user: bool = Fa
         st.caption(f"Mostrando {len(amostra)} de {len(motores)} motores no teaser.")
 
 
-def render(ctx) -> None:
-    admin_user = is_admin_user()
-    paid_user = can_access_paid_features(ctx.supabase)
+def _consulta_maybe_fragment(fn):
+    dec = getattr(st, "fragment", None)
+    if callable(dec):
+        return dec(fn)
+    return fn
 
+
+@_consulta_maybe_fragment
+def _consulta_paid_fragment_fn() -> None:
+    ctx = st.session_state.get("_consulta_render_ctx")
+    admin_user = bool(st.session_state.get("_consulta_render_admin", False))
+    if ctx is None:
+        return
+    _consulta_paid_body_impl(ctx, admin_user)
+
+
+def _consulta_paid_body_impl(ctx, admin_user: bool) -> None:
+    mrw_render_banner_zone()
     try:
         raw = fetch_motores_cached(ctx.supabase)
     except Exception as e:
-        st.error(f"Erro ao carregar motores: {e}")
+        st.error(f"Erro ao carregar motores: {format_supabase_client_error(e)}")
         return
 
     if not raw:
@@ -911,10 +927,6 @@ def render(ctx) -> None:
 
     motores = [_normalize_motor_record(r) for r in raw]
     _assign_cadastro_sequencia(motores)
-
-    if not paid_user:
-        _render_teaser_consulta(motores, admin_user=admin_user)
-        return
 
     col_busca, col_revisao = st.columns([2.35, 1.0], gap="medium")
     with col_busca:
@@ -1163,7 +1175,7 @@ def render(ctx) -> None:
                             try:
                                 _delete_motor(ctx, m.get("id"))
                                 st.session_state.pop(f"confirm_delete_{motor_key}", None)
-                                st.success("Motor excluido com sucesso.")
+                                mrw_feedback_success("Motor excluido com sucesso.")
                                 st.rerun()
                             except Exception as exc:
                                 st.error(f"Falha ao excluir motor: {exc}")
@@ -1178,6 +1190,31 @@ def render(ctx) -> None:
                     ctx.session.selected_motor_id = m["id"]
                     ctx.session.set_route(Route.DETALHE)
                     st.rerun()
+
+
+def render(ctx) -> None:
+    admin_user = is_admin_user()
+    paid_user = can_access_paid_features(ctx.supabase)
+
+    if not paid_user:
+        try:
+            raw = fetch_motores_cached(ctx.supabase)
+        except Exception as e:
+            st.error(f"Erro ao carregar motores: {format_supabase_client_error(e)}")
+            return
+
+        if not raw:
+            st.info("Nenhum motor cadastrado.")
+            return
+
+        motores = [_normalize_motor_record(r) for r in raw]
+        _assign_cadastro_sequencia(motores)
+        _render_teaser_consulta(motores, admin_user=admin_user)
+        return
+
+    st.session_state["_consulta_render_ctx"] = ctx
+    st.session_state["_consulta_render_admin"] = admin_user
+    _consulta_paid_fragment_fn()
 
 
 def show(ctx) -> None:

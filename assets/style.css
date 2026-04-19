@@ -1438,3 +1438,23 @@ div[data-testid="stButton"] > button:hover {
         box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35) !important;
     }
 }
+
+/* Sessões longas: tabelas mais legíveis + foco visível (teclado) */
+[data-testid="stDataFrame"] {
+    font-size: 0.92rem !important;
+}
+
+div[data-testid="stButton"] > button:focus-visible,
+.stTextInput input:focus-visible,
+[data-baseweb="select"] :focus-visible {
+    outline: 2px solid rgba(36, 215, 255, 0.88) !important;
+    outline-offset: 2px !important;
+}
+
+.data-panel .data-value {
+    letter-spacing: 0.01em !important;
+}
+
+div[data-testid="stAlert"] {
+    border-radius: 10px !important;
+}

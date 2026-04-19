@@ -7,6 +7,7 @@ import streamlit as st
 
 from components.motor_rebobinagem_panel import render_rebobinagem_panel
 from core.access_control import require_paid_access
+from core.ui_feedback import mrw_feedback_success
 from services.oficina_workshop import (
     build_calc_payload_from_parts,
     get_calculo,
@@ -491,7 +492,7 @@ def render(ctx) -> None:
                     payload=merged_pl,
                     revision_label=rev_lbl_e,
                 )
-                st.success("Registro atualizado.")
+                mrw_feedback_success("Registro atualizado.")
                 st.rerun()
             except Exception as exc:
                 st.error(str(exc))
@@ -594,7 +595,7 @@ def render(ctx) -> None:
                 revision_label=rev_label,
                 created_by=uid or None,
             )
-            st.success(f"Salvo com id `{out.get('id')}`.")
+            mrw_feedback_success(f"Salvo com id `{out.get('id')}`.")
             st.session_state.pop("bib_calc_revision_parent", None)
             st.session_state.pop(_bench_test_state_key("novo"), None)
             st.rerun()

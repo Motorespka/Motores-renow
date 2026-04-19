@@ -6,6 +6,7 @@ import streamlit as st
 
 from core.access_control import require_paid_access
 from core.navigation import Route
+from core.ui_feedback import mrw_feedback_success
 from services.oficina_export import build_os_csv_row_bytes, build_os_json_snapshot_bytes
 from services.oficina_pdf import build_os_delivery_pdf_bytes
 from services.oficina_os_operacao import normalize_operacao_payload_patch
@@ -97,7 +98,7 @@ def render(ctx) -> None:
                 calc_id=cid,
                 created_by=uid or None,
             )
-            st.success(f"OS `{row.get('numero')}` criada (id `{row.get('id')}`).")
+            mrw_feedback_success(f"OS `{row.get('numero')}` criada (id `{row.get('id')}`).")
             st.session_state["os_selected_id"] = str(row.get("id"))
             st.rerun()
         except Exception as exc:
@@ -251,7 +252,7 @@ def render(ctx) -> None:
         if st.button("Guardar texto do relatorio", use_container_width=True, key=f"os_btn_txt_rel_{os_id}"):
             try:
                 merge_ordem_servico_payload(ctx.supabase, os_id, {"texto_relatorio_entrega": _to_text(txt_cli)})
-                st.success("Texto guardado.")
+                mrw_feedback_success("Texto guardado.")
                 st.session_state["os_selected_id"] = os_id
                 st.rerun()
             except Exception as exc:
@@ -285,7 +286,7 @@ def render(ctx) -> None:
                     os_id,
                     {"capa_responsavel": _to_text(capa_r), "anexos_urls": urls},
                 )
-                st.success("Guardado.")
+                mrw_feedback_success("Guardado.")
                 st.session_state["os_selected_id"] = os_id
                 st.rerun()
             except Exception as exc:
@@ -329,7 +330,7 @@ def render(ctx) -> None:
             try:
                 patch = normalize_operacao_payload_patch(patch_raw)
                 merge_ordem_servico_payload(ctx.supabase, os_id, patch)
-                st.success("Operacao interna guardada (aparece no PDF de entrega).")
+                mrw_feedback_success("Operacao interna guardada (aparece no PDF de entrega).")
                 st.session_state["os_selected_id"] = os_id
                 st.rerun()
             except ValueError as ve:
@@ -379,7 +380,7 @@ def render(ctx) -> None:
                 patch = {k: v for k, v in patch.items() if v}
                 try:
                     merge_ordem_servico_payload(ctx.supabase, os_id, {"ficha_mecanica": patch})
-                    st.success("Ficha mecanica guardada.")
+                    mrw_feedback_success("Ficha mecanica guardada.")
                     st.session_state["os_selected_id"] = os_id
                     st.rerun()
                 except Exception as exc:
@@ -392,7 +393,7 @@ def render(ctx) -> None:
         new_id = calc_map.get(cp) if cp else None
         try:
             link_os_to_calculo(ctx.supabase, os_id, new_id)
-            st.success("Vinculo atualizado.")
+            mrw_feedback_success("Vinculo atualizado.")
             st.rerun()
         except Exception as exc:
             st.error(str(exc))
@@ -410,7 +411,7 @@ def render(ctx) -> None:
     if sub:
         try:
             append_os_event(ctx.supabase, os_id, etapa=nova, nota=nota)
-            st.success("Etapa atualizada.")
+            mrw_feedback_success("Etapa atualizada.")
             st.session_state["os_selected_id"] = os_id
             st.rerun()
         except Exception as exc:

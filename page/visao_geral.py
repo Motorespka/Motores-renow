@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List
 
 import streamlit as st
 
 from core.access_control import can_access_paid_features, is_admin_user
 from core.navigation import Route
+from services.oficina_workshop import list_ordens_servico, workshop_tables_available
 from services.supabase_data import fetch_motores_cached
 
 
@@ -51,6 +52,38 @@ def _count_ocr(rows: List[Dict[str, Any]]) -> int:
         if payload:
             count += 1
     return count
+
+
+def _parse_ts_utc(value: Any) -> datetime | None:
+    dt = _parse_dt(value)
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _os_pulse_metrics(client: Any, uid: str) -> tuple[int, int, int, bool]:
+    """Retorna (touch_24h, abertas_total, minhas_abertas, tabelas_ok)."""
+    if not workshop_tables_available(client):
+        return 0, 0, 0, False
+    rows = list_ordens_servico(client, limit=200, since_days=7)
+    now = datetime.now(timezone.utc)
+    cut = now - timedelta(hours=24)
+    touch = 0
+    open_n = 0
+    mine_open = 0
+    uid_t = _to_text(uid)
+    for r in rows:
+        ts = _parse_ts_utc(r.get("updated_at")) or _parse_ts_utc(r.get("created_at"))
+        if ts and ts >= cut:
+            touch += 1
+        et = _to_text(r.get("etapa")).lower()
+        if et and et != "encerrado":
+            open_n += 1
+            if uid_t and _to_text(r.get("created_by")) == uid_t:
+                mine_open += 1
+    return touch, open_n, mine_open, True
 
 
 def _fmt_int(value: int) -> str:
@@ -128,18 +161,50 @@ def show(ctx) -> None:
             unsafe_allow_html=True,
         )
 
-        # Fila real (OS, revisões, etc.) será alimentada noutra fase; não usar "últimos motores" como fila fictícia.
-        st.markdown(
-            """
-            <div class="premium-card-elevated" style="padding:18px 20px;">
-              <div class="panel-subtitle" style="margin:0;">
-                Nenhum item na fila neste momento. Use <strong>Consulta</strong> para rever motores
-                ou <strong>Ordens de serviço</strong> (plano PRO) para o fluxo de oficina.
-              </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        uid_os = _to_text(st.session_state.get("auth_user_id") or st.session_state.get("auth_user_email"))
+        t24, opn, mine_open, os_ok = _os_pulse_metrics(ctx.supabase, uid_os)
+        if paid_user and os_ok:
+            st.markdown(
+                """
+                <div class="premium-card-elevated" style="padding:18px 20px;">
+                  <div class="panel-title" style="margin-bottom:8px;">Painel de oficina (resumo)</div>
+                  <div class="panel-subtitle" style="margin:0;">
+                    Contagens sobre OS vistas na lista recente (ultimos 7 dias carregados); uteis como brújula operacional.
+                  </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            m1, m2, m3 = st.columns(3, gap="small")
+            m1.metric("OS tocadas (24 h)", str(t24))
+            m2.metric("OS abertas (nao encerradas)", str(opn))
+            m3.metric("Minhas OS abertas", str(mine_open))
+            o1, o2, o3 = st.columns(3, gap="small")
+            with o1:
+                if st.button("Ordens de servico", use_container_width=True, key="dash_btn_os"):
+                    ctx.session.set_route(Route.ORDENS_SERVICO)
+                    st.rerun()
+            with o2:
+                if st.button("Minhas OS", use_container_width=True, key="dash_btn_os_mine"):
+                    st.session_state["os_f_mine"] = True
+                    ctx.session.set_route(Route.ORDENS_SERVICO)
+                    st.rerun()
+            with o3:
+                if st.button("Guia da oficina", use_container_width=True, key="dash_btn_guia"):
+                    ctx.session.set_route(Route.GUIA_OFICINA)
+                    st.rerun()
+        else:
+            st.markdown(
+                """
+                <div class="premium-card-elevated" style="padding:18px 20px;">
+                  <div class="panel-subtitle" style="margin:0;">
+                    Resumo de OS disponivel no plano PRO com tabelas de oficina activas. Use <strong>Consulta</strong> para rever motores
+                    ou <strong>Guia da oficina</strong> para o fluxo recomendado.
+                  </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
         a, b, c = st.columns(3, gap="small")
         with a:

@@ -1,5 +1,12 @@
 # CHANGELOG AI
 
+## 2026-04-18 | Cycle 0052
+- **Change Description:** UX operacional Streamlit: `st.fragment` na **Consulta** (pago), `core/ui_feedback.py` + `core/supabase_errors.py`, `App.py` zona de alerta apos header, `core/navigation.py` (breadcrumb Detalhe/Edicao, historico de busca global, versao releases para todos), `page/ordens_servico.py` / `biblioteca_calculos.py` / `cadastro.py` / `edit.py` com feedback unificado, `page/visao_geral.py` painel OS, `assets/style.css` (dataframe/foco), `requirements.txt` Streamlit ≥ 1.33, `data/releases.json` V21.0.11.
+- **Reason:** Pedido explicito de ritmo, previsibilidade, menos rerun, fluxo de mao, fiabilidade e entrada em Atualizacoes por versao.
+- **Risk Level:** Medio (`st.fragment` + bump Streamlit; fragment aninhado com sidebar a monitorizar em Cloud).
+- **Rollback Availability:** Alto (reverter ficheiros listados; voltar `streamlit>=1.28` remove fragment — Consulta volta a rerun completo).
+- **Next Predicted Risk:** Fragment + widgets na sidebar em builds Streamlit futuros; completar teclado/diff/ultima-alteracao quando houver modelo de dados.
+
 ## 2026-04-18 | Cycle 0051
 - **Change Description:** `page/atualizacoes.py`: removido `st.cache_data` na leitura de `data/releases.json`; cada visita rele o ficheiro e mostra legenda com versao mais recente + `mtime` UTC. `data/releases.json` (V21.0.10 correcoes) alinhado.
 - **Reason:** Utilizador via lista de atualizacoes desactualizada em producao (cache/mtime); garantir que deploy do JSON se reflecte de imediato.

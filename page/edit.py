@@ -13,6 +13,7 @@ except Exception:
 from core.access_control import require_admin_access
 from core.calculadora import mensagem_bobinagem_auxiliar_incompleta
 from core.navigation import Route
+from core.ui_feedback import mrw_feedback_success
 from services.oficina_parser import (
     DEFAULT_EXTRACTED,
     build_normalized_from_motor_row,
@@ -410,7 +411,7 @@ def render(ctx):
         payload_schema = to_motores_schema_payload(data, image_paths=image_urls, image_names=image_names)
         _update_motor_supabase(ctx.supabase, id_motor, payload_legacy, payload_schema)
         clear_motores_cache()
-        st.success("AlteraÃ§Ãµes salvas com sucesso.")
+        mrw_feedback_success("Alteracoes salvas com sucesso.")
         ctx.session.set_route(Route.DETALHE)
         st.rerun()
 
