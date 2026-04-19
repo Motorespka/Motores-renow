@@ -1,8 +1,9 @@
 """
 Holograma: GLB via <model-viewer> quando houver URL resolvida.
-Na listagem (consulta): URL http(s) a ``.glb`` usa ``model-viewer`` por defeito; ``HOLOGRAM_LIST_HIDE_REMOTE_GLB=1`` desliga
-esse viewer nos cards (mostra silhueta CSS / Three.js procedural). ``HOLOGRAM_LIST_SHOW_GLB=1`` força tambem ``data:`` / pack.
-``HOLOGRAM_LIST_NO_STATIC_GLB=1`` esconde ``/app/static/glb/``. ``HOLOGRAM_LIST_NO_GLB=1`` força só silhueta (sem ``model-viewer``).
+Na listagem (consulta): por defeito **não** se usa ``model-viewer`` (vários WebGL na mesma página esgotam a GPU e o cartão fica
+vazio). Silhueta CSS (ou Three.js se ``HOLOGRAM_LIST_THREEJS=1``). Para GLB nos cards: ``HOLOGRAM_LIST_SHOW_GLB=1`` ou URL
+``.glb`` no JSON do motor (``holograma_glb_url``). ``HOLOGRAM_LIST_NO_GLB=1`` força só silhueta mesmo com esses opt-ins.
+``HOLOGRAM_LIST_NO_STATIC_GLB=1`` evita pack em ``/app/static/glb/`` quando o SHOW_GLB estiver ligado.
 
 Na consulta, a silhueta generica fica **desligada** por defeito; `HOLOGRAM_LISTA_SILHUETA_TODOS=1` volta
 ao bloco de silhueta em todos. `HOLOGRAM_CARCACA_NEMA56_STRICT=1` controla a cadeia de resolucao GLB.
@@ -205,20 +206,6 @@ function main() {
 main();
 </script>
 """
-
-
-def _glb_url_ok_for_list_remote_viewer(url: str) -> bool:
-    """
-    Na consulta, usar model-viewer para http(s), incl. pack em /app/static/glb/ no Cloud.
-    data: (base64 embutido) fica de fora salvo HOLOGRAM_LIST_SHOW_GLB=1 (muitos cards esgotam GPU).
-    Para voltar a esconder o pack na lista: HOLOGRAM_LIST_NO_STATIC_GLB=1.
-    """
-    u = (url or "").strip().lower()
-    if not u.startswith(("http://", "https://")):
-        return False
-    if "/app/static/glb/" in u and _flag_truthy("HOLOGRAM_LIST_NO_STATIC_GLB"):
-        return False
-    return True
 
 
 def _flag_truthy(name: str) -> bool:
@@ -1005,37 +992,22 @@ def render_engine_hologram(
     # Varias instancias de model-viewer (WebGL) na mesma pagina esgotam contextos GPU → modelo some.
     force_list_glb = _flag_truthy("HOLOGRAM_LIST_SHOW_GLB")
     no_list_glb = _flag_truthy("HOLOGRAM_LIST_NO_GLB")
-    hide_remote_glb = _flag_truthy("HOLOGRAM_LIST_HIDE_REMOTE_GLB")
     json_list_glb = motor_has_json_hologram_glb_url(m)
-    remote_list_glb = _glb_url_ok_for_list_remote_viewer(glb_url or "")
-    use_model_viewer = bool(glb_url) and (
-        not list_mode
-        or (
-            not no_list_glb
-            and (
-                force_list_glb
-                or json_list_glb
-                or (remote_list_glb and not hide_remote_glb)
-            )
-        )
+    # Lista = silhueta CSS por defeito (comportamento estável). GLB no card só com opt-in ou URL no JSON do motor.
+    use_model_viewer = bool(glb_url) and not no_list_glb and (
+        not list_mode or force_list_glb or json_list_glb
     )
-    # Lista + GLB publico em https://… .glb (ex.: Supabase): activar viewer por defeito.
-    # Opt-out: HOLOGRAM_LIST_NO_GLB=1 ou HOLOGRAM_LIST_HIDE_REMOTE_GLB=1 nos secrets.
-    if list_mode and bool(glb_url) and not no_list_glb and not hide_remote_glb:
-        u0 = str(glb_url).strip().lower()
-        if u0.startswith("https://"):
-            base = u0.split("?", 1)[0].split("#", 1)[0].rstrip("/")
-            if base.endswith(".glb"):
-                use_model_viewer = True
+    if list_mode and use_model_viewer and glb_url and _flag_truthy("HOLOGRAM_LIST_NO_STATIC_GLB"):
+        if "/app/static/glb/" in str(glb_url).lower():
+            use_model_viewer = False
 
     # Three.js tambem usa WebGL: N iframes na consulta esgotam contextos (ecra branco / vazio).
     force_list_three = _flag_truthy("HOLOGRAM_LIST_THREEJS")
     list_glb_hint = ""
     if list_mode and glb_url and not use_model_viewer:
         list_glb_hint = (
-            " GLB resolvido, mas o viewer 3D na lista esta desligado (veja secrets: "
-            "`HOLOGRAM_LIST_NO_GLB` / `HOLOGRAM_LIST_HIDE_REMOTE_GLB`). "
-            "Silhueta abaixo; malha completa em **Detalhes**."
+            " GLB resolvido; na lista usamos silhueta CSS (sem N× WebGL). "
+            "`HOLOGRAM_LIST_SHOW_GLB=1` activa o viewer 3D aqui; malha completa em **Detalhes**."
         )
 
     if use_model_viewer:
