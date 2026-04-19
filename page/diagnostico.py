@@ -12,6 +12,8 @@ from core.access_control import is_admin_user, require_paid_access
 from core.development_mode import is_dev_mode
 from core.feature_flags import get_feature_flags
 from core.user_identity import resolve_current_user_identity
+from core.streamlit_perf import maybe_fragment, pop_page_ctx_pack, stash_page_ctx
+from core.ui_feedback import mrw_render_banner_zone
 from services.laudo_pro import build_laudo_tecnico, build_wa_link, format_whatsapp_full, format_whatsapp_summary
 from services.oficina_parser import (
     build_normalized_from_motor_row,
@@ -534,11 +536,21 @@ def _render_real_diagnosis(ctx) -> None:
 
 
 def render(ctx):
-    # Diagnostico e um recurso pago; em development mode, permite abrir para validação.
     if not require_paid_access("Diagnostico tecnico", client=ctx.supabase):
         if not is_dev_mode():
             return
         st.warning("Acesso liberado por development mode (recurso pago em producao).")
+
+    stash_page_ctx(ctx)
+    _diagnostico_page_fragment()
+
+
+@maybe_fragment
+def _diagnostico_page_fragment() -> None:
+    mrw_render_banner_zone()
+    ctx = pop_page_ctx_pack().get("ctx")
+    if ctx is None:
+        return
 
     st.markdown(
         """

@@ -12,6 +12,7 @@ import streamlit as st
 
 from core.access_control import can_access_paid_features, is_admin_user
 from core.navigation import Route
+from core.streamlit_perf import maybe_fragment
 from core.supabase_errors import format_supabase_client_error
 from core.ui_feedback import mrw_feedback_success, mrw_render_banner_zone
 from services.oficina_parser import (
@@ -897,14 +898,7 @@ def _render_teaser_consulta(motores: List[Dict[str, Any]], admin_user: bool = Fa
         st.caption(f"Mostrando {len(amostra)} de {len(motores)} motores no teaser.")
 
 
-def _consulta_maybe_fragment(fn):
-    dec = getattr(st, "fragment", None)
-    if callable(dec):
-        return dec(fn)
-    return fn
-
-
-@_consulta_maybe_fragment
+@maybe_fragment
 def _consulta_paid_fragment_fn() -> None:
     ctx = st.session_state.get("_consulta_render_ctx")
     admin_user = bool(st.session_state.get("_consulta_render_admin", False))

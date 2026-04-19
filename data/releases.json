@@ -1,6 +1,22 @@
 {
   "changelog": [
     {
+      "versao": "V21.0.12",
+      "data": "2026-04-18",
+      "titulo": "Fragment em todas as paginas, historico de busca por tecla, diff de revisao e OS por responsavel (V21.0.12)",
+      "adicoes": [
+        "**st.fragment** aplicado ao corpo interactivo das principais paginas (Biblioteca, OS, Detalhe, Diagnostico, Cadastro, Edicao, Visao geral, Guia, Atualizacoes, Admin, Hub) + **banner** no inicio do fragment para feedback; **Consulta** continua com fragment dedicado.",
+        "**Busca global** — o bloco de busca + historico corre em **fragment**; **on_change** grava o historico **a cada alteracao** no texto (dedupe + limite); botao **Limpar historico de busca**.",
+        "**Edicao (admin)** — legenda **updated_at**; **baseline** por sessao; ao **Salvar**, expander com **resumo de campos alterados** (diff planeado sobre JSON achatado).",
+        "**Biblioteca** — ao **Salvar alteracoes**, expander com **diff do payload** antes/depois; legenda com **updated_at** da versao lida antes do update.",
+        "**Detalhe do motor** — legenda **updated_at** + corpo em fragment.",
+        "**Visao geral** — expander **Parado por responsavel**: OS abertas agrupadas por **created_by** + contagem de **prazo interno vencido** (`payload.prazo_entrega_previsto`).",
+        "**Guia da oficina** — nova seccao **Teclado e ritmo** (Tab, Enter em forms, Espaco, Ctrl+S vs botao Salvar).",
+        "**Helpers** — `core/streamlit_perf.py`, `core/revision_diff.py`; `services/oficina_workshop.summarize_open_os_by_creator`."
+      ],
+      "correcoes": []
+    },
+    {
       "versao": "V21.0.11",
       "data": "2026-04-18",
       "titulo": "Ritmo no Streamlit: menos rerun na Consulta, feedback no topo, OS no dashboard (V21.0.11)",

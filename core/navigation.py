@@ -21,14 +21,15 @@ from core.access_control import (
 from core.development_mode import is_dev_mode
 from core.feature_flags import get_feature_flags
 from core.user_identity import resolve_current_user_identity
+from core.streamlit_perf import maybe_fragment
 
 MRW_SEARCH_HIST_KEY = "mrw_global_search_history"
-MRW_SEARCH_HIST_MAX = 12
+MRW_SEARCH_HIST_MAX = 40
 
 
 def _append_mrw_search_hist(term: str) -> None:
     t = str(term or "").strip()
-    if len(t) < 2:
+    if not t:
         return
     prev = list(st.session_state.get(MRW_SEARCH_HIST_KEY) or [])
     prev = [x for x in prev if str(x).lower() != t.lower()]
@@ -316,8 +317,56 @@ def render_navigation_sidebar(session, supabase_client=None) -> None:
                     st.caption(hint)
                 except Exception:
                     pass
+        with st.expander("Teclado e ritmo (Streamlit)", expanded=False):
+            st.markdown(
+                """
+- **Tab** / **Shift+Tab**: mover o foco entre campos e botoes.
+- **Enter**: em **formularios**, envia quando o foco esta no botao de submissao.
+- **Espaco**: marcar / desmarcar **checkbox**.
+- A **busca global** no topo corre em **fragment**: cada tecla **nao** relanca a app inteira; o **historico** grava **automaticamente** a cada alteracao no texto (sessao).
+- **Ctrl+S** do navegador **nao** grava na base — use o botao **Salvar** / **Guardar** de cada ecra.
+                """.strip()
+            )
         if st.button("Logout", use_container_width=True, key="nav_logout"):
             _perform_logout(session, supabase_client=supabase_client)
+
+
+@maybe_fragment
+def _render_route_header_search_fragment() -> None:
+    cols = st.columns([2, 1])
+    with cols[0]:
+        st.markdown('<div class="mrw-global-search-anchor"></div>', unsafe_allow_html=True)
+
+        def _on_global_search_hist_push() -> None:
+            _append_mrw_search_hist(str(st.session_state.get("_global_search") or ""))
+
+        st.text_input(
+            "Buscar",
+            placeholder="Buscar motor, série, fabricante, laudo...",
+            key="_global_search",
+            label_visibility="collapsed",
+            on_change=_on_global_search_hist_push,
+        )
+    with cols[1]:
+        st.markdown(
+            '<div class="mrw-header__hint">Historico automatico (cada alteracao) · menos rerun nesta zona</div>',
+            unsafe_allow_html=True,
+        )
+    if st.button("Limpar historico de busca", key="mrw_search_hist_clear"):
+        st.session_state.pop(MRW_SEARCH_HIST_KEY, None)
+        st.rerun()
+    hist_list = list(st.session_state.get(MRW_SEARCH_HIST_KEY) or [])
+    if hist_list:
+        st.caption("Historico (sessao) — clique para repor o campo")
+        nh = min(6, len(hist_list))
+        hcols = st.columns(nh)
+        for i, term in enumerate(hist_list[:6]):
+            short = term if len(term) <= 22 else term[:19] + "…"
+            tid = abs(hash(f"{term}|{i}")) % 1_000_000_000
+            with hcols[i]:
+                if st.button(short, key=f"mrw_hist_pick_{i}_{tid}", help="Repor Buscar com este termo"):
+                    st.session_state["_global_search"] = term
+                    st.rerun()
 
 
 def render_route_header(route: Route, session: Any = None) -> None:
@@ -403,41 +452,5 @@ def render_route_header(route: Route, session: Any = None) -> None:
                 "Atalho de fluxo: use o campo **Buscar** abaixo para copiar texto para a Consulta manualmente."
             )
 
-    # Busca global opcional (não interfere na lógica das páginas).
-    cols = st.columns([2, 1])
-    with cols[0]:
-        st.markdown('<div class="mrw-global-search-anchor"></div>', unsafe_allow_html=True)
-        st.text_input(
-            "Buscar",
-            placeholder="Buscar motor, série, fabricante, laudo...",
-            key="_global_search",
-            label_visibility="collapsed",
-        )
-    with cols[1]:
-        st.markdown(
-            '<div class="mrw-header__hint">Dica: use a busca como filtro manual nas telas</div>',
-            unsafe_allow_html=True,
-        )
-
-    m1, m2 = st.columns([1, 5])
-    with m1:
-        if st.button(
-            "Memorizar",
-            key="mrw_search_memorize",
-            help="Guarda o texto actual do campo Buscar no historico desta sessao (atalhos rapidos).",
-        ):
-            _append_mrw_search_hist(str(st.session_state.get("_global_search") or ""))
-            st.rerun()
-    hist_list = list(st.session_state.get(MRW_SEARCH_HIST_KEY) or [])
-    with m2:
-        if hist_list:
-            st.caption("Historico de busca (sessao) — clique para repor o campo")
-            nh = min(6, len(hist_list))
-            hcols = st.columns(nh)
-            for i, term in enumerate(hist_list[:6]):
-                short = term if len(term) <= 22 else term[:19] + "…"
-                tid = abs(hash(f"{term}|{i}")) % 1_000_000_000
-                with hcols[i]:
-                    if st.button(short, key=f"mrw_hist_pick_{i}_{tid}", help="Repor Buscar com este termo"):
-                        st.session_state["_global_search"] = term
-                        st.rerun()
+    # Busca global: fragment para historico automatico sem rerun completo a cada tecla.
+    _render_route_header_search_fragment()

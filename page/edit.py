@@ -13,7 +13,9 @@ except Exception:
 from core.access_control import require_admin_access
 from core.calculadora import mensagem_bobinagem_auxiliar_incompleta
 from core.navigation import Route
-from core.ui_feedback import mrw_feedback_success
+from core.revision_diff import snapshot_jsonable, summarize_dict_changes
+from core.streamlit_perf import maybe_fragment, pop_page_ctx_pack, stash_page_ctx
+from core.ui_feedback import mrw_feedback_success, mrw_render_banner_zone
 from services.oficina_parser import (
     DEFAULT_EXTRACTED,
     build_normalized_from_motor_row,
@@ -221,23 +223,38 @@ def render(ctx):
             st.rerun()
         return
 
-    st.title("âœï¸ Editar Motor")
-
     id_motor = ctx.session.selected_motor_id
     if id_motor is None:
-        st.warning("Nenhum motor selecionado para ediÃ§Ã£o.")
-        if st.button("ðŸ”™ Voltar para Consulta", use_container_width=True):
+        st.warning("Nenhum motor selecionado para edicao.")
+        if st.button("Voltar para Consulta", use_container_width=True):
             ctx.session.set_route(Route.CONSULTA)
             st.rerun()
         return
+
+    stash_page_ctx(ctx, edit_motor_id=id_motor)
+    _edit_page_fragment()
+
+
+@maybe_fragment
+def _edit_page_fragment() -> None:
+    mrw_render_banner_zone()
+    pack = pop_page_ctx_pack()
+    ctx = pack.get("ctx")
+    id_motor = pack.get("edit_motor_id")
+    if ctx is None or not id_motor:
+        return
+
+    st.title("Editar motor")
 
     motor = fetch_motor_by_id_cached(ctx.supabase, id_motor)
     if motor is None:
-        st.error("Motor nÃ£o encontrado.")
-        if st.button("ðŸ”™ Voltar para Consulta", use_container_width=True):
+        st.error("Motor nao encontrado.")
+        if st.button("Voltar para Consulta", use_container_width=True):
             ctx.session.set_route(Route.CONSULTA)
             st.rerun()
         return
+
+    st.caption(f"Ultima alteracao na base (updated_at): {_to_text(motor.get('updated_at')) or '—'}")
 
     seq_sess = st.session_state.get(f"motor_cadastro_seq_{id_motor}")
     if seq_sess is not None:
@@ -248,9 +265,11 @@ def render(ctx):
 
     state_key = f"edit_motor_data_{id_motor}"
     loaded_key = "edit_loaded_motor_id"
+    bl_key = f"edit_baseline_data_{id_motor}"
     if st.session_state.get(loaded_key) != id_motor or state_key not in st.session_state:
         st.session_state[state_key] = _build_initial_data(motor)
         st.session_state[loaded_key] = id_motor
+        st.session_state[bl_key] = snapshot_jsonable(st.session_state[state_key])
 
     data = st.session_state[state_key]
     k = f"edit_{id_motor}_"
@@ -407,10 +426,16 @@ def render(ctx):
         image_names = _to_list(motor.get("imagens_origem") or motor.get("arquivo_origem") or motor.get("ArquivoOrigem"))
         image_urls = _to_list(motor.get("imagens_urls"))
         data = enriquecer_motor_oficina(data, evento="edicao")
+        before_snap = st.session_state.get(bl_key) or snapshot_jsonable({})
+        after_snap = snapshot_jsonable(st.session_state[state_key])
+        diff_md = summarize_dict_changes(before_snap, after_snap)
         payload_legacy = to_supabase_payload(data, image_paths=image_urls, image_names=image_names)
         payload_schema = to_motores_schema_payload(data, image_paths=image_urls, image_names=image_names)
         _update_motor_supabase(ctx.supabase, id_motor, payload_legacy, payload_schema)
         clear_motores_cache()
+        st.session_state[bl_key] = after_snap
+        with st.expander("Resumo das alteracoes nesta revisao", expanded=True):
+            st.markdown(diff_md)
         mrw_feedback_success("Alteracoes salvas com sucesso.")
         ctx.session.set_route(Route.DETALHE)
         st.rerun()

@@ -7,6 +7,8 @@ import streamlit as st
 from core.access_control import is_admin_user, require_paid_access
 from core.calculadora import mensagem_bobinagem_auxiliar_incompleta
 from core.navigation import Route
+from core.streamlit_perf import maybe_fragment, pop_page_ctx_pack, stash_page_ctx
+from core.ui_feedback import mrw_render_banner_zone
 from services.oficina_workshop import insert_ordem_servico
 from services.supabase_data import fetch_motor_by_id_cached
 from components.consulta_ficha_usuario_banner import render_consulta_ficha_usuario_banner
@@ -61,14 +63,28 @@ def render(ctx) -> None:
             st.rerun()
         return
 
-    admin_user = is_admin_user()
-
     motor_id = ctx.session.selected_motor_id
     if motor_id is None:
         st.warning("Nenhum motor selecionado para detalhe.")
         if st.button("Voltar para consulta", use_container_width=True):
             ctx.session.set_route(Route.CONSULTA)
             st.rerun()
+        return
+
+    stash_page_ctx(ctx)
+    _motor_detail_page_fragment()
+
+
+@maybe_fragment
+def _motor_detail_page_fragment() -> None:
+    mrw_render_banner_zone()
+    ctx = pop_page_ctx_pack().get("ctx")
+    if ctx is None:
+        return
+
+    admin_user = is_admin_user()
+    motor_id = ctx.session.selected_motor_id
+    if motor_id is None:
         return
 
     motor = fetch_motor_by_id_cached(ctx.supabase, motor_id)
@@ -78,6 +94,8 @@ def render(ctx) -> None:
             ctx.session.set_route(Route.CONSULTA)
             st.rerun()
         return
+
+    st.caption(f"Ultima alteracao na base (updated_at): {_to_text(motor.get('updated_at')) or '—'}")
 
     motor_row = dict(motor)
     seq_sess = st.session_state.get(f"motor_cadastro_seq_{motor_id}")

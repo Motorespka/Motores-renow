@@ -4,9 +4,22 @@ import streamlit as st
 
 from core.access_control import can_access_paid_features
 from core.navigation import Route
+from core.streamlit_perf import maybe_fragment, pop_page_ctx_pack, stash_page_ctx
+from core.ui_feedback import mrw_render_banner_zone
 
 
 def render(ctx) -> None:
+    stash_page_ctx(ctx)
+    _guia_oficina_page_fragment()
+
+
+@maybe_fragment
+def _guia_oficina_page_fragment() -> None:
+    mrw_render_banner_zone()
+    ctx = pop_page_ctx_pack().get("ctx")
+    if ctx is None:
+        return
+
     st.markdown("### Guia da oficina (Moto-Renow)")
     st.caption(
         "Fluxo recomendado entre **Consulta**, **Biblioteca de cálculos**, **Ordens de serviço** e **PDF de entrega**. "
@@ -71,6 +84,15 @@ def render(ctx) -> None:
         "- A página **Atualizações** lê `data/releases.json` (mesma fonte que o site Next.js).\n"
         "- **Python 3.11:** ficheiro `runtime.txt` na raiz para o Streamlit Cloud; dependências em `requirements.txt`.\n"
         "- CI no GitHub Actions executa `pytest` em 3.11 em cada push/PR."
+    )
+
+    st.markdown("#### 7. Teclado e ritmo (producao)")
+    st.markdown(
+        "- **Tab** / **Shift+Tab**: navegar entre campos e botoes.\n"
+        "- **Enter**: em **formularios** Streamlit, envia quando o foco esta no botao de submissao.\n"
+        "- **Espaco**: alternar checkbox.\n"
+        "- **Busca global**: historico **automatico** a cada alteracao; a barra corre em **fragment** (menos latencia).\n"
+        "- **Ctrl+S** do navegador tenta guardar a pagina HTML — use sempre o botao **Salvar** da app para gravar dados."
     )
 
     c0, c1, c2 = st.columns(3)

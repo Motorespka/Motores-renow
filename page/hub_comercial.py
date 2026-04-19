@@ -10,6 +10,8 @@ import streamlit as st
 from core.development_mode import is_dev_mode, resolve_client_ip, use_isolated_mode_for_module
 from core.feature_flags import get_feature_flags
 from core.navigation import Route
+from core.streamlit_perf import maybe_fragment, pop_page_ctx_pack, stash_page_ctx
+from core.ui_feedback import mrw_render_banner_zone
 from core.user_identity import resolve_current_user_identity
 from services.modulo_comercial import (
     CHAT_TERM_CONTEXT,
@@ -844,6 +846,20 @@ def render(ctx) -> None:
             ctx.session.set_route(Route.CONSULTA)
             st.rerun()
         return
+
+    stash_page_ctx(ctx)
+    _hub_comercial_page_fragment()
+
+
+@maybe_fragment
+def _hub_comercial_page_fragment() -> None:
+    mrw_render_banner_zone()
+    ctx = pop_page_ctx_pack().get("ctx")
+    if ctx is None:
+        return
+
+    flags = get_feature_flags()
+    dev_mode = is_dev_mode()
 
     identity = resolve_current_user_identity()
     isolated_mode = use_isolated_mode_for_module(ctx.supabase)

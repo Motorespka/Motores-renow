@@ -403,6 +403,37 @@ def link_os_to_calculo(client: Any, os_id: str, calc_id: Optional[str]) -> None:
     client.table(TABLE_OS).update({"calc_id": cid}).eq("id", _to_text(os_id)).execute()
 
 
+def summarize_open_os_by_creator(client: Any, *, limit: int = 200) -> List[Dict[str, Any]]:
+    """
+    OS nao encerradas agrupadas por ``created_by`` (proxy de responsavel na oficina).
+    Conta quantas tem ``payload.prazo_entrega_previsto`` (AAAA-MM-DD) ja vencido (referencia interna).
+    """
+    from datetime import datetime, timezone
+
+    rows = list_ordens_servico(client, limit=min(int(limit), 200), since_days=0)
+    today = datetime.now(timezone.utc).date()
+    acc: Dict[str, Dict[str, int]] = {}
+    for r in rows:
+        et = _to_text(r.get("etapa")).lower()
+        if et == "encerrado":
+            continue
+        owner = _to_text(r.get("created_by")) or "(sem created_by)"
+        slot = acc.setdefault(owner, {"abertas": 0, "prazo_interno_vencido": 0})
+        slot["abertas"] += 1
+        pl = r.get("payload") if isinstance(r.get("payload"), dict) else {}
+        pz = _to_text(pl.get("prazo_entrega_previsto"))[:10]
+        if len(pz) >= 10:
+            try:
+                if datetime.strptime(pz, "%Y-%m-%d").date() < today:
+                    slot["prazo_interno_vencido"] += 1
+            except Exception:
+                pass
+    return [
+        {"responsavel_created_by": k, **v}
+        for k, v in sorted(acc.items(), key=lambda kv: (-kv[1]["abertas"], kv[0]))
+    ]
+
+
 def merge_ordem_servico_payload(client: Any, os_id: str, patch: Dict[str, Any]) -> None:
     """Mescla ``patch`` no payload JSON da OS (merge superficial de dicts aninhados para ficha_mecanica)."""
     row = get_ordem_servico(client, os_id)

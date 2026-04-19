@@ -1,5 +1,12 @@
 # CHANGELOG AI
 
+## 2026-04-18 | Cycle 0053
+- **Change Description:** `st.fragment` generalizado (Biblioteca, OS, Detalhe, Diagnostico, Cadastro, Edicao, Visao geral, Guia, Atualizacoes, Admin, Hub); busca global em fragment com historico **automatico** por tecla; `core/revision_diff.py` + diff na **Edicao** e **Biblioteca**; `summarize_open_os_by_creator` + painel na Visao geral; Guia sec. teclado; `data/releases.json` V21.0.12.
+- **Reason:** Pedido explicito do utilizador para rerun reduzido em todas as paginas, historico automatico, atalhos/diff/painel por tecnico.
+- **Risk Level:** Medio (fragment + re-fetch em algumas paginas; historico de busca pode crescer — limite 40 e botao limpar).
+- **Rollback Availability:** Alto (reverter ficheiros listados).
+- **Next Predicted Risk:** Afinar fragment vs widgets na sidebar em paginas futuras; diff muito verboso em fichas enormes.
+
 ## 2026-04-18 | Cycle 0052
 - **Change Description:** UX operacional Streamlit: `st.fragment` na **Consulta** (pago), `core/ui_feedback.py` + `core/supabase_errors.py`, `App.py` zona de alerta apos header, `core/navigation.py` (breadcrumb Detalhe/Edicao, historico de busca global, versao releases para todos), `page/ordens_servico.py` / `biblioteca_calculos.py` / `cadastro.py` / `edit.py` com feedback unificado, `page/visao_geral.py` painel OS, `assets/style.css` (dataframe/foco), `requirements.txt` Streamlit ≥ 1.33, `data/releases.json` V21.0.11.
 - **Reason:** Pedido explicito de ritmo, previsibilidade, menos rerun, fluxo de mao, fiabilidade e entrada em Atualizacoes por versao.

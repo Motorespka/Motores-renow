@@ -23,7 +23,8 @@ except Exception:
 from core.access_control import require_cadastro_access
 from core.calculadora import mensagem_bobinagem_auxiliar_incompleta
 from core.navigation import Route
-from core.ui_feedback import mrw_feedback_success
+from core.streamlit_perf import maybe_fragment, pop_page_ctx_pack, stash_page_ctx
+from core.ui_feedback import mrw_feedback_success, mrw_render_banner_zone
 from core.user_identity import resolve_current_user_identity
 from services.gemini_oficina import HEIF_SUPPORTED, extract_motor_data_with_gemini
 from services.oficina_parser import (
@@ -582,6 +583,17 @@ def render(ctx):
         if st.button("Ir para Consulta", use_container_width=True):
             ctx.session.set_route(Route.CONSULTA)
             st.rerun()
+        return
+
+    stash_page_ctx(ctx)
+    _cadastro_page_fragment()
+
+
+@maybe_fragment
+def _cadastro_page_fragment() -> None:
+    mrw_render_banner_zone()
+    ctx = pop_page_ctx_pack().get("ctx")
+    if ctx is None:
         return
 
     _init_state()

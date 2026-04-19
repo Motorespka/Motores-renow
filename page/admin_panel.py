@@ -21,6 +21,8 @@ from core.access_control import (
 from core.development_mode import is_dev_mode, set_dev_mode, use_isolated_mode_for_module
 from core.feature_flags import clear_feature_overrides, get_feature_flags, list_flag_names, set_feature_override
 from core.navigation import Route
+from core.streamlit_perf import maybe_fragment, pop_page_ctx_pack, stash_page_ctx
+from core.ui_feedback import mrw_render_banner_zone
 from core.user_identity import resolve_current_user_identity
 from services.modulo_comercial import (
     CommercialModuleStore,
@@ -561,6 +563,17 @@ def render(ctx) -> None:
         if st.button("Voltar para consulta", use_container_width=True):
             ctx.session.set_route(Route.CONSULTA)
             st.rerun()
+        return
+
+    stash_page_ctx(ctx)
+    _admin_panel_page_fragment()
+
+
+@maybe_fragment
+def _admin_panel_page_fragment() -> None:
+    mrw_render_banner_zone()
+    ctx = pop_page_ctx_pack().get("ctx")
+    if ctx is None:
         return
 
     _render_header()

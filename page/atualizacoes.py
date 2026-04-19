@@ -8,6 +8,8 @@ from typing import Any, Dict, List
 import streamlit as st
 
 from core.development_mode import is_dev_mode
+from core.streamlit_perf import maybe_fragment, pop_page_ctx_pack, stash_page_ctx
+from core.ui_feedback import mrw_render_banner_zone
 
 # Fonte única com o Next.js (Vercel): editar `data/releases.json` e fazer deploy do ficheiro no Streamlit Cloud.
 
@@ -104,6 +106,16 @@ def _render_release_card(item: Dict[str, object], preview: bool = False) -> None
 
 
 def render(_ctx) -> None:
+    stash_page_ctx(_ctx)
+    _atualizacoes_page_fragment()
+
+
+@maybe_fragment
+def _atualizacoes_page_fragment() -> None:
+    mrw_render_banner_zone()
+    if pop_page_ctx_pack().get("ctx") is None:
+        return
+
     st.markdown(
         """
         <div class="consulta-hero">

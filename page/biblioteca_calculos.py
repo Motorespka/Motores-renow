@@ -7,7 +7,9 @@ import streamlit as st
 
 from components.motor_rebobinagem_panel import render_rebobinagem_panel
 from core.access_control import require_paid_access
-from core.ui_feedback import mrw_feedback_success
+from core.revision_diff import summarize_dict_changes
+from core.streamlit_perf import maybe_fragment, pop_page_ctx_pack, stash_page_ctx
+from core.ui_feedback import mrw_feedback_success, mrw_render_banner_zone
 from services.oficina_workshop import (
     build_calc_payload_from_parts,
     get_calculo,
@@ -308,6 +310,20 @@ def render(ctx) -> None:
         )
         return
 
+    stash_page_ctx(ctx)
+    _biblioteca_page_fragment()
+
+
+@maybe_fragment
+def _biblioteca_page_fragment() -> None:
+    mrw_render_banner_zone()
+    ctx = pop_page_ctx_pack().get("ctx")
+    if ctx is None:
+        return
+    _biblioteca_page_body(ctx)
+
+
+def _biblioteca_page_body(ctx) -> None:
     uid = _to_text(st.session_state.get("auth_user_id") or st.session_state.get("auth_user_email"))
 
     parent_id = st.session_state.get("bib_calc_revision_parent")
@@ -477,6 +493,7 @@ def render(ctx) -> None:
             tests_e = _get_bench_tests("edit")
             merged_pl = _merge_payload_save(old_pl, motor=motor, bp=bp, esq=esq, mec=mec_e, tests=tests_e)
             try:
+                diff_md = summarize_dict_changes(old_pl, merged_pl)
                 update_calculo(
                     ctx.supabase,
                     edit_id,
@@ -492,6 +509,10 @@ def render(ctx) -> None:
                     payload=merged_pl,
                     revision_label=rev_lbl_e,
                 )
+                with st.expander("Alteracoes no payload desta gravacao", expanded=True):
+                    st.markdown(diff_md)
+                if old and old.get("updated_at"):
+                    st.caption(f"Versao anterior gravada em: {old.get('updated_at')}")
                 mrw_feedback_success("Registro atualizado.")
                 st.rerun()
             except Exception as exc:

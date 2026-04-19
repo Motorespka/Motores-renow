@@ -7,7 +7,13 @@ import streamlit as st
 
 from core.access_control import can_access_paid_features, is_admin_user
 from core.navigation import Route
-from services.oficina_workshop import list_ordens_servico, workshop_tables_available
+from core.streamlit_perf import maybe_fragment, pop_page_ctx_pack, stash_page_ctx
+from core.ui_feedback import mrw_render_banner_zone
+from services.oficina_workshop import (
+    list_ordens_servico,
+    summarize_open_os_by_creator,
+    workshop_tables_available,
+)
 from services.supabase_data import fetch_motores_cached
 
 
@@ -116,6 +122,17 @@ def _kpi(label: str, value: Any, hint: str = "", *, icon: str = "MR", variant: s
 
 
 def show(ctx) -> None:
+    stash_page_ctx(ctx)
+    _visao_geral_page_fragment()
+
+
+@maybe_fragment
+def _visao_geral_page_fragment() -> None:
+    mrw_render_banner_zone()
+    ctx = pop_page_ctx_pack().get("ctx")
+    if ctx is None:
+        return
+
     paid_user = can_access_paid_features(ctx.supabase)
     admin_user = is_admin_user()
 
@@ -193,6 +210,14 @@ def show(ctx) -> None:
                 if st.button("Guia da oficina", use_container_width=True, key="dash_btn_guia"):
                     ctx.session.set_route(Route.GUIA_OFICINA)
                     st.rerun()
+            by_creator = summarize_open_os_by_creator(ctx.supabase)
+            if by_creator:
+                with st.expander("Parado por responsavel (proxy `created_by`)", expanded=False):
+                    st.caption(
+                        "Sem modelo formal de tecnico atribuido: agrupamos OS **abertas** por quem criou a linha. "
+                        "**Prazo interno vencido** conta `payload.prazo_entrega_previsto` (AAAA-MM-DD) ja passado."
+                    )
+                    st.dataframe(by_creator, use_container_width=True, hide_index=True)
         else:
             st.markdown(
                 """

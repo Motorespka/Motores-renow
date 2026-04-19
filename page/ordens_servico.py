@@ -6,7 +6,8 @@ import streamlit as st
 
 from core.access_control import require_paid_access
 from core.navigation import Route
-from core.ui_feedback import mrw_feedback_success
+from core.streamlit_perf import maybe_fragment, pop_page_ctx_pack, stash_page_ctx
+from core.ui_feedback import mrw_feedback_success, mrw_render_banner_zone
 from services.oficina_export import build_os_csv_row_bytes, build_os_json_snapshot_bytes
 from services.oficina_pdf import build_os_delivery_pdf_bytes
 from services.oficina_os_operacao import normalize_operacao_payload_patch
@@ -59,6 +60,20 @@ def render(ctx) -> None:
         )
         return
 
+    stash_page_ctx(ctx)
+    _ordens_servico_page_fragment()
+
+
+@maybe_fragment
+def _ordens_servico_page_fragment() -> None:
+    mrw_render_banner_zone()
+    ctx = pop_page_ctx_pack().get("ctx")
+    if ctx is None:
+        return
+    _ordens_servico_page_body(ctx)
+
+
+def _ordens_servico_page_body(ctx) -> None:
     uid = _to_text(st.session_state.get("auth_user_id") or st.session_state.get("auth_user_email"))
 
     calcs = list_calculos(ctx.supabase, q="", limit=80)
