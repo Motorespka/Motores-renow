@@ -1,6 +1,17 @@
 {
   "changelog": [
     {
+      "versao": "V21.0.14",
+      "data": "2026-04-18",
+      "titulo": "Consulta estavel: sem fragment na busca global; filtros na area principal (V21.0.14)",
+      "adicoes": [],
+      "correcoes": [
+        "**Streamlit** — `StreamlitAPIException` na Consulta ( `_enqueue` / `markdown` ): o corpo **pago** da Consulta **nao** usa `@st.fragment`; **filtros** passaram da `st.sidebar` para uma **coluna Filtros** na area principal (mesmas keys de sessao).",
+        "**Busca global** (header) — removido `@st.fragment` desse bloco para o Streamlit nao deixar a pagina seguinte num contexto invalido ao renderizar a Consulta.",
+        "**Deploy** — o Streamlit Cloud so ve o que esta no **Git**; e necessario **commit + push** para estas correcoes chegarem ao ambiente em `/mount/src/...`."
+      ]
+    },
+    {
       "versao": "V21.0.13",
       "data": "2026-04-18",
       "titulo": "Guia da oficina: texto para utilizador (sem nomes internos do repo)",

@@ -21,7 +21,6 @@ from core.access_control import (
 from core.development_mode import is_dev_mode
 from core.feature_flags import get_feature_flags
 from core.user_identity import resolve_current_user_identity
-from core.streamlit_perf import maybe_fragment
 
 MRW_SEARCH_HIST_KEY = "mrw_global_search_history"
 MRW_SEARCH_HIST_MAX = 40
@@ -323,7 +322,7 @@ def render_navigation_sidebar(session, supabase_client=None) -> None:
 - **Tab** / **Shift+Tab**: mover o foco entre campos e botoes.
 - **Enter**: em **formularios**, envia quando o foco esta no botao de submissao.
 - **Espaco**: marcar / desmarcar **checkbox**.
-- A **busca global** no topo corre em **fragment**: cada tecla **nao** relanca a app inteira; o **historico** grava **automaticamente** a cada alteracao no texto (sessao).
+- A **busca global** no topo relanca a app como o resto dos controlos; o **historico** grava **automaticamente** a cada alteracao no texto (sessao).
 - **Ctrl+S** do navegador **nao** grava na base — use o botao **Salvar** / **Guardar** de cada ecra.
                 """.strip()
             )
@@ -331,8 +330,7 @@ def render_navigation_sidebar(session, supabase_client=None) -> None:
             _perform_logout(session, supabase_client=supabase_client)
 
 
-@maybe_fragment
-def _render_route_header_search_fragment() -> None:
+def _render_route_header_search() -> None:
     cols = st.columns([2, 1])
     with cols[0]:
         st.markdown('<div class="mrw-global-search-anchor"></div>', unsafe_allow_html=True)
@@ -452,5 +450,5 @@ def render_route_header(route: Route, session: Any = None) -> None:
                 "Atalho de fluxo: use o campo **Buscar** abaixo para copiar texto para a Consulta manualmente."
             )
 
-    # Busca global: fragment para historico automatico sem rerun completo a cada tecla.
-    _render_route_header_search_fragment()
+    # Busca global: fora de `st.fragment` para nao quebrar paginas seguintes (ex.: Consulta).
+    _render_route_header_search()

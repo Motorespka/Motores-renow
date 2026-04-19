@@ -12,7 +12,6 @@ import streamlit as st
 
 from core.access_control import can_access_paid_features, is_admin_user
 from core.navigation import Route
-from core.streamlit_perf import maybe_fragment
 from core.supabase_errors import format_supabase_client_error
 from core.ui_feedback import mrw_feedback_success, mrw_render_banner_zone
 from services.oficina_parser import (
@@ -898,8 +897,13 @@ def _render_teaser_consulta(motores: List[Dict[str, Any]], admin_user: bool = Fa
         st.caption(f"Mostrando {len(amostra)} de {len(motores)} motores no teaser.")
 
 
-@maybe_fragment
-def _consulta_paid_fragment_fn() -> None:
+def _consulta_paid_body() -> None:
+    """Corpo da consulta paga (fora de `@st.fragment`).
+
+    Os filtros ficam na area principal (coluna), nao em `st.sidebar`, para evitar
+    `StreamlitAPIException` quando o contexto de execucao nao e o script principal
+    (ex.: interacao com fragment da busca global no header).
+    """
     ctx = st.session_state.get("_consulta_render_ctx")
     admin_user = bool(st.session_state.get("_consulta_render_admin", False))
     if ctx is None:
@@ -937,42 +941,46 @@ def _consulta_paid_body_impl(ctx, admin_user: bool) -> None:
             "Revisao tecnica (parser)",
             opts_rev,
             key="consulta_filtro_revisao_v2104",
-            help="Filtro read-only sobre dados ja carregados. Marca, polos e demais filtros continuam na barra lateral.",
+            help="Filtro read-only sobre dados ja carregados. Marca, polos e demais filtros estao na coluna **Filtros** abaixo.",
         )
     filtrados = [m for m in motores if busca in _search_blob(m)] if busca else motores
 
-    st.sidebar.markdown("### Filtros")
-    st.sidebar.caption(
-        "Filtros e busca mantem-se ao **Abrir detalhes** / **Editar** e voltar para a Consulta (mesma sessao do browser)."
-    )
-    marcas_opts = ["Todas"] + _unique(motores, "marca")
-    _consulta_clamp_select("consulta_filtro_marca", marcas_opts)
-    marca = st.sidebar.selectbox("Marca", marcas_opts, key="consulta_filtro_marca")
+    # Filtros na area principal (nao em st.sidebar): compativel com fragment da busca global no header
+    # e com versoes do Streamlit que restringem sidebar ao script principal de forma estrita.
+    filt_col, lista_col = st.columns([0.9, 2.35], gap="medium")
+    with filt_col:
+        st.markdown("### Filtros")
+        st.caption(
+            "Filtros e busca mantem-se ao **Abrir detalhes** / **Editar** e voltar para a Consulta (mesma sessao do browser)."
+        )
+        marcas_opts = ["Todas"] + _unique(motores, "marca")
+        _consulta_clamp_select("consulta_filtro_marca", marcas_opts)
+        marca = st.selectbox("Marca", marcas_opts, key="consulta_filtro_marca")
 
-    polos_opts = ["Todos"] + _unique(motores, "polos")
-    _consulta_clamp_select("consulta_filtro_polos", polos_opts)
-    polos = st.sidebar.selectbox("Polos", polos_opts, key="consulta_filtro_polos")
+        polos_opts = ["Todos"] + _unique(motores, "polos")
+        _consulta_clamp_select("consulta_filtro_polos", polos_opts)
+        polos = st.selectbox("Polos", polos_opts, key="consulta_filtro_polos")
 
-    tipos_opts = ["Todos"] + _unique(motores, "tipo_motor")
-    _consulta_clamp_select("consulta_filtro_tipo_motor", tipos_opts)
-    tipo = st.sidebar.selectbox("Tipo do motor", tipos_opts, key="consulta_filtro_tipo_motor")
+        tipos_opts = ["Todos"] + _unique(motores, "tipo_motor")
+        _consulta_clamp_select("consulta_filtro_tipo_motor", tipos_opts)
+        tipo = st.selectbox("Tipo do motor", tipos_opts, key="consulta_filtro_tipo_motor")
 
-    fases_opts = ["Todos"] + _unique(motores, "fases")
-    _consulta_clamp_select("consulta_filtro_fases", fases_opts)
-    fases = st.sidebar.selectbox("Fases", fases_opts, key="consulta_filtro_fases")
+        fases_opts = ["Todos"] + _unique(motores, "fases")
+        _consulta_clamp_select("consulta_filtro_fases", fases_opts)
+        fases = st.selectbox("Fases", fases_opts, key="consulta_filtro_fases")
 
-    rpm_range = st.sidebar.slider(
-        "Faixa RPM",
-        0,
-        5000,
-        (0, 5000),
-        step=50,
-        key="consulta_filtro_rpm_range",
-    )
+        rpm_range = st.slider(
+            "Faixa RPM",
+            0,
+            5000,
+            (0, 5000),
+            step=50,
+            key="consulta_filtro_rpm_range",
+        )
 
-    if st.sidebar.button("Limpar filtros da consulta", key="consulta_btn_limpar_filtros"):
-        _consulta_reset_filters()
-        st.rerun()
+        if st.button("Limpar filtros da consulta", key="consulta_btn_limpar_filtros"):
+            _consulta_reset_filters()
+            st.rerun()
 
     if marca != "Todas":
         filtrados = [m for m in filtrados if _to_text(m.get("marca")) == marca]
@@ -989,43 +997,44 @@ def _consulta_paid_body_impl(ctx, admin_user: bool) -> None:
     elif revisao_filtro == "Sem pendencia de revisao":
         filtrados = [m for m in filtrados if not _motor_needs_review_flag(m)]
 
-    tri_count = sum(1 for m in filtrados if _detect_fase_bucket(m) == "tri")
-    mono_count = sum(1 for m in filtrados if _detect_fase_bucket(m) == "mono")
-    _render_consulta_header(len(motores), len(filtrados), tri_count, mono_count)
-    _render_consulta_recent_bar(ctx, motores)
+    with lista_col:
+        tri_count = sum(1 for m in filtrados if _detect_fase_bucket(m) == "tri")
+        mono_count = sum(1 for m in filtrados if _detect_fase_bucket(m) == "mono")
+        _render_consulta_header(len(motores), len(filtrados), tri_count, mono_count)
+        _render_consulta_recent_bar(ctx, motores)
 
-    if not filtrados:
-        st.warning("Nenhum motor encontrado com os filtros atuais.")
-        return
+        if not filtrados:
+            st.warning("Nenhum motor encontrado com os filtros atuais.")
+            return
 
-    with st.expander("Analise tecnica dos calculos (Consulta)", expanded=False):
-        _render_consistency_report(filtrados)
+        with st.expander("Analise tecnica dos calculos (Consulta)", expanded=False):
+            _render_consistency_report(filtrados)
 
-    pg1, pg2, pg3 = st.columns([1.2, 1.0, 3.0], gap="small")
-    with pg1:
-        page_size = st.selectbox("Itens por pagina", [10, 20, 50, 100], index=1, key="consulta_page_size")
-    total_pages = max(1, (len(filtrados) + int(page_size) - 1) // int(page_size))
-    current_page = int(st.session_state.get("consulta_page_num", 1) or 1)
-    if current_page > total_pages:
-        current_page = total_pages
-        st.session_state["consulta_page_num"] = current_page
-    with pg2:
-        page_num = int(
-            st.number_input(
-                "Pagina",
-                min_value=1,
-                max_value=total_pages,
-                value=current_page,
-                step=1,
-                key="consulta_page_num",
+        pg1, pg2, pg3 = st.columns([1.2, 1.0, 3.0], gap="small")
+        with pg1:
+            page_size = st.selectbox("Itens por pagina", [10, 20, 50, 100], index=1, key="consulta_page_size")
+        total_pages = max(1, (len(filtrados) + int(page_size) - 1) // int(page_size))
+        current_page = int(st.session_state.get("consulta_page_num", 1) or 1)
+        if current_page > total_pages:
+            current_page = total_pages
+            st.session_state["consulta_page_num"] = current_page
+        with pg2:
+            page_num = int(
+                st.number_input(
+                    "Pagina",
+                    min_value=1,
+                    max_value=total_pages,
+                    value=current_page,
+                    step=1,
+                    key="consulta_page_num",
+                )
             )
-        )
-    with pg3:
-        start = (page_num - 1) * int(page_size)
-        end = start + int(page_size)
-        st.caption(f"Mostrando {start + 1}-{min(end, len(filtrados))} de {len(filtrados)} motores.")
+        with pg3:
+            start = (page_num - 1) * int(page_size)
+            end = start + int(page_size)
+            st.caption(f"Mostrando {start + 1}-{min(end, len(filtrados))} de {len(filtrados)} motores.")
 
-    motores_visiveis = filtrados[start:end]
+        motores_visiveis = filtrados[start:end]
 
     for m in motores_visiveis:
         with st.container(border=True):
@@ -1208,7 +1217,7 @@ def render(ctx) -> None:
 
     st.session_state["_consulta_render_ctx"] = ctx
     st.session_state["_consulta_render_admin"] = admin_user
-    _consulta_paid_fragment_fn()
+    _consulta_paid_body()
 
 
 def show(ctx) -> None:
