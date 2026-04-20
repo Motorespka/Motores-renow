@@ -989,6 +989,22 @@ def _consulta_paid_body_impl(ctx, admin_user: bool) -> None:
         _render_consulta_header(len(motores), len(filtrados), tri_count, mono_count)
         _render_consulta_recent_bar(ctx, motores)
 
+        st.markdown("##### Ferramentas de calculo (oficina)")
+        f1, f2 = st.columns([1, 2.2], gap="small")
+        with f1:
+            if st.button(
+                "Ferramentas de bobinagem",
+                use_container_width=True,
+                key="consulta_btn_ferramentas_bobinagem",
+                help="Equivalencia AWG e paralelos, espiras vs tensao, notas serie/paralelo (bancada).",
+            ):
+                ctx.session.set_route(Route.FERRAMENTAS_BOBINAGEM)
+                st.rerun()
+        with f2:
+            st.caption(
+                "Complementa os **calculos por motor** abaixo: troca de fio, espiras e tensao sem depender de um registo na lista."
+            )
+
         if not filtrados:
             st.warning("Nenhum motor encontrado com os filtros atuais.")
             return

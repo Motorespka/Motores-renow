@@ -96,24 +96,28 @@ def _guia_oficina_page_fragment() -> None:
         "- **Ctrl+S** do navegador guarda a **pagina**, não a ficha na base — use sempre o botao **Salvar** / **Guardar** da aplicação."
     )
 
-    c0, c1, c2 = st.columns(3)
+    c0, c1, c2, c3 = st.columns(4)
     with c0:
         if st.button("Ir para Consulta", use_container_width=True, key="guia_consulta"):
             ctx.session.set_route(Route.CONSULTA)
             st.rerun()
+    with c1:
+        if st.button("Ferramentas bobinagem", use_container_width=True, key="guia_ferr"):
+            ctx.session.set_route(Route.FERRAMENTAS_BOBINAGEM)
+            st.rerun()
     if can_access_paid_features(client=ctx.supabase):
-        with c1:
+        with c2:
             if st.button("Ir para Biblioteca de calculos", use_container_width=True, key="guia_bib"):
                 ctx.session.set_route(Route.BIBLIOTECA_CALCULOS)
                 st.rerun()
-        with c2:
+        with c3:
             if st.button("Ir para Ordens de servico", use_container_width=True, key="guia_os"):
                 ctx.session.set_route(Route.ORDENS_SERVICO)
                 st.rerun()
     else:
-        with c1:
-            st.caption("Plano PRO: atalhos para Biblioteca e Ordens de servico aparecem quando o plano incluir oficina.")
         with c2:
+            st.caption("Plano PRO: atalhos para Biblioteca e Ordens de servico aparecem quando o plano incluir oficina.")
+        with c3:
             st.empty()
 
 

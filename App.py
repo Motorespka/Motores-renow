@@ -38,6 +38,7 @@ from page import (
     consulta,
     diagnostico,
     edit,
+    ferramentas_bobinagem,
     guia_oficina,
     hub_comercial,
     motor_detail,
@@ -223,6 +224,7 @@ def build_router() -> Router:
     router.register(Route.CADASTRO, cadastro.show)
     router.register(Route.CONSULTA, consulta.show)
     router.register(Route.GUIA_OFICINA, guia_oficina.show)
+    router.register(Route.FERRAMENTAS_BOBINAGEM, ferramentas_bobinagem.show)
     router.register(Route.ATUALIZACOES, atualizacoes.show)
     router.register(Route.DETALHE, motor_detail.show)
     router.register(Route.EDIT, edit.show)

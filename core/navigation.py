@@ -60,6 +60,7 @@ class Route(str, Enum):
     CADASTRO = "cadastro"
     CONSULTA = "consulta"
     GUIA_OFICINA = "guia_oficina"
+    FERRAMENTAS_BOBINAGEM = "ferramentas_bobinagem"
     ATUALIZACOES = "atualizacoes"
     DETALHE = "detalhe"
     EDIT = "edit"
@@ -222,6 +223,7 @@ def render_navigation_sidebar(session, supabase_client=None) -> None:
         _group("OPERAÇÃO")
         _nav_button("Consulta", Route.CONSULTA, badge="BASE", badge_kind="accent")
         _nav_button("Guia oficina", Route.GUIA_OFICINA, badge="AJUDA", badge_kind="accent")
+        _nav_button("Ferramentas bobinagem", Route.FERRAMENTAS_BOBINAGEM, badge="OFIC", badge_kind="accent")
         _nav_button("Visão geral", Route.DASHBOARD)
         _nav_button("Atualizações", Route.ATUALIZACOES, badge="NEW", badge_kind="accent")
         if cadastro_allowed:
@@ -324,6 +326,12 @@ def render_route_header(route: Route, session: Any = None) -> None:
             "GUIA DA OFICINA",
             "Fluxo biblioteca, OS, PDF e boas práticas",
             "AJUDA",
+            "accent",
+        ),
+        Route.FERRAMENTAS_BOBINAGEM.value: (
+            "FERRAMENTAS DE BOBINAGEM",
+            "Equivalência de fio, espiras e tensão (bancada)",
+            "OFIC",
             "accent",
         ),
         Route.CADASTRO.value: ("CADASTRO / OCR", "Leitura de plaqueta e revisão assistida", "OCR", "primary"),
