@@ -51,20 +51,28 @@ def parse_frequency_hz(value: Any) -> Optional[float]:
     return None
 
 
+_POLOS_KEYS = ("polos", "Polos", "numero_polos", "n_polos", "poles")
+_FREQ_KEYS = ("frequencia_hz", "frequencia", "Frequencia", "hz", "Hz")
+
+
+def _first_present(*sources: Dict[str, Any], keys: Tuple[str, ...]) -> Any:
+    """Varre dicionários (na ordem) e chaves (na ordem) buscando o primeiro valor não vazio."""
+    for source in sources:
+        if not isinstance(source, dict):
+            continue
+        for key in keys:
+            value = source.get(key)
+            if not is_empty(value):
+                return value
+    return None
+
+
 def merge_polos_frequency_hz(
     m: Dict[str, Any],
     motor_info: Dict[str, Any],
 ) -> Tuple[Optional[int], Optional[float]]:
-    poles_raw = None
-    for src in (m.get("polos"), motor_info.get("polos")):
-        if not is_empty(src):
-            poles_raw = src
-            break
-    freq_raw = None
-    for src in (m.get("frequencia_hz"), motor_info.get("frequencia")):
-        if not is_empty(src):
-            freq_raw = src
-            break
+    poles_raw = _first_present(m, motor_info, keys=_POLOS_KEYS)
+    freq_raw = _first_present(m, motor_info, keys=_FREQ_KEYS)
     return parse_poles_count(poles_raw), parse_frequency_hz(freq_raw)
 
 
@@ -72,10 +80,30 @@ def synchronous_rpm_theoretical(f_hz: float, poles: int) -> float:
     return 120.0 * float(f_hz) / float(poles)
 
 
+def _format_inferred_rpm(value: Any) -> str:
+    txt = _as_joined_text(value)
+    if not txt or is_empty(txt):
+        return ""
+    if txt.startswith(("≈", "~")):
+        return txt
+    if "rpm" not in txt.lower():
+        txt = f"{txt} rpm"
+    return f"≈ {txt}"
+
+
 def rpm_identificacao_display(m: Dict[str, Any], motor_info: Dict[str, Any]) -> str:
-    rpm = m.get("rpm_nominal")
-    if not is_empty(rpm):
-        return _as_joined_text(rpm)
+    for src in (m.get("rpm_nominal"), m.get("rpm"), motor_info.get("rpm_nominal"), motor_info.get("rpm")):
+        if not is_empty(src):
+            return _as_joined_text(src)
+    for src in (
+        m.get("rpm_calculado"),
+        m.get("observacao_rpm"),
+        motor_info.get("rpm_calculado"),
+        motor_info.get("observacao_rpm"),
+    ):
+        inferred = _format_inferred_rpm(src)
+        if inferred:
+            return inferred
     p, fhz = merge_polos_frequency_hz(m, motor_info)
     if p is not None and fhz is not None:
         ns = synchronous_rpm_theoretical(fhz, p)
