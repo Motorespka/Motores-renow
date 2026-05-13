@@ -107,16 +107,11 @@ def run_rewinding_validation(
             msg = (
                 "Ficha elétrica sem "
                 + joiner.join(missing)
-                + " — não dá para validar rebobinagem contra a placa; só checagem de formato/campos."
+                + " — validação contra a placa indisponível; só checagem de formato/campos."
             )
             ns_hint = _electric_ns_rpm(electric_norm)
             if not rpm_ok and ns_hint is not None:
-                fhz = electric_norm.get("frequency_hz")
-                pol = electric_norm.get("poles")
-                msg += (
-                    f" Rotação síncrona teórica ({pol} polos, {fhz:g} Hz) ≈ {int(round(ns_hint))} rpm "
-                    "(RPM na placa costuma ser um pouco menor por escorregamento)."
-                )
+                msg += f" RPM ≈ {int(round(ns_hint))} mostrado é síncrono teórico."
             warnings.append(
                 {
                     "code": "motor_eletrico_incompleto_rebob",

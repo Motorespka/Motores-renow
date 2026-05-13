@@ -25,8 +25,9 @@ from components.motor_inteligencia_panel import render_intel_consulta_inline
 from components.motor_rebobinagem_panel import render_rebobinagem_consulta_inline
 from services.supabase_data import clear_motores_cache, fetch_motores_cached
 from utils.motor_display_hints import (
+    RPM_INFERIDO_TOOLTIP,
+    is_rpm_inferred,
     rpm_compact_display,
-    rpm_identificacao_display,
     rpm_numeric_for_filter,
 )
 from utils.motor_normalizer import normalize_motor_row_for_ui
@@ -1062,7 +1063,13 @@ def _consulta_paid_body_impl(ctx, admin_user: bool) -> None:
                 consulta_ui = m.get("_consulta_ui") if isinstance(m.get("_consulta_ui"), dict) else {}
                 eixo_x, eixo_y = _extract_eixo_xy(mecanica, consulta_ui)
                 fase_txt = _to_text(m.get("fases")) or _to_text(motor_info.get("fases"))
-                rpm_disp = rpm_identificacao_display(m, motor_info)
+                rpm_disp = rpm_compact_display(m, motor_info, empty="-")
+                rpm_is_inferred = (
+                    is_rpm_inferred(m, motor_info) and rpm_disp not in ("-", "—")
+                )
+                rpm_tile_attrs = (
+                    f' title="{html.escape(RPM_INFERIDO_TOOLTIP)}"' if rpm_is_inferred else ""
+                )
     
                 snap = extract_consulta_parser_snapshot(data)
                 rev_chip = ""
@@ -1130,7 +1137,7 @@ def _consulta_paid_body_impl(ctx, admin_user: bool) -> None:
                             unsafe_allow_html=True,
                         )
                         k2.markdown(
-                            f'<div class="metric-tile"><span>RPM</span><strong>{_safe(rpm_disp)}</strong></div>',
+                            f'<div class="metric-tile"{rpm_tile_attrs}><span>RPM</span><strong>{_safe(rpm_disp)}</strong></div>',
                             unsafe_allow_html=True,
                         )
                         k3.markdown(

@@ -15,8 +15,10 @@ from components.consulta_ficha_usuario_banner import render_consulta_ficha_usuar
 from components.motor_hologram import render_engine_hologram
 from utils.motor_hologram_glb import NEMA_56_CARCACA_LEGENDA_COMPLETA
 from utils.motor_display_hints import (
+    RPM_INFERIDO_TOOLTIP,
     campo_ou_nao_consta,
     corrente_identificacao_display,
+    is_rpm_inferred,
     potencia_identificacao_display,
     rpm_identificacao_display,
     tensao_identificacao_display,
@@ -44,10 +46,11 @@ def _join_values(value) -> str:
     return txt if txt else "-"
 
 
-def _render_data_panel(label: str, value) -> None:
+def _render_data_panel(label: str, value, *, tooltip: str | None = None) -> None:
+    tip_attr = f' title="{html.escape(tooltip)}"' if tooltip else ""
     st.markdown(
         f"""
-        <div class="data-panel">
+        <div class="data-panel"{tip_attr}>
             <div class="data-label">{html.escape(label)}</div>
             <div class="data-value">{html.escape(_join_values(value))}</div>
         </div>
@@ -184,7 +187,12 @@ def _motor_detail_page_fragment() -> None:
 
     k1, k2, k3, k4 = st.columns(4)
     _pot_tile = html.escape(potencia_identificacao_display(m, motor_info))
-    _rpm_tile = html.escape(rpm_identificacao_display(m, motor_info))
+    _rpm_raw = rpm_identificacao_display(m, motor_info)
+    _rpm_tile = html.escape(_rpm_raw)
+    _rpm_is_inferred = is_rpm_inferred(m, motor_info)
+    _rpm_tile_tooltip = (
+        f' title="{html.escape(RPM_INFERIDO_TOOLTIP)}"' if _rpm_is_inferred else ""
+    )
     _ten_tile = html.escape(tensao_identificacao_display(m, motor_info))
     _cur_tile = html.escape(corrente_identificacao_display(m, motor_info))
     k1.markdown(
@@ -192,7 +200,7 @@ def _motor_detail_page_fragment() -> None:
         unsafe_allow_html=True,
     )
     k2.markdown(
-        f'<div class="metric-tile"><span>RPM</span><strong>{_rpm_tile}</strong></div>',
+        f'<div class="metric-tile"{_rpm_tile_tooltip}><span>RPM</span><strong>{_rpm_tile}</strong></div>',
         unsafe_allow_html=True,
     )
     k3.markdown(
@@ -251,7 +259,11 @@ def _motor_detail_page_fragment() -> None:
     with tab1:
         el1, el2, el3, el4 = st.columns(4)
         with el1:
-            _render_data_panel("RPM (placa ou referência)", rpm_identificacao_display(m, motor_info))
+            _render_data_panel(
+                "RPM (placa ou referência)",
+                rpm_identificacao_display(m, motor_info),
+                tooltip=RPM_INFERIDO_TOOLTIP if _rpm_is_inferred else None,
+            )
         with el2:
             _render_data_panel("Cavalaria / potência", potencia_identificacao_display(m, motor_info))
         with el3:
