@@ -112,6 +112,45 @@ def rpm_identificacao_display(m: Dict[str, Any], motor_info: Dict[str, Any]) -> 
     return "— (RPM placa: informe polos + Hz)"
 
 
+def rpm_compact_display(
+    m: Dict[str, Any],
+    motor_info: Optional[Dict[str, Any]] = None,
+    *,
+    empty: str = "—",
+) -> str:
+    """Versão curta para KPIs estreitos (rodapé do holograma, badges, etc.).
+
+    Regras:
+      • Placa presente (rpm_nominal / rpm) → devolve só o número/texto, sem "≈".
+      • Calculado / observação inferida → "≈ <nº>".
+      • Fallback síncrono (polos+Hz) → "≈ <nº>".
+      • Nada disponível → `empty`.
+    """
+    motor_info = motor_info if isinstance(motor_info, dict) else {}
+    for src in (m.get("rpm_nominal"), m.get("rpm"), motor_info.get("rpm_nominal"), motor_info.get("rpm")):
+        txt = _as_joined_text(src)
+        if txt and not is_empty(txt):
+            return txt
+    for src in (
+        m.get("rpm_calculado"),
+        m.get("observacao_rpm"),
+        motor_info.get("rpm_calculado"),
+        motor_info.get("observacao_rpm"),
+    ):
+        txt = _as_joined_text(src)
+        if not txt or is_empty(txt):
+            continue
+        digits = re.search(r"(\d{2,5})", txt)
+        if digits:
+            return f"≈ {digits.group(1)}"
+        return _format_inferred_rpm(txt)
+    p, fhz = merge_polos_frequency_hz(m, motor_info)
+    if p is not None and fhz is not None:
+        ns = synchronous_rpm_theoretical(fhz, p)
+        return f"≈ {int(round(ns))}"
+    return empty
+
+
 def potencia_identificacao_display(m: Dict[str, Any], motor_info: Dict[str, Any]) -> str:
     for src in (m.get("potencia_hp_cv"), motor_info.get("potencia")):
         if not is_empty(src):

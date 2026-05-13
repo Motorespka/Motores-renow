@@ -22,6 +22,7 @@ from typing import Any, Dict
 
 import streamlit as st
 
+from utils.motor_display_hints import rpm_compact_display
 from utils.motor_hologram import hologram_choice_label, resolve_hologram_preset
 from utils.motor_hologram_glb import (
     NEMA_56_CARCACA_LEGENDA_COMPLETA,
@@ -995,7 +996,7 @@ def render_engine_hologram(
             return
 
     fins_n = _fins_html(_preset_fins_count(preset))
-    rpm = html.escape(_to_text(m.get("rpm")) or "-")
+    rpm = html.escape(rpm_compact_display(m, empty="-"))
     tensao = html.escape(_to_text(m.get("tensao")) or "-")
     corrente = html.escape(_to_text(m.get("corrente")) or "-")
     raw_plabel = hologram_choice_label(preset)

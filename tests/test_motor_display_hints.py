@@ -7,6 +7,7 @@ import unittest
 from utils.motor_display_hints import (
     parse_frequency_hz,
     parse_poles_count,
+    rpm_compact_display,
     rpm_identificacao_display,
     synchronous_rpm_theoretical,
 )
@@ -66,6 +67,28 @@ class TestMotorDisplayHints(unittest.TestCase):
         s = rpm_identificacao_display(m, motor_info)
         self.assertIn("1800", s)
         self.assertIn("síncrono", s)
+
+    def test_rpm_compact_uses_placa_when_present(self):
+        # Placa real: devolve o valor cru, sem "≈".
+        self.assertEqual(
+            rpm_compact_display({"rpm_nominal": "3450", "polos": "2P", "frequencia": "60hz"}),
+            "3450",
+        )
+        self.assertEqual(rpm_compact_display({"rpm": "1715"}), "1715")
+
+    def test_rpm_compact_uses_sync_for_consulta_textual_freq(self):
+        # Cenário real do holograma na consulta (#703): sem rpm placa,
+        # mas com polos + frequencia textual.
+        m = {"polos": "4P", "frequencia": "60hz", "rpm": "", "rpm_nominal": None}
+        self.assertEqual(rpm_compact_display(m), "≈ 1800")
+
+    def test_rpm_compact_extracts_digits_from_observation(self):
+        m = {"observacao_rpm": "rotação ~ 1800 rpm síncrona", "polos": "4P", "frequencia": "60hz"}
+        self.assertEqual(rpm_compact_display(m), "≈ 1800")
+
+    def test_rpm_compact_empty_when_no_data(self):
+        self.assertEqual(rpm_compact_display({}, empty="-"), "-")
+        self.assertEqual(rpm_compact_display({"polos": "4P"}), "—")  # falta Hz
 
 
 if __name__ == "__main__":
