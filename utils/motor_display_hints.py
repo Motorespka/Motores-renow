@@ -11,6 +11,11 @@ from typing import Any, Dict, Optional, Tuple
 
 from utils.motor_view import is_empty
 
+RPM_INFERIDO_TOOLTIP = (
+    "RPM síncrono teórico (120 · Hz ÷ polos) — placa não consta. "
+    "Sob carga, motores de indução costumam girar 3-5% abaixo do síncrono."
+)
+
 
 def _as_joined_text(value: Any) -> str:
     if isinstance(value, list):
@@ -110,6 +115,64 @@ def rpm_identificacao_display(m: Dict[str, Any], motor_info: Dict[str, Any]) -> 
         nsi = int(round(ns))
         return f"≈ {nsi} rpm (síncrono {fhz:g} Hz · {p}p; RPM placa não consta)"
     return "— (RPM placa: informe polos + Hz)"
+
+
+def is_rpm_inferred(
+    m: Dict[str, Any],
+    motor_info: Optional[Dict[str, Any]] = None,
+) -> bool:
+    """True quando o RPM exibido NÃO vem da placa (`rpm_nominal`/`rpm`).
+
+    Útil para decidir se um marcador visual (`≈`, tooltip, ícone) deve ser
+    exibido junto ao valor.
+    """
+    motor_info = motor_info if isinstance(motor_info, dict) else {}
+    for src in (
+        m.get("rpm_nominal"),
+        m.get("rpm"),
+        motor_info.get("rpm_nominal"),
+        motor_info.get("rpm"),
+    ):
+        if not is_empty(src):
+            return False
+    return True
+
+
+def rpm_numeric_for_filter(
+    m: Dict[str, Any],
+    motor_info: Optional[Dict[str, Any]] = None,
+) -> Optional[float]:
+    """Devolve um número de RPM utilizável em filtros de faixa.
+
+    Ordem de fontes (igual à do display): placa (`rpm_nominal`/`rpm`) →
+    calculado/observação (`rpm_calculado`/`observacao_rpm`) → síncrono teórico
+    (a partir de polos + Hz). Retorna `None` quando nada está disponível para
+    inferir um número (filtro deve então tratar o motor como "indefinido").
+    """
+    motor_info = motor_info if isinstance(motor_info, dict) else {}
+    for src in (
+        m.get("rpm_nominal"),
+        m.get("rpm"),
+        motor_info.get("rpm_nominal"),
+        motor_info.get("rpm"),
+        m.get("rpm_calculado"),
+        m.get("observacao_rpm"),
+        motor_info.get("rpm_calculado"),
+        motor_info.get("observacao_rpm"),
+    ):
+        txt = _as_joined_text(src)
+        if not txt or is_empty(txt):
+            continue
+        digits = re.search(r"(\d{2,5})", txt.replace(",", "."))
+        if digits:
+            try:
+                return float(digits.group(1))
+            except (TypeError, ValueError):
+                pass
+    p, fhz = merge_polos_frequency_hz(m, motor_info)
+    if p is not None and fhz is not None:
+        return synchronous_rpm_theoretical(fhz, p)
+    return None
 
 
 def rpm_compact_display(

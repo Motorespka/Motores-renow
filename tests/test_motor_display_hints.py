@@ -5,10 +5,12 @@ from __future__ import annotations
 import unittest
 
 from utils.motor_display_hints import (
+    is_rpm_inferred,
     parse_frequency_hz,
     parse_poles_count,
     rpm_compact_display,
     rpm_identificacao_display,
+    rpm_numeric_for_filter,
     synchronous_rpm_theoretical,
 )
 
@@ -89,6 +91,41 @@ class TestMotorDisplayHints(unittest.TestCase):
     def test_rpm_compact_empty_when_no_data(self):
         self.assertEqual(rpm_compact_display({}, empty="-"), "-")
         self.assertEqual(rpm_compact_display({"polos": "4P"}), "—")  # falta Hz
+
+    def test_is_rpm_inferred_false_when_placa_present(self):
+        self.assertFalse(is_rpm_inferred({"rpm_nominal": "3450"}))
+        self.assertFalse(is_rpm_inferred({"rpm": "1715"}))
+        self.assertFalse(is_rpm_inferred({}, {"rpm_nominal": "1750"}))
+
+    def test_is_rpm_inferred_true_when_only_polos_freq(self):
+        # Cenário do #703: sem placa, com polos+Hz suficientes para inferir.
+        self.assertTrue(is_rpm_inferred({"polos": "4P", "frequencia": "60hz"}))
+        # Mesmo sem polos/Hz, é considerado inferido (nada na placa).
+        self.assertTrue(is_rpm_inferred({}))
+
+    def test_rpm_numeric_for_filter_uses_placa(self):
+        self.assertEqual(rpm_numeric_for_filter({"rpm_nominal": "3450"}), 3450.0)
+        self.assertEqual(rpm_numeric_for_filter({"rpm": "1715 rpm"}), 1715.0)
+
+    def test_rpm_numeric_for_filter_uses_sync_fallback(self):
+        # Caso #703: filtro 1700-1800 deve incluir motor síncrono 1800.
+        val = rpm_numeric_for_filter({"polos": "4P", "frequencia": "60hz"})
+        self.assertIsNotNone(val)
+        self.assertAlmostEqual(val, 1800.0, places=3)
+        self.assertGreaterEqual(val, 1700)
+        self.assertLessEqual(val, 1800)
+
+    def test_rpm_numeric_for_filter_none_when_no_data(self):
+        # Sem placa, sem polos+Hz → None (filtro deve tratar como "indefinido"
+        # e manter o motor na lista, sem filtrar).
+        self.assertIsNone(rpm_numeric_for_filter({}))
+        self.assertIsNone(rpm_numeric_for_filter({"polos": "4P"}))  # falta Hz
+        self.assertIsNone(rpm_numeric_for_filter({"frequencia": "60hz"}))  # falta polos
+
+    def test_rpm_numeric_for_filter_priority(self):
+        # Quando há placa E inferência, prefere placa real.
+        m = {"rpm_nominal": "1750", "polos": "4P", "frequencia": "60hz"}
+        self.assertAlmostEqual(rpm_numeric_for_filter(m), 1750.0, places=3)
 
 
 if __name__ == "__main__":

@@ -24,7 +24,11 @@ from components.motor_hologram import render_engine_hologram
 from components.motor_inteligencia_panel import render_intel_consulta_inline
 from components.motor_rebobinagem_panel import render_rebobinagem_consulta_inline
 from services.supabase_data import clear_motores_cache, fetch_motores_cached
-from utils.motor_display_hints import rpm_identificacao_display
+from utils.motor_display_hints import (
+    rpm_compact_display,
+    rpm_identificacao_display,
+    rpm_numeric_for_filter,
+)
 from utils.motor_normalizer import normalize_motor_row_for_ui
 
 
@@ -977,7 +981,15 @@ def _consulta_paid_body_impl(ctx, admin_user: bool) -> None:
         filtrados = [m for m in filtrados if _to_text(m.get("tipo_motor")) == tipo]
     if fases != "Todos":
         filtrados = [m for m in filtrados if _to_text(m.get("fases")) == fases]
-    filtrados = [m for m in filtrados if _matches_range(_to_text(m.get("rpm")), rpm_range)]
+    def _motor_in_rpm_range(motor: Dict[str, Any]) -> bool:
+        data = motor.get("dados_tecnicos_json")
+        motor_info_inner = data.get("motor") if isinstance(data, dict) and isinstance(data.get("motor"), dict) else {}
+        val = rpm_numeric_for_filter(motor, motor_info_inner)
+        if val is None:
+            return True
+        return rpm_range[0] <= val <= rpm_range[1]
+
+    filtrados = [m for m in filtrados if _motor_in_rpm_range(m)]
 
     if revisao_filtro == "Somente com revisao sugerida":
         filtrados = [m for m in filtrados if _motor_needs_review_flag(m)]
@@ -1076,11 +1088,12 @@ def _consulta_paid_body_impl(ctx, admin_user: bool) -> None:
                 )
     
                 freq_txt = _merge_display_fields(motor_info.get("frequencia"), m.get("frequencia"))
+                rpm_sig = rpm_compact_display(m, motor_info, empty="")
                 assinatura = build_assinatura_tecnica_consulta(
                     marca_disp,
                     modelo_disp,
                     _to_text(m.get("potencia")),
-                    _to_text(m.get("rpm")),
+                    rpm_sig,
                     _to_text(m.get("polos")),
                     _to_text(m.get("tensao")),
                     freq_txt,

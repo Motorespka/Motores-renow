@@ -22,7 +22,7 @@ from typing import Any, Dict
 
 import streamlit as st
 
-from utils.motor_display_hints import rpm_compact_display
+from utils.motor_display_hints import RPM_INFERIDO_TOOLTIP, is_rpm_inferred, rpm_compact_display
 from utils.motor_hologram import hologram_choice_label, resolve_hologram_preset
 from utils.motor_hologram_glb import (
     NEMA_56_CARCACA_LEGENDA_COMPLETA,
@@ -702,7 +702,9 @@ def _build_threejs_procedural_html(
     hid_plain: str,
     carcaca_raw: str,
     hint_suffix: str = "",
+    rpm_tooltip: str = "",
 ) -> str:
+    rpm_kpi_attrs = f' title="{html.escape(rpm_tooltip)}"' if rpm_tooltip else ""
     ctx = {"preset": preset, "carcaca": carcaca_raw}
     ctx_json = json.dumps(ctx, ensure_ascii=False).replace("</", "<\\/")
     three_block = _THREE_IMPORTMAP + (
@@ -765,7 +767,7 @@ def _build_threejs_procedural_html(
       <div id="three-holo-root"></div>
     </div>
     <div class="kpis">
-      <div class="kpi">RPM <b>{rpm}</b></div>
+      <div class="kpi"{rpm_kpi_attrs}>RPM <b>{rpm}</b></div>
       <div class="kpi">V <b>{tensao}</b></div>
       <div class="kpi">A <b>{corrente}</b></div>
     </div>
@@ -793,7 +795,9 @@ def _build_css_fallback_html_legacy(
     hid_plain: str,
     *,
     for_list_card: bool = False,
+    rpm_tooltip: str = "",
 ) -> str:
+    rpm_kpi_attrs = f' title="{html.escape(rpm_tooltip)}"' if rpm_tooltip else ""
     return f"""
 <!DOCTYPE html>
 <html><head><meta charset="utf-8">
@@ -919,7 +923,7 @@ def _build_css_fallback_html_legacy(
       </div>
     </div>
     <div class="kpis">
-      <div class="kpi">RPM <b>{rpm}</b></div>
+      <div class="kpi"{rpm_kpi_attrs}>RPM <b>{rpm}</b></div>
       <div class="kpi">V <b>{tensao}</b></div>
       <div class="kpi">A <b>{corrente}</b></div>
     </div>
@@ -996,7 +1000,9 @@ def render_engine_hologram(
             return
 
     fins_n = _fins_html(_preset_fins_count(preset))
-    rpm = html.escape(rpm_compact_display(m, empty="-"))
+    rpm_raw = rpm_compact_display(m, empty="-")
+    rpm = html.escape(rpm_raw)
+    rpm_tooltip = RPM_INFERIDO_TOOLTIP if (rpm_raw not in ("-", "—") and is_rpm_inferred(m)) else ""
     tensao = html.escape(_to_text(m.get("tensao")) or "-")
     corrente = html.escape(_to_text(m.get("corrente")) or "-")
     raw_plabel = hologram_choice_label(preset)
@@ -1054,6 +1060,7 @@ def render_engine_hologram(
                 hid_attr,
                 hid_plain,
                 for_list_card=bool(list_mode),
+                rpm_tooltip=rpm_tooltip,
             )
             h = 310
         else:
@@ -1067,6 +1074,7 @@ def render_engine_hologram(
                 hid_plain,
                 carcaca_ctx,
                 hint_suffix=list_glb_hint,
+                rpm_tooltip=rpm_tooltip,
             )
             h = 340
 
