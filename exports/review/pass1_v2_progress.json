@@ -1,0 +1,418 @@
+{
+  "campaign": "PASS1_LITE_V2",
+  "generated_at": "2026-05-14T12:30:00Z",
+  "bloques_executados": [
+    {
+      "bloco": "01",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_01_flash",
+      "calls_gemini": 8,
+      "verde_seguro": 7,
+      "amarelo_manual": 1,
+      "alert_critico": 0
+    },
+    {
+      "bloco": "02",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_02_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 11,
+      "amarelo_manual": 2,
+      "alert_a07": 1,
+      "alert_basename_a07": "605028115.pdf",
+      "alert_manifest_audit_rows": 1
+    },
+    {
+      "bloco": "03",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_03_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 11,
+      "amarelo_manual": 2,
+      "alert_a07": 1,
+      "alert_basename_a07": "605028715.pdf",
+      "alert_manifest_audit_rows": 1
+    },
+    {
+      "bloco": "04",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_04_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 13,
+      "amarelo_manual": 1,
+      "alert_critico": 0
+    },
+    {
+      "bloco": "05",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_05_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 14,
+      "alert_manifest_audit_rows": 2
+    },
+    {
+      "bloco": "06",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_06_flash",
+      "calls_gemini": 13,
+      "verde_seguro": 11,
+      "alert_manifest_audit_rows": 0,
+      "amarelo_manual": 1
+    },
+    {
+      "bloco": "07",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_07_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 13,
+      "alert_manifest_audit_rows": 0,
+      "amarelo_manual": 1
+    },
+    {
+      "bloco": "08",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_08_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 12,
+      "alert_manifest_audit_rows": 0,
+      "amarelo_manual": 2
+    },
+    {
+      "bloco": "09",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_09_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 14,
+      "alert_manifest_audit_rows": 0
+    },
+    {
+      "bloco": "10",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_10_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 13,
+      "alert_manifest_audit_rows": 0,
+      "amarelo_manual": 1
+    },
+    {
+      "bloco": "11",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_11_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 11,
+      "alert_manifest_audit_rows": 1,
+      "amarelo_manual": 2
+    },
+    {
+      "bloco": "12",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_12_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 13,
+      "alert_manifest_audit_rows": 0,
+      "amarelo_manual": 1
+    },
+    {
+      "bloco": "13",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_13_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 13,
+      "alert_manifest_audit_rows": 0,
+      "amarelo_manual": 1
+    },
+    {
+      "bloco": "14",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_14_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 12,
+      "amarelo_manual": 2
+    },
+    {
+      "bloco": "15",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_15_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 12,
+      "amarelo_manual": 2
+    },
+    {
+      "bloco": "16",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_16_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 11,
+      "amarelo_manual": 3
+    },
+    {
+      "bloco": "17",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_17_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 8,
+      "amarelo_manual": 6
+    },
+    {
+      "bloco": "18",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_18_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 8,
+      "amarelo_manual": 6
+    },
+    {
+      "bloco": "19",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_19_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 10,
+      "amarelo_manual": 4
+    },
+    {
+      "bloco": "20",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_20_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 9,
+      "amarelo_manual": 3
+    },
+    {
+      "bloco": "21",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_21_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 11,
+      "amarelo_manual": 3
+    },
+    {
+      "bloco": "22",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_22_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 12,
+      "amarelo_manual": 2
+    },
+    {
+      "bloco": "23",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_23_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 9,
+      "amarelo_manual": 5
+    },
+    {
+      "bloco": "24",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_24_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 11,
+      "amarelo_manual": 3
+    },
+    {
+      "bloco": "25",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_25_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 8,
+      "amarelo_manual": 6
+    },
+    {
+      "bloco": "26",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_26_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 14
+    },
+    {
+      "bloco": "27",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_27_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 9,
+      "amarelo_manual": 5
+    },
+    {
+      "bloco": "28",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_28_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 11,
+      "amarelo_manual": 3
+    }
+  ],
+  "totais_acumulados_v2": {
+    "ficheiros_processados_v2": 380,
+    "chamadas_gemini_v2": 385,
+    "verde_seguro_total_manifests_v2": 311,
+    "verde_com_alerta_total_v2": 1,
+    "amarelo_isolado_total_manual_csv_v2": 68,
+    "vermelho_total_v2": 0,
+    "quota_429_total_v2": 0,
+    "pausa_infra_v2": 0,
+    "cooldown_v2": 0,
+    "no_keys_v2": 0
+  },
+  "taxas": {
+    "taxa_verde_seguro_pura_v2": "311/380 = 81.84%",
+    "taxa_verde_ampla_v2": "312/380 = 82.11% (verde_seguro + verde_com_alerta)",
+    "nota": "Não extrapolar para o pool 480."
+  },
+  "pool_pass1_v2": {
+    "pool_inicial_sha_estimado": 480,
+    "sha_consumidos_no_pool_filas_acumulado": 380,
+    "pass1_v2_eligible_restante_apos_bloco04_filas_e_no_auto": 430,
+    "sha_elegivel_para_bloco_05_cap_14": 14,
+    "linhas_emitidas_prep_bloco_05_cap_14": 14,
+    "ultima_actualizacao_reconcile": {
+      "block": 28,
+      "incremento_alert_manifest": 0,
+      "incremento_manual": 3
+    }
+  },
+  "estado": {
+    "veredicto": "CONTINUAR_PASS1_V2",
+    "recomendacao_proximo_passo": "Gates antes extract seguinte ou rebuild master (ver fase atual). Próximo bloco fila: 29."
+  },
+  "relatorio_consolidado_pos_b28": {
+    "gerado_em": "2026-05-14T12:30:00Z",
+    "master_release_v2_oficial_linhas": 737,
+    "blocos_26_a_28_verde_seguro": 34,
+    "blocos_26_a_28_amarelo_manual": 8,
+    "documentacao_markdown": "docs/reports/pass1_v2_consolidado_pos_b28.md",
+    "nota": "737 = linhas OFICIAL em exports/review/master_release_v2_manifest.csv após --phase 7b26, 7b27 e 7b28."
+  },
+  "sessao_7a12_cont": {
+    "abortou_em": "7A.14_gates_antes_extract_b07",
+    "apos_extra_b06_consumo_quota": {
+      "check_gemini_ok": 11,
+      "quota_exhausted": 3,
+      "uq_eligible": 11
+    },
+    "criterio_relaxado_sessao": {
+      "ok_min": 13,
+      "quota_exhausted_max": 1,
+      "uq_eligible_min": 13
+    },
+    "nota": "Extract b06 usou 13 chamadas; estado das chaves degradou abaixo do limite relaxado antes de b07."
+  },
+  "clusters_alertas_A_star_acumulado_v2": [
+    {
+      "bloco": "02",
+      "arquivo": "605028115.pdf",
+      "codigo_critico": "A07_potencia_decimal_sem_evidencia_frac_potencia_cv=12,5",
+      "registro": "VERDE_COM_ALERTA_COM_OBSERVACAO_A07"
+    },
+    {
+      "bloco": "03",
+      "arquivo": "605028715.pdf",
+      "codigo_critico": "A07_potencia_decimal_sem_evidencia_frac_potencia_cv=12,5",
+      "registro": "VERDE_COM_ALERTA_COM_OBSERVACAO_A07"
+    },
+    {
+      "bloco": "04",
+      "arquivo": "(nenhum)",
+      "codigo_critico": "",
+      "registro": "sem_A_critico_no_bloco"
+    },
+    {
+      "bloco": "05",
+      "arquivos": [
+        "605029115.pdf",
+        "605029315.pdf"
+      ],
+      "n_alert_manifest": 2,
+      "codigo exemplo": "A07_potencia_decimal_sem_evidencia_frac_potencia_cv=12,5",
+      "registro": "alert_manifest_paralelo_vs_resolved"
+    },
+    {
+      "bloco": "11",
+      "arquivos": [
+        "605041001.pdf"
+      ],
+      "n_alert_manifest": 1,
+      "codigo exemplo": "A08_rpm_fora_faixa_polos_4p_(1200-1900)_rpm=3583",
+      "registro": "alert_manifest_paralelo_vs_resolved"
+    }
+  ],
+  "confirmacao": {
+    "retry_cleanup_progress_alterado": false,
+    "release_retry_flash_fase6_v1_alterado": false,
+    "manifests_retry_flash_alterados": false,
+    "master_release_v2_alterado": true,
+    "artefactos_retry_release_master_nao_tocados_nesta_fase": true
+  },
+  "NO_AUTO_PASS1_V2_QUEUE_BASENAMES": [
+    "605028011.pdf",
+    "605028105.pdf",
+    "605028115.pdf",
+    "605028315.pdf",
+    "605028711.pdf",
+    "605028714.pdf",
+    "605028715.pdf",
+    "605029010.pdf",
+    "605029115.pdf",
+    "605029315.pdf",
+    "605030003.pdf",
+    "605034002.pdf",
+    "605034007.pdf",
+    "605034008.pdf",
+    "605038010.pdf",
+    "605042002.pdf",
+    "605042034.pdf",
+    "605042047.pdf",
+    "605042111.pdf",
+    "605042171.pdf",
+    "605042175.pdf",
+    "605042195.pdf",
+    "605042208.pdf",
+    "605042214.pdf",
+    "605042219.pdf",
+    "605042225.pdf",
+    "605042246.pdf",
+    "605042249.pdf",
+    "605042252.pdf",
+    "605042259.pdf",
+    "605042264.pdf",
+    "605042267.pdf",
+    "605042273.pdf",
+    "605042282.pdf",
+    "605042298.pdf",
+    "605042303.pdf",
+    "605042304.pdf",
+    "605042306.pdf",
+    "605042308.pdf",
+    "605042310.pdf",
+    "605042319.pdf",
+    "605042325 (2).pdf",
+    "605042352.pdf",
+    "605042356.pdf",
+    "605042358.pdf",
+    "605042371.pdf",
+    "605042386.pdf",
+    "605042394.pdf",
+    "605042421.pdf",
+    "605042439.pdf",
+    "605042441.pdf",
+    "605042451.pdf",
+    "605042463.pdf",
+    "605042465.pdf",
+    "605042468.pdf",
+    "605042474.pdf",
+    "605042486.pdf",
+    "605042501.pdf",
+    "605042504.pdf",
+    "605042509.pdf",
+    "605042511.pdf",
+    "605042513.pdf",
+    "605042514.pdf",
+    "605042525.pdf",
+    "605042605.pdf",
+    "605042607.pdf",
+    "605042619.pdf",
+    "605042620.pdf",
+    "605042623.pdf",
+    "605044009.pdf",
+    "605044010.pdf",
+    "605046020.pdf"
+  ],
+  "deferred_due_to_uq14_quota": [],
+  "relaxamento_gate_aplicado_apenas_nesta_sessao": true,
+  "relaxamento_gate_motivo": "UQ_14 quota_exhausted; 13 chaves OK suficientes para bloco de 13",
+  "relaxamento_gate_volta_a_estrito_na_proxima_sessao": true,
+  "deferred_consumidos": [
+    {
+      "basename": "605031002.pdf",
+      "origem": "pass1_v2_block_06.csv sort=14",
+      "consumido_em": "extraidos_motor_fase7a_pass1_v2_block_07_flash",
+      "outcome": "VERDE_SEGURO",
+      "sha256_arquivo": "a5534f40f305fe6b667c3f62a0f4fd97ff51bc88086fd9767b77fbcc762e6a24",
+      "fase_reconcile": "7A.15"
+    }
+  ],
+  "deferred_tail_pending": [],
+  "fase_7a17_deferred_tail": {
+    "basename_consumido": "605034007.pdf",
+    "outcome": "AMARELO_REVISAR_manual_e_NO_AUTO",
+    "nota": "Tail sort=14 do prep pass1_v2_block_07.csv processado como sort=1 do pass1_v2_block_08.csv (7A.16)."
+  },
+  "metricas_alinhamento_fase7a17": {
+    "processados_v2": 105,
+    "verde_seguro_oficial_v2": 92,
+    "verde_com_alerta_v2": 4,
+    "amarelo_manual_v2": 10,
+    "vermelho_v2": 0
+  }
+}
