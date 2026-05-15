@@ -1,6 +1,6 @@
 {
   "campaign": "PASS1_LITE_V2",
-  "generated_at": "2026-05-15T00:44:35Z",
+  "generated_at": "2026-05-15T00:53:10Z",
   "bloques_executados": [
     {
       "bloco": "01",
@@ -231,14 +231,21 @@
       "calls_gemini": 14,
       "verde_seguro": 12,
       "amarelo_manual": 2
+    },
+    {
+      "bloco": "32",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_32_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 12,
+      "amarelo_manual": 2
     }
   ],
   "totais_acumulados_v2": {
-    "ficheiros_processados_v2": 422,
-    "chamadas_gemini_v2": 427,
-    "verde_seguro_total_manifests_v2": 348,
+    "ficheiros_processados_v2": 436,
+    "chamadas_gemini_v2": 441,
+    "verde_seguro_total_manifests_v2": 360,
     "verde_com_alerta_total_v2": 1,
-    "amarelo_isolado_total_manual_csv_v2": 73,
+    "amarelo_isolado_total_manual_csv_v2": 75,
     "vermelho_total_v2": 0,
     "quota_429_total_v2": 0,
     "pausa_infra_v2": 0,
@@ -246,25 +253,25 @@
     "no_keys_v2": 0
   },
   "taxas": {
-    "taxa_verde_seguro_pura_v2": "348/422 = 82.46%",
-    "taxa_verde_ampla_v2": "349/422 = 82.70% (verde_seguro + verde_com_alerta)",
+    "taxa_verde_seguro_pura_v2": "360/436 = 82.57%",
+    "taxa_verde_ampla_v2": "361/436 = 82.80% (verde_seguro + verde_com_alerta)",
     "nota": "Não extrapolar para o pool 480."
   },
   "pool_pass1_v2": {
     "pool_inicial_sha_estimado": 480,
-    "sha_consumidos_no_pool_filas_acumulado": 422,
+    "sha_consumidos_no_pool_filas_acumulado": 436,
     "pass1_v2_eligible_restante_apos_bloco04_filas_e_no_auto": 430,
     "sha_elegivel_para_bloco_05_cap_14": 14,
     "linhas_emitidas_prep_bloco_05_cap_14": 14,
     "ultima_actualizacao_reconcile": {
-      "block": 31,
+      "block": 32,
       "incremento_alert_manifest": 0,
       "incremento_manual": 2
     }
   },
   "estado": {
     "veredicto": "CONTINUAR_PASS1_V2",
-    "recomendacao_proximo_passo": "Gates antes extract seguinte ou rebuild master (ver fase atual). Próximo bloco fila: 32."
+    "recomendacao_proximo_passo": "Gates antes extract seguinte ou rebuild master (ver fase atual). Próximo bloco fila: 33."
   },
   "relatorio_consolidado_pos_b28": {
     "gerado_em": "2026-05-14T12:30:00Z",
@@ -411,7 +418,9 @@
     "605046031.pdf",
     "605052005.pdf",
     "605058004.pdf",
-    "605058006.pdf"
+    "605058006.pdf",
+    "605060004.pdf",
+    "605061007.pdf"
   ],
   "deferred_due_to_uq14_quota": [],
   "relaxamento_gate_aplicado_apenas_nesta_sessao": true,

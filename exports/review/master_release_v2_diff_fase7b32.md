@@ -1,0 +1,36 @@
+# Diff `fase7b32` (`2026-05-15T00:53:10Z`)
+
+## Resumo
+
+- **Δ OFICIAL** vs ficheiro anterior: **+12** (antes **774**, depois **786**)
+- **SHA `PASS1_V2_BLOCO_32_RECONCILIADO`** na linha mestre OFICIAL: **12** (resolved tinha **12**) ; alert/manual excluem via regras a/b/c)
+
+## Conferência PROMOTED (ordenado)
+
+- Primeira: drive-download-20260403T124026Z-3-001_224929\605060006.pdf | `e192b6d2e166e1e230789029771d1f854b81195e51c708e4c7aede51e7c41ae8`
+- Última: drive-download-20260403T124026Z-3-001_224929\605062008.pdf | `562de835f735fbe7eb4873a5a4183eaec95b3b2caae7c085d97f69109538f7cf`
+
+```text
+e192b6d2e166e1e230789029771d1f854b81195e51c708e4c7aede51e7c41ae8
+cc4ceb20d8d57f1a0e18f464462b4570909a82cf8ffdfde6ce2458d25f2e4222
+46cfe83e52cb48b669a85cbbd875aae2049a5ab0b6dc1d03076e2eac530a6467
+16c79bc5a84daeacf6e4cafbfa0b5a1a4e5792d10fd53187492fc065a6120dc1
+9ec6b2d6d3647d0e15080a22f9ea75dc51b27991a5a9e2f338b86f9f2e1d4a81
+a14257852c5ce0e2fb79985556e9ce7d74e79826a84e300bc5495a6a56341121
+8ba134c16c6703d2850a233b17871429410a5a5e6d84aac2e75f8732b7b2fa4f
+995f5d830fe74b911169d578d672435d6dc5074fa80452e1e731149cd9c81319
+35eb1c42460c7952539cdd0c3181b7e2c71c9859ff25a19bd09e34d81bc8181f
+c1dd910bea4946d06ef24485d422f68b03f52e0bbf94021c04c5b4576f459a45
+495ef9dd4cb706893b44218e09c15bc1b2e172fcdef541a955cd754daa24c34c
+562de835f735fbe7eb4873a5a4183eaec95b3b2caae7c085d97f69109538f7cf
+```
+
+## Extra inesperado além promoted
+```text
+(vazio)
+```
+
+## Shaíram DO OFICIAL
+```text
+(vazio)
+```
