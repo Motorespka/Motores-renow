@@ -1,8 +1,8 @@
-# Master release v2 (2026-05-15T21:15:18Z) — `7B.34 — B34`
+# Master release v2 (2026-05-15T21:44:47Z) — `7B.35 — B35`
 
 ## Totais OFICIAL
 
-- **OFICIAL_total**: **808**
+- **OFICIAL_total**: **811**
 - **CANDIDATO** bloco 02 safe_green legacy: **0**
 
 ### OFICIAL por `fonte_release`
@@ -44,12 +44,13 @@
 - **PASS1_V2_BLOCO_18_RECONCILIADO**: **8**
 - **PASS1_V2_BLOCO_25_RECONCILIADO**: **8**
 - **PASS1_V2_BLOCO_01_RECONCILIADO**: **7**
+- **PASS1_V2_BLOCO_35_RECONCILIADO**: **3**
 
-## Comparativo (run `7b34`)
+## Comparativo (run `7b35`)
 
-- OFICIAL antes (ficheiro anterior): **796**
-- OFICIAL agora: **808** (**Δ=+12**)
-- SHA **`PASS1_V2_BLOCO_34_RECONCILIADO`** presentes como OFICIAL: **12** (diff: `master_release_v2_diff_fase7b34.md`)
+- OFICIAL antes (ficheiro anterior): **808**
+- OFICIAL agora: **811** (**Δ=+3**)
+- SHA **`PASS1_V2_BLOCO_35_RECONCILIADO`** presentes como OFICIAL: **3** (diff: `master_release_v2_diff_fase7b35.md`)
 
 ## Basenames políticos (`pass1_v2_progress.NO_AUTO` + isolados retry)
 
@@ -146,6 +147,11 @@
 605065008.pdf
 605066008.pdf
 esquema eletrico geradores branco.pdf
+esquema vent. de ar.pdf
+rot.pdf
+ventilador 3 velocidades.pdf
+ventiladores 2.pdf
+ventiladores 3.pdf
 ```
 
-- **GAP 1600**: **792** · **Recomendação**: `ENTREGAVEL_PARA_DEPLOY_PILOTO_AMPLIADO_v2`
+- **GAP 1600**: **789** · **Recomendação**: `ENTREGAVEL_PARA_DEPLOY_PILOTO_AMPLIADO_v2`
