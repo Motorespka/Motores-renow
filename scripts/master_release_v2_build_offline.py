@@ -61,7 +61,10 @@ PHASE_7B26 = "7b26"
 PHASE_7B27 = "7b27"
 PHASE_7B28 = "7b28"
 PHASE_7B29 = "7b29"
+PHASE_7B30 = "7b30"
 
+# 7B.30: B30 acima de B29 (prio mais baixo = ganha)
+PRIO_PASS1_B30 = -26
 # 7B.29: B29 acima de B28 (prio mais baixo = ganha)
 PRIO_PASS1_B29 = -25
 # 7B.28: B28 acima de B27 (prio mais baixo = ganha)
@@ -284,8 +287,9 @@ def load_official_manifest_union(review_dir: Path) -> tuple[dict[str, tuple[int,
                 }
                 winners[sh] = best_manifest_row(winners.get(sh), prio_val, tag_name, r)
 
-    # 7B.29..25: blocos recentes — mesma lógica auto-detect plain/union.
+    # 7B.30..25: blocos recentes — mesma lógica auto-detect plain/union.
     for _bn, _prio in (
+        (30, PRIO_PASS1_B30),
         (29, PRIO_PASS1_B29),
         (28, PRIO_PASS1_B28),
         (27, PRIO_PASS1_B27),
@@ -668,7 +672,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Rebuild master_release_v2 offline (FASE 7B.x).")
     ap.add_argument(
         "--phase",
-        choices=("7b4", "7b5", "7b6", "7b7", "7b8", "7b9", "7b10", "7b11", "7b12", "7b13", "7b14", "7b15", "7b16", PHASE_7B17, PHASE_7B18, PHASE_7B19, PHASE_7B20, PHASE_7B21, PHASE_7B22, PHASE_7B23, PHASE_7B24, PHASE_7B25, PHASE_7B26, PHASE_7B27, PHASE_7B28, PHASE_7B29),
+        choices=("7b4", "7b5", "7b6", "7b7", "7b8", "7b9", "7b10", "7b11", "7b12", "7b13", "7b14", "7b15", "7b16", PHASE_7B17, PHASE_7B18, PHASE_7B19, PHASE_7B20, PHASE_7B21, PHASE_7B22, PHASE_7B23, PHASE_7B24, PHASE_7B25, PHASE_7B26, PHASE_7B27, PHASE_7B28, PHASE_7B29, PHASE_7B30),
         default="7b4",
         help="Fase de promoção incremental.",
     )
@@ -702,8 +706,9 @@ def main() -> int:
         PHASE_7B27: "fase7b27",
         PHASE_7B28: "fase7b28",
         PHASE_7B29: "fase7b29",
+        PHASE_7B30: "fase7b30",
     }[phase_slug]
-    promoted_bn = {"7b4": 4, "7b5": 5, "7b6": 6, "7b7": 7, "7b8": 8, "7b9": 9, "7b10": 10, "7b11": 11, "7b12": 12, "7b13": 13, "7b14": 14, "7b15": 15, "7b16": 16, PHASE_7B17: 17, PHASE_7B18: 18, PHASE_7B19: 19, PHASE_7B20: 20, PHASE_7B21: 21, PHASE_7B22: 22, PHASE_7B23: 23, PHASE_7B24: 24, PHASE_7B25: 25, PHASE_7B26: 26, PHASE_7B27: 27, PHASE_7B28: 28, PHASE_7B29: 29}[phase_slug]
+    promoted_bn = {"7b4": 4, "7b5": 5, "7b6": 6, "7b7": 7, "7b8": 8, "7b9": 9, "7b10": 10, "7b11": 11, "7b12": 12, "7b13": 13, "7b14": 14, "7b15": 15, "7b16": 16, PHASE_7B17: 17, PHASE_7B18: 18, PHASE_7B19: 19, PHASE_7B20: 20, PHASE_7B21: 21, PHASE_7B22: 22, PHASE_7B23: 23, PHASE_7B24: 24, PHASE_7B25: 25, PHASE_7B26: 26, PHASE_7B27: 27, PHASE_7B28: 28, PHASE_7B29: 29, PHASE_7B30: 30}[phase_slug]
     diff_name = f"master_release_v2_diff_{phase_tag}.md"
 
     utc = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -1136,6 +1141,7 @@ def main() -> int:
         PHASE_7B27: "7B.27 — B27",
         PHASE_7B28: "7B.28 — B28",
         PHASE_7B29: "7B.29 — B29",
+        PHASE_7B30: "7B.30 — B30",
     }[phase_slug]
 
     expect_total_window = {
@@ -1181,6 +1187,8 @@ def main() -> int:
         PHASE_7B28: (726, 742),
         # 7B.29: baseline pós-B28 (~737 OFICIAL) + até 11 VERDE_SEGURO típicos do bloco.
         PHASE_7B29: (738, 755),
+        # 7B.30: baseline pós-B29 (~748 OFICIAL) + até 14 VERDE_SEGURO típicos do bloco.
+        PHASE_7B30: (752, 772),
     }
     wl, wh = expect_total_window[phase_slug]
 
@@ -1234,6 +1242,7 @@ def main() -> int:
             "OFICIAL_total_janela_esperado": {"min": wl, "max": wh, "ok": wl <= oficiais <= wh},
             "PASS1_promoted_OFICIAL_count": len(sha_promo_ord),
             "PROMOCAO_MANUAL_REVISADA_CURSOR_OFICIAL": br_fonte_of.get("PROMOCAO_MANUAL_REVISADA_CURSOR", 0),
+            "PASS1_V2_B30_OFICIAL": br_fonte_of.get("PASS1_V2_BLOCO_30_RECONCILIADO", 0),
             "PASS1_V2_B29_OFICIAL": br_fonte_of.get("PASS1_V2_BLOCO_29_RECONCILIADO", 0),
             "PASS1_V2_B28_OFICIAL": br_fonte_of.get("PASS1_V2_BLOCO_28_RECONCILIADO", 0),
             "PASS1_V2_B27_OFICIAL": br_fonte_of.get("PASS1_V2_BLOCO_27_RECONCILIADO", 0),

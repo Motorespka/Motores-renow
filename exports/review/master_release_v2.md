@@ -1,8 +1,8 @@
-# Master release v2 (2026-05-14T23:50:47Z) — `7B.29 — B29`
+# Master release v2 (2026-05-15T00:06:38Z) — `7B.30 — B30`
 
 ## Totais OFICIAL
 
-- **OFICIAL_total**: **748**
+- **OFICIAL_total**: **762**
 - **CANDIDATO** bloco 02 safe_green legacy: **0**
 
 ### OFICIAL por `fonte_release`
@@ -12,6 +12,7 @@
 - **PROMOCAO_MANUAL_REVISADA_CURSOR**: **26**
 - **PASS1_V2_BLOCO_09_RECONCILIADO**: **14**
 - **PASS1_V2_BLOCO_26_RECONCILIADO**: **14**
+- **PASS1_V2_BLOCO_30_RECONCILIADO**: **14**
 - **PASS1_V2_BLOCO_04_RECONCILIADO**: **13**
 - **PASS1_V2_BLOCO_07_RECONCILIADO**: **13**
 - **PASS1_V2_BLOCO_10_RECONCILIADO**: **13**
@@ -40,11 +41,11 @@
 - **PASS1_V2_BLOCO_25_RECONCILIADO**: **8**
 - **PASS1_V2_BLOCO_01_RECONCILIADO**: **7**
 
-## Comparativo (run `7b29`)
+## Comparativo (run `7b30`)
 
-- OFICIAL antes (ficheiro anterior): **737**
-- OFICIAL agora: **748** (**Δ=+11**)
-- SHA **`PASS1_V2_BLOCO_29_RECONCILIADO`** presentes como OFICIAL: **11** (diff: `master_release_v2_diff_fase7b29.md`)
+- OFICIAL antes (ficheiro anterior): **748**
+- OFICIAL agora: **762** (**Δ=+14**)
+- SHA **`PASS1_V2_BLOCO_30_RECONCILIADO`** presentes como OFICIAL: **14** (diff: `master_release_v2_diff_fase7b30.md`)
 
 ## Basenames políticos (`pass1_v2_progress.NO_AUTO` + isolados retry)
 
@@ -134,4 +135,4 @@
 605052005.pdf
 ```
 
-- **GAP 1600**: **852** · **Recomendação**: `ENTREGAVEL_PARA_DEPLOY_PILOTO_AMPLIADO_v2`
+- **GAP 1600**: **838** · **Recomendação**: `ENTREGAVEL_PARA_DEPLOY_PILOTO_AMPLIADO_v2`
