@@ -68,7 +68,10 @@ PHASE_7B33 = "7b33"
 PHASE_7B34 = "7b34"
 PHASE_7B35 = "7b35"
 PHASE_7B36 = "7b36"
+PHASE_7B37 = "7b37"
 
+# 7B.37: B37 acima de B36 (prio mais baixo = ganha)
+PRIO_PASS1_B37 = -33
 # 7B.36: B36 acima de B35 (prio mais baixo = ganha)
 PRIO_PASS1_B36 = -32
 # 7B.35: B35 acima de B34 (prio mais baixo = ganha)
@@ -305,8 +308,9 @@ def load_official_manifest_union(review_dir: Path) -> tuple[dict[str, tuple[int,
                 }
                 winners[sh] = best_manifest_row(winners.get(sh), prio_val, tag_name, r)
 
-    # 7B.36..25: blocos recentes — mesma lógica auto-detect plain/union.
+    # 7B.37..25: blocos recentes — mesma lógica auto-detect plain/union.
     for _bn, _prio in (
+        (37, PRIO_PASS1_B37),
         (36, PRIO_PASS1_B36),
         (35, PRIO_PASS1_B35),
         (34, PRIO_PASS1_B34),
@@ -688,31 +692,85 @@ def _read_resolved_verde_shas(path: Path) -> set[str]:
     return s
 
 
-def load_b36_rescue_amnesty_shas(
+_RESCUE_BLOCK_RE = re.compile(r"pass1_v2_block_(\d+)_rescue_emit\.json$", re.I)
+_RESCUE_QUEUE_RE = re.compile(r"pass1_v2_block_(\d+)\.csv$", re.I)
+
+
+def discover_rescue_block_nums(review_dir: Path) -> set[int]:
+    """Blocos emitidos pela operacao resgate (JSON emit ou fila com reason operacao_rescue)."""
+    nums: set[int] = set()
+    for p in review_dir.glob("pass1_v2_block_*_rescue_emit.json"):
+        m = _RESCUE_BLOCK_RE.match(p.name)
+        if m:
+            nums.add(int(m.group(1)))
+    for p in review_dir.glob("pass1_v2_block_*.csv"):
+        m = _RESCUE_QUEUE_RE.match(p.name)
+        if not m:
+            continue
+        bn = int(m.group(1))
+        with p.open(encoding="utf-8-sig", newline="") as f:
+            for row in csv.DictReader(f):
+                reason = _t(row.get("reason", "")).lower()
+                motivo = _t(row.get("motivo_interno", "")).lower()
+                if "operacao_rescue" in reason or "operacao_rescue" in motivo:
+                    nums.add(bn)
+                break
+    return nums
+
+
+def _resolved_row_is_rescue(row: dict) -> bool:
+    """Flag no resolved manifest / reconcile outcome indicando bloco de resgate."""
+    blob = "|".join(
+        _t(row.get(k, "")).lower()
+        for k in (
+            "motivo_interno",
+            "reconcile_outcome",
+            "extract_status",
+            "reason",
+        )
+    )
+    return "operacao_rescue" in blob or "rescue" in blob and "pass1" in blob
+
+
+def load_rescue_amnesty_shas(
     review_dir: Path,
     manifest_winners: dict[str, tuple[int, str, dict]],
-) -> set[str]:
+) -> tuple[set[str], set[str]]:
     """
-    Operacao resgate B36: SHAs reconciliados VERDE_SEGURO / VERDE_COM_ALERTA cuja
-    fonte vencedora na uniao e PASS1_V2_BLOCO_36_RECONCILIADO (indulto regras b/c).
+    Operacao resgate (B36, B37, …): SHAs VERDE reconciliados em blocos de resgate
+    cuja fonte vencedora na uniao e PASS1_V2_BLOCO_NN_RECONCILIADO (indulto regras b/c).
+    Retorna (shas, fonte_release_tags).
     """
-    tag = _pass1_tag(36)
-    path = review_dir / "extraidos_motor_fase7a_pass1_v2_block_36_resolved_manifest.csv"
-    out: set[str] = set()
-    if not path.is_file():
-        return out
-    with path.open(encoding="utf-8-sig", newline="") as f:
-        for row in csv.DictReader(f):
-            cat = _t(row.get("categoria_pos_auditoria")).upper()
-            if cat not in ("VERDE_SEGURO", "VERDE_COM_ALERTA"):
+    shas: set[str] = set()
+    tags: set[str] = set()
+    rescue_bns = discover_rescue_block_nums(review_dir)
+    for p in sorted(review_dir.glob("extraidos_motor_fase7a_pass1_v2_block_*_resolved_manifest.csv")):
+        m = re.search(r"block_(\d+)_resolved_manifest\.csv$", p.name, re.I)
+        if not m:
+            continue
+        bn = int(m.group(1))
+        if bn not in rescue_bns:
+            with p.open(encoding="utf-8-sig", newline="") as f:
+                has_rescue_flag = any(_resolved_row_is_rescue(r) for r in csv.DictReader(f))
+            if not has_rescue_flag:
                 continue
-            sh = _t(row.get("sha256_arquivo")).lower()
-            if not sh:
-                continue
-            winner = manifest_winners.get(sh)
-            if winner and winner[1] == tag:
-                out.add(sh)
-    return out
+            rescue_bns.add(bn)
+        tag = _pass1_tag(bn)
+        if not p.is_file():
+            continue
+        with p.open(encoding="utf-8-sig", newline="") as f:
+            for row in csv.DictReader(f):
+                cat = _t(row.get("categoria_pos_auditoria")).upper()
+                if cat not in ("VERDE_SEGURO", "VERDE_COM_ALERTA"):
+                    continue
+                sh = _t(row.get("sha256_arquivo")).lower()
+                if not sh:
+                    continue
+                winner = manifest_winners.get(sh)
+                if winner and winner[1] == tag:
+                    shas.add(sh)
+                    tags.add(tag)
+    return shas, tags
 
 
 def _pass1_tag(bn: int) -> str:
@@ -723,7 +781,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Rebuild master_release_v2 offline (FASE 7B.x).")
     ap.add_argument(
         "--phase",
-        choices=("7b4", "7b5", "7b6", "7b7", "7b8", "7b9", "7b10", "7b11", "7b12", "7b13", "7b14", "7b15", "7b16", PHASE_7B17, PHASE_7B18, PHASE_7B19, PHASE_7B20, PHASE_7B21, PHASE_7B22, PHASE_7B23, PHASE_7B24, PHASE_7B25, PHASE_7B26, PHASE_7B27, PHASE_7B28, PHASE_7B29, PHASE_7B30, PHASE_7B31, PHASE_7B32, PHASE_7B33, PHASE_7B34, PHASE_7B35, PHASE_7B36),
+        choices=("7b4", "7b5", "7b6", "7b7", "7b8", "7b9", "7b10", "7b11", "7b12", "7b13", "7b14", "7b15", "7b16", PHASE_7B17, PHASE_7B18, PHASE_7B19, PHASE_7B20, PHASE_7B21, PHASE_7B22, PHASE_7B23, PHASE_7B24, PHASE_7B25, PHASE_7B26, PHASE_7B27, PHASE_7B28, PHASE_7B29, PHASE_7B30, PHASE_7B31, PHASE_7B32, PHASE_7B33, PHASE_7B34, PHASE_7B35, PHASE_7B36, PHASE_7B37),
         default="7b4",
         help="Fase de promoção incremental.",
     )
@@ -764,8 +822,9 @@ def main() -> int:
         PHASE_7B34: "fase7b34",
         PHASE_7B35: "fase7b35",
         PHASE_7B36: "fase7b36",
+        PHASE_7B37: "fase7b37",
     }[phase_slug]
-    promoted_bn = {"7b4": 4, "7b5": 5, "7b6": 6, "7b7": 7, "7b8": 8, "7b9": 9, "7b10": 10, "7b11": 11, "7b12": 12, "7b13": 13, "7b14": 14, "7b15": 15, "7b16": 16, PHASE_7B17: 17, PHASE_7B18: 18, PHASE_7B19: 19, PHASE_7B20: 20, PHASE_7B21: 21, PHASE_7B22: 22, PHASE_7B23: 23, PHASE_7B24: 24, PHASE_7B25: 25, PHASE_7B26: 26, PHASE_7B27: 27, PHASE_7B28: 28, PHASE_7B29: 29, PHASE_7B30: 30, PHASE_7B31: 31, PHASE_7B32: 32, PHASE_7B33: 33, PHASE_7B34: 34, PHASE_7B35: 35, PHASE_7B36: 36}[phase_slug]
+    promoted_bn = {"7b4": 4, "7b5": 5, "7b6": 6, "7b7": 7, "7b8": 8, "7b9": 9, "7b10": 10, "7b11": 11, "7b12": 12, "7b13": 13, "7b14": 14, "7b15": 15, "7b16": 16, PHASE_7B17: 17, PHASE_7B18: 18, PHASE_7B19: 19, PHASE_7B20: 20, PHASE_7B21: 21, PHASE_7B22: 22, PHASE_7B23: 23, PHASE_7B24: 24, PHASE_7B25: 25, PHASE_7B26: 26, PHASE_7B27: 27, PHASE_7B28: 28, PHASE_7B29: 29, PHASE_7B30: 30, PHASE_7B31: 31, PHASE_7B32: 32, PHASE_7B33: 33, PHASE_7B34: 34, PHASE_7B35: 35, PHASE_7B36: 36, PHASE_7B37: 37}[phase_slug]
     diff_name = f"master_release_v2_diff_{phase_tag}.md"
 
     utc = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -865,8 +924,7 @@ def main() -> int:
     alert_shas = collect_alert_shas_extended(REVIEW_DIR)
     manual_csv_shas = collect_manual_shas_extended(REVIEW_DIR)
     manifest_winners, sha_manifest_oficial = load_official_manifest_union(REVIEW_DIR)
-    b36_rescue_amnesty_shas = load_b36_rescue_amnesty_shas(REVIEW_DIR, manifest_winners)
-    b36_rescue_tag = _pass1_tag(36)
+    rescue_amnesty_shas, rescue_amnesty_tags = load_rescue_amnesty_shas(REVIEW_DIR, manifest_winners)
 
     rv1_sha_set: set[str] = set()
     if rv1_path.is_file():
@@ -969,13 +1027,13 @@ def main() -> int:
         # PROMOCAO_MANUAL_REVISADA_CURSOR e' aprovacao humana explicita: ignora a/b/c.
         if ftag == "PROMOCAO_MANUAL_REVISADA_CURSOR":
             return []
-        # Resgate B36: indulto historico NO_AUTO (c) e manual_review (b); regra (a) mantida.
-        b36_rescue = ftag == b36_rescue_tag or sh in b36_rescue_amnesty_shas
+        # Resgate PASS1 (B36+): indulto historico NO_AUTO (c) e manual_review (b); regra (a) mantida.
+        rescue_bypass_bc = ftag in rescue_amnesty_tags or sh in rescue_amnesty_shas
         bm = basename_lower(ar)
         ms: list[str] = []
         if sh in alert_shas:
             ms.append("IN_ALERT_MANIFEST_a")
-        if not b36_rescue:
+        if not rescue_bypass_bc:
             if sh in manual_csv_shas:
                 ms.append("IN_MANUAL_REVIEW_b")
             if bm in forbidden_bn_all:
@@ -1210,6 +1268,7 @@ def main() -> int:
         PHASE_7B34: "7B.34 — B34",
         PHASE_7B35: "7B.35 — B35",
         PHASE_7B36: "7B.36 — B36 (operação resgate)",
+        PHASE_7B37: "7B.37 — B37 (operação resgate)",
     }[phase_slug]
 
     expect_total_window = {
@@ -1269,6 +1328,8 @@ def main() -> int:
         PHASE_7B35: (808, 820),
         # 7B.36: baseline pós-B35 (~811 OFICIAL) + 14 promovidos (operação resgate, union VCA).
         PHASE_7B36: (820, 830),
+        # 7B.37: baseline pós-B36 (~825 OFICIAL) + até 14 promovidos (resgate, union VCA).
+        PHASE_7B37: (835, 845),
     }
     wl, wh = expect_total_window[phase_slug]
 
@@ -1322,7 +1383,9 @@ def main() -> int:
             "OFICIAL_total_janela_esperado": {"min": wl, "max": wh, "ok": wl <= oficiais <= wh},
             "PASS1_promoted_OFICIAL_count": len(sha_promo_ord),
             "PROMOCAO_MANUAL_REVISADA_CURSOR_OFICIAL": br_fonte_of.get("PROMOCAO_MANUAL_REVISADA_CURSOR", 0),
+            "PASS1_V2_B37_OFICIAL": br_fonte_of.get("PASS1_V2_BLOCO_37_RECONCILIADO", 0),
             "PASS1_V2_B36_OFICIAL": br_fonte_of.get("PASS1_V2_BLOCO_36_RECONCILIADO", 0),
+            "rescue_amnesty_shas_count": len(rescue_amnesty_shas),
             "PASS1_V2_B35_OFICIAL": br_fonte_of.get("PASS1_V2_BLOCO_35_RECONCILIADO", 0),
             "PASS1_V2_B34_OFICIAL": br_fonte_of.get("PASS1_V2_BLOCO_34_RECONCILIADO", 0),
             "PASS1_V2_B33_OFICIAL": br_fonte_of.get("PASS1_V2_BLOCO_33_RECONCILIADO", 0),

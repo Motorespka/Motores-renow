@@ -1,0 +1,124 @@
+{
+  "generated_at": "2026-05-16T18:10:26Z",
+  "input_csv": "C:\\Users\\micke\\Desktop\\O rebobinador\\Motores-renow\\exports\\review\\extraidos_motor_fase7a_pass1_v2_block_37_flash_candidates.csv",
+  "last_n": 14,
+  "total_auditado": 14,
+  "verdes_sem_alerta": 9,
+  "verdes_com_alerta": 5,
+  "amarelos": 0,
+  "vermelhos": 0,
+  "top_motivos_alerta": [
+    {
+      "codigo": "A07_potencia_decimal_sem_evidencia_frac_potencia_cv=12,5",
+      "count": 4
+    },
+    {
+      "codigo": "A08_rpm_fora_faixa_polos_4p_(1200-1900)_rpm=3583",
+      "count": 1
+    }
+  ],
+  "top_alertas_criticos_A": [
+    {
+      "codigo": "A07_potencia_decimal_sem_evidencia_frac_potencia_cv=12,5",
+      "count": 4
+    },
+    {
+      "codigo": "A08_rpm_fora_faixa_polos_4p_(1200-1900)_rpm=3583",
+      "count": 1
+    }
+  ],
+  "arquivos_revisao_manual": [
+    "drive-download-20260403T124026Z-3-001_224929\\605028115.pdf",
+    "drive-download-20260403T124026Z-3-001_224929\\605028315.pdf",
+    "drive-download-20260403T124026Z-3-001_224929\\605028715.pdf",
+    "drive-download-20260403T124026Z-3-001_224929\\605029715.pdf",
+    "drive-download-20260403T124026Z-3-001_224929\\605041001.pdf"
+  ],
+  "saidas": {
+    "csv": "exports\\review\\gemini_extraction_quality_extraidos_motor_fase7a_pass1_v2_block_37_flash.csv",
+    "json": "exports\\review\\gemini_extraction_quality_extraidos_motor_fase7a_pass1_v2_block_37_flash.json",
+    "md": "exports\\review\\gemini_extraction_quality_extraidos_motor_fase7a_pass1_v2_block_37_flash.md"
+  },
+  "linhas": [
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605028115.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": [
+        "A07_potencia_decimal_sem_evidencia_frac_potencia_cv=12,5"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605028315.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": [
+        "A07_potencia_decimal_sem_evidencia_frac_potencia_cv=12,5"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605028715.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": [
+        "A07_potencia_decimal_sem_evidencia_frac_potencia_cv=12,5"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605029715.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": [
+        "A07_potencia_decimal_sem_evidencia_frac_potencia_cv=12,5"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605041001.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": [
+        "A08_rpm_fora_faixa_polos_4p_(1200-1900)_rpm=3583"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605042002.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605042034.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605042047.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605042111.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605042171.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605042175.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605042195.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605042208.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605042214.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    }
+  ]
+}
