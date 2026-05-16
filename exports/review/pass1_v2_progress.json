@@ -1,6 +1,6 @@
 {
   "campaign": "PASS1_LITE_V2",
-  "generated_at": "2026-05-16T18:10:33Z",
+  "generated_at": "2026-05-16T18:31:10Z",
   "bloques_executados": [
     {
       "bloco": "01",
@@ -275,13 +275,20 @@
       "calls_gemini": 14,
       "verde_seguro": 9,
       "alert_manifest_audit_rows": 5
+    },
+    {
+      "bloco": "38",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_38_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 9,
+      "alert_manifest_audit_rows": 5
     }
   ],
   "totais_acumulados_v2": {
-    "ficheiros_processados_v2": 499,
-    "chamadas_gemini_v2": 511,
-    "verde_seguro_total_manifests_v2": 399,
-    "verde_com_alerta_total_v2": 15,
+    "ficheiros_processados_v2": 513,
+    "chamadas_gemini_v2": 525,
+    "verde_seguro_total_manifests_v2": 408,
+    "verde_com_alerta_total_v2": 20,
     "amarelo_isolado_total_manual_csv_v2": 85,
     "vermelho_total_v2": 0,
     "quota_429_total_v2": 0,
@@ -290,25 +297,25 @@
     "no_keys_v2": 0
   },
   "taxas": {
-    "taxa_verde_seguro_pura_v2": "399/499 = 79.96%",
-    "taxa_verde_ampla_v2": "414/499 = 82.97% (verde_seguro + verde_com_alerta)",
+    "taxa_verde_seguro_pura_v2": "408/513 = 79.53%",
+    "taxa_verde_ampla_v2": "428/513 = 83.43% (verde_seguro + verde_com_alerta)",
     "nota": "Não extrapolar para o pool 480."
   },
   "pool_pass1_v2": {
     "pool_inicial_sha_estimado": 480,
-    "sha_consumidos_no_pool_filas_acumulado": 499,
+    "sha_consumidos_no_pool_filas_acumulado": 513,
     "pass1_v2_eligible_restante_apos_bloco04_filas_e_no_auto": 430,
     "sha_elegivel_para_bloco_05_cap_14": 14,
     "linhas_emitidas_prep_bloco_05_cap_14": 14,
     "ultima_actualizacao_reconcile": {
-      "block": 37,
+      "block": 38,
       "incremento_alert_manifest": 5,
       "incremento_manual": 0
     }
   },
   "estado": {
     "veredicto": "CONTINUAR_PASS1_V2",
-    "recomendacao_proximo_passo": "Gates antes extract seguinte ou rebuild master (ver fase atual). Próximo bloco fila: 38."
+    "recomendacao_proximo_passo": "Gates antes extract seguinte ou rebuild master (ver fase atual). Próximo bloco fila: 39."
   },
   "relatorio_consolidado_pos_b28": {
     "gerado_em": "2026-05-14T12:30:00Z",
@@ -405,6 +412,19 @@
     },
     {
       "bloco": "37",
+      "arquivos": [
+        "605028115.pdf",
+        "605028315.pdf",
+        "605028715.pdf",
+        "605029715.pdf",
+        "605041001.pdf"
+      ],
+      "n_alert_manifest": 5,
+      "codigo exemplo": "A07_potencia_decimal_sem_evidencia_frac_potencia_cv=12,5",
+      "registro": "alert_manifest_paralelo_vs_resolved"
+    },
+    {
+      "bloco": "38",
       "arquivos": [
         "605028115.pdf",
         "605028315.pdf",
