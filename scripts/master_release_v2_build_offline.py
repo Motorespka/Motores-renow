@@ -688,6 +688,33 @@ def _read_resolved_verde_shas(path: Path) -> set[str]:
     return s
 
 
+def load_b36_rescue_amnesty_shas(
+    review_dir: Path,
+    manifest_winners: dict[str, tuple[int, str, dict]],
+) -> set[str]:
+    """
+    Operacao resgate B36: SHAs reconciliados VERDE_SEGURO / VERDE_COM_ALERTA cuja
+    fonte vencedora na uniao e PASS1_V2_BLOCO_36_RECONCILIADO (indulto regras b/c).
+    """
+    tag = _pass1_tag(36)
+    path = review_dir / "extraidos_motor_fase7a_pass1_v2_block_36_resolved_manifest.csv"
+    out: set[str] = set()
+    if not path.is_file():
+        return out
+    with path.open(encoding="utf-8-sig", newline="") as f:
+        for row in csv.DictReader(f):
+            cat = _t(row.get("categoria_pos_auditoria")).upper()
+            if cat not in ("VERDE_SEGURO", "VERDE_COM_ALERTA"):
+                continue
+            sh = _t(row.get("sha256_arquivo")).lower()
+            if not sh:
+                continue
+            winner = manifest_winners.get(sh)
+            if winner and winner[1] == tag:
+                out.add(sh)
+    return out
+
+
 def _pass1_tag(bn: int) -> str:
     return f"PASS1_V2_BLOCO_{bn:02d}_RECONCILIADO"
 
@@ -838,6 +865,8 @@ def main() -> int:
     alert_shas = collect_alert_shas_extended(REVIEW_DIR)
     manual_csv_shas = collect_manual_shas_extended(REVIEW_DIR)
     manifest_winners, sha_manifest_oficial = load_official_manifest_union(REVIEW_DIR)
+    b36_rescue_amnesty_shas = load_b36_rescue_amnesty_shas(REVIEW_DIR, manifest_winners)
+    b36_rescue_tag = _pass1_tag(36)
 
     rv1_sha_set: set[str] = set()
     if rv1_path.is_file():
@@ -940,14 +969,17 @@ def main() -> int:
         # PROMOCAO_MANUAL_REVISADA_CURSOR e' aprovacao humana explicita: ignora a/b/c.
         if ftag == "PROMOCAO_MANUAL_REVISADA_CURSOR":
             return []
+        # Resgate B36: indulto historico NO_AUTO (c) e manual_review (b); regra (a) mantida.
+        b36_rescue = ftag == b36_rescue_tag or sh in b36_rescue_amnesty_shas
         bm = basename_lower(ar)
         ms: list[str] = []
         if sh in alert_shas:
             ms.append("IN_ALERT_MANIFEST_a")
-        if sh in manual_csv_shas:
-            ms.append("IN_MANUAL_REVIEW_b")
-        if bm in forbidden_bn_all:
-            ms.append("ISOLADO_OU_NO_AUTO_BASENAME_c")
+        if not b36_rescue:
+            if sh in manual_csv_shas:
+                ms.append("IN_MANUAL_REVIEW_b")
+            if bm in forbidden_bn_all:
+                ms.append("ISOLADO_OU_NO_AUTO_BASENAME_c")
         return ms
 
     oficial_sha_final: dict[str, dict] = {}
