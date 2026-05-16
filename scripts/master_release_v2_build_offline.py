@@ -67,7 +67,10 @@ PHASE_7B32 = "7b32"
 PHASE_7B33 = "7b33"
 PHASE_7B34 = "7b34"
 PHASE_7B35 = "7b35"
+PHASE_7B36 = "7b36"
 
+# 7B.36: B36 acima de B35 (prio mais baixo = ganha)
+PRIO_PASS1_B36 = -32
 # 7B.35: B35 acima de B34 (prio mais baixo = ganha)
 PRIO_PASS1_B35 = -31
 # 7B.34: B34 acima de B33 (prio mais baixo = ganha)
@@ -302,8 +305,9 @@ def load_official_manifest_union(review_dir: Path) -> tuple[dict[str, tuple[int,
                 }
                 winners[sh] = best_manifest_row(winners.get(sh), prio_val, tag_name, r)
 
-    # 7B.35..25: blocos recentes — mesma lógica auto-detect plain/union.
+    # 7B.36..25: blocos recentes — mesma lógica auto-detect plain/union.
     for _bn, _prio in (
+        (36, PRIO_PASS1_B36),
         (35, PRIO_PASS1_B35),
         (34, PRIO_PASS1_B34),
         (33, PRIO_PASS1_B33),
@@ -692,7 +696,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Rebuild master_release_v2 offline (FASE 7B.x).")
     ap.add_argument(
         "--phase",
-        choices=("7b4", "7b5", "7b6", "7b7", "7b8", "7b9", "7b10", "7b11", "7b12", "7b13", "7b14", "7b15", "7b16", PHASE_7B17, PHASE_7B18, PHASE_7B19, PHASE_7B20, PHASE_7B21, PHASE_7B22, PHASE_7B23, PHASE_7B24, PHASE_7B25, PHASE_7B26, PHASE_7B27, PHASE_7B28, PHASE_7B29, PHASE_7B30, PHASE_7B31, PHASE_7B32, PHASE_7B33, PHASE_7B34, PHASE_7B35),
+        choices=("7b4", "7b5", "7b6", "7b7", "7b8", "7b9", "7b10", "7b11", "7b12", "7b13", "7b14", "7b15", "7b16", PHASE_7B17, PHASE_7B18, PHASE_7B19, PHASE_7B20, PHASE_7B21, PHASE_7B22, PHASE_7B23, PHASE_7B24, PHASE_7B25, PHASE_7B26, PHASE_7B27, PHASE_7B28, PHASE_7B29, PHASE_7B30, PHASE_7B31, PHASE_7B32, PHASE_7B33, PHASE_7B34, PHASE_7B35, PHASE_7B36),
         default="7b4",
         help="Fase de promoção incremental.",
     )
@@ -732,8 +736,9 @@ def main() -> int:
         PHASE_7B33: "fase7b33",
         PHASE_7B34: "fase7b34",
         PHASE_7B35: "fase7b35",
+        PHASE_7B36: "fase7b36",
     }[phase_slug]
-    promoted_bn = {"7b4": 4, "7b5": 5, "7b6": 6, "7b7": 7, "7b8": 8, "7b9": 9, "7b10": 10, "7b11": 11, "7b12": 12, "7b13": 13, "7b14": 14, "7b15": 15, "7b16": 16, PHASE_7B17: 17, PHASE_7B18: 18, PHASE_7B19: 19, PHASE_7B20: 20, PHASE_7B21: 21, PHASE_7B22: 22, PHASE_7B23: 23, PHASE_7B24: 24, PHASE_7B25: 25, PHASE_7B26: 26, PHASE_7B27: 27, PHASE_7B28: 28, PHASE_7B29: 29, PHASE_7B30: 30, PHASE_7B31: 31, PHASE_7B32: 32, PHASE_7B33: 33, PHASE_7B34: 34, PHASE_7B35: 35}[phase_slug]
+    promoted_bn = {"7b4": 4, "7b5": 5, "7b6": 6, "7b7": 7, "7b8": 8, "7b9": 9, "7b10": 10, "7b11": 11, "7b12": 12, "7b13": 13, "7b14": 14, "7b15": 15, "7b16": 16, PHASE_7B17: 17, PHASE_7B18: 18, PHASE_7B19: 19, PHASE_7B20: 20, PHASE_7B21: 21, PHASE_7B22: 22, PHASE_7B23: 23, PHASE_7B24: 24, PHASE_7B25: 25, PHASE_7B26: 26, PHASE_7B27: 27, PHASE_7B28: 28, PHASE_7B29: 29, PHASE_7B30: 30, PHASE_7B31: 31, PHASE_7B32: 32, PHASE_7B33: 33, PHASE_7B34: 34, PHASE_7B35: 35, PHASE_7B36: 36}[phase_slug]
     diff_name = f"master_release_v2_diff_{phase_tag}.md"
 
     utc = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -1172,6 +1177,7 @@ def main() -> int:
         PHASE_7B33: "7B.33 — B33",
         PHASE_7B34: "7B.34 — B34",
         PHASE_7B35: "7B.35 — B35",
+        PHASE_7B36: "7B.36 — B36 (operação resgate)",
     }[phase_slug]
 
     expect_total_window = {
@@ -1229,6 +1235,8 @@ def main() -> int:
         PHASE_7B34: (800, 825),
         # 7B.35: baseline pós-B34 (~808 OFICIAL) + até ~3 VERDE_SEGURO / COM_ALERTA do bloco 35 (pool misto).
         PHASE_7B35: (808, 820),
+        # 7B.36: baseline pós-B35 (~811 OFICIAL) + 14 promovidos (operação resgate, union VCA).
+        PHASE_7B36: (820, 830),
     }
     wl, wh = expect_total_window[phase_slug]
 
@@ -1282,6 +1290,7 @@ def main() -> int:
             "OFICIAL_total_janela_esperado": {"min": wl, "max": wh, "ok": wl <= oficiais <= wh},
             "PASS1_promoted_OFICIAL_count": len(sha_promo_ord),
             "PROMOCAO_MANUAL_REVISADA_CURSOR_OFICIAL": br_fonte_of.get("PROMOCAO_MANUAL_REVISADA_CURSOR", 0),
+            "PASS1_V2_B36_OFICIAL": br_fonte_of.get("PASS1_V2_BLOCO_36_RECONCILIADO", 0),
             "PASS1_V2_B35_OFICIAL": br_fonte_of.get("PASS1_V2_BLOCO_35_RECONCILIADO", 0),
             "PASS1_V2_B34_OFICIAL": br_fonte_of.get("PASS1_V2_BLOCO_34_RECONCILIADO", 0),
             "PASS1_V2_B33_OFICIAL": br_fonte_of.get("PASS1_V2_BLOCO_33_RECONCILIADO", 0),

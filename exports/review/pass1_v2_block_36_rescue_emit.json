@@ -1,0 +1,119 @@
+{
+  "ok": true,
+  "generated_at": "2026-05-15T22:01:08Z",
+  "next_queue_csv": "exports\\review\\pass1_v2_block_36.csv",
+  "eligible_funnel_tail_count": 101,
+  "emitted_lines": 14,
+  "resolved_through_exclusive": 35,
+  "reason": "operacao_rescue_pass1_block_36|from=eligible_funnel_fase6v|policy=relax_NO_AUTO_QUEUE_HISTORY|audit_admin|generated_offline",
+  "preview": [
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605028011.pdf",
+      "sha256_arquivo": "1dcd22f68f21d393…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605028105.pdf",
+      "sha256_arquivo": "fe033c31a48200d4…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605028115.pdf",
+      "sha256_arquivo": "2661df4e7d7c4e08…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605028315.pdf",
+      "sha256_arquivo": "7d5025ab95af7113…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605028711.pdf",
+      "sha256_arquivo": "20011e186acb1067…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605028714.pdf",
+      "sha256_arquivo": "2a53a7f4c7c51ef2…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605028715.pdf",
+      "sha256_arquivo": "3fa9a1fb17e811b4…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605029010.pdf",
+      "sha256_arquivo": "c49dce13bf4723ef…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605029715.pdf",
+      "sha256_arquivo": "73dab5ef21ec52f9…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605030003.pdf",
+      "sha256_arquivo": "e16e6d21651e7d39…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605034002.pdf",
+      "sha256_arquivo": "77f21e09103ee030…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605034007.pdf",
+      "sha256_arquivo": "8a14cc255c25fbb7…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605034008.pdf",
+      "sha256_arquivo": "6e868892c3b8b1e8…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605038010.pdf",
+      "sha256_arquivo": "694956e97d185c35…"
+    }
+  ],
+  "funnel_steps": [
+    {
+      "passo": "sobra_real_universo_fase6v_definicao",
+      "removidos": 0,
+      "restante": 480
+    },
+    {
+      "passo": "apos_exclusao_release_v1",
+      "removidos": 0,
+      "restante": 480
+    },
+    {
+      "passo": "apos_exclusao_resolved_RETRY_LEGACY_PASS1_resolved_DISK_E_BLOCO_ATUAL_VERDE",
+      "removidos": 379,
+      "restante": 101
+    },
+    {
+      "passo": "apos_exclusao_alert_manifest",
+      "removidos": 0,
+      "restante": 101
+    },
+    {
+      "passo": "apos_exclusao_manual_review",
+      "removidos": 0,
+      "restante": 101
+    },
+    {
+      "passo": "apos_exclusao_flash_categorized_nao_VERDE_SEGURO",
+      "removidos": 0,
+      "restante": 101
+    },
+    {
+      "passo": "apos_exclusao_processed_image_index",
+      "removidos": 0,
+      "restante": 101
+    },
+    {
+      "passo": "apos_exclusao_block_next",
+      "removidos": 0,
+      "restante": 101
+    },
+    {
+      "passo": "apos_exclusao_8_isolados_manual_review_pack",
+      "removidos": 0,
+      "restante": 101
+    },
+    {
+      "passo": "apos_dedupe_sha256",
+      "removidos": 0,
+      "restante": 101
+    }
+  ]
+}

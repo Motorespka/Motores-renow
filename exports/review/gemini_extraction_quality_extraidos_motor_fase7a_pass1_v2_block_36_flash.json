@@ -1,0 +1,113 @@
+{
+  "generated_at": "2026-05-15T22:14:40Z",
+  "input_csv": "C:\\Users\\micke\\Desktop\\O rebobinador\\Motores-renow\\exports\\review\\extraidos_motor_fase7a_pass1_v2_block_36_flash_candidates.csv",
+  "last_n": 20,
+  "total_auditado": 14,
+  "verdes_sem_alerta": 10,
+  "verdes_com_alerta": 4,
+  "amarelos": 0,
+  "vermelhos": 0,
+  "top_motivos_alerta": [
+    {
+      "codigo": "A07_potencia_decimal_sem_evidencia_frac_potencia_cv=12,5",
+      "count": 4
+    }
+  ],
+  "top_alertas_criticos_A": [
+    {
+      "codigo": "A07_potencia_decimal_sem_evidencia_frac_potencia_cv=12,5",
+      "count": 4
+    }
+  ],
+  "arquivos_revisao_manual": [
+    "drive-download-20260403T124026Z-3-001_224929\\605028115.pdf",
+    "drive-download-20260403T124026Z-3-001_224929\\605028315.pdf",
+    "drive-download-20260403T124026Z-3-001_224929\\605028715.pdf",
+    "drive-download-20260403T124026Z-3-001_224929\\605029715.pdf"
+  ],
+  "saidas": {
+    "csv": "exports\\review\\gemini_extraction_quality_extraidos_motor_fase7a_pass1_v2_block_36_flash.csv",
+    "json": "exports\\review\\gemini_extraction_quality_extraidos_motor_fase7a_pass1_v2_block_36_flash.json",
+    "md": "exports\\review\\gemini_extraction_quality_extraidos_motor_fase7a_pass1_v2_block_36_flash.md"
+  },
+  "linhas": [
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605028011.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605028105.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605028115.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": [
+        "A07_potencia_decimal_sem_evidencia_frac_potencia_cv=12,5"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605028315.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": [
+        "A07_potencia_decimal_sem_evidencia_frac_potencia_cv=12,5"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605028711.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605028714.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605028715.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": [
+        "A07_potencia_decimal_sem_evidencia_frac_potencia_cv=12,5"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605029010.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605029715.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": [
+        "A07_potencia_decimal_sem_evidencia_frac_potencia_cv=12,5"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605030003.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605034002.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605034007.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605034008.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605038010.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    }
+  ]
+}
