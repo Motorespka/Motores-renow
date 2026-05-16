@@ -1,0 +1,124 @@
+{
+  "generated_at": "2026-05-16T20:45:23Z",
+  "storage_roots_scanned": [
+    {
+      "path": "C:\\Users\\micke\\Desktop\\O rebobinador\\_extraidos_motor",
+      "label": "_extraidos_motor"
+    },
+    {
+      "path": "C:\\Users\\micke\\Desktop\\O rebobinador\\Motores-renow\\data",
+      "label": "Motores-renow/data"
+    },
+    {
+      "path": "C:\\Users\\micke\\Desktop\\O rebobinador\\audit_reports",
+      "label": "audit_reports"
+    }
+  ],
+  "primary_base": "C:\\Users\\micke\\Desktop\\O rebobinador\\_extraidos_motor",
+  "oficial_sha_count": 869,
+  "physical_files_total": 3237,
+  "physical_unique_sha_on_disk": 1077,
+  "physical_paths_sha_in_oficial": 2607,
+  "physical_paths_sha_not_oficial": 630,
+  "physical_unique_sha_not_oficial": 208,
+  "physical_unique_sha_in_oficial_on_disk": 869,
+  "loose_paths_indexed_sha": 155,
+  "loose_unique_sha_in_index": 155,
+  "duplicate_paths_same_sha_as_oficial": 1738,
+  "by_ext_all": {
+    ".pdf": 3102,
+    ".jpeg": 3,
+    ".jpg": 132
+  },
+  "by_ext_loose": {
+    ".pdf": 501,
+    ".jpg": 129
+  },
+  "by_root_loose": {
+    "_extraidos_motor": 630
+  },
+  "preview_loose_first_20": [
+    {
+      "arquivo_rel": "drive-download-20260403T123335Z-3-001_145302\\VOGE MONOFASICO CAP. PERMANENTE BK  1 2 CV-C 80 A -220- 6P.pdf",
+      "sha256_arquivo": "12c005ba8c408320…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T123335Z-3-001_145302\\VOGE MONOFASICO CAP. PERMANENTE BK  1 2 CV-C80A -110-220- 6P.pdf",
+      "sha256_arquivo": "87dc2443b92448f3…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T123335Z-3-001_145302\\VOGE MONOFASICO CAP. PERMANENTE BK  1 2 CV-C80A -127- 6P.pdf",
+      "sha256_arquivo": "dc26c607e7f77ae5…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T123335Z-3-001_145302\\VOGE MONOFASICO CAP. PERMANENTE BK  3 4 CV-C80B -110-220- 6P.pdf",
+      "sha256_arquivo": "b4f98c4424a550ee…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T123335Z-3-001_145302\\VOGE MONOFASICO CAP. PERMANENTE BK  3 4 CV-C80B -127- 6P.pdf",
+      "sha256_arquivo": "cd49c3b5e558dbf2…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T123335Z-3-001_145302\\VOGE MONOFASICO CAP. PERMANENTE BK  3 4 CV-C80B -220- 6P.pdf",
+      "sha256_arquivo": "dbce309f4bcfbce7…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T123335Z-3-001_594029\\VOGE MONOFASICO CAP. PERMANENTE BK  1 2 CV-C 80 A -220- 6P.pdf",
+      "sha256_arquivo": "12c005ba8c408320…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T123335Z-3-001_594029\\VOGE MONOFASICO CAP. PERMANENTE BK  1 2 CV-C80A -110-220- 6P.pdf",
+      "sha256_arquivo": "87dc2443b92448f3…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T123335Z-3-001_594029\\VOGE MONOFASICO CAP. PERMANENTE BK  1 2 CV-C80A -127- 6P.pdf",
+      "sha256_arquivo": "dc26c607e7f77ae5…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T123335Z-3-001_594029\\VOGE MONOFASICO CAP. PERMANENTE BK  3 4 CV-C80B -110-220- 6P.pdf",
+      "sha256_arquivo": "b4f98c4424a550ee…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T123335Z-3-001_594029\\VOGE MONOFASICO CAP. PERMANENTE BK  3 4 CV-C80B -127- 6P.pdf",
+      "sha256_arquivo": "cd49c3b5e558dbf2…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T123335Z-3-001_594029\\VOGE MONOFASICO CAP. PERMANENTE BK  3 4 CV-C80B -220- 6P.pdf",
+      "sha256_arquivo": "dbce309f4bcfbce7…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T123335Z-3-001_756130\\VOGE MONOFASICO CAP. PERMANENTE BK  1 2 CV-C 80 A -220- 6P.pdf",
+      "sha256_arquivo": "12c005ba8c408320…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T123335Z-3-001_756130\\VOGE MONOFASICO CAP. PERMANENTE BK  1 2 CV-C80A -110-220- 6P.pdf",
+      "sha256_arquivo": "87dc2443b92448f3…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T123335Z-3-001_756130\\VOGE MONOFASICO CAP. PERMANENTE BK  1 2 CV-C80A -127- 6P.pdf",
+      "sha256_arquivo": "dc26c607e7f77ae5…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T123335Z-3-001_756130\\VOGE MONOFASICO CAP. PERMANENTE BK  3 4 CV-C80B -110-220- 6P.pdf",
+      "sha256_arquivo": "b4f98c4424a550ee…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T123335Z-3-001_756130\\VOGE MONOFASICO CAP. PERMANENTE BK  3 4 CV-C80B -127- 6P.pdf",
+      "sha256_arquivo": "cd49c3b5e558dbf2…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T123335Z-3-001_756130\\VOGE MONOFASICO CAP. PERMANENTE BK  3 4 CV-C80B -220- 6P.pdf",
+      "sha256_arquivo": "dbce309f4bcfbce7…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1,15cv 2p nema42 2 50,60hz 20x57.9 605013152.pdf",
+      "sha256_arquivo": "a00db1003d3fd95b…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1,16cv 2p iec63r 23 60hz 25x49.4 605013018.pdf",
+      "sha256_arquivo": "70e1e15711ee6947…"
+    }
+  ],
+  "queue_csv": "exports\\review\\pass1_v2_block_46.csv",
+  "queue_lines": 14
+}

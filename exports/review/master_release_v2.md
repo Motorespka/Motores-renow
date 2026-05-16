@@ -1,8 +1,8 @@
-# Master release v2 (2026-05-16T20:40:40Z) — `7B.45 — B45 (encerramento pool resgate)`
+# Master release v2 (2026-05-16T21:03:40Z) — `7B.46 — B46 (nova era inéditos — massa física solta)`
 
 ## Totais OFICIAL
 
-- **OFICIAL_total**: **869**
+- **OFICIAL_total**: **882**
 - **CANDIDATO** bloco 02 safe_green legacy: **0**
 
 ### OFICIAL por `fonte_release`
@@ -17,6 +17,7 @@
 - **PASS1_V2_BLOCO_10_RECONCILIADO**: **13**
 - **PASS1_V2_BLOCO_12_RECONCILIADO**: **13**
 - **PASS1_V2_BLOCO_13_RECONCILIADO**: **13**
+- **PASS1_V2_BLOCO_46_RECONCILIADO**: **13**
 - **PASS1_V2_BLOCO_05_RECONCILIADO**: **12**
 - **PASS1_V2_BLOCO_08_RECONCILIADO**: **12**
 - **PASS1_V2_BLOCO_14_RECONCILIADO**: **12**
@@ -55,15 +56,16 @@
 - **PASS1_V2_BLOCO_44_RECONCILIADO**: **7**
 - **PASS1_V2_BLOCO_35_RECONCILIADO**: **2**
 
-## Comparativo (run `7b45`)
+## Comparativo (run `7b46`)
 
 - OFICIAL antes (ficheiro anterior): **869**
-- OFICIAL agora: **869** (**Δ=+0**)
-- SHA **`PASS1_V2_BLOCO_45_RECONCILIADO`** presentes como OFICIAL: **9** (diff: `master_release_v2_diff_fase7b45.md`)
+- OFICIAL agora: **882** (**Δ=+13**)
+- SHA **`PASS1_V2_BLOCO_46_RECONCILIADO`** presentes como OFICIAL: **13** (diff: `master_release_v2_diff_fase7b46.md`)
 
 ## Basenames políticos (`pass1_v2_progress.NO_AUTO` + isolados retry)
 
 ```text
+1,8cv 4e8p nema42 2 50,60hz 30x68 605012085.pdf
 605012237.pdf
 605015131.pdf
 605016087.pdf
@@ -166,4 +168,4 @@ ventiladores 2.pdf
 ventiladores 3.pdf
 ```
 
-- **GAP 1600**: **731** · **Recomendação**: `ENTREGAVEL_PARA_DEPLOY_PILOTO_AMPLIADO_v2`
+- **GAP 1600**: **718** · **Recomendação**: `ENTREGAVEL_PARA_DEPLOY_PILOTO_AMPLIADO_v2`
