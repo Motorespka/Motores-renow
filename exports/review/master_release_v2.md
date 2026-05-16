@@ -1,8 +1,8 @@
-# Master release v2 (2026-05-16T21:03:40Z) — `7B.46 — B46 (nova era inéditos — massa física solta)`
+# Master release v2 (2026-05-16T21:18:59Z) — `7B.47 — B47 (inéditos físicos — slice 2)`
 
 ## Totais OFICIAL
 
-- **OFICIAL_total**: **882**
+- **OFICIAL_total**: **894**
 - **CANDIDATO** bloco 02 safe_green legacy: **0**
 
 ### OFICIAL por `fonte_release`
@@ -25,6 +25,7 @@
 - **PASS1_V2_BLOCO_22_RECONCILIADO**: **12**
 - **PASS1_V2_BLOCO_31_RECONCILIADO**: **12**
 - **PASS1_V2_BLOCO_32_RECONCILIADO**: **12**
+- **PASS1_V2_BLOCO_47_RECONCILIADO**: **12**
 - **PASS1_V2_BLOCO_02_RECONCILIADO**: **11**
 - **PASS1_V2_BLOCO_03_RECONCILIADO**: **11**
 - **PASS1_V2_BLOCO_06_RECONCILIADO**: **11**
@@ -56,11 +57,11 @@
 - **PASS1_V2_BLOCO_44_RECONCILIADO**: **7**
 - **PASS1_V2_BLOCO_35_RECONCILIADO**: **2**
 
-## Comparativo (run `7b46`)
+## Comparativo (run `7b47`)
 
-- OFICIAL antes (ficheiro anterior): **869**
-- OFICIAL agora: **882** (**Δ=+13**)
-- SHA **`PASS1_V2_BLOCO_46_RECONCILIADO`** presentes como OFICIAL: **13** (diff: `master_release_v2_diff_fase7b46.md`)
+- OFICIAL antes (ficheiro anterior): **882**
+- OFICIAL agora: **894** (**Δ=+12**)
+- SHA **`PASS1_V2_BLOCO_47_RECONCILIADO`** presentes como OFICIAL: **12** (diff: `master_release_v2_diff_fase7b47.md`)
 
 ## Basenames políticos (`pass1_v2_progress.NO_AUTO` + isolados retry)
 
@@ -168,4 +169,4 @@ ventiladores 2.pdf
 ventiladores 3.pdf
 ```
 
-- **GAP 1600**: **718** · **Recomendação**: `ENTREGAVEL_PARA_DEPLOY_PILOTO_AMPLIADO_v2`
+- **GAP 1600**: **706** · **Recomendação**: `ENTREGAVEL_PARA_DEPLOY_PILOTO_AMPLIADO_v2`
