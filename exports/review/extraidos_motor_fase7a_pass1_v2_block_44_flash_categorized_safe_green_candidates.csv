@@ -1,0 +1,8 @@
+﻿id_local,arquivo,lote,ordem,tipo_motor,potencia_cv,rpm,tensao,polos,frequencia,carcaca,ranhuras,pacote_mm,diametro_mm,capacitor,fio_principal,espiras_principal,passo_principal,fio_auxiliar,espiras_auxiliar,passo_auxiliar,status_revisao,motivos_bloqueio,fonte_extracao,confianca,precisa_humano
+000006,drive-download-20260403T124026Z-3-001_224929\605058006.pdf,,6,trifasico,1,1740,220/380,4,60,IEC 80,36,75,"81,40","81,40",1 X 25 + 1 X 26 (COBRE) - 10.5002.003 + 10.5002.004,60/60/60,1:8:10 / 1:8,,,,VERDE_AUTO_GEMINI,,gemini,0.90,0
+000007,drive-download-20260403T124026Z-3-001_224929\605060004.pdf,,7,trifasico,1/2,1680,220/380,4,60,NEMA 42,,70,"68,00",SEM,1 X 24,120:120,1:6:8,,,,VERDE_AUTO_GEMINI,,gemini,0.90,0
+000008,drive-download-20260403T124026Z-3-001_224929\605061007.pdf,,8,trifasico,"1,5",3420,220/380,2,60,,24,70,"61,40","61,40",2 X 23,60:60,1:10:12,,,,VERDE_AUTO_GEMINI,,gemini,0.90,0
+000009,drive-download-20260403T124026Z-3-001_224929\605064006.pdf,,9,trifasico,1,3380,220/380,2,60,NEMA 42,24,70,"57,90",SEM,1 X 24 + 1 X 25 (COBRE),64,1:10:12,,,,VERDE_AUTO_GEMINI,,gemini,0.90,0
+000010,drive-download-20260403T124026Z-3-001_224929\605065007.pdf,,10,trifasico,"1,5",1730,220/380,4,60,IEC 80,36,95,"81,40",SEM,2 X 24,45/45/45,1:8:10 / 1:8,,,,VERDE_AUTO_GEMINI,,gemini,0.90,0
+000011,drive-download-20260403T124026Z-3-001_224929\605065008.pdf,,11,trifasico,2,1740,220/380,4,60,,36,100,"89,40",SEM,1 X 22 + 1 X 23 (COBRE) - 10.5002.009 + 10.5002.001,38/38,1:8/10 / 1:8,,,,VERDE_AUTO_GEMINI,,gemini,0.90,0
+000012,drive-download-20260403T124026Z-3-001_224929\605066008.pdf,,12,trifasico,2,3380,220/380,2,60,IEC 80,24,80,"61,40 FLAMADO",SEM,1 X 22 + 1 X 23 (COBRE) - 10.5002.009 + 10.5002.001,52:52,1:10:12,,,,VERDE_AUTO_GEMINI,,gemini,0.90,0

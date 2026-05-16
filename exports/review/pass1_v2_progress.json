@@ -1,6 +1,6 @@
 {
   "campaign": "PASS1_LITE_V2",
-  "generated_at": "2026-05-16T19:53:35Z",
+  "generated_at": "2026-05-16T20:14:29Z",
   "bloques_executados": [
     {
       "bloco": "01",
@@ -317,14 +317,22 @@
       "calls_gemini": 14,
       "verde_seguro": 9,
       "alert_manifest_audit_rows": 5
+    },
+    {
+      "bloco": "44",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_44_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 7,
+      "alert_manifest_audit_rows": 6,
+      "amarelo_manual": 1
     }
   ],
   "totais_acumulados_v2": {
-    "ficheiros_processados_v2": 583,
-    "chamadas_gemini_v2": 595,
-    "verde_seguro_total_manifests_v2": 453,
-    "verde_com_alerta_total_v2": 45,
-    "amarelo_isolado_total_manual_csv_v2": 85,
+    "ficheiros_processados_v2": 597,
+    "chamadas_gemini_v2": 609,
+    "verde_seguro_total_manifests_v2": 460,
+    "verde_com_alerta_total_v2": 51,
+    "amarelo_isolado_total_manual_csv_v2": 86,
     "vermelho_total_v2": 0,
     "quota_429_total_v2": 0,
     "pausa_infra_v2": 0,
@@ -332,25 +340,25 @@
     "no_keys_v2": 0
   },
   "taxas": {
-    "taxa_verde_seguro_pura_v2": "453/583 = 77.70%",
-    "taxa_verde_ampla_v2": "498/583 = 85.42% (verde_seguro + verde_com_alerta)",
+    "taxa_verde_seguro_pura_v2": "460/597 = 77.05%",
+    "taxa_verde_ampla_v2": "511/597 = 85.59% (verde_seguro + verde_com_alerta)",
     "nota": "Não extrapolar para o pool 480."
   },
   "pool_pass1_v2": {
     "pool_inicial_sha_estimado": 480,
-    "sha_consumidos_no_pool_filas_acumulado": 583,
+    "sha_consumidos_no_pool_filas_acumulado": 597,
     "pass1_v2_eligible_restante_apos_bloco04_filas_e_no_auto": 430,
     "sha_elegivel_para_bloco_05_cap_14": 14,
     "linhas_emitidas_prep_bloco_05_cap_14": 14,
     "ultima_actualizacao_reconcile": {
-      "block": 43,
-      "incremento_alert_manifest": 5,
-      "incremento_manual": 0
+      "block": 44,
+      "incremento_alert_manifest": 6,
+      "incremento_manual": 1
     }
   },
   "estado": {
     "veredicto": "CONTINUAR_PASS1_V2",
-    "recomendacao_proximo_passo": "Gates antes extract seguinte ou rebuild master (ver fase atual). Próximo bloco fila: 44."
+    "recomendacao_proximo_passo": "Gates antes extract seguinte ou rebuild master (ver fase atual). Próximo bloco fila: 45."
   },
   "relatorio_consolidado_pos_b28": {
     "gerado_em": "2026-05-14T12:30:00Z",
@@ -535,6 +543,20 @@
       "n_alert_manifest": 5,
       "codigo exemplo": "A07_potencia_decimal_sem_evidencia_frac_potencia_cv=12,5",
       "registro": "alert_manifest_paralelo_vs_resolved"
+    },
+    {
+      "bloco": "44",
+      "arquivos": [
+        "605028115.pdf",
+        "605028315.pdf",
+        "605028715.pdf",
+        "605029715.pdf",
+        "605041001.pdf",
+        "Esquema Eletrico Geradores Branco.pdf"
+      ],
+      "n_alert_manifest": 6,
+      "codigo exemplo": "A07_potencia_decimal_sem_evidencia_frac_potencia_cv=12,5",
+      "registro": "alert_manifest_paralelo_vs_resolved"
     }
   ],
   "confirmacao": {
@@ -628,6 +650,7 @@
     "605065007.pdf",
     "605065008.pdf",
     "605066008.pdf",
+    "bobi.pdf",
     "esquema eletrico geradores branco.pdf",
     "esquema vent. de ar.pdf",
     "rot.pdf",
