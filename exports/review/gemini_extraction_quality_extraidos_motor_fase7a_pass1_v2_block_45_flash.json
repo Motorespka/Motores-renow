@@ -1,0 +1,202 @@
+{
+  "generated_at": "2026-05-16T20:40:37Z",
+  "input_csv": "C:\\Users\\micke\\Desktop\\O rebobinador\\Motores-renow\\exports\\review\\extraidos_motor_fase7a_pass1_v2_block_45_flash_candidates.csv",
+  "last_n": 14,
+  "total_auditado": 14,
+  "verdes_sem_alerta": 0,
+  "verdes_com_alerta": 9,
+  "amarelos": 4,
+  "vermelhos": 1,
+  "top_motivos_alerta": [
+    {
+      "codigo": "A10_tipo_vazio_ou_desconhecido",
+      "count": 6
+    },
+    {
+      "codigo": "A07_potencia_decimal_sem_evidencia_frac_potencia_cv=12,5",
+      "count": 4
+    },
+    {
+      "codigo": "A03_trifasico_com_auxiliar_preenchido",
+      "count": 4
+    },
+    {
+      "codigo": "S_pipeline_AMARELO_REVISAR",
+      "count": 4
+    },
+    {
+      "codigo": "A09_tensao_vazia",
+      "count": 3
+    },
+    {
+      "codigo": "A03b_trifasico_principal_vazio_aux_preenchido",
+      "count": 2
+    },
+    {
+      "codigo": "A08_rpm_fora_faixa_polos_4p_(1200-1900)_rpm=3583",
+      "count": 1
+    },
+    {
+      "codigo": "S_pipeline_VERMELHO_REVISAR",
+      "count": 1
+    }
+  ],
+  "top_alertas_criticos_A": [
+    {
+      "codigo": "A10_tipo_vazio_ou_desconhecido",
+      "count": 6
+    },
+    {
+      "codigo": "A07_potencia_decimal_sem_evidencia_frac_potencia_cv=12,5",
+      "count": 4
+    },
+    {
+      "codigo": "A03_trifasico_com_auxiliar_preenchido",
+      "count": 4
+    },
+    {
+      "codigo": "A09_tensao_vazia",
+      "count": 3
+    },
+    {
+      "codigo": "A03b_trifasico_principal_vazio_aux_preenchido",
+      "count": 2
+    },
+    {
+      "codigo": "A08_rpm_fora_faixa_polos_4p_(1200-1900)_rpm=3583",
+      "count": 1
+    }
+  ],
+  "arquivos_revisao_manual": [
+    "drive-download-20260403T124026Z-3-001_224929\\605028115.pdf",
+    "drive-download-20260403T124026Z-3-001_224929\\605028315.pdf",
+    "drive-download-20260403T124026Z-3-001_224929\\605028715.pdf",
+    "drive-download-20260403T124026Z-3-001_224929\\605029715.pdf",
+    "drive-download-20260403T124026Z-3-001_224929\\605041001.pdf",
+    "drive-download-20260408T000443Z-3-001_253069\\BOBI.PDF",
+    "drive-download-20260408T000443Z-3-001_253069\\EST.PDF",
+    "drive-download-20260408T000443Z-3-001_253069\\Esquema Eletrico Geradores Branco.pdf",
+    "drive-download-20260408T000443Z-3-001_253069\\GERADOR 15 KVA (1).pdf",
+    "drive-download-20260408T000443Z-3-001_253069\\REGULADOR CR.pdf",
+    "drive-download-20260408T000443Z-3-001_253069\\REGULADOR EB.pdf",
+    "drive-download-20260408T000443Z-3-001_253069\\REGULADOR ESCOVA.pdf",
+    "drive-download-20260408T000443Z-3-001_253069\\ROT.PDF",
+    "drive-download-20260408T000443Z-3-001_253069\\TC.PDF"
+  ],
+  "saidas": {
+    "csv": "exports\\review\\gemini_extraction_quality_extraidos_motor_fase7a_pass1_v2_block_45_flash.csv",
+    "json": "exports\\review\\gemini_extraction_quality_extraidos_motor_fase7a_pass1_v2_block_45_flash.json",
+    "md": "exports\\review\\gemini_extraction_quality_extraidos_motor_fase7a_pass1_v2_block_45_flash.md"
+  },
+  "linhas": [
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605028115.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": [
+        "A07_potencia_decimal_sem_evidencia_frac_potencia_cv=12,5"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605028315.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": [
+        "A07_potencia_decimal_sem_evidencia_frac_potencia_cv=12,5"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605028715.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": [
+        "A07_potencia_decimal_sem_evidencia_frac_potencia_cv=12,5"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605029715.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": [
+        "A07_potencia_decimal_sem_evidencia_frac_potencia_cv=12,5"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605041001.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": [
+        "A03_trifasico_com_auxiliar_preenchido",
+        "A08_rpm_fora_faixa_polos_4p_(1200-1900)_rpm=3583"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000443Z-3-001_253069\\BOBI.PDF",
+      "status_revisao": "AMARELO_REVISAR",
+      "alertas": [
+        "A03_trifasico_com_auxiliar_preenchido",
+        "A03b_trifasico_principal_vazio_aux_preenchido",
+        "S_pipeline_AMARELO_REVISAR"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000443Z-3-001_253069\\Esquema Eletrico Geradores Branco.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": [
+        "A10_tipo_vazio_ou_desconhecido"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000443Z-3-001_253069\\EST.PDF",
+      "status_revisao": "AMARELO_REVISAR",
+      "alertas": [
+        "A03_trifasico_com_auxiliar_preenchido",
+        "A03b_trifasico_principal_vazio_aux_preenchido",
+        "S_pipeline_AMARELO_REVISAR"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000443Z-3-001_253069\\GERADOR 15 KVA (1).pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": [
+        "A03_trifasico_com_auxiliar_preenchido"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000443Z-3-001_253069\\REGULADOR CR.pdf",
+      "status_revisao": "VERMELHO_REVISAR",
+      "alertas": [
+        "A10_tipo_vazio_ou_desconhecido",
+        "A09_tensao_vazia",
+        "S_pipeline_VERMELHO_REVISAR"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000443Z-3-001_253069\\REGULADOR EB.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": [
+        "A10_tipo_vazio_ou_desconhecido"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000443Z-3-001_253069\\REGULADOR ESCOVA.pdf",
+      "status_revisao": "AMARELO_REVISAR",
+      "alertas": [
+        "A10_tipo_vazio_ou_desconhecido",
+        "A09_tensao_vazia",
+        "S_pipeline_AMARELO_REVISAR"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000443Z-3-001_253069\\ROT.PDF",
+      "status_revisao": "AMARELO_REVISAR",
+      "alertas": [
+        "A10_tipo_vazio_ou_desconhecido",
+        "A09_tensao_vazia",
+        "S_pipeline_AMARELO_REVISAR"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000443Z-3-001_253069\\TC.PDF",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": [
+        "A10_tipo_vazio_ou_desconhecido"
+      ]
+    }
+  ]
+}

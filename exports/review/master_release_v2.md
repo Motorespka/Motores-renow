@@ -1,4 +1,4 @@
-# Master release v2 (2026-05-16T20:14:29Z) — `7B.44 — B44 (operação resgate, último lote cheio)`
+# Master release v2 (2026-05-16T20:40:40Z) — `7B.45 — B45 (encerramento pool resgate)`
 
 ## Totais OFICIAL
 
@@ -17,7 +17,6 @@
 - **PASS1_V2_BLOCO_10_RECONCILIADO**: **13**
 - **PASS1_V2_BLOCO_12_RECONCILIADO**: **13**
 - **PASS1_V2_BLOCO_13_RECONCILIADO**: **13**
-- **PASS1_V2_BLOCO_44_RECONCILIADO**: **13**
 - **PASS1_V2_BLOCO_05_RECONCILIADO**: **12**
 - **PASS1_V2_BLOCO_08_RECONCILIADO**: **12**
 - **PASS1_V2_BLOCO_14_RECONCILIADO**: **12**
@@ -34,13 +33,13 @@
 - **PASS1_V2_BLOCO_24_RECONCILIADO**: **11**
 - **PASS1_V2_BLOCO_28_RECONCILIADO**: **11**
 - **PASS1_V2_BLOCO_29_RECONCILIADO**: **11**
-- **PASS1_V2_BLOCO_34_RECONCILIADO**: **11**
 - **PASS1_V2_BLOCO_19_RECONCILIADO**: **10**
 - **PASS1_V2_BLOCO_33_RECONCILIADO**: **10**
 - **PASS1_V2_BLOCO_36_RECONCILIADO**: **10**
 - **PASS1_V2_BLOCO_20_RECONCILIADO**: **9**
 - **PASS1_V2_BLOCO_23_RECONCILIADO**: **9**
 - **PASS1_V2_BLOCO_27_RECONCILIADO**: **9**
+- **PASS1_V2_BLOCO_34_RECONCILIADO**: **9**
 - **PASS1_V2_BLOCO_37_RECONCILIADO**: **9**
 - **PASS1_V2_BLOCO_38_RECONCILIADO**: **9**
 - **PASS1_V2_BLOCO_39_RECONCILIADO**: **9**
@@ -48,17 +47,19 @@
 - **PASS1_V2_BLOCO_41_RECONCILIADO**: **9**
 - **PASS1_V2_BLOCO_42_RECONCILIADO**: **9**
 - **PASS1_V2_BLOCO_43_RECONCILIADO**: **9**
+- **PASS1_V2_BLOCO_45_RECONCILIADO**: **9**
 - **PASS1_V2_BLOCO_17_RECONCILIADO**: **8**
 - **PASS1_V2_BLOCO_18_RECONCILIADO**: **8**
 - **PASS1_V2_BLOCO_25_RECONCILIADO**: **8**
 - **PASS1_V2_BLOCO_01_RECONCILIADO**: **7**
-- **PASS1_V2_BLOCO_35_RECONCILIADO**: **3**
+- **PASS1_V2_BLOCO_44_RECONCILIADO**: **7**
+- **PASS1_V2_BLOCO_35_RECONCILIADO**: **2**
 
-## Comparativo (run `7b44`)
+## Comparativo (run `7b45`)
 
-- OFICIAL antes (ficheiro anterior): **862**
-- OFICIAL agora: **869** (**Δ=+7**)
-- SHA **`PASS1_V2_BLOCO_44_RECONCILIADO`** presentes como OFICIAL: **13** (diff: `master_release_v2_diff_fase7b44.md`)
+- OFICIAL antes (ficheiro anterior): **869**
+- OFICIAL agora: **869** (**Δ=+0**)
+- SHA **`PASS1_V2_BLOCO_45_RECONCILIADO`** presentes como OFICIAL: **9** (diff: `master_release_v2_diff_fase7b45.md`)
 
 ## Basenames políticos (`pass1_v2_progress.NO_AUTO` + isolados retry)
 
@@ -157,6 +158,8 @@
 bobi.pdf
 esquema eletrico geradores branco.pdf
 esquema vent. de ar.pdf
+est.pdf
+regulador escova.pdf
 rot.pdf
 ventilador 3 velocidades.pdf
 ventiladores 2.pdf

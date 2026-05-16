@@ -1,0 +1,76 @@
+{
+  "generated_at": "2026-05-16T20:40:38Z",
+  "last_n": 14,
+  "bundle_csv": "C:\\Users\\micke\\Desktop\\O rebobinador\\Motores-renow\\exports\\review\\extraidos_motor_fase7a_pass1_v2_block_45_flash_candidates.csv",
+  "inputs_used": {
+    "quality_csv": "exports\\review\\gemini_extraction_quality_extraidos_motor_fase7a_pass1_v2_block_45_flash.csv",
+    "jsonl": "exports\\review\\extraidos_motor_fase7a_pass1_v2_block_45_flash_candidates.jsonl",
+    "keys_json": "C:\\Users\\micke\\Desktop\\O rebobinador\\Motores-renow\\logs\\gemini_keys_status.json",
+    "batch_log": "C:\\Users\\micke\\Desktop\\O rebobinador\\Motores-renow\\logs\\rebobinagem_batch.log"
+  },
+  "totais_por_categoria": {
+    "VERDE_COM_ALERTA": 9,
+    "AMARELO_REVISAR": 4,
+    "VERMELHO_DADO_RUIM": 1
+  },
+  "percentagens": {
+    "verde_seguro": 0.0,
+    "vermelho_infra": 0.0
+  },
+  "aproveitamento_import_seguro_pct": 0.0,
+  "gemini_keys_status_resumo": {
+    "total_keys_tracked": 28,
+    "by_status": {
+      "ok": 28
+    },
+    "ok_sem_cooldown_ativo": 28,
+    "ok_em_cooldown": 0,
+    "quota_exhausted_agora": 0,
+    "permission_denied": 0,
+    "invalid": 0
+  },
+  "escalar_aprovado_criterio_automatico": false,
+  "motivos_nao_escalar": [
+    "taxa VERDE_SEGURO (0.0%) abaixo de 75%"
+  ],
+  "top_motivos_bloqueio_bundle": [
+    [
+      "baixa_confianca_local",
+      8
+    ],
+    [
+      "faltando_obrigatorio",
+      5
+    ]
+  ],
+  "lists": {
+    "VERDE_SEGURO": [],
+    "VERDE_COM_ALERTA": [
+      "drive-download-20260403T124026Z-3-001_224929\\605028115.pdf",
+      "drive-download-20260403T124026Z-3-001_224929\\605028315.pdf",
+      "drive-download-20260403T124026Z-3-001_224929\\605028715.pdf",
+      "drive-download-20260403T124026Z-3-001_224929\\605029715.pdf",
+      "drive-download-20260403T124026Z-3-001_224929\\605041001.pdf",
+      "drive-download-20260408T000443Z-3-001_253069\\Esquema Eletrico Geradores Branco.pdf",
+      "drive-download-20260408T000443Z-3-001_253069\\GERADOR 15 KVA (1).pdf",
+      "drive-download-20260408T000443Z-3-001_253069\\REGULADOR EB.pdf",
+      "drive-download-20260408T000443Z-3-001_253069\\TC.PDF"
+    ],
+    "AMARELO_REVISAR": [
+      "drive-download-20260408T000443Z-3-001_253069\\BOBI.PDF",
+      "drive-download-20260408T000443Z-3-001_253069\\EST.PDF",
+      "drive-download-20260408T000443Z-3-001_253069\\REGULADOR ESCOVA.pdf",
+      "drive-download-20260408T000443Z-3-001_253069\\ROT.PDF"
+    ],
+    "VERMELHO_NO_KEYS_OU_QUOTA": [],
+    "VERMELHO_DADO_RUIM": [
+      "drive-download-20260408T000443Z-3-001_253069\\REGULADOR CR.pdf"
+    ]
+  },
+  "saida_csv": {
+    "categorized": "C:\\Users\\micke\\Desktop\\O rebobinador\\Motores-renow\\exports\\review\\extraidos_motor_fase7a_pass1_v2_block_45_flash_categorized.csv",
+    "reprocess_no_keys": "C:\\Users\\micke\\Desktop\\O rebobinador\\Motores-renow\\exports\\review\\extraidos_motor_fase7a_pass1_v2_block_45_flash_categorized_reprocess_no_keys.csv",
+    "manual_review": "C:\\Users\\micke\\Desktop\\O rebobinador\\Motores-renow\\exports\\review\\extraidos_motor_fase7a_pass1_v2_block_45_flash_categorized_manual_review.csv",
+    "safe_green": "C:\\Users\\micke\\Desktop\\O rebobinador\\Motores-renow\\exports\\review\\extraidos_motor_fase7a_pass1_v2_block_45_flash_categorized_safe_green_candidates.csv"
+  }
+}
