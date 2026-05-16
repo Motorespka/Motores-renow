@@ -1,8 +1,8 @@
-# Master release v2 (2026-05-16T19:06:57Z) — `7B.39 — B39 (operação resgate)`
+# Master release v2 (2026-05-16T19:18:37Z) — `7B.40 — B40 (operação resgate)`
 
 ## Totais OFICIAL
 
-- **OFICIAL_total**: **829**
+- **OFICIAL_total**: **835**
 - **CANDIDATO** bloco 02 safe_green legacy: **0**
 
 ### OFICIAL por `fonte_release`
@@ -12,7 +12,7 @@
 - **PASS1_V2_BLOCO_09_RECONCILIADO**: **14**
 - **PASS1_V2_BLOCO_26_RECONCILIADO**: **14**
 - **PASS1_V2_BLOCO_30_RECONCILIADO**: **14**
-- **PASS1_V2_BLOCO_39_RECONCILIADO**: **14**
+- **PASS1_V2_BLOCO_40_RECONCILIADO**: **14**
 - **PASS1_V2_BLOCO_04_RECONCILIADO**: **13**
 - **PASS1_V2_BLOCO_07_RECONCILIADO**: **13**
 - **PASS1_V2_BLOCO_10_RECONCILIADO**: **13**
@@ -43,18 +43,18 @@
 - **PASS1_V2_BLOCO_27_RECONCILIADO**: **9**
 - **PASS1_V2_BLOCO_37_RECONCILIADO**: **9**
 - **PASS1_V2_BLOCO_38_RECONCILIADO**: **9**
+- **PASS1_V2_BLOCO_39_RECONCILIADO**: **9**
 - **PASS1_V2_BLOCO_17_RECONCILIADO**: **8**
 - **PASS1_V2_BLOCO_18_RECONCILIADO**: **8**
 - **PASS1_V2_BLOCO_25_RECONCILIADO**: **8**
 - **PASS1_V2_BLOCO_01_RECONCILIADO**: **7**
 - **PASS1_V2_BLOCO_35_RECONCILIADO**: **3**
-- **PROMOCAO_MANUAL_REVISADA_CURSOR**: **3**
 
-## Comparativo (run `7b39`)
+## Comparativo (run `7b40`)
 
 - OFICIAL antes (ficheiro anterior): **829**
-- OFICIAL agora: **829** (**Δ=+0**)
-- SHA **`PASS1_V2_BLOCO_39_RECONCILIADO`** presentes como OFICIAL: **14** (diff: `master_release_v2_diff_fase7b39.md`)
+- OFICIAL agora: **835** (**Δ=+6**)
+- SHA **`PASS1_V2_BLOCO_40_RECONCILIADO`** presentes como OFICIAL: **14** (diff: `master_release_v2_diff_fase7b40.md`)
 
 ## Basenames políticos (`pass1_v2_progress.NO_AUTO` + isolados retry)
 
@@ -158,4 +158,4 @@ ventiladores 2.pdf
 ventiladores 3.pdf
 ```
 
-- **GAP 1600**: **771** · **Recomendação**: `ENTREGAVEL_PARA_DEPLOY_PILOTO_AMPLIADO_v2`
+- **GAP 1600**: **765** · **Recomendação**: `ENTREGAVEL_PARA_DEPLOY_PILOTO_AMPLIADO_v2`
