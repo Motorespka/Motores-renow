@@ -1,0 +1,129 @@
+{
+  "generated_at": "2026-05-17T18:02:42Z",
+  "input_csv": "C:\\Users\\micke\\Desktop\\O rebobinador\\Motores-renow\\exports\\review\\extraidos_motor_fase7a_pass1_v2_block_50_flash_candidates.csv",
+  "last_n": 14,
+  "total_auditado": 14,
+  "verdes_sem_alerta": 12,
+  "verdes_com_alerta": 1,
+  "amarelos": 1,
+  "vermelhos": 0,
+  "top_motivos_alerta": [
+    {
+      "codigo": "A02_mono_sem_fio_espiras_passo_auxiliar",
+      "count": 1
+    },
+    {
+      "codigo": "A08_rpm_fora_faixa_polos_4p_(1200-1900)_rpm=790",
+      "count": 1
+    },
+    {
+      "codigo": "S_pipeline_AMARELO_REVISAR",
+      "count": 1
+    },
+    {
+      "codigo": "A08_rpm_absoluto_absurdo_rpm=14000",
+      "count": 1
+    }
+  ],
+  "top_alertas_criticos_A": [
+    {
+      "codigo": "A02_mono_sem_fio_espiras_passo_auxiliar",
+      "count": 1
+    },
+    {
+      "codigo": "A08_rpm_fora_faixa_polos_4p_(1200-1900)_rpm=790",
+      "count": 1
+    },
+    {
+      "codigo": "A08_rpm_absoluto_absurdo_rpm=14000",
+      "count": 1
+    }
+  ],
+  "arquivos_revisao_manual": [
+    "drive-download-20260403T124026Z-3-001_224929\\1,8cv 4e8p nema42 2 50,60hz 30x68 605012085.pdf",
+    "drive-download-20260403T124026Z-3-001_224929\\1.5cv 2,4p iec63r 2 260,150hz 70x56.4 605012237.pdf"
+  ],
+  "saidas": {
+    "csv": "exports\\review\\gemini_extraction_quality_extraidos_motor_fase7a_pass1_v2_block_50_flash.csv",
+    "json": "exports\\review\\gemini_extraction_quality_extraidos_motor_fase7a_pass1_v2_block_50_flash.json",
+    "md": "exports\\review\\gemini_extraction_quality_extraidos_motor_fase7a_pass1_v2_block_50_flash.md"
+  },
+  "linhas": [
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\1,8cv 4e8p nema42 2 50,60hz 30x68 605012085.pdf",
+      "status_revisao": "AMARELO_REVISAR",
+      "alertas": [
+        "A02_mono_sem_fio_espiras_passo_auxiliar",
+        "A08_rpm_fora_faixa_polos_4p_(1200-1900)_rpm=790",
+        "S_pipeline_AMARELO_REVISAR"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\1.5cv 2,4p iec63r 2 260,150hz 70x56.4 605012237.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": [
+        "A08_rpm_absoluto_absurdo_rpm=14000"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\2cv 4p iec90 23 60hz 120x89.4 605013241 r.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\2cv 4p iec90 23 60hz 120x89.4 605013241.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\2cv 4p iec90 24 60hz 89.4x100 605165008.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\2cv 4p nema56 12 60hz 100x97.1 605012199.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\2cv 4p nema56 12 60hz 130x97.1 605012251 r.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\2cv 4p nema56 12 60hz 130x97.1 605012251.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\2cv 4p nema56 12 60hz 97.4x100 605046033.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\2cv 6p iec100 23 60hz 110x97.3 605072008.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\2cv 6p iec100 234 60hz 97.5x150 606506409.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\3,4cv 2p iec80 23 60hz 50x61.4 605015138.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\3,4cv 2p nema56 23 60hz 40x71.7 605015130.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\3,4cv 4p nema42 234 60hz 68.1x80 605012401.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    }
+  ]
+}
