@@ -1,11 +1,12 @@
 {
-  "generated_at": "2026-05-17T18:55:36Z",
-  "fase_cli": "7b54",
-  "fase_human": "7B.54 — B54 (contagem regressiva 1000)",
+  "generated_at": "2026-05-17T19:13:42Z",
+  "fase_cli": "7b55",
+  "fase_human": "7B.55 — B55 (contagem regressiva 1000)",
   "offline_only": true,
-  "promoted_pass1_block_number": 54,
-  "backup_files_suffix_example": ".bak_pre_fase7b54_20260517T185536Z",
+  "promoted_pass1_block_number": 55,
+  "backup_files_suffix_example": ".bak_pre_fase7b55_20260517T191342Z",
   "fonte_release_ordem_prioridade": [
+    "PASS1_V2_BLOCO_55_RECONCILIADO",
     "PASS1_V2_BLOCO_54_RECONCILIADO",
     "PASS1_V2_BLOCO_53_RECONCILIADO",
     "PASS1_V2_BLOCO_52_RECONCILIADO",
@@ -102,6 +103,7 @@
     "regra_c_basenames_politica_total": [
       "1,8cv 4e8p nema42 2 50,60hz 30x68 605012085.pdf",
       "605012237.pdf",
+      "605012335.pdf",
       "605015131.pdf",
       "605016087.pdf",
       "605016201.pdf",
@@ -204,169 +206,168 @@
     ]
   },
   "totais_sha_unicos": {
-    "OFICIAL_total": 978,
+    "OFICIAL_total": 989,
     "OFICIAL_por_fonte": {
+      "PASS1_V2_BLOCO_15_RECONCILIADO": 12,
+      "RELEASE_V1_RETRY": 64,
+      "PASS1_V2_BLOCO_47_RECONCILIADO": 12,
+      "PASS1_V2_BLOCO_02_RECONCILIADO": 11,
+      "PASS1_V2_BLOCO_48_RECONCILIADO": 12,
+      "PASS1_V2_BLOCO_37_RECONCILIADO": 9,
+      "PASS1_V2_BLOCO_52_RECONCILIADO": 12,
+      "PASS1_V2_BLOCO_31_RECONCILIADO": 12,
+      "PASS1_V2_BLOCO_22_RECONCILIADO": 12,
+      "PASS1_V2_BLOCO_17_RECONCILIADO": 8,
+      "PASS1_V2_BLOCO_14_RECONCILIADO": 12,
+      "PASS1_V2_BLOCO_40_RECONCILIADO": 9,
+      "PASS1_V2_BLOCO_29_RECONCILIADO": 11,
+      "PASS1_V2_BLOCO_12_RECONCILIADO": 13,
+      "PASS1_V2_BLOCO_03_RECONCILIADO": 11,
+      "PASS1_V2_BLOCO_42_RECONCILIADO": 9,
+      "PASS1_V2_BLOCO_20_RECONCILIADO": 9,
+      "PASS1_V2_BLOCO_09_RECONCILIADO": 14,
       "PASS1_V2_BLOCO_08_RECONCILIADO": 12,
       "PASS1_V2_BLOCO_49_RECONCILIADO": 12,
-      "RELEASE_V1_RETRY": 64,
-      "PASS1_V2_BLOCO_16_RECONCILIADO": 11,
       "PASS1_V2_BLOCO_04_RECONCILIADO": 13,
-      "PASS1_V2_BLOCO_46_RECONCILIADO": 13,
-      "PASS1_V2_BLOCO_14_RECONCILIADO": 12,
-      "PASS1_V2_BLOCO_11_RECONCILIADO": 11,
-      "PASS1_V2_BLOCO_43_RECONCILIADO": 9,
+      "PASS1_V2_BLOCO_44_RECONCILIADO": 7,
       "PASS1_V2_BLOCO_25_RECONCILIADO": 8,
-      "PASS1_V2_BLOCO_05_RECONCILIADO": 12,
+      "PASS1_V2_BLOCO_55_RECONCILIADO": 11,
+      "PASS1_V2_BLOCO_32_RECONCILIADO": 12,
+      "PASS1_V2_BLOCO_13_RECONCILIADO": 13,
+      "PASS1_V2_BLOCO_26_RECONCILIADO": 14,
+      "PASS1_V2_BLOCO_50_RECONCILIADO": 12,
+      "PASS1_V2_BLOCO_11_RECONCILIADO": 11,
+      "PASS1_V2_BLOCO_21_RECONCILIADO": 11,
+      "PASS1_V2_BLOCO_41_RECONCILIADO": 9,
+      "PASS1_V2_BLOCO_28_RECONCILIADO": 11,
+      "PASS1_V2_BLOCO_46_RECONCILIADO": 13,
+      "PASS1_V2_BLOCO_07_RECONCILIADO": 13,
       "PASS1_V2_BLOCO_10_RECONCILIADO": 13,
       "PASS1_V2_BLOCO_19_RECONCILIADO": 10,
-      "PASS1_V2_BLOCO_32_RECONCILIADO": 12,
-      "PASS1_V2_BLOCO_23_RECONCILIADO": 9,
-      "PASS1_V2_BLOCO_36_RECONCILIADO": 10,
-      "PASS1_V2_BLOCO_17_RECONCILIADO": 8,
-      "PASS1_V2_BLOCO_53_RECONCILIADO": 12,
-      "PASS1_V2_BLOCO_12_RECONCILIADO": 13,
-      "PASS1_V2_BLOCO_52_RECONCILIADO": 12,
-      "PASS1_V2_BLOCO_09_RECONCILIADO": 14,
-      "PASS1_V2_BLOCO_40_RECONCILIADO": 9,
-      "PASS1_V2_BLOCO_54_RECONCILIADO": 12,
-      "PASS1_V2_BLOCO_15_RECONCILIADO": 12,
-      "PASS1_V2_BLOCO_24_RECONCILIADO": 11,
-      "PASS1_V2_BLOCO_29_RECONCILIADO": 11,
-      "PASS1_V2_BLOCO_18_RECONCILIADO": 8,
-      "PASS1_V2_BLOCO_22_RECONCILIADO": 12,
-      "PASS1_V2_BLOCO_26_RECONCILIADO": 14,
-      "PASS1_V2_BLOCO_07_RECONCILIADO": 13,
+      "PASS1_V2_BLOCO_43_RECONCILIADO": 9,
       "PASS1_V2_BLOCO_45_RECONCILIADO": 9,
-      "PASS1_V2_BLOCO_21_RECONCILIADO": 11,
-      "PASS1_V2_BLOCO_02_RECONCILIADO": 11,
-      "PASS1_V2_BLOCO_44_RECONCILIADO": 7,
-      "PASS1_V2_BLOCO_31_RECONCILIADO": 12,
-      "PASS1_V2_BLOCO_50_RECONCILIADO": 12,
+      "PASS1_V2_BLOCO_54_RECONCILIADO": 12,
+      "PASS1_V2_BLOCO_01_RECONCILIADO": 7,
+      "PASS1_V2_BLOCO_34_RECONCILIADO": 9,
+      "PASS1_V2_BLOCO_36_RECONCILIADO": 10,
+      "PASS1_V2_BLOCO_53_RECONCILIADO": 12,
+      "PASS1_V2_BLOCO_16_RECONCILIADO": 11,
+      "PASS1_V2_BLOCO_30_RECONCILIADO": 14,
+      "PASS1_V2_BLOCO_05_RECONCILIADO": 12,
+      "PASS1_V2_BLOCO_27_RECONCILIADO": 9,
+      "PASS1_V2_BLOCO_33_RECONCILIADO": 10,
+      "PASS1_V2_BLOCO_39_RECONCILIADO": 9,
+      "PASS1_V2_BLOCO_51_RECONCILIADO": 12,
+      "PASS1_V2_BLOCO_38_RECONCILIADO": 9,
+      "PASS1_V2_BLOCO_18_RECONCILIADO": 8,
       "PASS1_V2_BLOCO_06_RECONCILIADO": 11,
       "PASS1_V2_BLOCO_35_RECONCILIADO": 2,
-      "PASS1_V2_BLOCO_27_RECONCILIADO": 9,
-      "PASS1_V2_BLOCO_48_RECONCILIADO": 12,
-      "PASS1_V2_BLOCO_28_RECONCILIADO": 11,
-      "PASS1_V2_BLOCO_42_RECONCILIADO": 9,
-      "PASS1_V2_BLOCO_41_RECONCILIADO": 9,
-      "PASS1_V2_BLOCO_37_RECONCILIADO": 9,
-      "PASS1_V2_BLOCO_03_RECONCILIADO": 11,
-      "PASS1_V2_BLOCO_01_RECONCILIADO": 7,
-      "PASS1_V2_BLOCO_20_RECONCILIADO": 9,
-      "PASS1_V2_BLOCO_34_RECONCILIADO": 9,
-      "PASS1_V2_BLOCO_13_RECONCILIADO": 13,
-      "PASS1_V2_BLOCO_38_RECONCILIADO": 9,
-      "PASS1_V2_BLOCO_33_RECONCILIADO": 10,
-      "PASS1_V2_BLOCO_47_RECONCILIADO": 12,
-      "PASS1_V2_BLOCO_39_RECONCILIADO": 9,
-      "PASS1_V2_BLOCO_30_RECONCILIADO": 14,
-      "PASS1_V2_BLOCO_51_RECONCILIADO": 12,
+      "PASS1_V2_BLOCO_23_RECONCILIADO": 9,
+      "PASS1_V2_BLOCO_24_RECONCILIADO": 11,
       "INDICE_VERDE_LIMPO": 337
     },
     "CANDIDATOS": 0,
-    "TOTAL_linhas_master_manifest_csv": 978
+    "TOTAL_linhas_master_manifest_csv": 989
   },
   "comparacao_vs_manifest_anterior": {
-    "OFICIAL_total_antes_snapshot_ficheiro_anterior": 966,
-    "OFICIAL_total_apos_run": 978,
-    "delta_OFICIAL": 12,
-    "sha_promovidos_total_vs_anterior": 12,
+    "OFICIAL_total_antes_snapshot_ficheiro_anterior": 978,
+    "OFICIAL_total_apos_run": 989,
+    "delta_OFICIAL": 11,
+    "sha_promovidos_total_vs_anterior": 11,
     "overlap_manifest_v1_com_indice_limpo_count": 0
   },
   "verificacao_promoted_block": {
-    "promoted_block": 54,
-    "promoted_fonte_release": "PASS1_V2_BLOCO_54_RECONCILIADO",
+    "promoted_block": 55,
+    "promoted_fonte_release": "PASS1_V2_BLOCO_55_RECONCILIADO",
     "sha_resolved_manifest_promoted": [
-      "15e99579e6bbfe4d9e97f6b16d57a89853696a8de7823776e3ae79d52db82311",
-      "18ea81cc6aa7da63dab6a0835b8c78e9a7d43c71be8a988d97a66d513e390881",
-      "5b69b194e9fe53488af4ef3b9d84cee076d31d14dee9497212cdd8373b69535d",
-      "5c19f70793730b61163dfda04b8cf593628c3a7abd0b064557f80fa3cb01f43b",
-      "78ae57b1dc1d35e5aec577cb43e2baf46f663f507db8a4e86d3ec480bbee89d7",
+      "2507f195388415e52968ebda59fc7d37fe8706e9d6b69a0f742971a4c6b268a5",
+      "2f90cfc4ad5f49446a61e7c4879522c50a45b037e54bcee64894c9208b31b04f",
+      "37a6414758259b4ce6e8527658dabea40c8464d55d8b97fcb4235c97e5c0bfa8",
+      "3dda32e9a67cc55937b89cf727602ed42952879e4b4fdd41eda76ae13fc5c90b",
+      "4d6e25c5f9ab5205cf3b31915317f45e0c0e7ed0e84ff964581dbdc76aa287ad",
       "8554fe74778230d315df2d5c011cf6e63b17896ca9da067fd00bd898e9731169",
-      "96b4d935d470016f48468b525ad0626cb070e071377b00c4c2712c0a873a1ef5",
-      "9bf17a813cea31e71dbc0f4ef0813e0d75633a27f1af74f910dee119fe336739",
-      "a56ab60c5c3146bd921fefca52a01dfb5f90472b0bed356f0c58e934cdd995cc",
-      "b1d9e03935fa0da56e03004e72aaaaf73058b7b0c818ebfa18f98c892d018fa8",
-      "d32d6f01e36886d53db870f97d88a02afc8fce2375107afec5f92fe0d2cbd7c3",
-      "e8b3bb89648bb589f56cd249b3ed582a75dd97d7ade1bfdbe3afba8bca638b2a",
-      "fab1d299ce3608caa79846ee761b6dd02500a58e3591d36357bd0075436b3db4"
+      "89e909189cc8be2b7ab8b636b48473b7955c632b124285cca2b6768e7b61f092",
+      "9fc19e03ca92755ae99355f2a875152926ca44d9f938b2237c2d4e1ffb54998f",
+      "a712c46e799f0d8561305752955f88c437b5ae66a06b5ebc1c62ed18a86ea739",
+      "c07b8fc26729c2f6046e9d94825f9d2bc006dd761ac9b5807d41b19e273dc33d",
+      "d900138491e28a144627d2239bff15df662fa8b536913f1f5f27287caf4c0c4b",
+      "e30a487dd7d5bb88dfedb5e61fb82c124c905958fadcd2e200fc8b7d8102b636"
     ],
     "sha_que_entraram_na_fonte_PROMOTED_na_OFICIAL": [
-      "a56ab60c5c3146bd921fefca52a01dfb5f90472b0bed356f0c58e934cdd995cc",
-      "5c19f70793730b61163dfda04b8cf593628c3a7abd0b064557f80fa3cb01f43b",
-      "96b4d935d470016f48468b525ad0626cb070e071377b00c4c2712c0a873a1ef5",
-      "78ae57b1dc1d35e5aec577cb43e2baf46f663f507db8a4e86d3ec480bbee89d7",
-      "e8b3bb89648bb589f56cd249b3ed582a75dd97d7ade1bfdbe3afba8bca638b2a",
-      "d32d6f01e36886d53db870f97d88a02afc8fce2375107afec5f92fe0d2cbd7c3",
-      "b1d9e03935fa0da56e03004e72aaaaf73058b7b0c818ebfa18f98c892d018fa8",
-      "5b69b194e9fe53488af4ef3b9d84cee076d31d14dee9497212cdd8373b69535d",
-      "15e99579e6bbfe4d9e97f6b16d57a89853696a8de7823776e3ae79d52db82311",
-      "9bf17a813cea31e71dbc0f4ef0813e0d75633a27f1af74f910dee119fe336739",
-      "18ea81cc6aa7da63dab6a0835b8c78e9a7d43c71be8a988d97a66d513e390881",
-      "fab1d299ce3608caa79846ee761b6dd02500a58e3591d36357bd0075436b3db4"
+      "e30a487dd7d5bb88dfedb5e61fb82c124c905958fadcd2e200fc8b7d8102b636",
+      "c07b8fc26729c2f6046e9d94825f9d2bc006dd761ac9b5807d41b19e273dc33d",
+      "d900138491e28a144627d2239bff15df662fa8b536913f1f5f27287caf4c0c4b",
+      "89e909189cc8be2b7ab8b636b48473b7955c632b124285cca2b6768e7b61f092",
+      "a712c46e799f0d8561305752955f88c437b5ae66a06b5ebc1c62ed18a86ea739",
+      "37a6414758259b4ce6e8527658dabea40c8464d55d8b97fcb4235c97e5c0bfa8",
+      "9fc19e03ca92755ae99355f2a875152926ca44d9f938b2237c2d4e1ffb54998f",
+      "2f90cfc4ad5f49446a61e7c4879522c50a45b037e54bcee64894c9208b31b04f",
+      "3dda32e9a67cc55937b89cf727602ed42952879e4b4fdd41eda76ae13fc5c90b",
+      "4d6e25c5f9ab5205cf3b31915317f45e0c0e7ed0e84ff964581dbdc76aa287ad",
+      "2507f195388415e52968ebda59fc7d37fe8706e9d6b69a0f742971a4c6b268a5"
     ],
-    "contagem_na_OFICIAL_com_fonte_PROMOTED": 12,
+    "contagem_na_OFICIAL_com_fonte_PROMOTED": 11,
     "legacy_candidato_b02_sha_antes_snapshot": [],
     "sha_desapareceram_inesperado": [],
     "sha_novos_inesperado_alem_manifest_promoted": [],
     "primeiros_10_promoted_conferencia": [
       {
-        "sha256_arquivo": "a56ab60c5c3146bd921fefca52a01dfb5f90472b0bed356f0c58e934cdd995cc",
-        "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605012154.pdf",
-        "motivo": "PASS1_V2_BLOCO_54_RECONCILIADO"
+        "sha256_arquivo": "e30a487dd7d5bb88dfedb5e61fb82c124c905958fadcd2e200fc8b7d8102b636",
+        "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605012318.pdf",
+        "motivo": "PASS1_V2_BLOCO_55_RECONCILIADO"
       },
       {
-        "sha256_arquivo": "5c19f70793730b61163dfda04b8cf593628c3a7abd0b064557f80fa3cb01f43b",
-        "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605012170.pdf",
-        "motivo": "PASS1_V2_BLOCO_54_RECONCILIADO"
+        "sha256_arquivo": "c07b8fc26729c2f6046e9d94825f9d2bc006dd761ac9b5807d41b19e273dc33d",
+        "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605012319.pdf",
+        "motivo": "PASS1_V2_BLOCO_55_RECONCILIADO"
       },
       {
-        "sha256_arquivo": "96b4d935d470016f48468b525ad0626cb070e071377b00c4c2712c0a873a1ef5",
-        "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605012203.pdf",
-        "motivo": "PASS1_V2_BLOCO_54_RECONCILIADO"
+        "sha256_arquivo": "d900138491e28a144627d2239bff15df662fa8b536913f1f5f27287caf4c0c4b",
+        "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605012320.pdf",
+        "motivo": "PASS1_V2_BLOCO_55_RECONCILIADO"
       },
       {
-        "sha256_arquivo": "78ae57b1dc1d35e5aec577cb43e2baf46f663f507db8a4e86d3ec480bbee89d7",
-        "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605012205.pdf",
-        "motivo": "PASS1_V2_BLOCO_54_RECONCILIADO"
+        "sha256_arquivo": "89e909189cc8be2b7ab8b636b48473b7955c632b124285cca2b6768e7b61f092",
+        "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605012321.pdf",
+        "motivo": "PASS1_V2_BLOCO_55_RECONCILIADO"
       },
       {
-        "sha256_arquivo": "e8b3bb89648bb589f56cd249b3ed582a75dd97d7ade1bfdbe3afba8bca638b2a",
-        "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605012216.pdf",
-        "motivo": "PASS1_V2_BLOCO_54_RECONCILIADO"
+        "sha256_arquivo": "a712c46e799f0d8561305752955f88c437b5ae66a06b5ebc1c62ed18a86ea739",
+        "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605012324.pdf",
+        "motivo": "PASS1_V2_BLOCO_55_RECONCILIADO"
       },
       {
-        "sha256_arquivo": "d32d6f01e36886d53db870f97d88a02afc8fce2375107afec5f92fe0d2cbd7c3",
-        "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605012228.pdf",
-        "motivo": "PASS1_V2_BLOCO_54_RECONCILIADO"
+        "sha256_arquivo": "37a6414758259b4ce6e8527658dabea40c8464d55d8b97fcb4235c97e5c0bfa8",
+        "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605012333.pdf",
+        "motivo": "PASS1_V2_BLOCO_55_RECONCILIADO"
       },
       {
-        "sha256_arquivo": "b1d9e03935fa0da56e03004e72aaaaf73058b7b0c818ebfa18f98c892d018fa8",
-        "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605012236.pdf",
-        "motivo": "PASS1_V2_BLOCO_54_RECONCILIADO"
+        "sha256_arquivo": "9fc19e03ca92755ae99355f2a875152926ca44d9f938b2237c2d4e1ffb54998f",
+        "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605012334.pdf",
+        "motivo": "PASS1_V2_BLOCO_55_RECONCILIADO"
       },
       {
-        "sha256_arquivo": "5b69b194e9fe53488af4ef3b9d84cee076d31d14dee9497212cdd8373b69535d",
-        "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605012264.pdf",
-        "motivo": "PASS1_V2_BLOCO_54_RECONCILIADO"
+        "sha256_arquivo": "2f90cfc4ad5f49446a61e7c4879522c50a45b037e54bcee64894c9208b31b04f",
+        "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605012339.pdf",
+        "motivo": "PASS1_V2_BLOCO_55_RECONCILIADO"
       },
       {
-        "sha256_arquivo": "15e99579e6bbfe4d9e97f6b16d57a89853696a8de7823776e3ae79d52db82311",
-        "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605012274.pdf",
-        "motivo": "PASS1_V2_BLOCO_54_RECONCILIADO"
+        "sha256_arquivo": "3dda32e9a67cc55937b89cf727602ed42952879e4b4fdd41eda76ae13fc5c90b",
+        "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605012360.pdf",
+        "motivo": "PASS1_V2_BLOCO_55_RECONCILIADO"
       },
       {
-        "sha256_arquivo": "9bf17a813cea31e71dbc0f4ef0813e0d75633a27f1af74f910dee119fe336739",
-        "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605012278.pdf",
-        "motivo": "PASS1_V2_BLOCO_54_RECONCILIADO"
+        "sha256_arquivo": "4d6e25c5f9ab5205cf3b31915317f45e0c0e7ed0e84ff964581dbdc76aa287ad",
+        "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605012363.pdf",
+        "motivo": "PASS1_V2_BLOCO_55_RECONCILIADO"
       }
     ],
-    "primeira_linha_PROMOTED_oficial": "drive-download-20260403T124026Z-3-001_224929\\605012154.pdf | `a56ab60c5c3146bd921fefca52a01dfb5f90472b0bed356f0c58e934cdd995cc`",
-    "ultima_linha_PROMOTED_oficial": "drive-download-20260403T124026Z-3-001_224929\\605012309.pdf | `fab1d299ce3608caa79846ee761b6dd02500a58e3591d36357bd0075436b3db4`"
+    "primeira_linha_PROMOTED_oficial": "drive-download-20260403T124026Z-3-001_224929\\605012318.pdf | `e30a487dd7d5bb88dfedb5e61fb82c124c905958fadcd2e200fc8b7d8102b636`",
+    "ultima_linha_PROMOTED_oficial": "drive-download-20260403T124026Z-3-001_224929\\605012381.pdf | `2507f195388415e52968ebda59fc7d37fe8706e9d6b69a0f742971a4c6b268a5`"
   },
   "exclusoes_observacao": {
-    "IN_MANUAL_REVIEW_b": 5,
-    "ISOLADO_OU_NO_AUTO_BASENAME_c": 6
+    "ISOLADO_OU_NO_AUTO_BASENAME_c": 6,
+    "IN_MANUAL_REVIEW_b": 5
   },
   "total_linhas_excluidos": 7,
   "manual_flag_conflito_indices": {
@@ -375,12 +376,13 @@
   },
   "sanidade": {
     "OFICIAL_total_janela_esperado": {
-      "min": 960,
-      "max": 980,
+      "min": 970,
+      "max": 990,
       "ok": true
     },
-    "PASS1_promoted_OFICIAL_count": 12,
+    "PASS1_promoted_OFICIAL_count": 11,
     "PROMOCAO_MANUAL_REVISADA_CURSOR_OFICIAL": 0,
+    "PASS1_V2_B55_OFICIAL": 11,
     "PASS1_V2_B54_OFICIAL": 12,
     "PASS1_V2_B53_OFICIAL": 12,
     "PASS1_V2_B52_OFICIAL": 12,
@@ -444,11 +446,11 @@
   "oficial_overlap_indice_verde_false_count": 529,
   "gap_meta": {
     "meta": 1600,
-    "gap_1600_menos_OFICIAL": 622,
+    "gap_1600_menos_OFICIAL": 611,
     "recomendacao": "ENTREGAVEL_PARA_DEPLOY_PILOTO_AMPLIADO_v2"
   },
   "inputs_contagem_interna": {
-    "manifest_union_sha": 648,
+    "manifest_union_sha": 659,
     "release_v1_csv_sha_distintos": 66,
     "indice_limpo_criterios_sha_pres_exclusoes": 337
   },
