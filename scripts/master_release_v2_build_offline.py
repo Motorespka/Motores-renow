@@ -79,7 +79,10 @@ PHASE_7B44 = "7b44"
 PHASE_7B45 = "7b45"
 PHASE_7B46 = "7b46"
 PHASE_7B47 = "7b47"
+PHASE_7B48 = "7b48"
 
+# 7B.48: B48 acima de B47 — rumo ao marco 900 OFICIAL
+PRIO_PASS1_B48 = -44
 # 7B.47: B47 acima de B46 — inéditos físicos (slice 2)
 PRIO_PASS1_B47 = -43
 # 7B.46: B46 acima de B45 — nova era inéditos (massa física solta)
@@ -338,8 +341,9 @@ def load_official_manifest_union(review_dir: Path) -> tuple[dict[str, tuple[int,
                 }
                 winners[sh] = best_manifest_row(winners.get(sh), prio_val, tag_name, r)
 
-    # 7B.47..25: blocos recentes — mesma lógica auto-detect plain/union.
+    # 7B.48..25: blocos recentes — mesma lógica auto-detect plain/union.
     for _bn, _prio in (
+        (48, PRIO_PASS1_B48),
         (47, PRIO_PASS1_B47),
         (46, PRIO_PASS1_B46),
         (45, PRIO_PASS1_B45),
@@ -821,7 +825,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Rebuild master_release_v2 offline (FASE 7B.x).")
     ap.add_argument(
         "--phase",
-        choices=("7b4", "7b5", "7b6", "7b7", "7b8", "7b9", "7b10", "7b11", "7b12", "7b13", "7b14", "7b15", "7b16", PHASE_7B17, PHASE_7B18, PHASE_7B19, PHASE_7B20, PHASE_7B21, PHASE_7B22, PHASE_7B23, PHASE_7B24, PHASE_7B25, PHASE_7B26, PHASE_7B27, PHASE_7B28, PHASE_7B29, PHASE_7B30, PHASE_7B31, PHASE_7B32, PHASE_7B33, PHASE_7B34, PHASE_7B35, PHASE_7B36, PHASE_7B37, PHASE_7B38, PHASE_7B39, PHASE_7B40, PHASE_7B41, PHASE_7B42, PHASE_7B43, PHASE_7B44, PHASE_7B45, PHASE_7B46, PHASE_7B47),
+        choices=("7b4", "7b5", "7b6", "7b7", "7b8", "7b9", "7b10", "7b11", "7b12", "7b13", "7b14", "7b15", "7b16", PHASE_7B17, PHASE_7B18, PHASE_7B19, PHASE_7B20, PHASE_7B21, PHASE_7B22, PHASE_7B23, PHASE_7B24, PHASE_7B25, PHASE_7B26, PHASE_7B27, PHASE_7B28, PHASE_7B29, PHASE_7B30, PHASE_7B31, PHASE_7B32, PHASE_7B33, PHASE_7B34, PHASE_7B35, PHASE_7B36, PHASE_7B37, PHASE_7B38, PHASE_7B39, PHASE_7B40, PHASE_7B41, PHASE_7B42, PHASE_7B43, PHASE_7B44, PHASE_7B45, PHASE_7B46, PHASE_7B47, PHASE_7B48),
         default="7b4",
         help="Fase de promoção incremental.",
     )
@@ -873,8 +877,9 @@ def main() -> int:
         PHASE_7B45: "fase7b45",
         PHASE_7B46: "fase7b46",
         PHASE_7B47: "fase7b47",
+        PHASE_7B48: "fase7b48",
     }[phase_slug]
-    promoted_bn = {"7b4": 4, "7b5": 5, "7b6": 6, "7b7": 7, "7b8": 8, "7b9": 9, "7b10": 10, "7b11": 11, "7b12": 12, "7b13": 13, "7b14": 14, "7b15": 15, "7b16": 16, PHASE_7B17: 17, PHASE_7B18: 18, PHASE_7B19: 19, PHASE_7B20: 20, PHASE_7B21: 21, PHASE_7B22: 22, PHASE_7B23: 23, PHASE_7B24: 24, PHASE_7B25: 25, PHASE_7B26: 26, PHASE_7B27: 27, PHASE_7B28: 28, PHASE_7B29: 29, PHASE_7B30: 30, PHASE_7B31: 31, PHASE_7B32: 32, PHASE_7B33: 33, PHASE_7B34: 34, PHASE_7B35: 35, PHASE_7B36: 36, PHASE_7B37: 37, PHASE_7B38: 38, PHASE_7B39: 39, PHASE_7B40: 40, PHASE_7B41: 41, PHASE_7B42: 42, PHASE_7B43: 43, PHASE_7B44: 44, PHASE_7B45: 45, PHASE_7B46: 46, PHASE_7B47: 47}[phase_slug]
+    promoted_bn = {"7b4": 4, "7b5": 5, "7b6": 6, "7b7": 7, "7b8": 8, "7b9": 9, "7b10": 10, "7b11": 11, "7b12": 12, "7b13": 13, "7b14": 14, "7b15": 15, "7b16": 16, PHASE_7B17: 17, PHASE_7B18: 18, PHASE_7B19: 19, PHASE_7B20: 20, PHASE_7B21: 21, PHASE_7B22: 22, PHASE_7B23: 23, PHASE_7B24: 24, PHASE_7B25: 25, PHASE_7B26: 26, PHASE_7B27: 27, PHASE_7B28: 28, PHASE_7B29: 29, PHASE_7B30: 30, PHASE_7B31: 31, PHASE_7B32: 32, PHASE_7B33: 33, PHASE_7B34: 34, PHASE_7B35: 35, PHASE_7B36: 36, PHASE_7B37: 37, PHASE_7B38: 38, PHASE_7B39: 39, PHASE_7B40: 40, PHASE_7B41: 41, PHASE_7B42: 42, PHASE_7B43: 43, PHASE_7B44: 44, PHASE_7B45: 45, PHASE_7B46: 46, PHASE_7B47: 47, PHASE_7B48: 48}[phase_slug]
     diff_name = f"master_release_v2_diff_{phase_tag}.md"
 
     utc = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -1329,6 +1334,7 @@ def main() -> int:
         PHASE_7B45: "7B.45 — B45 (encerramento pool resgate)",
         PHASE_7B46: "7B.46 — B46 (nova era inéditos — massa física solta)",
         PHASE_7B47: "7B.47 — B47 (inéditos físicos — slice 2)",
+        PHASE_7B48: "7B.48 — B48 (rumo ao marco 900 OFICIAL)",
     }[phase_slug]
 
     expect_total_window = {
@@ -1402,6 +1408,8 @@ def main() -> int:
         PHASE_7B46: (869, 890),
         # 7B.47: baseline pós-B46 (882 OFICIAL) + até 14 inéditos.
         PHASE_7B47: (882, 905),
+        # 7B.48: baseline pós-B47 (894 OFICIAL) — meta histórica ≥900.
+        PHASE_7B48: (890, 915),
     }
     wl, wh = expect_total_window[phase_slug]
 
@@ -1455,6 +1463,7 @@ def main() -> int:
             "OFICIAL_total_janela_esperado": {"min": wl, "max": wh, "ok": wl <= oficiais <= wh},
             "PASS1_promoted_OFICIAL_count": len(sha_promo_ord),
             "PROMOCAO_MANUAL_REVISADA_CURSOR_OFICIAL": br_fonte_of.get("PROMOCAO_MANUAL_REVISADA_CURSOR", 0),
+            "PASS1_V2_B48_OFICIAL": br_fonte_of.get("PASS1_V2_BLOCO_48_RECONCILIADO", 0),
             "PASS1_V2_B47_OFICIAL": br_fonte_of.get("PASS1_V2_BLOCO_47_RECONCILIADO", 0),
             "PASS1_V2_B46_OFICIAL": br_fonte_of.get("PASS1_V2_BLOCO_46_RECONCILIADO", 0),
             "PASS1_V2_B45_OFICIAL": br_fonte_of.get("PASS1_V2_BLOCO_45_RECONCILIADO", 0),

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-16T21:12:17Z",
+  "generated_at": "2026-05-17T17:13:57Z",
   "storage_roots_scanned": [
     {
       "path": "C:\\Users\\micke\\Desktop\\O rebobinador\\_extraidos_motor",
@@ -15,27 +15,27 @@
     }
   ],
   "primary_base": "C:\\Users\\micke\\Desktop\\O rebobinador\\_extraidos_motor",
-  "oficial_sha_count": 882,
+  "oficial_sha_count": 894,
   "physical_files_total": 3237,
   "physical_unique_sha_on_disk": 1077,
-  "physical_paths_sha_in_oficial": 2646,
-  "physical_paths_sha_not_oficial": 591,
-  "physical_unique_sha_not_oficial": 195,
-  "physical_unique_sha_in_oficial_on_disk": 882,
-  "loose_paths_indexed_sha": 142,
-  "loose_unique_sha_in_index": 142,
-  "duplicate_paths_same_sha_as_oficial": 1764,
+  "physical_paths_sha_in_oficial": 2682,
+  "physical_paths_sha_not_oficial": 555,
+  "physical_unique_sha_not_oficial": 183,
+  "physical_unique_sha_in_oficial_on_disk": 894,
+  "loose_paths_indexed_sha": 130,
+  "loose_unique_sha_in_index": 130,
+  "duplicate_paths_same_sha_as_oficial": 1788,
   "by_ext_all": {
     ".pdf": 3102,
     ".jpeg": 3,
     ".jpg": 132
   },
   "by_ext_loose": {
-    ".pdf": 462,
+    ".pdf": 426,
     ".jpg": 129
   },
   "by_root_loose": {
-    "_extraidos_motor": 591
+    "_extraidos_motor": 555
   },
   "preview_loose_first_20": [
     {
@@ -43,56 +43,8 @@
       "sha256_arquivo": "4c693f23e4a6ff9e…"
     },
     {
-      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1.25cv 4p nema56 12 60hz 90x97.4 605042351.pdf",
-      "sha256_arquivo": "ae6b43f057e6c83d…"
-    },
-    {
       "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1.5cv 2,4p iec63r 2 260,150hz 70x56.4 605012237.pdf",
       "sha256_arquivo": "8554fe74778230d3…"
-    },
-    {
-      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1.5cv 2p iec63r 2 260hz 30x48.8 605012162.pdf",
-      "sha256_arquivo": "b9e1dabfa89213fc…"
-    },
-    {
-      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1.5cv 2p iec63r 2 260hz 30x48.8 605012206.pdf",
-      "sha256_arquivo": "72fd817f4be0ed44…"
-    },
-    {
-      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1.5cv 2p iec90 23 60hz 74.4x65 605038017.pdf",
-      "sha256_arquivo": "4fbda923e57a9be5…"
-    },
-    {
-      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1.5cv 4p iec63r 2 150hz 50x56.4 605012172.pdf",
-      "sha256_arquivo": "3717393af02b94cf…"
-    },
-    {
-      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1.5cv 4p iec80 23 60hz 95x82 605029007.pdf",
-      "sha256_arquivo": "e7e3ddf20638b226…"
-    },
-    {
-      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1.5cv 4p nema56 12 60hz 85x97.1 605012198.pdf",
-      "sha256_arquivo": "e64869de021e486b…"
-    },
-    {
-      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1.5cv 4p nema56 24 60hz 90x97.4 605012255.pdf",
-      "sha256_arquivo": "bae994c942d18155…"
-    },
-    {
-      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1.5cv 6p iec100 234 60hz 150x97.5 606506408.pdf",
-      "sha256_arquivo": "d45a879bc9164b09…"
-    },
-    {
-      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1.5cv 6p iec90 23 60hz 110x89.4 605088507 r.pdf",
-      "sha256_arquivo": "42520a6c06a3b91d…"
-    },
-    {
-      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1.5cv 6p iec90 23 60hz 110x89.4 605088507.pdf",
-      "sha256_arquivo": "b7de27e6ac6326b3…"
-    },
-    {
-      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\10cv 2p iec132 234 60hz 112x140 606502419.pdf",
-      "sha256_arquivo": "f9386e7e55953774…"
     },
     {
       "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\12.5cv 2p iec132 234 60hz 112x150 606502420.pdf",
@@ -117,8 +69,56 @@
     {
       "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1cv 2p nema42 2 60hz 60x57.9 605012266.pdf",
       "sha256_arquivo": "c9a7984cb48e6315…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1cv 2p nema42 23 60hz 70x57.9 605066006.pdf",
+      "sha256_arquivo": "8c9f90df3d5e79f3…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1cv 2p nema56 23 60hz 50x71.7 605015061.pdf",
+      "sha256_arquivo": "3d5c342700f30c9c…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1cv 4p iec90 23 60hz 89.5x75 605039014.pdf",
+      "sha256_arquivo": "6745932b3ec80099…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1cv 4p nema42 23 60hz 60x68 605007189.pdf",
+      "sha256_arquivo": "04d5f1bcfb086ec7…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1cv 4p nema56 12 50,60hz 65x97.4 605012175.pdf",
+      "sha256_arquivo": "957e3390b614b7c0…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1cv 4p nema56 12 60hz 45x97.4 605046030.pdf",
+      "sha256_arquivo": "e56e0cbc0369f937…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1cv 6p iec90 2 60hz 110x89.4 605042418.pdf",
+      "sha256_arquivo": "101a0e0250409553…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1cv 6p iec90 234 60hz 89.5x130 606506406.pdf",
+      "sha256_arquivo": "624ed8ae4bfe16cd…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1cv 8p iec90 23 60hz 110x89.4 605013254.pdf",
+      "sha256_arquivo": "bf33f52285c61fa6…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1cv 8p iec90 234 60hz 120x89.4 605012358 r.pdf",
+      "sha256_arquivo": "6aa9dc7f9c838ecf…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\1cv 8p iec90 234 60hz 120x89.4 605012358.pdf",
+      "sha256_arquivo": "40d8f40c3d4e350e…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\2cv 2p iec63r 23 60hz 80x49.4 605012125.pdf",
+      "sha256_arquivo": "249e5cf1546921d2…"
     }
   ],
-  "queue_csv": "exports\\review\\pass1_v2_block_47.csv",
+  "queue_csv": "exports\\review\\pass1_v2_block_48.csv",
   "queue_lines": 14
 }
