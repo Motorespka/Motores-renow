@@ -1,0 +1,15 @@
+[2026-05-17 15:15:57] START dry_run=False input=C:\Users\micke\Desktop\O rebobinador\_extraidos_motor batch=14 output_tag=extraidos_motor_fase7a_pass1_v2_block_52_flash work_queue=exports/review/pass1_v2_block_52.csv
+[2026-05-17 15:19:38] drive-download-20260403T124026Z-3-001_224929\1,8cv 4e8p nema42 2 50,60hz 30x68 605012085.pdf -> AMARELO_REVISAR conf=0.90 source=gemini
+[2026-05-17 15:20:16] drive-download-20260403T124026Z-3-001_224929\1.5cv 2,4p iec63r 2 260,150hz 70x56.4 605012237.pdf -> VERDE_AUTO_GEMINI conf=0.80 source=gemini
+[2026-05-17 15:20:41] drive-download-20260403T124026Z-3-001_224929\3cv 6p iec100 23 60hz 130x97.3 605072009.pdf -> VERDE_AUTO_GEMINI conf=0.90 source=gemini
+[2026-05-17 15:21:07] drive-download-20260403T124026Z-3-001_224929\3cv 6p iec132 234 60hz 148.9x130 606506412.pdf -> VERDE_AUTO_GEMINI conf=0.90 source=gemini
+[2026-05-17 15:21:34] drive-download-20260403T124026Z-3-001_224929\4cv 2p iec100 234 60hz 89.1x110 606502413.pdf -> VERDE_AUTO_GEMINI conf=0.90 source=gemini
+[2026-05-17 15:21:52] drive-download-20260403T124026Z-3-001_224929\4cv 2p iec90 23 60hz 120x74.2 605015238.pdf -> VERDE_AUTO_GEMINI conf=0.90 source=gemini
+[2026-05-17 15:22:17] drive-download-20260403T124026Z-3-001_224929\4cv 2p iec90 23 60hz 130x74.2 605038014.pdf -> VERDE_AUTO_GEMINI conf=0.80 source=gemini
+[2026-05-17 15:22:37] drive-download-20260403T124026Z-3-001_224929\4cv 2p iec90 23 60hz 74.2x115 605028510.pdf -> VERDE_AUTO_GEMINI conf=0.90 source=gemini
+[2026-05-17 15:23:05] drive-download-20260403T124026Z-3-001_224929\4cv 2p iec90 234 60hz 74.2x115 605028710.pdf -> VERDE_AUTO_GEMINI conf=0.90 source=gemini
+[2026-05-17 15:23:24] drive-download-20260403T124026Z-3-001_224929\4cv 2p iec90 234 60hz 74.2x120 606502412.pdf -> VERDE_AUTO_GEMINI conf=0.85 source=gemini
+[2026-05-17 15:23:42] drive-download-20260403T124026Z-3-001_224929\4cv 4p iec100 23 60hz 85x97.3 605012265.pdf -> VERDE_AUTO_GEMINI conf=0.80 source=gemini
+[2026-05-17 15:24:02] drive-download-20260403T124026Z-3-001_224929\506000001.pdf -> VERDE_AUTO_GEMINI conf=0.90 source=gemini
+[2026-05-17 15:24:23] drive-download-20260403T124026Z-3-001_224929\506001002.pdf -> VERDE_AUTO_GEMINI conf=0.90 source=gemini
+[2026-05-17 15:25:04] drive-download-20260403T124026Z-3-001_224929\506001024.pdf -> VERDE_AUTO_GEMINI conf=0.80 source=gemini
