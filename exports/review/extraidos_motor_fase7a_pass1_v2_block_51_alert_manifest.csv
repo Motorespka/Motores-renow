@@ -1,0 +1,2 @@
+﻿id_local,arquivo_rel,sha256_arquivo,categoria_pos_auditoria,registro_politica,audit_warnings_A,notas,output_tag
+000001,"drive-download-20260403T124026Z-3-001_224929\1.5cv 2,4p iec63r 2 260,150hz 70x56.4 605012237.pdf",8554fe74778230d315df2d5c011cf6e63b17896ca9da067fd00bd898e9731169,VERDE_COM_ALERTA,VERDE_COM_ALERTA_COM_OBSERVACAO_A08_rpm_absoluto_absurdo_rpm=14000,A08_rpm_absoluto_absurdo_rpm=14000,A* categorize VCA + quality (pass1_v2_block_51).,extraidos_motor_fase7a_pass1_v2_block_51_flash
