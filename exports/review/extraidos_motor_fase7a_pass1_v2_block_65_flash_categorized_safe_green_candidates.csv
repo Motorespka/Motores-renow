@@ -1,0 +1,4 @@
+﻿id_local,arquivo,lote,ordem,tipo_motor,potencia_cv,rpm,tensao,polos,frequencia,carcaca,ranhuras,pacote_mm,diametro_mm,capacitor,fio_principal,espiras_principal,passo_principal,fio_auxiliar,espiras_auxiliar,passo_auxiliar,status_revisao,motivos_bloqueio,fonte_extracao,confianca,precisa_humano
+000001,drive-download-20260408T000517Z-3-001_345175\ventiladores 2.pdf,,1,outro,,,,,,,,15.5,70,,30,183.363,,30,183.363,,AMARELO_REVISAR,faltando_obrigatorio;baixa_confianca_local,gemini,0.80,1
+000002,drive-download-20260408T000517Z-3-001_345175\ventiladores 1.pdf,,2,outro,,,,,,,,14,46,1.5,33,735,,34,,,AMARELO_REVISAR,faltando_obrigatorio;baixa_confianca_local,gemini,0.90,1
+000003,drive-download-20260408T000517Z-3-001_345175\ventiladores 3.pdf,,3,outro,,,,,,,,17.5,44,,32,635,,34,,80.152.455,AMARELO_REVISAR,faltando_obrigatorio;baixa_confianca_local,gemini,0.90,1

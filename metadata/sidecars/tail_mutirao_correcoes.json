@@ -112,5 +112,72 @@
       "potencia_cv": "12,5"
     },
     "force_bypass_alerts": ["A07"]
+  },
+  "ventiladores 1.pdf": {
+    "sha": "8f09f57788054e49017811558f2cfa1e87993e5fb9545dab1457454143034ca2",
+    "file_name": "drive-download-20260408T000517Z-3-001_345175\\ventiladores 1.pdf",
+    "block": "B64;B65",
+    "status_origem": "AMARELO_REVISAR",
+    "sintoma": "A09;A10;A02 — tensão/tipo vazios; auxiliar sem espiras no Gemini B64",
+    "comentario": "Ventilador oficina mono 127/220 V — dados técnicos do extract B64 (parser JSON).",
+    "override_fields": {
+      "tipo_motor": "monofasico",
+      "tensao": "127/220",
+      "pacote_mm": "14",
+      "diametro_mm": "46",
+      "capacitor": "1.5",
+      "fio_principal": "33",
+      "espiras_principal": "735",
+      "passo_principal": "1",
+      "fio_auxiliar": "34",
+      "espiras_auxiliar": "735",
+      "passo_auxiliar": "1",
+      "status_revisao": "VERDE_AUTO_GEMINI"
+    },
+    "force_bypass_alerts": ["A09", "A10", "A02", "A01", "faltando_obrigatorio", "baixa_confianca_local", "S_pipeline"]
+  },
+  "ventiladores 2.pdf": {
+    "sha": "26b82d895ad8b2fcebd1bc618332c9b151e81c56a6e5083891ec42c85c6ac2e8",
+    "file_name": "drive-download-20260408T000517Z-3-001_345175\\ventiladores 2.pdf",
+    "block": "B64;B65",
+    "status_origem": "AMARELO_REVISAR",
+    "sintoma": "A09;A10 — Extra data JSON resolvido B64; tensão/tipo vazios",
+    "comentario": "Ventilador oficina mono 127/220 V — bobina simétrica 30/183.363 (extract B64).",
+    "override_fields": {
+      "tipo_motor": "monofasico",
+      "tensao": "127/220",
+      "pacote_mm": "15.5",
+      "diametro_mm": "70",
+      "fio_principal": "30",
+      "espiras_principal": "183.363",
+      "passo_principal": "1",
+      "fio_auxiliar": "30",
+      "espiras_auxiliar": "183.363",
+      "passo_auxiliar": "1",
+      "status_revisao": "VERDE_AUTO_GEMINI"
+    },
+    "force_bypass_alerts": ["A09", "A10", "A02", "A01", "faltando_obrigatorio", "baixa_confianca_local", "S_pipeline"]
+  },
+  "ventiladores 3.pdf": {
+    "sha": "2faf8046401f30ff1c26f0e896e3fd6208e9d60aeb457115b8f416d899c65900",
+    "file_name": "drive-download-20260408T000517Z-3-001_345175\\ventiladores 3.pdf",
+    "block": "B64;B65",
+    "status_origem": "AMARELO_REVISAR",
+    "sintoma": "A09;A10;A02 — passo auxiliar OCR ruidoso (80.152.455)",
+    "comentario": "Ventilador oficina mono 127/220 V — dados técnicos do extract B64.",
+    "override_fields": {
+      "tipo_motor": "monofasico",
+      "tensao": "127/220",
+      "pacote_mm": "17.5",
+      "diametro_mm": "44",
+      "fio_principal": "32",
+      "espiras_principal": "635",
+      "passo_principal": "4",
+      "fio_auxiliar": "34",
+      "espiras_auxiliar": "435",
+      "passo_auxiliar": "4",
+      "status_revisao": "VERDE_AUTO_GEMINI"
+    },
+    "force_bypass_alerts": ["A09", "A10", "A02", "A01", "faltando_obrigatorio", "baixa_confianca_local", "S_pipeline"]
   }
 }
