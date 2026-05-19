@@ -1,0 +1,5 @@
+﻿id_local,arquivo,lote,ordem,tipo_motor,potencia_cv,rpm,tensao,polos,frequencia,carcaca,ranhuras,pacote_mm,diametro_mm,capacitor,fio_principal,espiras_principal,passo_principal,fio_auxiliar,espiras_auxiliar,passo_auxiliar,status_revisao,motivos_bloqueio,fonte_extracao,confianca,precisa_humano
+000014,drive-download-20260408T000629Z-3-001_255314\GE 1.jpg,,14,trifasico,"1,5",,220/380,4,,,36,58,120,,1X22,60 MC,1-8,,,,VERDE_AUTO_GEMINI,baixa_confianca_local,gemini,0.90,0
+000015,drive-download-20260408T000629Z-3-001_255314\GE 2(1).jpg,,15,outro,"1,5",,220/380/440,4,,,36,58,120,,1X22,60 MC,1-8,,,,VERDE_AUTO_GEMINI,baixa_confianca_local,gemini,0.90,0
+000018,drive-download-20260408T000629Z-3-001_255314\ge 5.jpg,,18,trifasico,3,1740,220/380,4,,,36,62,140,,20c21,22,8,,,,VERDE_AUTO_GEMINI,baixa_confianca_local,gemini,0.80,0
+000019,drive-download-20260408T000629Z-3-001_255314\ge 6.jpg,,19,trifasico,10,1740,220/380,4,,,36,118,140,,16,13,1:8,,,,VERDE_AUTO_GEMINI,baixa_confianca_local,gemini,0.75,0

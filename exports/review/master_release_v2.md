@@ -1,8 +1,8 @@
-# Master release v2 (2026-05-19T23:06:08Z) — `7B.69 — B69 (penúltima raspagem cauda)`
+# Master release v2 (2026-05-19T23:23:49Z) — `7B.70 — B70 (liquidação final cauda visível)`
 
 ## Totais OFICIAL
 
-- **OFICIAL_total**: **1055**
+- **OFICIAL_total**: **1062**
 - **CANDIDATO** bloco 02 safe_green legacy: **0**
 
 ### OFICIAL por `fonte_release`
@@ -67,6 +67,7 @@
 - **PASS1_V2_BLOCO_01_RECONCILIADO**: **7**
 - **PASS1_V2_BLOCO_44_RECONCILIADO**: **7**
 - **PASS1_V2_BLOCO_60_RECONCILIADO**: **7**
+- **PASS1_V2_BLOCO_70_RECONCILIADO**: **7**
 - **PASS1_V2_BLOCO_61_RECONCILIADO**: **5**
 - **PASS1_V2_BLOCO_65_RECONCILIADO**: **4**
 - **PASS1_V2_BLOCO_66_RECONCILIADO**: **4**
@@ -79,11 +80,11 @@
 - **PASS1_V2_BLOCO_63_RECONCILIADO**: **1**
 - **PASS1_V2_BLOCO_64_RECONCILIADO**: **1**
 
-## Comparativo (run `7b69`)
+## Comparativo (run `7b70`)
 
-- OFICIAL antes (ficheiro anterior): **1052**
-- OFICIAL agora: **1055** (**Δ=+3**)
-- SHA **`PASS1_V2_BLOCO_69_RECONCILIADO`** presentes como OFICIAL: **3** (diff: `master_release_v2_diff_fase7b69.md`)
+- OFICIAL antes (ficheiro anterior): **1055**
+- OFICIAL agora: **1062** (**Δ=+7**)
+- SHA **`PASS1_V2_BLOCO_70_RECONCILIADO`** presentes como OFICIAL: **7** (diff: `master_release_v2_diff_fase7b70.md`)
 
 ## Basenames políticos (`pass1_v2_progress.NO_AUTO` + isolados retry)
 
@@ -184,14 +185,18 @@
 arno.jpg
 bda2a6e0-62ba-4738-8a58-964852f4ad8d.jpg
 bobi.pdf
+bufalo 2.jpg
 dc81f9cf-0541-4d2d-87c5-686e9c194c01.jpg
 esquema eletrico geradores branco.pdf
 esquema vent. de ar.pdf
 est.pdf
 f837d1fb-1d86-4e42-aa6a-9eaa9c696086.jpg
+ge 2.jpg
+ge4.jpg
 regulador escova.pdf
 rot.pdf
+siemens.jpg
 ventilador 3 velocidades.pdf
 ```
 
-- **GAP 1600**: **545** · **Recomendação**: `ENTREGAVEL_PARA_DEPLOY_PILOTO_AMPLIADO_v2`
+- **GAP 1600**: **538** · **Recomendação**: `ENTREGAVEL_PARA_DEPLOY_PILOTO_AMPLIADO_v2`
