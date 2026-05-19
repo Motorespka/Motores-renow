@@ -1,0 +1,2 @@
+﻿id_local,arquivo,lote,ordem,tipo_motor,potencia_cv,rpm,tensao,polos,frequencia,carcaca,ranhuras,pacote_mm,diametro_mm,capacitor,fio_principal,espiras_principal,passo_principal,fio_auxiliar,espiras_auxiliar,passo_auxiliar,status_revisao,motivos_bloqueio,fonte_extracao,confianca,precisa_humano
+000014,drive-download-20260408T000629Z-3-001_255314\BUFALO 2(1).jpg,,14,outro,25,,220/380/440,4,,,48,180,195,,2X17+2X18,17 CC,10-12-14-16,,,,VERDE_AUTO_GEMINI,baixa_confianca_local,gemini,0.90,0
