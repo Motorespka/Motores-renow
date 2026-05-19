@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-19T10:48:08Z",
+  "generated_at": "2026-05-19T21:56:33Z",
   "storage_roots_scanned": [
     {
       "path": "C:\\Users\\micke\\Desktop\\O rebobinador\\_extraidos_motor",
@@ -15,27 +15,27 @@
     }
   ],
   "primary_base": "C:\\Users\\micke\\Desktop\\O rebobinador\\_extraidos_motor",
-  "oficial_sha_count": 1038,
+  "oficial_sha_count": 1042,
   "physical_files_total": 3237,
   "physical_unique_sha_on_disk": 1077,
-  "physical_paths_sha_in_oficial": 3117,
-  "physical_paths_sha_not_oficial": 120,
-  "physical_unique_sha_not_oficial": 39,
-  "physical_unique_sha_in_oficial_on_disk": 1038,
+  "physical_paths_sha_in_oficial": 3129,
+  "physical_paths_sha_not_oficial": 108,
+  "physical_unique_sha_not_oficial": 35,
+  "physical_unique_sha_in_oficial_on_disk": 1042,
   "loose_paths_indexed_sha": 0,
   "loose_unique_sha_in_index": 0,
-  "duplicate_paths_same_sha_as_oficial": 2079,
+  "duplicate_paths_same_sha_as_oficial": 2087,
   "by_ext_all": {
     ".pdf": 3102,
     ".jpeg": 3,
     ".jpg": 132
   },
   "by_ext_loose": {
-    ".pdf": 18,
-    ".jpg": 102
+    ".pdf": 9,
+    ".jpg": 99
   },
   "by_root_loose": {
-    "_extraidos_motor": 120
+    "_extraidos_motor": 108
   },
   "preview_loose_first_20": [
     {
@@ -63,42 +63,6 @@
       "sha256_arquivo": "8ebb46f3aca104ca…"
     },
     {
-      "arquivo_rel": "drive-download-20260408T000517Z-3-001_345175\\ventiladores 1.pdf",
-      "sha256_arquivo": "8f09f57788054e49…"
-    },
-    {
-      "arquivo_rel": "drive-download-20260408T000517Z-3-001_345175\\ventiladores 2.pdf",
-      "sha256_arquivo": "26b82d895ad8b2fc…"
-    },
-    {
-      "arquivo_rel": "drive-download-20260408T000517Z-3-001_345175\\ventiladores 3.pdf",
-      "sha256_arquivo": "2faf8046401f30ff…"
-    },
-    {
-      "arquivo_rel": "drive-download-20260408T000517Z-3-001_653342\\ventiladores 1.pdf",
-      "sha256_arquivo": "8f09f57788054e49…"
-    },
-    {
-      "arquivo_rel": "drive-download-20260408T000517Z-3-001_653342\\ventiladores 2.pdf",
-      "sha256_arquivo": "26b82d895ad8b2fc…"
-    },
-    {
-      "arquivo_rel": "drive-download-20260408T000517Z-3-001_653342\\ventiladores 3.pdf",
-      "sha256_arquivo": "2faf8046401f30ff…"
-    },
-    {
-      "arquivo_rel": "drive-download-20260408T000517Z-3-001_753396\\ventiladores 1.pdf",
-      "sha256_arquivo": "8f09f57788054e49…"
-    },
-    {
-      "arquivo_rel": "drive-download-20260408T000517Z-3-001_753396\\ventiladores 2.pdf",
-      "sha256_arquivo": "26b82d895ad8b2fc…"
-    },
-    {
-      "arquivo_rel": "drive-download-20260408T000517Z-3-001_753396\\ventiladores 3.pdf",
-      "sha256_arquivo": "2faf8046401f30ff…"
-    },
-    {
       "arquivo_rel": "drive-download-20260408T000529Z-3-001_185960\\1d217467-02db-4a7f-8017-ea2f9ac0a715.jpg",
       "sha256_arquivo": "722e1918a138b180…"
     },
@@ -117,11 +81,47 @@
     {
       "arquivo_rel": "drive-download-20260408T000529Z-3-001_185960\\8bc49b76-90d1-4f38-bd2f-86cd93ad3689.jpg",
       "sha256_arquivo": "74e0992b8389bf83…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260408T000529Z-3-001_185960\\bda2a6e0-62ba-4738-8a58-964852f4ad8d.jpg",
+      "sha256_arquivo": "3e0270c1ace0828b…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260408T000529Z-3-001_185960\\dc81f9cf-0541-4d2d-87c5-686e9c194c01.jpg",
+      "sha256_arquivo": "4e1396673e688ee5…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260408T000529Z-3-001_185960\\f837d1fb-1d86-4e42-aa6a-9eaa9c696086.jpg",
+      "sha256_arquivo": "a07d0fa882846527…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260408T000529Z-3-001_185960\\VENTILADOR 3 VELOCIDADES.pdf",
+      "sha256_arquivo": "bec50336eab15235…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260408T000529Z-3-001_308947\\1d217467-02db-4a7f-8017-ea2f9ac0a715.jpg",
+      "sha256_arquivo": "722e1918a138b180…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260408T000529Z-3-001_308947\\1d9b3430-0b16-4701-b724-661974ff8b49.jpg",
+      "sha256_arquivo": "b0a01317980d3464…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260408T000529Z-3-001_308947\\2efb294a-6c1a-4bea-93ac-818f00111ae2.jpg",
+      "sha256_arquivo": "b0a01317980d3464…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260408T000529Z-3-001_308947\\324e6cbc-2bab-43ed-9303-2d560b1da7ec.jpg",
+      "sha256_arquivo": "087cced75075cc99…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260408T000529Z-3-001_308947\\8bc49b76-90d1-4f38-bd2f-86cd93ad3689.jpg",
+      "sha256_arquivo": "74e0992b8389bf83…"
     }
   ],
-  "pendency_candidates": 13,
-  "json_parse_retry_candidates": 1,
-  "infra_retry_candidates": 4,
-  "queue_csv": "exports\\review\\pass1_v2_block_65.csv",
+  "pendency_candidates": 10,
+  "json_parse_retry_candidates": 0,
+  "infra_retry_candidates": 1,
+  "queue_csv": "exports\\review\\pass1_v2_block_66.csv",
   "queue_lines": 14
 }

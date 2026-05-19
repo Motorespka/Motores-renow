@@ -1,6 +1,6 @@
 {
   "campaign": "PASS1_LITE_V2",
-  "generated_at": "2026-05-19T10:53:11Z",
+  "generated_at": "2026-05-19T22:03:59Z",
   "bloques_executados": [
     {
       "bloco": "01",
@@ -490,14 +490,22 @@
       "verde_seguro": 3,
       "alert_manifest_audit_rows": 1,
       "amarelo_manual": 9
+    },
+    {
+      "bloco": "66",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_66_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 3,
+      "alert_manifest_audit_rows": 1,
+      "amarelo_manual": 9
     }
   ],
   "totais_acumulados_v2": {
-    "ficheiros_processados_v2": 875,
-    "chamadas_gemini_v2": 903,
-    "verde_seguro_total_manifests_v2": 634,
-    "verde_com_alerta_total_v2": 87,
-    "amarelo_isolado_total_manual_csv_v2": 154,
+    "ficheiros_processados_v2": 888,
+    "chamadas_gemini_v2": 917,
+    "verde_seguro_total_manifests_v2": 637,
+    "verde_com_alerta_total_v2": 88,
+    "amarelo_isolado_total_manual_csv_v2": 163,
     "vermelho_total_v2": 0,
     "quota_429_total_v2": 0,
     "pausa_infra_v2": 0,
@@ -505,25 +513,25 @@
     "no_keys_v2": 0
   },
   "taxas": {
-    "taxa_verde_seguro_pura_v2": "634/875 = 72.46%",
-    "taxa_verde_ampla_v2": "721/875 = 82.40% (verde_seguro + verde_com_alerta)",
+    "taxa_verde_seguro_pura_v2": "637/888 = 71.73%",
+    "taxa_verde_ampla_v2": "725/888 = 81.64% (verde_seguro + verde_com_alerta)",
     "nota": "Não extrapolar para o pool 480."
   },
   "pool_pass1_v2": {
     "pool_inicial_sha_estimado": 480,
-    "sha_consumidos_no_pool_filas_acumulado": 875,
+    "sha_consumidos_no_pool_filas_acumulado": 888,
     "pass1_v2_eligible_restante_apos_bloco04_filas_e_no_auto": 430,
     "sha_elegivel_para_bloco_05_cap_14": 14,
     "linhas_emitidas_prep_bloco_05_cap_14": 14,
     "ultima_actualizacao_reconcile": {
-      "block": 65,
+      "block": 66,
       "incremento_alert_manifest": 1,
       "incremento_manual": 9
     }
   },
   "estado": {
     "veredicto": "CONTINUAR_PASS1_V2",
-    "recomendacao_proximo_passo": "Gates antes extract seguinte ou rebuild master (ver fase atual). Próximo bloco fila: 66."
+    "recomendacao_proximo_passo": "Gates antes extract seguinte ou rebuild master (ver fase atual). Próximo bloco fila: 67."
   },
   "relatorio_consolidado_pos_b28": {
     "gerado_em": "2026-05-14T12:30:00Z",
@@ -925,6 +933,15 @@
       "bloco": "65",
       "arquivos": [
         "41.jpg"
+      ],
+      "n_alert_manifest": 1,
+      "codigo exemplo": "A10_tipo_vazio_ou_desconhecido",
+      "registro": "alert_manifest_paralelo_vs_resolved"
+    },
+    {
+      "bloco": "66",
+      "arquivos": [
+        "arno 2(1).jpg"
       ],
       "n_alert_manifest": 1,
       "codigo exemplo": "A10_tipo_vazio_ou_desconhecido",
