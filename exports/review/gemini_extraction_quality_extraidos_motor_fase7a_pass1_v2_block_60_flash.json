@@ -1,0 +1,193 @@
+{
+  "generated_at": "2026-05-19T02:28:35Z",
+  "input_csv": "C:\\Users\\micke\\Desktop\\O rebobinador\\Motores-renow\\exports\\review\\extraidos_motor_fase7a_pass1_v2_block_60_flash_candidates.csv",
+  "last_n": 14,
+  "total_auditado": 14,
+  "verdes_sem_alerta": 6,
+  "verdes_com_alerta": 1,
+  "amarelos": 4,
+  "vermelhos": 3,
+  "top_motivos_alerta": [
+    {
+      "codigo": "A10_tipo_vazio_ou_desconhecido",
+      "count": 5
+    },
+    {
+      "codigo": "A09_tensao_vazia",
+      "count": 5
+    },
+    {
+      "codigo": "S_pipeline_AMARELO_REVISAR",
+      "count": 4
+    },
+    {
+      "codigo": "S_pipeline_VERMELHO_REVISAR",
+      "count": 3
+    },
+    {
+      "codigo": "A03_trifasico_com_auxiliar_preenchido",
+      "count": 2
+    },
+    {
+      "codigo": "A03b_trifasico_principal_vazio_aux_preenchido",
+      "count": 2
+    },
+    {
+      "codigo": "A01_mono_sem_fio_espiras_passo_principal",
+      "count": 1
+    },
+    {
+      "codigo": "A02_mono_sem_fio_espiras_passo_auxiliar",
+      "count": 1
+    },
+    {
+      "codigo": "A06_WARNING_espiras_normalizada_rastreavel",
+      "count": 1
+    }
+  ],
+  "top_alertas_criticos_A": [
+    {
+      "codigo": "A10_tipo_vazio_ou_desconhecido",
+      "count": 5
+    },
+    {
+      "codigo": "A09_tensao_vazia",
+      "count": 5
+    },
+    {
+      "codigo": "A03_trifasico_com_auxiliar_preenchido",
+      "count": 2
+    },
+    {
+      "codigo": "A03b_trifasico_principal_vazio_aux_preenchido",
+      "count": 2
+    },
+    {
+      "codigo": "A01_mono_sem_fio_espiras_passo_principal",
+      "count": 1
+    },
+    {
+      "codigo": "A02_mono_sem_fio_espiras_passo_auxiliar",
+      "count": 1
+    }
+  ],
+  "arquivos_revisao_manual": [
+    "drive-download-20260408T000443Z-3-001_253069\\BOBI.PDF",
+    "drive-download-20260408T000443Z-3-001_253069\\EST.PDF",
+    "drive-download-20260408T000443Z-3-001_253069\\REGULADOR CR.pdf",
+    "drive-download-20260408T000443Z-3-001_253069\\REGULADOR ESCOVA.pdf",
+    "drive-download-20260408T000443Z-3-001_253069\\ROT.PDF",
+    "drive-download-20260408T000511Z-3-001_428675\\esquema vent. de ar.pdf",
+    "drive-download-20260408T000517Z-3-001_345175\\ventiladores 1.pdf",
+    "drive-download-20260408T000517Z-3-001_345175\\ventiladores 2.pdf"
+  ],
+  "saidas": {
+    "csv": "exports\\review\\gemini_extraction_quality_extraidos_motor_fase7a_pass1_v2_block_60_flash.csv",
+    "json": "exports\\review\\gemini_extraction_quality_extraidos_motor_fase7a_pass1_v2_block_60_flash.json",
+    "md": "exports\\review\\gemini_extraction_quality_extraidos_motor_fase7a_pass1_v2_block_60_flash.md"
+  },
+  "linhas": [
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605015131.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605016087.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605016201.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605017014.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605017020.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260403T124026Z-3-001_224929\\605026002.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": []
+    },
+    {
+      "arquivo": "drive-download-20260408T000443Z-3-001_253069\\BOBI.PDF",
+      "status_revisao": "AMARELO_REVISAR",
+      "alertas": [
+        "A03_trifasico_com_auxiliar_preenchido",
+        "A03b_trifasico_principal_vazio_aux_preenchido",
+        "S_pipeline_AMARELO_REVISAR"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000443Z-3-001_253069\\EST.PDF",
+      "status_revisao": "AMARELO_REVISAR",
+      "alertas": [
+        "A03_trifasico_com_auxiliar_preenchido",
+        "A03b_trifasico_principal_vazio_aux_preenchido",
+        "S_pipeline_AMARELO_REVISAR"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000443Z-3-001_253069\\REGULADOR CR.pdf",
+      "status_revisao": "VERMELHO_REVISAR",
+      "alertas": [
+        "A10_tipo_vazio_ou_desconhecido",
+        "A09_tensao_vazia",
+        "S_pipeline_VERMELHO_REVISAR"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000443Z-3-001_253069\\REGULADOR ESCOVA.pdf",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": [
+        "A10_tipo_vazio_ou_desconhecido"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000443Z-3-001_253069\\ROT.PDF",
+      "status_revisao": "AMARELO_REVISAR",
+      "alertas": [
+        "A10_tipo_vazio_ou_desconhecido",
+        "A09_tensao_vazia",
+        "S_pipeline_AMARELO_REVISAR"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000511Z-3-001_428675\\esquema vent. de ar.pdf",
+      "status_revisao": "AMARELO_REVISAR",
+      "alertas": [
+        "A09_tensao_vazia",
+        "A01_mono_sem_fio_espiras_passo_principal",
+        "A02_mono_sem_fio_espiras_passo_auxiliar",
+        "A06_WARNING_espiras_normalizada_rastreavel",
+        "S_pipeline_AMARELO_REVISAR"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000517Z-3-001_345175\\ventiladores 1.pdf",
+      "status_revisao": "VERMELHO_REVISAR",
+      "alertas": [
+        "A10_tipo_vazio_ou_desconhecido",
+        "A09_tensao_vazia",
+        "S_pipeline_VERMELHO_REVISAR"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000517Z-3-001_345175\\ventiladores 2.pdf",
+      "status_revisao": "VERMELHO_REVISAR",
+      "alertas": [
+        "A10_tipo_vazio_ou_desconhecido",
+        "A09_tensao_vazia",
+        "S_pipeline_VERMELHO_REVISAR"
+      ]
+    }
+  ]
+}

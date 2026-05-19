@@ -1,8 +1,8 @@
-# Master release v2 (2026-05-19T01:56:48Z) — `7B.59 — B59 (cauda do acervo)`
+# Master release v2 (2026-05-19T02:30:42Z) — `7B.60 — B60 (retomada esteira pós-mutirão)`
 
 ## Totais OFICIAL
 
-- **OFICIAL_total**: **1020**
+- **OFICIAL_total**: **1029**
 - **CANDIDATO** bloco 02 safe_green legacy: **0**
 
 ### OFICIAL por `fonte_release`
@@ -42,6 +42,7 @@
 - **PASS1_V2_BLOCO_24_RECONCILIADO**: **11**
 - **PASS1_V2_BLOCO_28_RECONCILIADO**: **11**
 - **PASS1_V2_BLOCO_29_RECONCILIADO**: **11**
+- **PASS1_V2_BLOCO_34_RECONCILIADO**: **11**
 - **PASS1_V2_BLOCO_55_RECONCILIADO**: **11**
 - **PASS1_V2_BLOCO_56_RECONCILIADO**: **11**
 - **PASS1_V2_BLOCO_57_RECONCILIADO**: **11**
@@ -51,7 +52,6 @@
 - **PASS1_V2_BLOCO_20_RECONCILIADO**: **9**
 - **PASS1_V2_BLOCO_23_RECONCILIADO**: **9**
 - **PASS1_V2_BLOCO_27_RECONCILIADO**: **9**
-- **PASS1_V2_BLOCO_34_RECONCILIADO**: **9**
 - **PASS1_V2_BLOCO_37_RECONCILIADO**: **9**
 - **PASS1_V2_BLOCO_38_RECONCILIADO**: **9**
 - **PASS1_V2_BLOCO_39_RECONCILIADO**: **9**
@@ -66,14 +66,15 @@
 - **PASS1_V2_BLOCO_59_RECONCILIADO**: **8**
 - **PASS1_V2_BLOCO_01_RECONCILIADO**: **7**
 - **PASS1_V2_BLOCO_44_RECONCILIADO**: **7**
+- **PASS1_V2_BLOCO_60_RECONCILIADO**: **7**
 - **PASS1_V2_BLOCO_35_RECONCILIADO**: **2**
 - **PASS1_V2_BLOCO_58_RECONCILIADO**: **1**
 
-## Comparativo (run `7b59`)
+## Comparativo (run `7b60`)
 
 - OFICIAL antes (ficheiro anterior): **1020**
-- OFICIAL agora: **1020** (**Δ=+0**)
-- SHA **`PASS1_V2_BLOCO_59_RECONCILIADO`** presentes como OFICIAL: **8** (diff: `master_release_v2_diff_fase7b59.md`)
+- OFICIAL agora: **1029** (**Δ=+9**)
+- SHA **`PASS1_V2_BLOCO_60_RECONCILIADO`** presentes como OFICIAL: **7** (diff: `master_release_v2_diff_fase7b60.md`)
 
 ## Basenames políticos (`pass1_v2_progress.NO_AUTO` + isolados retry)
 
@@ -178,4 +179,4 @@ ventiladores 2.pdf
 ventiladores 3.pdf
 ```
 
-- **GAP 1600**: **580** · **Recomendação**: `ENTREGAVEL_PARA_DEPLOY_PILOTO_AMPLIADO_v2`
+- **GAP 1600**: **571** · **Recomendação**: `ENTREGAVEL_PARA_DEPLOY_PILOTO_AMPLIADO_v2`

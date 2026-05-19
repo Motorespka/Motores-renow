@@ -1,0 +1,87 @@
+{
+  "generated_at": "2026-05-19T02:28:50Z",
+  "last_n": 14,
+  "bundle_csv": "C:\\Users\\micke\\Desktop\\O rebobinador\\Motores-renow\\exports\\review\\extraidos_motor_fase7a_pass1_v2_block_60_flash_candidates.csv",
+  "inputs_used": {
+    "quality_csv": "exports\\review\\gemini_extraction_quality_extraidos_motor_fase7a_pass1_v2_block_60_flash.csv",
+    "jsonl": "exports\\review\\extraidos_motor_fase7a_pass1_v2_block_60_flash_candidates.jsonl",
+    "keys_json": "logs\\gemini_keys_status.json",
+    "batch_log": "logs\\extraidos_motor_fase7a_pass1_v2_block_60_flash.log"
+  },
+  "totais_por_categoria": {
+    "VERDE_SEGURO": 6,
+    "AMARELO_REVISAR": 4,
+    "VERMELHO_DADO_RUIM": 3,
+    "VERDE_COM_ALERTA": 1
+  },
+  "percentagens": {
+    "verde_seguro": 42.86,
+    "vermelho_infra": 0.0
+  },
+  "aproveitamento_import_seguro_pct": 42.86,
+  "gemini_keys_status_resumo": {
+    "total_keys_tracked": 28,
+    "by_status": {
+      "ok": 24,
+      "unknown_error": 4
+    },
+    "ok_sem_cooldown_ativo": 24,
+    "ok_em_cooldown": 0,
+    "quota_exhausted_agora": 0,
+    "permission_denied": 0,
+    "invalid": 0
+  },
+  "escalar_aprovado_criterio_automatico": false,
+  "motivos_nao_escalar": [
+    "taxa VERDE_SEGURO (42.9%) abaixo de 75%"
+  ],
+  "top_motivos_bloqueio_bundle": [
+    [
+      "faltando_obrigatorio",
+      7
+    ],
+    [
+      "baixa_confianca_local",
+      7
+    ],
+    [
+      "gemini_falhou:unknown_error:Extra data: line 63 column 4 (char 1544)",
+      1
+    ],
+    [
+      "gemini_falhou:unknown_error:Extra data: line 64 column 4 (char 1496)",
+      1
+    ]
+  ],
+  "lists": {
+    "VERDE_SEGURO": [
+      "drive-download-20260403T124026Z-3-001_224929\\605015131.pdf",
+      "drive-download-20260403T124026Z-3-001_224929\\605016087.pdf",
+      "drive-download-20260403T124026Z-3-001_224929\\605016201.pdf",
+      "drive-download-20260403T124026Z-3-001_224929\\605017014.pdf",
+      "drive-download-20260403T124026Z-3-001_224929\\605017020.pdf",
+      "drive-download-20260403T124026Z-3-001_224929\\605026002.pdf"
+    ],
+    "VERDE_COM_ALERTA": [
+      "drive-download-20260408T000443Z-3-001_253069\\REGULADOR ESCOVA.pdf"
+    ],
+    "AMARELO_REVISAR": [
+      "drive-download-20260408T000443Z-3-001_253069\\BOBI.PDF",
+      "drive-download-20260408T000443Z-3-001_253069\\EST.PDF",
+      "drive-download-20260408T000443Z-3-001_253069\\ROT.PDF",
+      "drive-download-20260408T000511Z-3-001_428675\\esquema vent. de ar.pdf"
+    ],
+    "VERMELHO_NO_KEYS_OU_QUOTA": [],
+    "VERMELHO_DADO_RUIM": [
+      "drive-download-20260408T000443Z-3-001_253069\\REGULADOR CR.pdf",
+      "drive-download-20260408T000517Z-3-001_345175\\ventiladores 1.pdf",
+      "drive-download-20260408T000517Z-3-001_345175\\ventiladores 2.pdf"
+    ]
+  },
+  "saida_csv": {
+    "categorized": "C:\\Users\\micke\\Desktop\\O rebobinador\\Motores-renow\\exports\\review\\extraidos_motor_fase7a_pass1_v2_block_60_flash_categorized.csv",
+    "reprocess_no_keys": "C:\\Users\\micke\\Desktop\\O rebobinador\\Motores-renow\\exports\\review\\extraidos_motor_fase7a_pass1_v2_block_60_flash_categorized_reprocess_no_keys.csv",
+    "manual_review": "C:\\Users\\micke\\Desktop\\O rebobinador\\Motores-renow\\exports\\review\\extraidos_motor_fase7a_pass1_v2_block_60_flash_categorized_manual_review.csv",
+    "safe_green": "C:\\Users\\micke\\Desktop\\O rebobinador\\Motores-renow\\exports\\review\\extraidos_motor_fase7a_pass1_v2_block_60_flash_categorized_safe_green_candidates.csv"
+  }
+}
