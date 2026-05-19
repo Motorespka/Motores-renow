@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-19T22:14:47Z",
+  "generated_at": "2026-05-19T22:49:30Z",
   "storage_roots_scanned": [
     {
       "path": "C:\\Users\\micke\\Desktop\\O rebobinador\\_extraidos_motor",
@@ -15,16 +15,16 @@
     }
   ],
   "primary_base": "C:\\Users\\micke\\Desktop\\O rebobinador\\_extraidos_motor",
-  "oficial_sha_count": 1049,
+  "oficial_sha_count": 1052,
   "physical_files_total": 3237,
   "physical_unique_sha_on_disk": 1077,
-  "physical_paths_sha_in_oficial": 3150,
-  "physical_paths_sha_not_oficial": 87,
-  "physical_unique_sha_not_oficial": 28,
-  "physical_unique_sha_in_oficial_on_disk": 1049,
+  "physical_paths_sha_in_oficial": 3159,
+  "physical_paths_sha_not_oficial": 78,
+  "physical_unique_sha_not_oficial": 25,
+  "physical_unique_sha_in_oficial_on_disk": 1052,
   "loose_paths_indexed_sha": 0,
   "loose_unique_sha_in_index": 0,
-  "duplicate_paths_same_sha_as_oficial": 2101,
+  "duplicate_paths_same_sha_as_oficial": 2107,
   "by_ext_all": {
     ".pdf": 3102,
     ".jpeg": 3,
@@ -32,10 +32,10 @@
   },
   "by_ext_loose": {
     ".pdf": 9,
-    ".jpg": 78
+    ".jpg": 69
   },
   "by_root_loose": {
-    "_extraidos_motor": 87
+    "_extraidos_motor": 78
   },
   "preview_loose_first_20": [
     {

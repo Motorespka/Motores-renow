@@ -1,0 +1,33 @@
+{
+  "generated_at": "2026-05-19T22:43:27Z",
+  "acervo_root": "C:\\Users\\micke\\Desktop\\O rebobinador\\_extraidos_motor",
+  "meta_target_1600": 1600,
+  "total_paths": 3237,
+  "total_unique_sha": 1077,
+  "paths_duplicate_clones": 2101,
+  "paths_oficial_canonical": 1049,
+  "paths_non_oficial": 87,
+  "sha_oficial": 1049,
+  "sha_oficial_manifest_count": 1049,
+  "sha_rejeitado_vermelho": 1,
+  "sha_quarentena_amarelo": 10,
+  "sha_nao_processado_cauda": 17,
+  "sha_with_multiple_paths": 1077,
+  "extra_paths_from_duplication": 2160,
+  "checksum_unique_sha_buckets": 1077,
+  "sha_bucket": {
+    "oficial_sha": 1049,
+    "nao_processado": 17,
+    "quarentena_amarelo": 10,
+    "rejeitado_vermelho": 1
+  },
+  "path_bucket": {
+    "oficial_canonical_path": 1049,
+    "duplicate_clone_path": 2101,
+    "rejeitado_vermelho_path": 3,
+    "quarentena_amarelo_path": 33,
+    "nao_processado_path": 51
+  },
+  "gap_vs_meta_1600_paths": -1637,
+  "gap_vs_meta_1600_unique_sha": 523
+}
