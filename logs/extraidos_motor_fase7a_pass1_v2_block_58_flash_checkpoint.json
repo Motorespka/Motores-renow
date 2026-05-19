@@ -1,0 +1,60 @@
+{
+  "done": {
+    "drive-download-20260403T124026Z-3-001_224929\\1,8cv 4e8p nema42 2 50,60hz 30x68 605012085.pdf": {
+      "finished_at": "2026-05-18 21:54:48",
+      "status": "AMARELO_REVISAR"
+    },
+    "drive-download-20260403T124026Z-3-001_224929\\1.5cv 2,4p iec63r 2 260,150hz 70x56.4 605012237.pdf": {
+      "finished_at": "2026-05-18 21:55:28",
+      "status": "VERDE_AUTO_GEMINI"
+    },
+    "drive-download-20260403T124026Z-3-001_224929\\605012335.pdf": {
+      "finished_at": "2026-05-18 21:59:29",
+      "status": "AMARELO_REVISAR"
+    },
+    "drive-download-20260403T124026Z-3-001_224929\\605013168.pdf": {
+      "finished_at": "2026-05-18 21:59:59",
+      "status": "VERDE_AUTO_GEMINI"
+    },
+    "drive-download-20260403T124026Z-3-001_224929\\605015131.pdf": {
+      "finished_at": "2026-05-18 22:00:38",
+      "status": "VERDE_AUTO_GEMINI"
+    },
+    "drive-download-20260403T124026Z-3-001_224929\\605016001.pdf": {
+      "finished_at": "2026-05-18 22:01:00",
+      "status": "VERDE_AUTO_GEMINI"
+    },
+    "drive-download-20260403T124026Z-3-001_224929\\605016002.pdf": {
+      "finished_at": "2026-05-18 22:01:26",
+      "status": "VERDE_AUTO_GEMINI"
+    },
+    "drive-download-20260403T124026Z-3-001_224929\\605016087.pdf": {
+      "finished_at": "2026-05-18 22:01:52",
+      "status": "VERDE_AUTO_GEMINI"
+    },
+    "drive-download-20260403T124026Z-3-001_224929\\605016201.pdf": {
+      "finished_at": "2026-05-18 22:02:18",
+      "status": "VERDE_AUTO_GEMINI"
+    },
+    "drive-download-20260403T124026Z-3-001_224929\\605017014.pdf": {
+      "finished_at": "2026-05-18 22:02:45",
+      "status": "VERDE_AUTO_GEMINI"
+    },
+    "drive-download-20260403T124026Z-3-001_224929\\605017020.pdf": {
+      "finished_at": "2026-05-18 22:03:13",
+      "status": "VERDE_AUTO_GEMINI"
+    },
+    "drive-download-20260403T124026Z-3-001_224929\\605017021.pdf": {
+      "finished_at": "2026-05-18 22:03:34",
+      "status": "VERDE_AUTO_GEMINI"
+    },
+    "drive-download-20260403T124026Z-3-001_224929\\605026002.pdf": {
+      "finished_at": "2026-05-18 22:04:08",
+      "status": "VERDE_AUTO_GEMINI"
+    },
+    "drive-download-20260403T124026Z-3-001_224929\\605029115.pdf": {
+      "finished_at": "2026-05-18 22:04:31",
+      "status": "VERDE_AUTO_GEMINI"
+    }
+  }
+}
