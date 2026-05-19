@@ -1,0 +1,2 @@
+﻿id_local,arquivo,lote,ordem,tipo_motor,potencia_cv,rpm,tensao,polos,frequencia,carcaca,ranhuras,pacote_mm,diametro_mm,capacitor,fio_principal,espiras_principal,passo_principal,fio_auxiliar,espiras_auxiliar,passo_auxiliar,status_revisao,motivos_bloqueio,fonte_extracao,confianca,precisa_humano
+000012,drive-download-20260408T000529Z-3-001_185960\90617606-2fdf-4657-ae80-5b5879bc50e0.jpg,,12,outro,,,220,,60,,,45,70,,AWG 1X30,180:350,4:6,AWG 1X30,120:220,4:6,VERDE_AUTO_GEMINI,baixa_confianca_local,gemini_cache,0.80,0

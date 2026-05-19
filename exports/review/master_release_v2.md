@@ -1,8 +1,8 @@
-# Master release v2 (2026-05-19T02:47:15Z) — `7B.61 — B61 (raspagem cauda profunda)`
+# Master release v2 (2026-05-19T03:07:37Z) — `7B.62 — B62 (pendências B61 + cauda imagens)`
 
 ## Totais OFICIAL
 
-- **OFICIAL_total**: **1034**
+- **OFICIAL_total**: **1036**
 - **CANDIDATO** bloco 02 safe_green legacy: **0**
 
 ### OFICIAL por `fonte_release`
@@ -69,13 +69,14 @@
 - **PASS1_V2_BLOCO_60_RECONCILIADO**: **7**
 - **PASS1_V2_BLOCO_61_RECONCILIADO**: **5**
 - **PASS1_V2_BLOCO_35_RECONCILIADO**: **2**
+- **PASS1_V2_BLOCO_62_RECONCILIADO**: **2**
 - **PASS1_V2_BLOCO_58_RECONCILIADO**: **1**
 
-## Comparativo (run `7b61`)
+## Comparativo (run `7b62`)
 
-- OFICIAL antes (ficheiro anterior): **1029**
-- OFICIAL agora: **1034** (**Δ=+5**)
-- SHA **`PASS1_V2_BLOCO_61_RECONCILIADO`** presentes como OFICIAL: **5** (diff: `master_release_v2_diff_fase7b61.md`)
+- OFICIAL antes (ficheiro anterior): **1034**
+- OFICIAL agora: **1036** (**Δ=+2**)
+- SHA **`PASS1_V2_BLOCO_62_RECONCILIADO`** presentes como OFICIAL: **2** (diff: `master_release_v2_diff_fase7b62.md`)
 
 ## Basenames políticos (`pass1_v2_progress.NO_AUTO` + isolados retry)
 
@@ -173,7 +174,9 @@
 605065008.pdf
 605066008.pdf
 8bc49b76-90d1-4f38-bd2f-86cd93ad3689.jpg
+bda2a6e0-62ba-4738-8a58-964852f4ad8d.jpg
 bobi.pdf
+dc81f9cf-0541-4d2d-87c5-686e9c194c01.jpg
 esquema eletrico geradores branco.pdf
 esquema vent. de ar.pdf
 est.pdf
@@ -184,4 +187,4 @@ ventiladores 2.pdf
 ventiladores 3.pdf
 ```
 
-- **GAP 1600**: **566** · **Recomendação**: `ENTREGAVEL_PARA_DEPLOY_PILOTO_AMPLIADO_v2`
+- **GAP 1600**: **564** · **Recomendação**: `ENTREGAVEL_PARA_DEPLOY_PILOTO_AMPLIADO_v2`

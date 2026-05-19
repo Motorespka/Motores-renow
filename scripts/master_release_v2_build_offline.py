@@ -93,7 +93,10 @@ PHASE_7B58 = "7b58"
 PHASE_7B59 = "7b59"
 PHASE_7B60 = "7b60"
 PHASE_7B61 = "7b61"
+PHASE_7B62 = "7b62"
 
+# 7B.62: B62 acima de B61 — pendências B61 + cauda imagens
+PRIO_PASS1_B62 = -58
 # 7B.61: B61 acima de B60 — raspagem cauda profunda
 PRIO_PASS1_B61 = -57
 # 7B.60: B60 acima de B59 — retomada esteira pós-mutirão
@@ -380,8 +383,9 @@ def load_official_manifest_union(review_dir: Path) -> tuple[dict[str, tuple[int,
                 }
                 winners[sh] = best_manifest_row(winners.get(sh), prio_val, tag_name, r)
 
-    # 7B.61..25: blocos recentes — mesma lógica auto-detect plain/union.
+    # 7B.62..25: blocos recentes — mesma lógica auto-detect plain/union.
     for _bn, _prio in (
+        (62, PRIO_PASS1_B62),
         (61, PRIO_PASS1_B61),
         (60, PRIO_PASS1_B60),
         (59, PRIO_PASS1_B59),
@@ -903,7 +907,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Rebuild master_release_v2 offline (FASE 7B.x).")
     ap.add_argument(
         "--phase",
-        choices=("7b4", "7b5", "7b6", "7b7", "7b8", "7b9", "7b10", "7b11", "7b12", "7b13", "7b14", "7b15", "7b16", PHASE_7B17, PHASE_7B18, PHASE_7B19, PHASE_7B20, PHASE_7B21, PHASE_7B22, PHASE_7B23, PHASE_7B24, PHASE_7B25, PHASE_7B26, PHASE_7B27, PHASE_7B28, PHASE_7B29, PHASE_7B30, PHASE_7B31, PHASE_7B32, PHASE_7B33, PHASE_7B34, PHASE_7B35, PHASE_7B36, PHASE_7B37, PHASE_7B38, PHASE_7B39, PHASE_7B40, PHASE_7B41, PHASE_7B42, PHASE_7B43, PHASE_7B44, PHASE_7B45, PHASE_7B46, PHASE_7B47, PHASE_7B48, PHASE_7B49, PHASE_7B50, PHASE_7B51, PHASE_7B52, PHASE_7B53, PHASE_7B54, PHASE_7B55, PHASE_7B56, PHASE_7B57, PHASE_7B58, PHASE_7B59, PHASE_7B60, PHASE_7B61),
+        choices=("7b4", "7b5", "7b6", "7b7", "7b8", "7b9", "7b10", "7b11", "7b12", "7b13", "7b14", "7b15", "7b16", PHASE_7B17, PHASE_7B18, PHASE_7B19, PHASE_7B20, PHASE_7B21, PHASE_7B22, PHASE_7B23, PHASE_7B24, PHASE_7B25, PHASE_7B26, PHASE_7B27, PHASE_7B28, PHASE_7B29, PHASE_7B30, PHASE_7B31, PHASE_7B32, PHASE_7B33, PHASE_7B34, PHASE_7B35, PHASE_7B36, PHASE_7B37, PHASE_7B38, PHASE_7B39, PHASE_7B40, PHASE_7B41, PHASE_7B42, PHASE_7B43, PHASE_7B44, PHASE_7B45, PHASE_7B46, PHASE_7B47, PHASE_7B48, PHASE_7B49, PHASE_7B50, PHASE_7B51, PHASE_7B52, PHASE_7B53, PHASE_7B54, PHASE_7B55, PHASE_7B56, PHASE_7B57, PHASE_7B58, PHASE_7B59, PHASE_7B60, PHASE_7B61, PHASE_7B62),
         default="7b4",
         help="Fase de promoção incremental.",
     )
@@ -969,8 +973,9 @@ def main() -> int:
         PHASE_7B59: "fase7b59",
         PHASE_7B60: "fase7b60",
         PHASE_7B61: "fase7b61",
+        PHASE_7B62: "fase7b62",
     }[phase_slug]
-    promoted_bn = {"7b4": 4, "7b5": 5, "7b6": 6, "7b7": 7, "7b8": 8, "7b9": 9, "7b10": 10, "7b11": 11, "7b12": 12, "7b13": 13, "7b14": 14, "7b15": 15, "7b16": 16, PHASE_7B17: 17, PHASE_7B18: 18, PHASE_7B19: 19, PHASE_7B20: 20, PHASE_7B21: 21, PHASE_7B22: 22, PHASE_7B23: 23, PHASE_7B24: 24, PHASE_7B25: 25, PHASE_7B26: 26, PHASE_7B27: 27, PHASE_7B28: 28, PHASE_7B29: 29, PHASE_7B30: 30, PHASE_7B31: 31, PHASE_7B32: 32, PHASE_7B33: 33, PHASE_7B34: 34, PHASE_7B35: 35, PHASE_7B36: 36, PHASE_7B37: 37, PHASE_7B38: 38, PHASE_7B39: 39, PHASE_7B40: 40, PHASE_7B41: 41, PHASE_7B42: 42, PHASE_7B43: 43, PHASE_7B44: 44, PHASE_7B45: 45, PHASE_7B46: 46, PHASE_7B47: 47, PHASE_7B48: 48, PHASE_7B49: 49, PHASE_7B50: 50, PHASE_7B51: 51, PHASE_7B52: 52, PHASE_7B53: 53, PHASE_7B54: 54, PHASE_7B55: 55, PHASE_7B56: 56, PHASE_7B57: 57, PHASE_7B58: 58, PHASE_7B59: 59, PHASE_7B60: 60, PHASE_7B61: 61}[phase_slug]
+    promoted_bn = {"7b4": 4, "7b5": 5, "7b6": 6, "7b7": 7, "7b8": 8, "7b9": 9, "7b10": 10, "7b11": 11, "7b12": 12, "7b13": 13, "7b14": 14, "7b15": 15, "7b16": 16, PHASE_7B17: 17, PHASE_7B18: 18, PHASE_7B19: 19, PHASE_7B20: 20, PHASE_7B21: 21, PHASE_7B22: 22, PHASE_7B23: 23, PHASE_7B24: 24, PHASE_7B25: 25, PHASE_7B26: 26, PHASE_7B27: 27, PHASE_7B28: 28, PHASE_7B29: 29, PHASE_7B30: 30, PHASE_7B31: 31, PHASE_7B32: 32, PHASE_7B33: 33, PHASE_7B34: 34, PHASE_7B35: 35, PHASE_7B36: 36, PHASE_7B37: 37, PHASE_7B38: 38, PHASE_7B39: 39, PHASE_7B40: 40, PHASE_7B41: 41, PHASE_7B42: 42, PHASE_7B43: 43, PHASE_7B44: 44, PHASE_7B45: 45, PHASE_7B46: 46, PHASE_7B47: 47, PHASE_7B48: 48, PHASE_7B49: 49, PHASE_7B50: 50, PHASE_7B51: 51, PHASE_7B52: 52, PHASE_7B53: 53, PHASE_7B54: 54, PHASE_7B55: 55, PHASE_7B56: 56, PHASE_7B57: 57, PHASE_7B58: 58, PHASE_7B59: 59, PHASE_7B60: 60, PHASE_7B61: 61, PHASE_7B62: 62}[phase_slug]
     diff_name = f"master_release_v2_diff_{phase_tag}.md"
 
     utc = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -1449,6 +1454,7 @@ def main() -> int:
         PHASE_7B59: "7B.59 — B59 (cauda do acervo)",
         PHASE_7B60: "7B.60 — B60 (retomada esteira pós-mutirão)",
         PHASE_7B61: "7B.61 — B61 (raspagem cauda profunda)",
+        PHASE_7B62: "7B.62 — B62 (pendências B61 + cauda imagens)",
     }[phase_slug]
 
     expect_total_window = {
@@ -1550,6 +1556,8 @@ def main() -> int:
         PHASE_7B60: (1015, 1040),
         # 7B.61: baseline pós-B60 (1029 OFICIAL) — meta ≥1030.
         PHASE_7B61: (1020, 1045),
+        # 7B.62: baseline pós-B61 (1034 OFICIAL).
+        PHASE_7B62: (1025, 1050),
     }
     wl, wh = expect_total_window[phase_slug]
 
@@ -1603,6 +1611,7 @@ def main() -> int:
             "OFICIAL_total_janela_esperado": {"min": wl, "max": wh, "ok": wl <= oficiais <= wh},
             "PASS1_promoted_OFICIAL_count": len(sha_promo_ord),
             "PROMOCAO_MANUAL_REVISADA_CURSOR_OFICIAL": br_fonte_of.get("PROMOCAO_MANUAL_REVISADA_CURSOR", 0),
+            "PASS1_V2_B62_OFICIAL": br_fonte_of.get("PASS1_V2_BLOCO_62_RECONCILIADO", 0),
             "PASS1_V2_B61_OFICIAL": br_fonte_of.get("PASS1_V2_BLOCO_61_RECONCILIADO", 0),
             "PASS1_V2_B60_OFICIAL": br_fonte_of.get("PASS1_V2_BLOCO_60_RECONCILIADO", 0),
             "PASS1_V2_B59_OFICIAL": br_fonte_of.get("PASS1_V2_BLOCO_59_RECONCILIADO", 0),

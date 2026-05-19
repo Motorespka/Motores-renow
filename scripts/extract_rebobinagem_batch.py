@@ -656,7 +656,13 @@ def load_work_queue_csv(
         raise NotADirectoryError(f"images base: {base_dir}")
     out: List[Path] = []
     qt_by_rel: Dict[str, str] = {}
-    allowed_newish = ("NEW_UNPROCESSED", "NEW_UNPROCESSED_PASS1")
+    allowed_newish = (
+        "NEW_UNPROCESSED",
+        "NEW_UNPROCESSED_PASS1",
+        "PENDENCY_RETRY_PASS1",
+        "PENDENCY_MANUAL_PASS1",
+        "PENDENCY_PRIOR_QUEUE",
+    )
     with open(wq, "r", encoding="utf-8-sig", newline="") as f:
         r = csv.DictReader(f)
         for row in r:

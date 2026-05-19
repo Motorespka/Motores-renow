@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-19T02:33:59Z",
+  "generated_at": "2026-05-19T02:50:07Z",
   "storage_roots_scanned": [
     {
       "path": "C:\\Users\\micke\\Desktop\\O rebobinador\\_extraidos_motor",
@@ -15,27 +15,27 @@
     }
   ],
   "primary_base": "C:\\Users\\micke\\Desktop\\O rebobinador\\_extraidos_motor",
-  "oficial_sha_count": 1029,
+  "oficial_sha_count": 1034,
   "physical_files_total": 3237,
   "physical_unique_sha_on_disk": 1077,
-  "physical_paths_sha_in_oficial": 3087,
-  "physical_paths_sha_not_oficial": 150,
-  "physical_unique_sha_not_oficial": 48,
-  "physical_unique_sha_in_oficial_on_disk": 1029,
+  "physical_paths_sha_in_oficial": 3105,
+  "physical_paths_sha_not_oficial": 132,
+  "physical_unique_sha_not_oficial": 43,
+  "physical_unique_sha_in_oficial_on_disk": 1034,
   "loose_paths_indexed_sha": 0,
   "loose_unique_sha_in_index": 0,
-  "duplicate_paths_same_sha_as_oficial": 2058,
+  "duplicate_paths_same_sha_as_oficial": 2071,
   "by_ext_all": {
     ".pdf": 3102,
     ".jpeg": 3,
     ".jpg": 132
   },
   "by_ext_loose": {
-    ".pdf": 21,
-    ".jpg": 129
+    ".pdf": 18,
+    ".jpg": 114
   },
   "by_root_loose": {
-    "_extraidos_motor": 150
+    "_extraidos_motor": 132
   },
   "preview_loose_first_20": [
     {
@@ -43,24 +43,12 @@
       "sha256_arquivo": "ebd33a6dc9161c8f…"
     },
     {
-      "arquivo_rel": "drive-download-20260408T000443Z-3-001_253069\\ROT.PDF",
-      "sha256_arquivo": "4f273f067082d073…"
-    },
-    {
       "arquivo_rel": "drive-download-20260408T000443Z-3-001_747589\\REGULADOR CR.pdf",
       "sha256_arquivo": "ebd33a6dc9161c8f…"
     },
     {
-      "arquivo_rel": "drive-download-20260408T000443Z-3-001_747589\\ROT.PDF",
-      "sha256_arquivo": "4f273f067082d073…"
-    },
-    {
       "arquivo_rel": "drive-download-20260408T000443Z-3-001_917682\\REGULADOR CR.pdf",
       "sha256_arquivo": "ebd33a6dc9161c8f…"
-    },
-    {
-      "arquivo_rel": "drive-download-20260408T000443Z-3-001_917682\\ROT.PDF",
-      "sha256_arquivo": "4f273f067082d073…"
     },
     {
       "arquivo_rel": "drive-download-20260408T000511Z-3-001_428675\\esquema vent. de ar.pdf",
@@ -111,15 +99,27 @@
       "sha256_arquivo": "2faf8046401f30ff…"
     },
     {
-      "arquivo_rel": "drive-download-20260408T000529Z-3-001_185960\\0b36da0a-68fa-411f-8d98-42612aac07cd.jpg",
-      "sha256_arquivo": "3332b9c274227df6…"
-    },
-    {
       "arquivo_rel": "drive-download-20260408T000529Z-3-001_185960\\1d217467-02db-4a7f-8017-ea2f9ac0a715.jpg",
       "sha256_arquivo": "722e1918a138b180…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260408T000529Z-3-001_185960\\1d9b3430-0b16-4701-b724-661974ff8b49.jpg",
+      "sha256_arquivo": "b0a01317980d3464…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260408T000529Z-3-001_185960\\2efb294a-6c1a-4bea-93ac-818f00111ae2.jpg",
+      "sha256_arquivo": "b0a01317980d3464…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260408T000529Z-3-001_185960\\324e6cbc-2bab-43ed-9303-2d560b1da7ec.jpg",
+      "sha256_arquivo": "087cced75075cc99…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260408T000529Z-3-001_185960\\8bc49b76-90d1-4f38-bd2f-86cd93ad3689.jpg",
+      "sha256_arquivo": "74e0992b8389bf83…"
     }
   ],
-  "pendency_candidates": 15,
-  "queue_csv": "exports\\review\\pass1_v2_block_61.csv",
+  "pendency_candidates": 9,
+  "queue_csv": "exports\\review\\pass1_v2_block_62.csv",
   "queue_lines": 14
 }

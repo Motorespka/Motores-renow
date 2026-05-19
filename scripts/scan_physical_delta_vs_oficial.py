@@ -11,6 +11,7 @@ import argparse
 import csv
 import hashlib
 import json
+import re
 import sys
 from collections import Counter
 from datetime import datetime, timezone
@@ -149,7 +150,16 @@ def collect_pendency_rows(review_dir: Path, oficial_shas: set[str]) -> list[dict
             }
         )
 
-    for pth in sorted(review_dir.glob("extraidos_motor_fase7a_pass1_v2_block_*_flash_categorized_manual_review.csv")):
+    def _block_num(p: Path) -> int:
+        m = re.search(r"block_(\d+)", p.name, re.I)
+        return int(m.group(1)) if m else 0
+
+    cat_paths = sorted(
+        review_dir.glob("extraidos_motor_fase7a_pass1_v2_block_*_flash_categorized_manual_review.csv"),
+        key=_block_num,
+        reverse=True,
+    )
+    for pth in cat_paths:
         with pth.open(encoding="utf-8-sig", newline="") as f:
             for row in csv.DictReader(f):
                 cat = _t(row.get("categoria")).upper()
@@ -159,7 +169,12 @@ def collect_pendency_rows(review_dir: Path, oficial_shas: set[str]) -> list[dict
                 sh = _t(row.get("sha256_arquivo"))
                 _add(ar, sh, "PENDENCY_RETRY_PASS1", f"from={pth.name}|categoria={cat}")
 
-    for pth in sorted(review_dir.glob("extraidos_motor_fase7a_pass1_v2_block_*_manual_review.csv")):
+    man_paths = sorted(
+        review_dir.glob("extraidos_motor_fase7a_pass1_v2_block_*_manual_review.csv"),
+        key=_block_num,
+        reverse=True,
+    )
+    for pth in man_paths:
         with pth.open(encoding="utf-8-sig", newline="") as f:
             for row in csv.DictReader(f):
                 ar = _t(row.get("arquivo_rel") or row.get("arquivo"))
