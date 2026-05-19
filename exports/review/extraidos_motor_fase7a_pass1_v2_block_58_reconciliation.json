@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-05-19T01:04:39Z",
-  "fase_meta": "pass1_v2_block_58",
+  "generated_at": "2026-05-19T01:54:35Z",
+  "fase_meta": "pass1_v2_mutirao_block_58",
   "campaign": "PASS1_LITE_V2",
   "block_completed": 58,
-  "resolved_verde_linhas": 12,
-  "alert_manifest_linhas": 5,
-  "manual_review_linhas": 2,
+  "resolved_verde_linhas": 14,
+  "alert_manifest_linhas": 0,
+  "manual_review_linhas": 0,
   "NO_AUTO_basenames_actualizados": [
     "1,8cv 4e8p nema42 2 50,60hz 30x68 605012085.pdf",
     "605012335.pdf",

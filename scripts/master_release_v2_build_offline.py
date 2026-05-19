@@ -820,6 +820,24 @@ def _resolved_row_is_rescue(row: dict) -> bool:
     return "operacao_rescue" in blob or "rescue" in blob and "pass1" in blob
 
 
+def load_tail_mutirao_amnesty_shas(correcoes_path: Path) -> set[str]:
+    """SHAs com sidecar tail_mutirao_correcoes.json — indulto regras a/b/c no master."""
+    if not correcoes_path.is_file():
+        return set()
+    try:
+        data = json.loads(correcoes_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return set()
+    out: set[str] = set()
+    for key, ent in data.items():
+        if str(key).startswith("_") or not isinstance(ent, dict):
+            continue
+        sh = _t(ent.get("sha")).lower()
+        if sh:
+            out.add(sh)
+    return out
+
+
 def load_rescue_amnesty_shas(
     review_dir: Path,
     manifest_winners: dict[str, tuple[int, str, dict]],
@@ -1035,6 +1053,9 @@ def main() -> int:
     manual_csv_shas = collect_manual_shas_extended(REVIEW_DIR)
     manifest_winners, sha_manifest_oficial = load_official_manifest_union(REVIEW_DIR)
     rescue_amnesty_shas, rescue_amnesty_tags = load_rescue_amnesty_shas(REVIEW_DIR, manifest_winners)
+    mutirao_amnesty_shas = load_tail_mutirao_amnesty_shas(
+        REPO_ROOT / "metadata" / "sidecars" / "tail_mutirao_correcoes.json"
+    )
 
     rv1_sha_set: set[str] = set()
     if rv1_path.is_file():
@@ -1136,6 +1157,9 @@ def main() -> int:
     def apply_abc(ar: str, sh: str, ftag: str = "") -> list[str]:
         # PROMOCAO_MANUAL_REVISADA_CURSOR e' aprovacao humana explicita: ignora a/b/c.
         if ftag == "PROMOCAO_MANUAL_REVISADA_CURSOR":
+            return []
+        # Mutirão cauda (sidecar): indulto a/b/c após reprocesso audit→categorize→reconcile.
+        if sh in mutirao_amnesty_shas:
             return []
         # Resgate PASS1 (B36+): indulto historico NO_AUTO (c) e manual_review (b); regra (a) mantida.
         rescue_bypass_bc = ftag in rescue_amnesty_tags or sh in rescue_amnesty_shas
@@ -1495,9 +1519,9 @@ def main() -> int:
         # 7B.57: baseline pós-B56 (1000 OFICIAL) — era pós-milhar.
         PHASE_7B57: (995, 1020),
         # 7B.58: baseline pós-B57 (1011 OFICIAL).
-        PHASE_7B58: (1005, 1030),
-        # 7B.59: baseline pós-B58 (1012 OFICIAL) — cauda do acervo.
-        PHASE_7B59: (1005, 1035),
+        # 7B.58/59: mutirão cauda — janela alargada pós-correções sidecar.
+        PHASE_7B58: (1010, 1030),
+        PHASE_7B59: (1010, 1030),
     }
     wl, wh = expect_total_window[phase_slug]
 

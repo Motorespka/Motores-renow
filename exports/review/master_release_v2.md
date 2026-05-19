@@ -1,8 +1,8 @@
-# Master release v2 (2026-05-19T01:22:10Z) — `7B.59 — B59 (cauda do acervo)`
+# Master release v2 (2026-05-19T01:56:48Z) — `7B.59 — B59 (cauda do acervo)`
 
 ## Totais OFICIAL
 
-- **OFICIAL_total**: **1012**
+- **OFICIAL_total**: **1020**
 - **CANDIDATO** bloco 02 safe_green legacy: **0**
 
 ### OFICIAL por `fonte_release`
@@ -63,6 +63,7 @@
 - **PASS1_V2_BLOCO_17_RECONCILIADO**: **8**
 - **PASS1_V2_BLOCO_18_RECONCILIADO**: **8**
 - **PASS1_V2_BLOCO_25_RECONCILIADO**: **8**
+- **PASS1_V2_BLOCO_59_RECONCILIADO**: **8**
 - **PASS1_V2_BLOCO_01_RECONCILIADO**: **7**
 - **PASS1_V2_BLOCO_44_RECONCILIADO**: **7**
 - **PASS1_V2_BLOCO_35_RECONCILIADO**: **2**
@@ -70,16 +71,14 @@
 
 ## Comparativo (run `7b59`)
 
-- OFICIAL antes (ficheiro anterior): **1012**
-- OFICIAL agora: **1012** (**Δ=+0**)
-- SHA **`PASS1_V2_BLOCO_59_RECONCILIADO`** presentes como OFICIAL: **0** (diff: `master_release_v2_diff_fase7b59.md`)
+- OFICIAL antes (ficheiro anterior): **1020**
+- OFICIAL agora: **1020** (**Δ=+0**)
+- SHA **`PASS1_V2_BLOCO_59_RECONCILIADO`** presentes como OFICIAL: **8** (diff: `master_release_v2_diff_fase7b59.md`)
 
 ## Basenames políticos (`pass1_v2_progress.NO_AUTO` + isolados retry)
 
 ```text
-1,8cv 4e8p nema42 2 50,60hz 30x68 605012085.pdf
 605012237.pdf
-605012335.pdf
 605015131.pdf
 605016087.pdf
 605016201.pdf
@@ -95,8 +94,6 @@
 605028714.pdf
 605028715.pdf
 605029010.pdf
-605029115.pdf
-605029315.pdf
 605030003.pdf
 605034002.pdf
 605034007.pdf
@@ -181,4 +178,4 @@ ventiladores 2.pdf
 ventiladores 3.pdf
 ```
 
-- **GAP 1600**: **588** · **Recomendação**: `ENTREGAVEL_PARA_DEPLOY_PILOTO_AMPLIADO_v2`
+- **GAP 1600**: **580** · **Recomendação**: `ENTREGAVEL_PARA_DEPLOY_PILOTO_AMPLIADO_v2`

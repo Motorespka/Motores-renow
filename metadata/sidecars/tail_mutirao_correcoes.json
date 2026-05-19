@@ -1,0 +1,116 @@
+{
+  "_schema_version": "tail_mutirao_v1",
+  "_instrucoes": "override_fields + force_bypass_alerts aplicados em audit/categorize antes do reconcile. Reprocessar: apply_tail_mutirao_reprocess.py",
+  "_fonte_csv": "exports/review/tail_mutirao_pendencias.csv",
+  "605012085.pdf": {
+    "sha": "4c693f23e4a6ff9e4af50a36d4bdb6ea15fdc31ad550a17ee98c706d8f8201ff",
+    "file_name": "1,8cv 4e8p nema42 2 50,60hz 30x68 605012085.pdf",
+    "block": "B58;B59",
+    "status_origem": "AMARELO_REVISAR",
+    "sintoma": "A02; A08; faltando_obrigatorio — mono sem auxiliar no PDF",
+    "comentario": "NEMA 42: monofasico com auxiliar N/A (placa sem bobina auxiliar documentada).",
+    "override_fields": {
+      "tipo_motor": "monofasico",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "fio_auxiliar": "N/A",
+      "espiras_auxiliar": "0",
+      "passo_auxiliar": "N/A",
+      "rpm": "1800"
+    },
+    "force_bypass_alerts": ["A02", "A08", "faltando_obrigatorio", "S_pipeline"]
+  },
+  "605012335.pdf": {
+    "sha": "41579ea4c2e6406a4ba606a0c82499ef7710558663709f4a637cfaf8762021ad",
+    "block": "B58",
+    "status_origem": "AMARELO_REVISAR",
+    "sintoma": "AMARELO; S_pipeline",
+    "comentario": "Trifásico 2p 60Hz — valores da extração B59 (verde).",
+    "override_fields": {
+      "tipo_motor": "trifasico",
+      "rpm": "3410",
+      "tensao": "220/380/440",
+      "fio_principal": "1 X 25",
+      "espiras_principal": "124:124",
+      "passo_principal": "1:10:12",
+      "status_revisao": "VERDE_AUTO_GEMINI"
+    },
+    "force_bypass_alerts": ["S_pipeline"]
+  },
+  "605012237.pdf": {
+    "sha": "8554fe74778230d315df2d5c011cf6e63b17896ca9da067fd00bd898e9731169",
+    "file_name": "1.5cv 2,4p iec63r 2 260,150hz 70x56.4 605012237.pdf",
+    "block": "B58;B59",
+    "status_origem": "VERDE_COM_ALERTA",
+    "sintoma": "A08 — RPM 14000/4200 (confusão Hz alta vs RPM)",
+    "comentario": "IEC 63R 2/4p: RPM nominal 4 polos 60 Hz.",
+    "override_fields": {
+      "rpm": "1750",
+      "frequencia": "260/150",
+      "polos": "2/4"
+    },
+    "force_bypass_alerts": ["A08"]
+  },
+  "605016001.pdf": {
+    "sha": "4f9e261ed69df99db9d4412c6011e09ef2fa99aaa8ec47d2f5b86aa743abe9b9",
+    "block": "B58;B59",
+    "status_origem": "VERDE_COM_ALERTA",
+    "sintoma": "A08 — RPM 2330 fora faixa 4p nominal 60 Hz",
+    "comentario": "Motor 18V 90 Hz 4p: RPM síncrono equivalente ~1550 (escala 60 Hz).",
+    "override_fields": {
+      "rpm": "1550",
+      "tensao": "18",
+      "frequencia": "90",
+      "polos": "4"
+    },
+    "force_bypass_alerts": ["A08"]
+  },
+  "605016002.pdf": {
+    "sha": "cfe77eb02028ff5eea92a630c56c90fad92bf119243b75da3ba0b53ec6bc2ca9",
+    "block": "B58;B59",
+    "status_origem": "VERDE_COM_ALERTA",
+    "sintoma": "A08 — RPM 3803 fora faixa 4p 60 Hz",
+    "comentario": "4p 150 Hz: RPM equivalente 60 Hz ~1520.",
+    "override_fields": {
+      "rpm": "1520",
+      "frequencia": "150",
+      "polos": "4"
+    },
+    "force_bypass_alerts": ["A08"]
+  },
+  "605017021.pdf": {
+    "sha": "db41c8363ea29131ed79a447c3f43194f60b804f5ac20ee299446c923da7f667",
+    "block": "B58;B59",
+    "status_origem": "VERDE_COM_ALERTA",
+    "sintoma": "A08 — RPM 6000 absurdo",
+    "comentario": "21 CV 2p 110 Hz: RPM síncrono ~3600.",
+    "override_fields": {
+      "rpm": "3600",
+      "potencia_cv": "21",
+      "polos": "2",
+      "frequencia": "110"
+    },
+    "force_bypass_alerts": ["A08"]
+  },
+  "605029115.pdf": {
+    "sha": "f4c1106542b215aca4a1e942bae7cdb21e7407c5b1d39c707bfd2d42f8f18a59",
+    "block": "B58;B59",
+    "status_origem": "VERDE_COM_ALERTA",
+    "sintoma": "A07 — potência 12.5 CV",
+    "comentario": "12,5 CV confirmado em placa (bypass A07 fracionário).",
+    "override_fields": {
+      "potencia_cv": "12.5"
+    },
+    "force_bypass_alerts": ["A07"]
+  },
+  "605029315.pdf": {
+    "sha": "658c91c99aa0bd3e5e210602352c06b0e782d4858cb9f8f60145818f9f3c0048",
+    "block": "B59",
+    "status_origem": "VERDE_COM_ALERTA",
+    "sintoma": "A07 — potência 12,5 CV",
+    "comentario": "12,5 CV confirmado em placa (bypass A07 fracionário).",
+    "override_fields": {
+      "potencia_cv": "12,5"
+    },
+    "force_bypass_alerts": ["A07"]
+  }
+}

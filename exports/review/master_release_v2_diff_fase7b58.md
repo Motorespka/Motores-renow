@@ -1,9 +1,9 @@
-# Diff `fase7b58` (`2026-05-19T01:04:42Z`)
+# Diff `fase7b58` (`2026-05-19T01:56:48Z`)
 
 ## Resumo
 
-- **Δ OFICIAL** vs ficheiro anterior: **+1** (antes **1011**, depois **1012**)
-- **SHA `PASS1_V2_BLOCO_58_RECONCILIADO`** na linha mestre OFICIAL: **1** (resolved tinha **12**) ; alert/manual excluem via regras a/b/c)
+- **Δ OFICIAL** vs ficheiro anterior: **+6** (antes **1014**, depois **1020**)
+- **SHA `PASS1_V2_BLOCO_58_RECONCILIADO`** na linha mestre OFICIAL: **1** (resolved tinha **14**) ; alert/manual excluem via regras a/b/c)
 
 ## Conferência PROMOTED (ordenado)
 

@@ -1,2 +1,1 @@
 ﻿arquivo_rel,sha256_arquivo,queue_type,motivo_codigo,recomendacao,status_extrato,notas
-"drive-download-20260403T124026Z-3-001_224929\1,8cv 4e8p nema42 2 50,60hz 30x68 605012085.pdf",4c693f23e4a6ff9e4af50a36d4bdb6ea15fdc31ad550a17ee98c706d8f8201ff,MANUAL_REVIEW_SEM_RETRY_GEMINI_PASS1,AMARELO_APOS_PASS1_V2_REVISAR_EXTRAÇÃO_OU_REGRA,NAO_RETRY_GEMINI_AGORA_REVISAR_PDF_OU_AUDITORIA,AMARELO_REVISAR,Detectado em categorized PASS1-LITE V2 bloco 59.

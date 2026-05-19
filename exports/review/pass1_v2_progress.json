@@ -1,6 +1,6 @@
 {
   "campaign": "PASS1_LITE_V2",
-  "generated_at": "2026-05-19T01:22:10Z",
+  "generated_at": "2026-05-19T01:54:41Z",
   "bloques_executados": [
     {
       "bloco": "01",
@@ -433,25 +433,23 @@
       "bloco": "58",
       "output_tag": "extraidos_motor_fase7a_pass1_v2_block_58_flash",
       "calls_gemini": 14,
-      "verde_seguro": 7,
-      "alert_manifest_audit_rows": 5,
-      "amarelo_manual": 2
+      "verde_seguro": 14,
+      "alert_manifest_audit_rows": 0
     },
     {
       "bloco": "59",
       "output_tag": "extraidos_motor_fase7a_pass1_v2_block_59_flash",
       "calls_gemini": 14,
-      "verde_seguro": 7,
-      "alert_manifest_audit_rows": 6,
-      "amarelo_manual": 1
+      "verde_seguro": 14,
+      "alert_manifest_audit_rows": 0
     }
   ],
   "totais_acumulados_v2": {
     "ficheiros_processados_v2": 806,
     "chamadas_gemini_v2": 819,
-    "verde_seguro_total_manifests_v2": 608,
-    "verde_com_alerta_total_v2": 90,
-    "amarelo_isolado_total_manual_csv_v2": 108,
+    "verde_seguro_total_manifests_v2": 622,
+    "verde_com_alerta_total_v2": 79,
+    "amarelo_isolado_total_manual_csv_v2": 105,
     "vermelho_total_v2": 0,
     "quota_429_total_v2": 0,
     "pausa_infra_v2": 0,
@@ -459,8 +457,8 @@
     "no_keys_v2": 0
   },
   "taxas": {
-    "taxa_verde_seguro_pura_v2": "608/806 = 75.43%",
-    "taxa_verde_ampla_v2": "698/806 = 86.60% (verde_seguro + verde_com_alerta)",
+    "taxa_verde_seguro_pura_v2": "622/806 = 77.17%",
+    "taxa_verde_ampla_v2": "701/806 = 86.97% (verde_seguro + verde_com_alerta)",
     "nota": "Não extrapolar para o pool 480."
   },
   "pool_pass1_v2": {
@@ -471,8 +469,8 @@
     "linhas_emitidas_prep_bloco_05_cap_14": 14,
     "ultima_actualizacao_reconcile": {
       "block": 59,
-      "incremento_alert_manifest": 6,
-      "incremento_manual": 1
+      "incremento_alert_manifest": 0,
+      "incremento_manual": 0
     }
   },
   "estado": {
@@ -837,8 +835,6 @@
     "artefactos_retry_release_master_nao_tocados_nesta_fase": true
   },
   "NO_AUTO_PASS1_V2_QUEUE_BASENAMES": [
-    "1,8cv 4e8p nema42 2 50,60hz 30x68 605012085.pdf",
-    "605012335.pdf",
     "605028011.pdf",
     "605028105.pdf",
     "605028115.pdf",
@@ -847,8 +843,6 @@
     "605028714.pdf",
     "605028715.pdf",
     "605029010.pdf",
-    "605029115.pdf",
-    "605029315.pdf",
     "605030003.pdf",
     "605034002.pdf",
     "605034007.pdf",
@@ -958,5 +952,11 @@
     "verde_com_alerta_v2": 4,
     "amarelo_manual_v2": 10,
     "vermelho_v2": 0
-  }
+  },
+  "MUTIRAO_TAIL_LIFTED_NO_AUTO": [
+    "1,8cv 4e8p nema42 2 50,60hz 30x68 605012085.pdf",
+    "605012335.pdf",
+    "605029115.pdf",
+    "605029315.pdf"
+  ]
 }

@@ -1,6 +1,6 @@
 # Relatório pós-lote — categorização de qualidade
 
-- Gerado: `2026-05-19T01:04:38Z`
+- Gerado: `2026-05-19T01:54:35Z`
 - Últimas linhas analisadas (bundle): **14**
 - CSV bundle: `C:\Users\micke\Desktop\O rebobinador\Motores-renow\exports\review\extraidos_motor_fase7a_pass1_v2_block_58_flash_candidates.csv`
 
@@ -8,13 +8,11 @@
 
 | Categoria | Quantidade | % do lote |
 |---|---:|---:|
-| AMARELO_REVISAR | 2 | 14.3% |
-| VERDE_COM_ALERTA | 5 | 35.7% |
-| VERDE_SEGURO | 7 | 50.0% |
+| VERDE_SEGURO | 14 | 100.0% |
 
 ## Aproveitamento real (import seguro)
 
-- **VERDE_SEGURO**: **7** (**50.0%**) — candidatos diretos com campos obrigatórios + sem alerta **A***.
+- **VERDE_SEGURO**: **14** (**100.0%**) — candidatos diretos com campos obrigatórios + sem alerta **A***.
 - **VERMELHO infra (no_keys/quota/429)**: **0** (**0.0%**) da amostra.
 
 ## Estado das chaves (ficheiro gemini_keys_status.json)
@@ -30,9 +28,9 @@
 - pelo menos **uma chave OK** utilizável (sem cooldown imediato)
 - sem **quota_exhausted** generalizada no snapshot
 
-**Resultado:** ❌ Critérios não cumpridos ou infraestrutura frágil.
+**Resultado:** ✅ Critérios numéricos principais OK.
 
-**Recomendação:** **Não escalar agora.** taxa VERDE_SEGURO (50.0%) abaixo de 75%
+**Recomendação:** **Critérios mínimos numéricos cumpridos**, mas rever infraestrutura (OCR local + quotas) antes do lote 1100.
 
 ## Top motivos de bloqueio (campo motivos_bloqueio no bundle)
 
@@ -40,32 +38,32 @@
 
 ## VERDE_SEGURO (lista)
 
-*Total: 7*
+*Total: 14*
 
+- `drive-download-20260403T124026Z-3-001_224929\1,8cv 4e8p nema42 2 50,60hz 30x68 605012085.pdf`
+- `drive-download-20260403T124026Z-3-001_224929\1.5cv 2,4p iec63r 2 260,150hz 70x56.4 605012237.pdf`
+- `drive-download-20260403T124026Z-3-001_224929\605012335.pdf`
 - `drive-download-20260403T124026Z-3-001_224929\605013168.pdf`
 - `drive-download-20260403T124026Z-3-001_224929\605015131.pdf`
+- `drive-download-20260403T124026Z-3-001_224929\605016001.pdf`
+- `drive-download-20260403T124026Z-3-001_224929\605016002.pdf`
 - `drive-download-20260403T124026Z-3-001_224929\605016087.pdf`
 - `drive-download-20260403T124026Z-3-001_224929\605016201.pdf`
 - `drive-download-20260403T124026Z-3-001_224929\605017014.pdf`
 - `drive-download-20260403T124026Z-3-001_224929\605017020.pdf`
+- `drive-download-20260403T124026Z-3-001_224929\605017021.pdf`
 - `drive-download-20260403T124026Z-3-001_224929\605026002.pdf`
+- `drive-download-20260403T124026Z-3-001_224929\605029115.pdf`
 
 ## VERDE_COM_ALERTA
 
-*Total: 5*
+*Total: 0*
 
-- `drive-download-20260403T124026Z-3-001_224929\1.5cv 2,4p iec63r 2 260,150hz 70x56.4 605012237.pdf`
-- `drive-download-20260403T124026Z-3-001_224929\605016001.pdf`
-- `drive-download-20260403T124026Z-3-001_224929\605016002.pdf`
-- `drive-download-20260403T124026Z-3-001_224929\605017021.pdf`
-- `drive-download-20260403T124026Z-3-001_224929\605029115.pdf`
 
 ## AMARELO_REVISAR
 
-*Total: 2*
+*Total: 0*
 
-- `drive-download-20260403T124026Z-3-001_224929\1,8cv 4e8p nema42 2 50,60hz 30x68 605012085.pdf`
-- `drive-download-20260403T124026Z-3-001_224929\605012335.pdf`
 
 ## VERMELHO — infra (reprocessar depois)
 
