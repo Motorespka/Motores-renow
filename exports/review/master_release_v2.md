@@ -1,4 +1,4 @@
-# Master release v2 (2026-05-19T01:04:42Z) — `7B.58 — B58 (pós-milhar, expandindo base)`
+# Master release v2 (2026-05-19T01:22:10Z) — `7B.59 — B59 (cauda do acervo)`
 
 ## Totais OFICIAL
 
@@ -68,11 +68,11 @@
 - **PASS1_V2_BLOCO_35_RECONCILIADO**: **2**
 - **PASS1_V2_BLOCO_58_RECONCILIADO**: **1**
 
-## Comparativo (run `7b58`)
+## Comparativo (run `7b59`)
 
-- OFICIAL antes (ficheiro anterior): **1011**
-- OFICIAL agora: **1012** (**Δ=+1**)
-- SHA **`PASS1_V2_BLOCO_58_RECONCILIADO`** presentes como OFICIAL: **1** (diff: `master_release_v2_diff_fase7b58.md`)
+- OFICIAL antes (ficheiro anterior): **1012**
+- OFICIAL agora: **1012** (**Δ=+0**)
+- SHA **`PASS1_V2_BLOCO_59_RECONCILIADO`** presentes como OFICIAL: **0** (diff: `master_release_v2_diff_fase7b59.md`)
 
 ## Basenames políticos (`pass1_v2_progress.NO_AUTO` + isolados retry)
 

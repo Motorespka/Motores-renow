@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-19T00:53:57Z",
+  "generated_at": "2026-05-19T01:13:53Z",
   "storage_roots_scanned": [
     {
       "path": "C:\\Users\\micke\\Desktop\\O rebobinador\\_extraidos_motor",
@@ -15,27 +15,27 @@
     }
   ],
   "primary_base": "C:\\Users\\micke\\Desktop\\O rebobinador\\_extraidos_motor",
-  "oficial_sha_count": 1011,
+  "oficial_sha_count": 1012,
   "physical_files_total": 3237,
   "physical_unique_sha_on_disk": 1077,
-  "physical_paths_sha_in_oficial": 3033,
-  "physical_paths_sha_not_oficial": 204,
-  "physical_unique_sha_not_oficial": 66,
-  "physical_unique_sha_in_oficial_on_disk": 1011,
-  "loose_paths_indexed_sha": 13,
-  "loose_unique_sha_in_index": 13,
-  "duplicate_paths_same_sha_as_oficial": 2022,
+  "physical_paths_sha_in_oficial": 3036,
+  "physical_paths_sha_not_oficial": 201,
+  "physical_unique_sha_not_oficial": 65,
+  "physical_unique_sha_in_oficial_on_disk": 1012,
+  "loose_paths_indexed_sha": 12,
+  "loose_unique_sha_in_index": 12,
+  "duplicate_paths_same_sha_as_oficial": 2024,
   "by_ext_all": {
     ".pdf": 3102,
     ".jpeg": 3,
     ".jpg": 132
   },
   "by_ext_loose": {
-    ".pdf": 75,
+    ".pdf": 72,
     ".jpg": 129
   },
   "by_root_loose": {
-    "_extraidos_motor": 204
+    "_extraidos_motor": 201
   },
   "preview_loose_first_20": [
     {
@@ -49,10 +49,6 @@
     {
       "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605012335.pdf",
       "sha256_arquivo": "41579ea4c2e6406a…"
-    },
-    {
-      "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605013168.pdf",
-      "sha256_arquivo": "bf88baa3babad6cb…"
     },
     {
       "arquivo_rel": "drive-download-20260403T124026Z-3-001_224929\\605015131.pdf",
@@ -111,14 +107,18 @@
       "sha256_arquivo": "41579ea4c2e6406a…"
     },
     {
-      "arquivo_rel": "drive-download-20260403T124026Z-3-001_247073\\605013168.pdf",
-      "sha256_arquivo": "bf88baa3babad6cb…"
-    },
-    {
       "arquivo_rel": "drive-download-20260403T124026Z-3-001_247073\\605015131.pdf",
       "sha256_arquivo": "06250a25dc0c4439…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_247073\\605016001.pdf",
+      "sha256_arquivo": "4f9e261ed69df99d…"
+    },
+    {
+      "arquivo_rel": "drive-download-20260403T124026Z-3-001_247073\\605016002.pdf",
+      "sha256_arquivo": "cfe77eb02028ff5e…"
     }
   ],
-  "queue_csv": "exports\\review\\pass1_v2_block_58.csv",
+  "queue_csv": "exports\\review\\pass1_v2_block_59.csv",
   "queue_lines": 14
 }
