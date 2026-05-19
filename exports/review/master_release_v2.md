@@ -1,8 +1,8 @@
-# Master release v2 (2026-05-19T22:03:59Z) — `7B.66 — B66 (raspagem final inéditos + pendências cauda)`
+# Master release v2 (2026-05-19T22:14:47Z) — `7B.67 — B67 (cauda física final)`
 
 ## Totais OFICIAL
 
-- **OFICIAL_total**: **1046**
+- **OFICIAL_total**: **1049**
 - **CANDIDATO** bloco 02 safe_green legacy: **0**
 
 ### OFICIAL por `fonte_release`
@@ -70,17 +70,18 @@
 - **PASS1_V2_BLOCO_61_RECONCILIADO**: **5**
 - **PASS1_V2_BLOCO_65_RECONCILIADO**: **4**
 - **PASS1_V2_BLOCO_66_RECONCILIADO**: **4**
+- **PASS1_V2_BLOCO_67_RECONCILIADO**: **3**
 - **PASS1_V2_BLOCO_35_RECONCILIADO**: **2**
 - **PASS1_V2_BLOCO_62_RECONCILIADO**: **2**
 - **PASS1_V2_BLOCO_58_RECONCILIADO**: **1**
 - **PASS1_V2_BLOCO_63_RECONCILIADO**: **1**
 - **PASS1_V2_BLOCO_64_RECONCILIADO**: **1**
 
-## Comparativo (run `7b66`)
+## Comparativo (run `7b67`)
 
-- OFICIAL antes (ficheiro anterior): **1042**
-- OFICIAL agora: **1046** (**Δ=+4**)
-- SHA **`PASS1_V2_BLOCO_66_RECONCILIADO`** presentes como OFICIAL: **4** (diff: `master_release_v2_diff_fase7b66.md`)
+- OFICIAL antes (ficheiro anterior): **1046**
+- OFICIAL agora: **1049** (**Δ=+3**)
+- SHA **`PASS1_V2_BLOCO_67_RECONCILIADO`** presentes como OFICIAL: **3** (diff: `master_release_v2_diff_fase7b67.md`)
 
 ## Basenames políticos (`pass1_v2_progress.NO_AUTO` + isolados retry)
 
@@ -178,6 +179,7 @@
 605065008.pdf
 605066008.pdf
 8bc49b76-90d1-4f38-bd2f-86cd93ad3689.jpg
+arno.jpg
 bda2a6e0-62ba-4738-8a58-964852f4ad8d.jpg
 bobi.pdf
 dc81f9cf-0541-4d2d-87c5-686e9c194c01.jpg
@@ -190,4 +192,4 @@ rot.pdf
 ventilador 3 velocidades.pdf
 ```
 
-- **GAP 1600**: **554** · **Recomendação**: `ENTREGAVEL_PARA_DEPLOY_PILOTO_AMPLIADO_v2`
+- **GAP 1600**: **551** · **Recomendação**: `ENTREGAVEL_PARA_DEPLOY_PILOTO_AMPLIADO_v2`
