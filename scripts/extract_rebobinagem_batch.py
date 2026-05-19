@@ -662,6 +662,7 @@ def load_work_queue_csv(
         "PENDENCY_RETRY_PASS1",
         "PENDENCY_MANUAL_PASS1",
         "PENDENCY_PRIOR_QUEUE",
+        "PENDENCY_INFRA_RETRY",
     )
     with open(wq, "r", encoding="utf-8-sig", newline="") as f:
         r = csv.DictReader(f)

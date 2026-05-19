@@ -123,6 +123,65 @@ def scan_physical(
     return rows
 
 
+def collect_infra_retry_rows(review_dir: Path, oficial_shas: set[str]) -> list[dict]:
+    """PAUSA_INFRA / quota — prioridade máxima (ex.: ventiladores B62)."""
+    out: list[dict] = []
+    seen: set[str] = set()
+
+    def _add(ar: str, sh: str, src: str) -> None:
+        sh = _t(sh).lower()
+        ar = _t(ar).replace("/", "\\")
+        if not sh or not ar or sh in oficial_shas or sh in seen:
+            return
+        seen.add(sh)
+        out.append(
+            {
+                "arquivo_rel": ar,
+                "sha256_arquivo": sh,
+                "storage_root": "infra_retry",
+                "abs_path": "",
+                "ext": Path(ar).suffix.lower(),
+                "sha_from_index": False,
+                "queue_type": "PENDENCY_INFRA_RETRY",
+                "reason": f"from={src}|infra=gemini_quota_or_keys",
+            }
+        )
+
+    for pth in sorted(review_dir.glob("extraidos_motor_fase7a_pass1_v2_block_*_flash_candidates.csv")):
+        with pth.open(encoding="utf-8-sig", newline="") as f:
+            for row in csv.DictReader(f):
+                st = _t(row.get("status_revisao")).upper()
+                mot = _t(row.get("motivos_bloqueio")).lower()
+                if st != "PAUSA_INFRA_SEM_CHAVE" and "infra:" not in mot:
+                    continue
+                ar = _t(row.get("arquivo") or row.get("arquivo_rel"))
+                sh = _t(row.get("sha256_arquivo"))
+                if not ar:
+                    continue
+                _add(ar, sh, pth.name)
+
+    # ventiladores e demais com SHA na fila B62/B63 mas PAUSA no último extract
+    for pth in sorted(review_dir.glob("pass1_v2_block_6*.csv")):
+        with pth.open(encoding="utf-8-sig", newline="") as f:
+            for row in csv.DictReader(f):
+                ar = _t(row.get("arquivo_rel"))
+                sh = _t(row.get("sha256_arquivo"))
+                if not ar or "ventilador" not in ar.lower():
+                    continue
+                if sh in oficial_shas or sh in seen:
+                    continue
+                _add(ar, sh, f"{pth.name}|ventilador_priority")
+
+    for pth in sorted(review_dir.glob("extraidos_motor_fase7a_pass1_v2_block_*_flash_categorized_reprocess_no_keys.csv")):
+        with pth.open(encoding="utf-8-sig", newline="") as f:
+            for row in csv.DictReader(f):
+                ar = _t(row.get("arquivo") or row.get("arquivo_rel"))
+                sh = _t(row.get("sha256_arquivo"))
+                _add(ar, sh, pth.name)
+
+    return out
+
+
 def collect_pendency_rows(review_dir: Path, oficial_shas: set[str]) -> list[dict]:
     """
     SHAs de blocos PASS1-v2 ainda não OFICIAIS (manual / alert / categorized ≠ VERDE_SEGURO).
@@ -313,7 +372,11 @@ def main() -> int:
         take = max(1, int(args.take))
         pool: list[dict] = []
         pendency_n = 0
+        infra_n = 0
         if args.force_include_pendencies:
+            infra_rows = collect_infra_retry_rows(REVIEW_DIR, oficial_set)
+            infra_n = len(infra_rows)
+            pool.extend(infra_rows)
             pendencies = collect_pendency_rows(REVIEW_DIR, oficial_set)
             pendency_n = len(pendencies)
             pool.extend(pendencies)
@@ -337,6 +400,7 @@ def main() -> int:
                     rs = f"{rs}|{reason_base}"
                 w.writerow([r["arquivo_rel"], r["sha256_arquivo"], qt, rs, i])
         report["pendency_candidates"] = pendency_n
+        report["infra_retry_candidates"] = infra_n
         report["queue_csv"] = str(queue_path.relative_to(REPO_ROOT))
         report["queue_lines"] = len(slice_rows)
         out_json.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
