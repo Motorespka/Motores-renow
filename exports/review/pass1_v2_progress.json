@@ -1,6 +1,6 @@
 {
   "campaign": "PASS1_LITE_V2",
-  "generated_at": "2026-05-19T03:24:59Z",
+  "generated_at": "2026-05-19T10:41:33Z",
   "bloques_executados": [
     {
       "bloco": "01",
@@ -474,14 +474,22 @@
       "verde_seguro": 0,
       "alert_manifest_audit_rows": 1,
       "amarelo_manual": 10
+    },
+    {
+      "bloco": "64",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_64_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 0,
+      "alert_manifest_audit_rows": 1,
+      "amarelo_manual": 12
     }
   ],
   "totais_acumulados_v2": {
-    "ficheiros_processados_v2": 849,
-    "chamadas_gemini_v2": 875,
+    "ficheiros_processados_v2": 862,
+    "chamadas_gemini_v2": 889,
     "verde_seguro_total_manifests_v2": 631,
-    "verde_com_alerta_total_v2": 85,
-    "amarelo_isolado_total_manual_csv_v2": 133,
+    "verde_com_alerta_total_v2": 86,
+    "amarelo_isolado_total_manual_csv_v2": 145,
     "vermelho_total_v2": 0,
     "quota_429_total_v2": 0,
     "pausa_infra_v2": 0,
@@ -489,25 +497,25 @@
     "no_keys_v2": 0
   },
   "taxas": {
-    "taxa_verde_seguro_pura_v2": "631/849 = 74.32%",
-    "taxa_verde_ampla_v2": "716/849 = 84.33% (verde_seguro + verde_com_alerta)",
+    "taxa_verde_seguro_pura_v2": "631/862 = 73.20%",
+    "taxa_verde_ampla_v2": "717/862 = 83.18% (verde_seguro + verde_com_alerta)",
     "nota": "Não extrapolar para o pool 480."
   },
   "pool_pass1_v2": {
     "pool_inicial_sha_estimado": 480,
-    "sha_consumidos_no_pool_filas_acumulado": 849,
+    "sha_consumidos_no_pool_filas_acumulado": 862,
     "pass1_v2_eligible_restante_apos_bloco04_filas_e_no_auto": 430,
     "sha_elegivel_para_bloco_05_cap_14": 14,
     "linhas_emitidas_prep_bloco_05_cap_14": 14,
     "ultima_actualizacao_reconcile": {
-      "block": 63,
+      "block": 64,
       "incremento_alert_manifest": 1,
-      "incremento_manual": 10
+      "incremento_manual": 12
     }
   },
   "estado": {
     "veredicto": "CONTINUAR_PASS1_V2",
-    "recomendacao_proximo_passo": "Gates antes extract seguinte ou rebuild master (ver fase atual). Próximo bloco fila: 64."
+    "recomendacao_proximo_passo": "Gates antes extract seguinte ou rebuild master (ver fase atual). Próximo bloco fila: 65."
   },
   "relatorio_consolidado_pos_b28": {
     "gerado_em": "2026-05-14T12:30:00Z",
@@ -895,6 +903,15 @@
       "n_alert_manifest": 1,
       "codigo exemplo": "A10_tipo_vazio_ou_desconhecido",
       "registro": "alert_manifest_paralelo_vs_resolved"
+    },
+    {
+      "bloco": "64",
+      "arquivos": [
+        "28.jpg"
+      ],
+      "n_alert_manifest": 1,
+      "codigo exemplo": "A10_tipo_vazio_ou_desconhecido",
+      "registro": "alert_manifest_paralelo_vs_resolved"
     }
   ],
   "confirmacao": {
@@ -1000,6 +1017,7 @@
     "regulador escova.pdf",
     "rot.pdf",
     "ventilador 3 velocidades.pdf",
+    "ventiladores 1.pdf",
     "ventiladores 2.pdf",
     "ventiladores 3.pdf"
   ],

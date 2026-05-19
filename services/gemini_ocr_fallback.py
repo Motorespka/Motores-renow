@@ -17,17 +17,91 @@ def _t(v: Any) -> str:
     return str(v).strip()
 
 
-def _extract_json(text: str) -> Dict[str, Any]:
+def _strip_markdown_fences(text: str) -> str:
     t = (text or "").strip()
+    if t.startswith("```"):
+        t = re.sub(r"^```(?:json)?\s*", "", t, flags=re.I)
+        t = re.sub(r"\s*```\s*$", "", t)
+    return t.strip()
+
+
+def _balanced_json_slice(text: str, start: int) -> Optional[str]:
+    """Extrai substring com um objeto/array JSON balanceado a partir de `start`."""
+    if start < 0 or start >= len(text):
+        return None
+    opener = text[start]
+    if opener not in "{[":
+        return None
+    closer = "}" if opener == "{" else "]"
+    depth = 0
+    in_str = False
+    esc = False
+    for i in range(start, len(text)):
+        ch = text[i]
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+            continue
+        if ch == opener:
+            depth += 1
+        elif ch == closer:
+            depth -= 1
+            if depth == 0:
+                return text[start : i + 1]
+    return None
+
+
+def _extract_json(text: str) -> Dict[str, Any]:
+    """
+    Isola o primeiro JSON válido na resposta do Gemini.
+    Trata ruído antes/depois, markdown e erro json.loads 'Extra data' (JSON duplicado ou lixo após o bloco).
+    """
+    t = _strip_markdown_fences(text)
     if not t:
         raise ValueError("Resposta vazia do Gemini.")
-    # aceita ruído antes/depois, mas extrai o primeiro bloco JSON válido
-    m = re.search(r"\{[\s\S]*\}\s*$", t)
-    if not m:
-        m = re.search(r"\{[\s\S]*\}", t)
-    if not m:
-        raise ValueError("Não foi possível localizar JSON na resposta do Gemini.")
-    return json.loads(m.group(0))
+
+    decoder = json.JSONDecoder()
+    for m in re.finditer(r"[\{\[]", t):
+        start = m.start()
+        chunk = _balanced_json_slice(t, start)
+        if chunk:
+            try:
+                obj, _end = decoder.raw_decode(chunk)
+                if isinstance(obj, dict):
+                    return obj
+                if isinstance(obj, list) and obj and isinstance(obj[0], dict):
+                    return obj[0]
+            except json.JSONDecodeError:
+                pass
+        try:
+            obj, _end = decoder.raw_decode(t[start:])
+            if isinstance(obj, dict):
+                return obj
+            if isinstance(obj, list) and obj and isinstance(obj[0], dict):
+                return obj[0]
+        except json.JSONDecodeError:
+            continue
+
+    # fallback: primeiro bloco entre chaves (raw_decode no trecho)
+    m = re.search(r"\{[\s\S]*", t)
+    if m:
+        chunk = _balanced_json_slice(t, m.start())
+        if chunk:
+            try:
+                obj, _end = decoder.raw_decode(chunk)
+                if isinstance(obj, dict):
+                    return obj
+            except json.JSONDecodeError as e:
+                raise ValueError(f"JSON inválido após isolamento: {e}") from e
+
+    raise ValueError("Não foi possível localizar JSON na resposta do Gemini.")
 
 
 def _prompt_rebobinagem_json() -> str:

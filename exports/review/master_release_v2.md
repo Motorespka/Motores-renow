@@ -1,8 +1,8 @@
-# Master release v2 (2026-05-19T03:24:59Z) — `7B.63 — B63 (recuperação infra ventiladores + cauda)`
+# Master release v2 (2026-05-19T10:41:33Z) — `7B.64 — B64 (parser JSON ventiladores 2 + cauda)`
 
 ## Totais OFICIAL
 
-- **OFICIAL_total**: **1037**
+- **OFICIAL_total**: **1038**
 - **CANDIDATO** bloco 02 safe_green legacy: **0**
 
 ### OFICIAL por `fonte_release`
@@ -72,12 +72,13 @@
 - **PASS1_V2_BLOCO_62_RECONCILIADO**: **2**
 - **PASS1_V2_BLOCO_58_RECONCILIADO**: **1**
 - **PASS1_V2_BLOCO_63_RECONCILIADO**: **1**
+- **PASS1_V2_BLOCO_64_RECONCILIADO**: **1**
 
-## Comparativo (run `7b63`)
+## Comparativo (run `7b64`)
 
-- OFICIAL antes (ficheiro anterior): **1036**
-- OFICIAL agora: **1037** (**Δ=+1**)
-- SHA **`PASS1_V2_BLOCO_63_RECONCILIADO`** presentes como OFICIAL: **1** (diff: `master_release_v2_diff_fase7b63.md`)
+- OFICIAL antes (ficheiro anterior): **1037**
+- OFICIAL agora: **1038** (**Δ=+1**)
+- SHA **`PASS1_V2_BLOCO_64_RECONCILIADO`** presentes como OFICIAL: **1** (diff: `master_release_v2_diff_fase7b64.md`)
 
 ## Basenames políticos (`pass1_v2_progress.NO_AUTO` + isolados retry)
 
@@ -185,8 +186,9 @@ f837d1fb-1d86-4e42-aa6a-9eaa9c696086.jpg
 regulador escova.pdf
 rot.pdf
 ventilador 3 velocidades.pdf
+ventiladores 1.pdf
 ventiladores 2.pdf
 ventiladores 3.pdf
 ```
 
-- **GAP 1600**: **563** · **Recomendação**: `ENTREGAVEL_PARA_DEPLOY_PILOTO_AMPLIADO_v2`
+- **GAP 1600**: **562** · **Recomendação**: `ENTREGAVEL_PARA_DEPLOY_PILOTO_AMPLIADO_v2`

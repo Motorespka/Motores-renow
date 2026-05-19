@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-19T03:13:46Z",
+  "generated_at": "2026-05-19T10:32:30Z",
   "storage_roots_scanned": [
     {
       "path": "C:\\Users\\micke\\Desktop\\O rebobinador\\_extraidos_motor",
@@ -15,16 +15,16 @@
     }
   ],
   "primary_base": "C:\\Users\\micke\\Desktop\\O rebobinador\\_extraidos_motor",
-  "oficial_sha_count": 1036,
+  "oficial_sha_count": 1037,
   "physical_files_total": 3237,
   "physical_unique_sha_on_disk": 1077,
-  "physical_paths_sha_in_oficial": 3111,
-  "physical_paths_sha_not_oficial": 126,
-  "physical_unique_sha_not_oficial": 41,
-  "physical_unique_sha_in_oficial_on_disk": 1036,
+  "physical_paths_sha_in_oficial": 3114,
+  "physical_paths_sha_not_oficial": 123,
+  "physical_unique_sha_not_oficial": 40,
+  "physical_unique_sha_in_oficial_on_disk": 1037,
   "loose_paths_indexed_sha": 0,
   "loose_unique_sha_in_index": 0,
-  "duplicate_paths_same_sha_as_oficial": 2075,
+  "duplicate_paths_same_sha_as_oficial": 2077,
   "by_ext_all": {
     ".pdf": 3102,
     ".jpeg": 3,
@@ -32,10 +32,10 @@
   },
   "by_ext_loose": {
     ".pdf": 18,
-    ".jpg": 108
+    ".jpg": 105
   },
   "by_root_loose": {
-    "_extraidos_motor": 126
+    "_extraidos_motor": 123
   },
   "preview_loose_first_20": [
     {
@@ -119,8 +119,9 @@
       "sha256_arquivo": "74e0992b8389bf83…"
     }
   ],
-  "pendency_candidates": 14,
+  "pendency_candidates": 13,
+  "json_parse_retry_candidates": 1,
   "infra_retry_candidates": 4,
-  "queue_csv": "exports\\review\\pass1_v2_block_63.csv",
+  "queue_csv": "exports\\review\\pass1_v2_block_64.csv",
   "queue_lines": 14
 }

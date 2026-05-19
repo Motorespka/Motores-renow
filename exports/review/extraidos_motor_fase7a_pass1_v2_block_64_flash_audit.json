@@ -1,0 +1,205 @@
+{
+  "generated_at": "2026-05-19T10:40:59Z",
+  "input_csv": "C:\\Users\\micke\\Desktop\\O rebobinador\\Motores-renow\\exports\\review\\extraidos_motor_fase7a_pass1_v2_block_64_flash_candidates.csv",
+  "last_n": 14,
+  "total_auditado": 14,
+  "verdes_sem_alerta": 0,
+  "verdes_com_alerta": 1,
+  "amarelos": 12,
+  "vermelhos": 1,
+  "top_motivos_alerta": [
+    {
+      "codigo": "S_pipeline_AMARELO_REVISAR",
+      "count": 12
+    },
+    {
+      "codigo": "A09_tensao_vazia",
+      "count": 8
+    },
+    {
+      "codigo": "A10_tipo_vazio_ou_desconhecido",
+      "count": 6
+    },
+    {
+      "codigo": "A10_WARNING_tipo_inferido_com_evidencia=monofasico;auxiliar_e/ou_capacitor_preenchidos",
+      "count": 4
+    },
+    {
+      "codigo": "A01_mono_sem_fio_espiras_passo_principal",
+      "count": 2
+    },
+    {
+      "codigo": "A02_mono_sem_fio_espiras_passo_auxiliar",
+      "count": 2
+    },
+    {
+      "codigo": "A06_WARNING_espiras_normalizada_rastreavel",
+      "count": 1
+    },
+    {
+      "codigo": "S_pipeline_VERMELHO_REVISAR",
+      "count": 1
+    }
+  ],
+  "top_alertas_criticos_A": [
+    {
+      "codigo": "A09_tensao_vazia",
+      "count": 8
+    },
+    {
+      "codigo": "A10_tipo_vazio_ou_desconhecido",
+      "count": 6
+    },
+    {
+      "codigo": "A01_mono_sem_fio_espiras_passo_principal",
+      "count": 2
+    },
+    {
+      "codigo": "A02_mono_sem_fio_espiras_passo_auxiliar",
+      "count": 2
+    }
+  ],
+  "arquivos_revisao_manual": [
+    "drive-download-20260408T000443Z-3-001_253069\\REGULADOR CR.pdf",
+    "drive-download-20260408T000511Z-3-001_428675\\esquema vent. de ar.pdf",
+    "drive-download-20260408T000517Z-3-001_345175\\ventiladores 1.pdf",
+    "drive-download-20260408T000517Z-3-001_345175\\ventiladores 2.pdf",
+    "drive-download-20260408T000517Z-3-001_345175\\ventiladores 3.pdf",
+    "drive-download-20260408T000529Z-3-001_185960\\1d217467-02db-4a7f-8017-ea2f9ac0a715.jpg",
+    "drive-download-20260408T000529Z-3-001_185960\\1d9b3430-0b16-4701-b724-661974ff8b49.jpg",
+    "drive-download-20260408T000529Z-3-001_185960\\324e6cbc-2bab-43ed-9303-2d560b1da7ec.jpg",
+    "drive-download-20260408T000529Z-3-001_185960\\8bc49b76-90d1-4f38-bd2f-86cd93ad3689.jpg",
+    "drive-download-20260408T000529Z-3-001_185960\\VENTILADOR 3 VELOCIDADES.pdf",
+    "drive-download-20260408T000529Z-3-001_185960\\bda2a6e0-62ba-4738-8a58-964852f4ad8d.jpg",
+    "drive-download-20260408T000529Z-3-001_185960\\dc81f9cf-0541-4d2d-87c5-686e9c194c01.jpg",
+    "drive-download-20260408T000529Z-3-001_185960\\f837d1fb-1d86-4e42-aa6a-9eaa9c696086.jpg",
+    "drive-download-20260408T000605Z-3-001_290649\\28.jpg"
+  ],
+  "saidas": {
+    "csv": "exports\\review\\extraidos_motor_fase7a_pass1_v2_block_64_flash_audit.csv",
+    "json": "exports\\review\\extraidos_motor_fase7a_pass1_v2_block_64_flash_audit.json",
+    "md": "exports\\review\\extraidos_motor_fase7a_pass1_v2_block_64_flash_audit.md"
+  },
+  "linhas": [
+    {
+      "arquivo": "drive-download-20260408T000517Z-3-001_345175\\ventiladores 2.pdf",
+      "status_revisao": "AMARELO_REVISAR",
+      "alertas": [
+        "A10_tipo_vazio_ou_desconhecido",
+        "A09_tensao_vazia",
+        "S_pipeline_AMARELO_REVISAR"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000517Z-3-001_345175\\ventiladores 1.pdf",
+      "status_revisao": "AMARELO_REVISAR",
+      "alertas": [
+        "A09_tensao_vazia",
+        "A10_WARNING_tipo_inferido_com_evidencia=monofasico;auxiliar_e/ou_capacitor_preenchidos",
+        "S_pipeline_AMARELO_REVISAR"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000517Z-3-001_345175\\ventiladores 3.pdf",
+      "status_revisao": "AMARELO_REVISAR",
+      "alertas": [
+        "A10_tipo_vazio_ou_desconhecido",
+        "A09_tensao_vazia",
+        "S_pipeline_AMARELO_REVISAR"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000529Z-3-001_185960\\VENTILADOR 3 VELOCIDADES.pdf",
+      "status_revisao": "AMARELO_REVISAR",
+      "alertas": [
+        "A09_tensao_vazia",
+        "S_pipeline_AMARELO_REVISAR"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000511Z-3-001_428675\\esquema vent. de ar.pdf",
+      "status_revisao": "AMARELO_REVISAR",
+      "alertas": [
+        "A09_tensao_vazia",
+        "A01_mono_sem_fio_espiras_passo_principal",
+        "A02_mono_sem_fio_espiras_passo_auxiliar",
+        "A06_WARNING_espiras_normalizada_rastreavel",
+        "S_pipeline_AMARELO_REVISAR"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000529Z-3-001_185960\\1d217467-02db-4a7f-8017-ea2f9ac0a715.jpg",
+      "status_revisao": "AMARELO_REVISAR",
+      "alertas": [
+        "S_pipeline_AMARELO_REVISAR"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000529Z-3-001_185960\\1d9b3430-0b16-4701-b724-661974ff8b49.jpg",
+      "status_revisao": "AMARELO_REVISAR",
+      "alertas": [
+        "A10_WARNING_tipo_inferido_com_evidencia=monofasico;auxiliar_e/ou_capacitor_preenchidos",
+        "S_pipeline_AMARELO_REVISAR"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000529Z-3-001_185960\\324e6cbc-2bab-43ed-9303-2d560b1da7ec.jpg",
+      "status_revisao": "AMARELO_REVISAR",
+      "alertas": [
+        "A09_tensao_vazia",
+        "A01_mono_sem_fio_espiras_passo_principal",
+        "A02_mono_sem_fio_espiras_passo_auxiliar",
+        "S_pipeline_AMARELO_REVISAR"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000529Z-3-001_185960\\8bc49b76-90d1-4f38-bd2f-86cd93ad3689.jpg",
+      "status_revisao": "AMARELO_REVISAR",
+      "alertas": [
+        "A10_tipo_vazio_ou_desconhecido",
+        "S_pipeline_AMARELO_REVISAR"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000529Z-3-001_185960\\bda2a6e0-62ba-4738-8a58-964852f4ad8d.jpg",
+      "status_revisao": "AMARELO_REVISAR",
+      "alertas": [
+        "A10_WARNING_tipo_inferido_com_evidencia=monofasico;auxiliar_e/ou_capacitor_preenchidos",
+        "S_pipeline_AMARELO_REVISAR"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000529Z-3-001_185960\\dc81f9cf-0541-4d2d-87c5-686e9c194c01.jpg",
+      "status_revisao": "AMARELO_REVISAR",
+      "alertas": [
+        "A10_WARNING_tipo_inferido_com_evidencia=monofasico;auxiliar_e/ou_capacitor_preenchidos",
+        "S_pipeline_AMARELO_REVISAR"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000529Z-3-001_185960\\f837d1fb-1d86-4e42-aa6a-9eaa9c696086.jpg",
+      "status_revisao": "AMARELO_REVISAR",
+      "alertas": [
+        "A10_tipo_vazio_ou_desconhecido",
+        "A09_tensao_vazia",
+        "S_pipeline_AMARELO_REVISAR"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000443Z-3-001_253069\\REGULADOR CR.pdf",
+      "status_revisao": "VERMELHO_REVISAR",
+      "alertas": [
+        "A10_tipo_vazio_ou_desconhecido",
+        "A09_tensao_vazia",
+        "S_pipeline_VERMELHO_REVISAR"
+      ]
+    },
+    {
+      "arquivo": "drive-download-20260408T000605Z-3-001_290649\\28.jpg",
+      "status_revisao": "VERDE_AUTO_GEMINI",
+      "alertas": [
+        "A10_tipo_vazio_ou_desconhecido"
+      ]
+    }
+  ]
+}
