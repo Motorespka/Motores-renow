@@ -1,6 +1,6 @@
 {
   "campaign": "PASS1_LITE_V2",
-  "generated_at": "2026-05-19T02:28:56Z",
+  "generated_at": "2026-05-19T02:47:14Z",
   "bloques_executados": [
     {
       "bloco": "01",
@@ -450,14 +450,22 @@
       "verde_seguro": 6,
       "alert_manifest_audit_rows": 1,
       "amarelo_manual": 4
+    },
+    {
+      "bloco": "61",
+      "output_tag": "extraidos_motor_fase7a_pass1_v2_block_61_flash",
+      "calls_gemini": 14,
+      "verde_seguro": 2,
+      "alert_manifest_audit_rows": 3,
+      "amarelo_manual": 6
     }
   ],
   "totais_acumulados_v2": {
-    "ficheiros_processados_v2": 817,
-    "chamadas_gemini_v2": 833,
-    "verde_seguro_total_manifests_v2": 628,
-    "verde_com_alerta_total_v2": 80,
-    "amarelo_isolado_total_manual_csv_v2": 109,
+    "ficheiros_processados_v2": 828,
+    "chamadas_gemini_v2": 847,
+    "verde_seguro_total_manifests_v2": 630,
+    "verde_com_alerta_total_v2": 83,
+    "amarelo_isolado_total_manual_csv_v2": 115,
     "vermelho_total_v2": 0,
     "quota_429_total_v2": 0,
     "pausa_infra_v2": 0,
@@ -465,25 +473,25 @@
     "no_keys_v2": 0
   },
   "taxas": {
-    "taxa_verde_seguro_pura_v2": "628/817 = 76.87%",
-    "taxa_verde_ampla_v2": "708/817 = 86.66% (verde_seguro + verde_com_alerta)",
+    "taxa_verde_seguro_pura_v2": "630/828 = 76.09%",
+    "taxa_verde_ampla_v2": "713/828 = 86.11% (verde_seguro + verde_com_alerta)",
     "nota": "Não extrapolar para o pool 480."
   },
   "pool_pass1_v2": {
     "pool_inicial_sha_estimado": 480,
-    "sha_consumidos_no_pool_filas_acumulado": 817,
+    "sha_consumidos_no_pool_filas_acumulado": 828,
     "pass1_v2_eligible_restante_apos_bloco04_filas_e_no_auto": 430,
     "sha_elegivel_para_bloco_05_cap_14": 14,
     "linhas_emitidas_prep_bloco_05_cap_14": 14,
     "ultima_actualizacao_reconcile": {
-      "block": 60,
-      "incremento_alert_manifest": 1,
-      "incremento_manual": 4
+      "block": 61,
+      "incremento_alert_manifest": 3,
+      "incremento_manual": 6
     }
   },
   "estado": {
     "veredicto": "CONTINUAR_PASS1_V2",
-    "recomendacao_proximo_passo": "Gates antes extract seguinte ou rebuild master (ver fase atual). Próximo bloco fila: 61."
+    "recomendacao_proximo_passo": "Gates antes extract seguinte ou rebuild master (ver fase atual). Próximo bloco fila: 62."
   },
   "relatorio_consolidado_pos_b28": {
     "gerado_em": "2026-05-14T12:30:00Z",
@@ -842,6 +850,17 @@
       "n_alert_manifest": 1,
       "codigo exemplo": "A10_tipo_vazio_ou_desconhecido",
       "registro": "alert_manifest_paralelo_vs_resolved"
+    },
+    {
+      "bloco": "61",
+      "arquivos": [
+        "0b36da0a-68fa-411f-8d98-42612aac07cd.jpg",
+        "80dae8d4-2a6d-4153-8b6c-c84b919e1600.jpg",
+        "ROT.PDF"
+      ],
+      "n_alert_manifest": 3,
+      "codigo exemplo": "A10_tipo_vazio_ou_desconhecido",
+      "registro": "alert_manifest_paralelo_vs_resolved"
     }
   ],
   "confirmacao": {
@@ -852,6 +871,9 @@
     "artefactos_retry_release_master_nao_tocados_nesta_fase": true
   },
   "NO_AUTO_PASS1_V2_QUEUE_BASENAMES": [
+    "1d217467-02db-4a7f-8017-ea2f9ac0a715.jpg",
+    "1d9b3430-0b16-4701-b724-661974ff8b49.jpg",
+    "324e6cbc-2bab-43ed-9303-2d560b1da7ec.jpg",
     "605028011.pdf",
     "605028105.pdf",
     "605028115.pdf",
@@ -933,6 +955,7 @@
     "605065007.pdf",
     "605065008.pdf",
     "605066008.pdf",
+    "8bc49b76-90d1-4f38-bd2f-86cd93ad3689.jpg",
     "bobi.pdf",
     "esquema eletrico geradores branco.pdf",
     "esquema vent. de ar.pdf",

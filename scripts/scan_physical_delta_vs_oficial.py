@@ -122,6 +122,68 @@ def scan_physical(
     return rows
 
 
+def collect_pendency_rows(review_dir: Path, oficial_shas: set[str]) -> list[dict]:
+    """
+    SHAs de blocos PASS1-v2 ainda não OFICIAIS (manual / alert / categorized ≠ VERDE_SEGURO).
+    Prioridade para raspagem da cauda profunda quando --force-include-pendencies.
+    """
+    out: list[dict] = []
+    seen: set[str] = set()
+
+    def _add(ar: str, sh: str, queue_type: str, reason: str) -> None:
+        sh = _t(sh).lower()
+        ar = _t(ar).replace("/", "\\")
+        if not sh or not ar or sh in oficial_shas or sh in seen:
+            return
+        seen.add(sh)
+        out.append(
+            {
+                "arquivo_rel": ar,
+                "sha256_arquivo": sh,
+                "storage_root": "pendency",
+                "abs_path": "",
+                "ext": Path(ar).suffix.lower(),
+                "sha_from_index": False,
+                "queue_type": queue_type,
+                "reason": reason,
+            }
+        )
+
+    for pth in sorted(review_dir.glob("extraidos_motor_fase7a_pass1_v2_block_*_flash_categorized_manual_review.csv")):
+        with pth.open(encoding="utf-8-sig", newline="") as f:
+            for row in csv.DictReader(f):
+                cat = _t(row.get("categoria")).upper()
+                if cat in ("VERDE_SEGURO", ""):
+                    continue
+                ar = _t(row.get("arquivo") or row.get("arquivo_rel"))
+                sh = _t(row.get("sha256_arquivo"))
+                _add(ar, sh, "PENDENCY_RETRY_PASS1", f"from={pth.name}|categoria={cat}")
+
+    for pth in sorted(review_dir.glob("extraidos_motor_fase7a_pass1_v2_block_*_manual_review.csv")):
+        with pth.open(encoding="utf-8-sig", newline="") as f:
+            for row in csv.DictReader(f):
+                ar = _t(row.get("arquivo_rel") or row.get("arquivo"))
+                sh = _t(row.get("sha256_arquivo"))
+                _add(ar, sh, "PENDENCY_MANUAL_PASS1", f"from={pth.name}")
+
+    for pth in sorted(review_dir.glob("pass1_v2_block_*.csv")):
+        if "mutirao" in pth.name.lower():
+            continue
+        with pth.open(encoding="utf-8-sig", newline="") as f:
+            for row in csv.DictReader(f):
+                sh = _t(row.get("sha256_arquivo")).lower()
+                if not sh or sh in oficial_shas or sh in seen:
+                    continue
+                qt = _t(row.get("queue_type")).upper()
+                if qt and qt not in ("NEW_UNPROCESSED_PASS1", "PENDENCY_RETRY_PASS1", "PENDENCY_MANUAL_PASS1"):
+                    continue
+                ar = _t(row.get("arquivo_rel")).replace("/", "\\")
+                if ar:
+                    _add(ar, sh, "PENDENCY_PRIOR_QUEUE", f"from={pth.name}")
+
+    return out
+
+
 def pick_queue_rows(loose: list[dict], take: int, unique_sha: bool) -> list[dict]:
     if not unique_sha:
         return loose[:take]
@@ -145,6 +207,11 @@ def main() -> int:
     ap.add_argument("--primary-base", default=str(MONO_ROOT / "_extraidos_motor"))
     ap.add_argument("--emit-queue-csv", type=int, default=46, help="Ex.: 46 → pass1_v2_block_46.csv")
     ap.add_argument("--take", type=int, default=14)
+    ap.add_argument(
+        "--force-include-pendencies",
+        action="store_true",
+        help="Prioriza pendências PASS1-v2 (manual/alert/filas) antes do slice físico; ignora travas de blocos falhados.",
+    )
     ap.add_argument("--out-json", default=str(REVIEW_DIR / "physical_delta_vs_oficial_report.json"))
     ap.add_argument("--out-md", default=str(REVIEW_DIR / "physical_delta_vs_oficial_report.md"))
     args = ap.parse_args()
@@ -229,17 +296,32 @@ def main() -> int:
     if args.emit_queue_csv:
         bn = int(args.emit_queue_csv)
         take = max(1, int(args.take))
-        slice_rows = pick_queue_rows(loose, take, unique_sha=True)
+        pool: list[dict] = []
+        pendency_n = 0
+        if args.force_include_pendencies:
+            pendencies = collect_pendency_rows(REVIEW_DIR, oficial_set)
+            pendency_n = len(pendencies)
+            pool.extend(pendencies)
+        pool.extend(loose)
+        slice_rows = pick_queue_rows(pool, take, unique_sha=True)
         queue_path = REVIEW_DIR / f"pass1_v2_block_{bn:02d}.csv"
-        reason = (
+        policy = "sha_not_in_master_oficial"
+        if args.force_include_pendencies:
+            policy += "|force_include_pendencies"
+        reason_base = (
             f"massa_inedita_fisica_block_{bn:02d}|from=scan_physical_delta_vs_oficial|"
-            f"policy=sha_not_in_master_oficial|generated_offline"
+            f"policy={policy}|generated_offline"
         )
         with queue_path.open("w", encoding="utf-8-sig", newline="") as f:
             w = csv.writer(f)
             w.writerow(["arquivo_rel", "sha256_arquivo", "queue_type", "reason", "sort"])
             for i, r in enumerate(slice_rows, start=1):
-                w.writerow([r["arquivo_rel"], r["sha256_arquivo"], "NEW_UNPROCESSED_PASS1", reason, i])
+                qt = _t(r.get("queue_type")) or "NEW_UNPROCESSED_PASS1"
+                rs = _t(r.get("reason")) or reason_base
+                if args.force_include_pendencies and qt.startswith("PENDENCY"):
+                    rs = f"{rs}|{reason_base}"
+                w.writerow([r["arquivo_rel"], r["sha256_arquivo"], qt, rs, i])
+        report["pendency_candidates"] = pendency_n
         report["queue_csv"] = str(queue_path.relative_to(REPO_ROOT))
         report["queue_lines"] = len(slice_rows)
         out_json.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
