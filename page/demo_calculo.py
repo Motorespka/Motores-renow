@@ -12,8 +12,9 @@ from typing import Any
 import streamlit as st
 import streamlit.components.v1 as components
 
-from app.oficial_engine import suggest_calculation
-from app.search_lib import DEFAULT_DB, connect, load_all_motors
+from app.oficial_engine import validate_required_motor_inputs
+from engine.winding_optimizer import StatorInput, WindingOptimizer
+from app.search_lib import DEFAULT_DB, connect, load_all_motors, parse_scalar
 from core.access_control import require_admin_access
 from core.navigation import Route
 from core.streamlit_perf import maybe_fragment, pop_page_ctx_pack, stash_page_ctx
@@ -60,6 +61,34 @@ def _catalog():
     return motors, meta
 
 
+def _render_scenario_card(cen: dict) -> None:
+    score = int(cen.get("confidence_score", 0))
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Espiras", cen.get("espiras", "—"))
+    c2.metric("Confiança", f"{score}%")
+    c3.metric("Ocupação ranhura", f"{cen.get('fator_ocupacao_ranhura', '—')}%")
+    st.markdown(f"**{cen.get('fio_texto', '')}**")
+    st.caption(cen.get("descricao", ""))
+    if score < 50:
+        st.error("Confiança baixa — revisar na bancada antes de bobinar.")
+    for alerta in cen.get("alertas") or []:
+        if "Saturação" in alerta:
+            st.warning(alerta)
+        elif "Ocupação" in alerta:
+            st.warning(alerta)
+        elif "Desvio" in alerta:
+            st.warning(alerta)
+        else:
+            st.warning(alerta)
+    if cen.get("desvio_historico_pct") is not None:
+        pct = float(cen["desvio_historico_pct"]) * 100
+        st.caption(f"Desvio vs média histórica: {pct:.1f}%")
+    st.caption(
+        f"Índice fluxo (proxy): {cen.get('densidade_fluxo_indice', '—')} · "
+        f"Ref. proporcional: {cen.get('espiras_proporcional_ref', '—')} espiras"
+    )
+
+
 def _render_stats_bar() -> None:
     acervo = load_acervo_stats()
     c1, c2, c3, c4 = st.columns(4)
@@ -96,11 +125,26 @@ def _render_form(ctx) -> None:
     )
     tipo_bob = topo_opts[tipo_bob_label]
 
-    c4, c5 = st.columns(2)
+    c4, c5, c6 = st.columns(3)
     with c4:
-        passo = st.text_input("Passos bobinagem", value="1:7", key="demo_passo")
+        ranhuras = st.text_input("Número de ranhuras *", value="36", key="demo_ranhuras")
     with c5:
+        polos = st.text_input("Número de polos *", value="4", key="demo_polos")
+    with c6:
         ligacao = st.text_input("Tipo de ligacao", value="Estrela", key="demo_lig")
+
+    c7, c8 = st.columns(2)
+    with c7:
+        passo = st.text_input(
+            "Passos bobinagem (opcional no modo sobrevivência)",
+            value="1:7",
+            key="demo_passo",
+        )
+    with c8:
+        st.caption(
+            "Sem passo: o sistema estima pelo ferro (Ø, pacote, ranhuras, polos) "
+            "usando referências de geometria similar."
+        )
 
     st.markdown("### Seu calculo (validacao)")
     e1, e2 = st.columns(2)
@@ -109,7 +153,11 @@ def _render_form(ctx) -> None:
     with e2:
         esp_eng = st.text_input("Espiras", value="", key="demo_esp")
 
-    if st.button("Gerar Sugestao de Calculo", type="primary", use_container_width=True):
+    if st.button(
+        "Gerar Projetos de Bobinagem (3 cenários)",
+        type="primary",
+        use_container_width=True,
+    ):
         try:
             d = float(str(diametro).replace(",", "."))
             p = float(str(pacote).replace(",", "."))
@@ -119,6 +167,17 @@ def _render_form(ctx) -> None:
         if d <= 0 or p <= 0:
             st.warning("Diametro e pacote devem ser maiores que zero.")
             return
+        n_ranh = parse_scalar(str(ranhuras))
+        n_polos = parse_scalar(str(polos))
+        ok_req, req_msg = validate_required_motor_inputs(
+            diametro_mm=d,
+            pacote_mm=p,
+            ranhuras=int(n_ranh) if n_ranh is not None else None,
+            polos=int(n_polos) if n_polos is not None else None,
+        )
+        if not ok_req:
+            st.warning(req_msg)
+            return
         if not tipo_bob or tipo_bob == "DESCONHECIDO":
             st.warning("Selecione o tipo de bobinagem (campo obrigatorio).")
             return
@@ -127,21 +186,35 @@ def _render_form(ctx) -> None:
         except FileNotFoundError as exc:
             st.error(str(exc))
             return
-        with st.spinner("Calculando proporcao e consultando Gemini..."):
-            sug = suggest_calculation(
-                motors,
-                diametro_mm=d,
-                pacote_mm=p,
-                carcaca=carcaca,
-                passo=passo,
-                tipo_bobinagem=tipo_bob,
-                ligacao=ligacao,
-                fio_engenheiro=fio_eng,
-                espiras_engenheiro=esp_eng,
+        with st.spinner("Otimizando bobinagem (3 cenários)..."):
+            opt = WindingOptimizer(motors)
+            opt_res = opt.optimize(
+                StatorInput(
+                    diametro_mm=d,
+                    pacote_mm=p,
+                    ranhuras=int(n_ranh),
+                    polos=int(n_polos),
+                    carcaca=carcaca,
+                    passo=passo,
+                    tipo_bobinagem=tipo_bob,
+                    ligacao=ligacao,
+                ),
+                use_gemini=False,
                 top_k=5,
-                use_gemini=True,
             )
-        st.session_state["demo_calculo_result"] = asdict(sug)
+        st.session_state["demo_calculo_optimizer"] = {
+            "entrada": opt_res.entrada,
+            "cenarios": [asdict(c) for c in opt_res.cenarios],
+            "calculo_baseado_em": opt_res.calculo_baseado_em,
+            "media_historica_espiras": opt_res.media_historica_espiras,
+            "media_proporcional_espiras": opt_res.media_proporcional_espiras,
+            "slot_fill_limite": opt_res.slot_fill_limite,
+            "n_referencias": opt_res.n_referencias,
+            "validation_status": opt_res.validation_status,
+            "validation_message": opt_res.validation_message,
+            "modo_sobrevivencia": opt_res.modo_sobrevivencia,
+        }
+        st.session_state["demo_calculo_result"] = opt_res.base_suggestion or {}
         st.session_state["demo_calculo_entrada"] = {
             "diametro_mm": d,
             "pacote_mm": p,
@@ -149,11 +222,39 @@ def _render_form(ctx) -> None:
             "passo": passo,
             "tipo_bobinagem": tipo_bob,
             "ligacao": ligacao,
+            "ranhuras": int(n_ranh) if n_ranh is not None else None,
+            "polos": int(n_polos) if n_polos is not None else None,
             "fio_engenheiro": fio_eng,
             "espiras_engenheiro": esp_eng,
         }
 
+    opt_data = st.session_state.get("demo_calculo_optimizer")
     res = st.session_state.get("demo_calculo_result")
+    if not opt_data and not res:
+        return
+
+    if opt_data and opt_data.get("cenarios"):
+        st.divider()
+        st.markdown("### Motor de Projetos de Bobinagem")
+        if opt_data.get("calculo_baseado_em"):
+            st.info(opt_data["calculo_baseado_em"])
+        st.caption(
+            f"Referências: **{opt_data.get('n_referencias', 0)}** · "
+            f"Média proporcional: **{opt_data.get('media_proporcional_espiras', '—')}** espiras · "
+            f"Média histórica: **{opt_data.get('media_historica_espiras', '—')}** espiras"
+        )
+        tabs = st.tabs(
+            [
+                "A — Otimizado / Eficiência",
+                "B — Padrão de Referência",
+                "C — Facilidade de Execução",
+            ]
+        )
+        for tab, cen in zip(tabs, opt_data["cenarios"]):
+            with tab:
+                _render_scenario_card(cen)
+        st.divider()
+
     if not res:
         return
 
@@ -184,9 +285,21 @@ def _render_form(ctx) -> None:
     a, b, c = st.columns(3)
     with a:
         st.markdown("#### Sugestao do Sistema")
-        st.metric("Espiras (IA + proporcional)", res.get("sugestao_espira", "—"))
-        st.metric("Fio AWG sugerido", res.get("sugestao_fio_awg", "—"))
-        st.caption(f"Modo: **{res.get('modo_processamento', '')}** · Gemini: **{'Sim' if res.get('gemini_usado') else 'Nao'}**")
+        if res.get("calculo_baseado_em"):
+            st.info(res.get("calculo_baseado_em"))
+        st.metric("Espiras (formula proporcional)", res.get("sugestao_espira", "—"))
+        if res.get("sugestao_fio_texto"):
+            st.markdown(f"**{res.get('sugestao_fio_texto')}**")
+        else:
+            st.metric("Fio AWG sugerido", res.get("sugestao_fio_awg", "—"))
+        st.caption(
+            f"Modo: **{res.get('modo_processamento', '')}** · "
+            f"Gemini validador: **{'Sim' if res.get('gemini_usado') else 'Nao'}**"
+        )
+        if res.get("modo_sobrevivencia"):
+            st.caption("Modo Sobrevivência — estimativa de ferro ativa.")
+        if res.get("ranhura_saturada"):
+            st.error("AVISO: Ranhura Saturada, verifique a bitola do fio.")
         st.write(res.get("justificativa_tecnica") or "")
         if res.get("alerta_risco"):
             st.warning(res.get("alerta_risco"))

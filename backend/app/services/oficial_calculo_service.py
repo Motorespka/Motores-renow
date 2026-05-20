@@ -60,6 +60,8 @@ class OficialCalculoService:
 
     def suggest(self, payload: dict[str, Any]) -> dict[str, Any]:
         motors, _ = load_catalog(self.db_path)
+        ranh = payload.get("ranhuras")
+        pol = payload.get("polos")
         sug = suggest_calculation(
             motors,
             diametro_mm=float(payload["diametro_mm"]),
@@ -70,6 +72,8 @@ class OficialCalculoService:
             ligacao=str(payload.get("ligacao", "")),
             fio_engenheiro=str(payload.get("fio_engenheiro", "")),
             espiras_engenheiro=str(payload.get("espiras_engenheiro", "")),
+            ranhuras=int(ranh) if ranh is not None and str(ranh).strip() else None,
+            polos=int(pol) if pol is not None and str(pol).strip() else None,
             top_k=5,
             use_gemini=True,
         )

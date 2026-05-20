@@ -14,13 +14,14 @@ from pathlib import Path
 from statistics import median
 from typing import Any, Optional
 
+from app.fio_paralelo import choose_wire_config, format_wire_suggestion
+from app.hierarchical_search import hierarchical_find_references
 from app.search_lib import (
     DEFAULT_DB,
     MotorRow,
     awg_from_mm2,
     awg_to_mm2,
     connect,
-    find_similar,
     load_all_motors,
     norm_carcaca,
     parse_awg_number,
@@ -41,6 +42,7 @@ logger = logging.getLogger(__name__)
 
 HIST_DIVERGENCE_REVISAR_PCT = 0.10
 SLOT_FILL_TOLERANCE = 1.02
+RANHURA_SATURADA_MSG = "AVISO: Ranhura Saturada, verifique a bitola do fio."
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MASTER_CSV = REPO_ROOT / "exports" / "review" / "master_release_v2_manifest.csv"
@@ -133,6 +135,11 @@ class CalculationSuggestion:
     tipo_bobinagem: str = ""
     tipo_bobinagem_label: str = ""
     topologia_mistura: bool = False
+    calculo_baseado_em: str = ""
+    sugestao_fio_texto: str = ""
+    modo_sobrevivencia: bool = False
+    ranhura_saturada: bool = False
+    validacao_magnetica: str = ""
 
 
 def _ligacao_from_row(m: MotorRow) -> str:
@@ -209,6 +216,23 @@ def _apply_slot_law(
     return round(fio_adj, 1), logs, round(limite, 4), round(fill_final, 4)
 
 
+def validate_required_motor_inputs(
+    *,
+    diametro_mm: float,
+    pacote_mm: float,
+    ranhuras: Optional[int],
+    polos: Optional[int],
+) -> tuple[bool, str]:
+    """Dados obrigatórios para iniciar qualquer cálculo (modo sobrevivência incluído)."""
+    if diametro_mm <= 0 or pacote_mm <= 0:
+        return False, "Diâmetro do estator e comprimento do pacote devem ser maiores que zero."
+    if ranhuras is None or int(ranhuras) <= 0:
+        return False, "Número de ranhuras é obrigatório para iniciar o cálculo."
+    if polos is None or int(polos) <= 0:
+        return False, "Número de polos é obrigatório para iniciar o cálculo."
+    return True, ""
+
+
 def _resolve_validation(
     *,
     hits: list[ProportionalHit],
@@ -220,15 +244,16 @@ def _resolve_validation(
     hist_divergence: bool,
     referencias_escassas: bool,
     discrepante: bool,
+    modo_sobrevivencia: bool,
+    ranhura_saturada: bool,
 ) -> tuple[str, str]:
-    tipo_lbl = label_tipo(norm_tipo_bobinagem(tipo_bobinagem) or tipo_bobinagem)
-    base_msg = f"Tipo de bobinagem detectado: {tipo_lbl}."
+    tipo_lbl = label_tipo(norm_tipo_bobinagem(tipo_bobinagem) or tipo_bobinagem or "—")
+    base_msg = f"Tipo de bobinagem: {tipo_lbl}."
+    if modo_sobrevivencia:
+        base_msg = f"{base_msg} Modo Sobrevivência (estimativa de ferro — passo não informado)."
 
-    if not (tipo_bobinagem or "").strip():
-        return "INCOMPLETO", f"{base_msg} Informe o tipo de bobinagem (obrigatório)."
-
-    if not (passo or "").strip():
-        return "INCOMPLETO", f"{base_msg} Informe o passo de bobinagem."
+    if ranhura_saturada:
+        return "REVISAR", f"{base_msg} {RANHURA_SATURADA_MSG}"
 
     if topologia_mistura:
         return (
@@ -237,10 +262,9 @@ def _resolve_validation(
         )
 
     if not hits:
-        pk = passo_canonical(passo)
         return (
             "SEM_REFERENCIA",
-            f"{base_msg} Nenhum motor OFICIAL com passo '{pk or passo}' e tipo '{tipo_lbl}'.",
+            f"{base_msg} Nenhum motor OFICIAL com geometria compatível no acervo indexado.",
         )
 
     if referencias_escassas:
@@ -354,49 +378,72 @@ def suggest_calculation(
     ligacao: str = "",
     fio_engenheiro: str = "",
     espiras_engenheiro: str = "",
+    ranhuras: Optional[int] = None,
+    polos: Optional[int] = None,
     top_k: int = 5,
     use_gemini: bool = True,
 ) -> CalculationSuggestion:
+    ok_req, req_msg = validate_required_motor_inputs(
+        diametro_mm=diametro_mm,
+        pacote_mm=pacote_mm,
+        ranhuras=ranhuras,
+        polos=polos,
+    )
+    entrada_base = {
+        "diametro_mm": diametro_mm,
+        "pacote_mm": pacote_mm,
+        "carcaca": carcaca,
+        "passo": passo,
+        "tipo_bobinagem": tipo_bobinagem,
+        "ligacao": ligacao,
+        "ranhuras": ranhuras,
+        "polos": polos,
+    }
+    if not ok_req:
+        return CalculationSuggestion(
+            entrada=entrada_base,
+            top_matches=[],
+            espiras_media_top5=None,
+            fio_medio_top5=None,
+            passo_moda="",
+            carcaca_moda="",
+            n_file_catalog=len(filter_file(motors)),
+            n_matches=0,
+            validation_status="INCOMPLETO",
+            validation_message=req_msg,
+            modo_processamento="bloqueado_dados_obrigatorios",
+        )
+
     file_pool = filter_file(motors)
-    passo_exact = bool((passo or "").strip())
     topo_exact = bool((tipo_bobinagem or "").strip())
     user_topo = norm_tipo_bobinagem(tipo_bobinagem)
 
-    matches_same = find_similar(
+    hier = hierarchical_find_references(
         file_pool,
         diametro_mm=diametro_mm,
         pacote_mm=pacote_mm,
         carcaca=carcaca,
         passo=passo,
-        top_k=top_k,
-        passo_exact=passo_exact,
         tipo_bobinagem=tipo_bobinagem,
-        topology_exact=topo_exact,
+        top_k=top_k * 3,
+        min_refs=1,
     )
+    calculo_baseado_em = hier.calculo_baseado_em
+    modo_sobrevivencia = hier.modo_sobrevivencia
+
     hits, calculos_payload = _build_hits_from_matches(
-        matches_same,
+        hier.matches,
         diametro_mm=diametro_mm,
         pacote_mm=pacote_mm,
         ligacao=ligacao,
         user_tipo=tipo_bobinagem,
-        topology_strict=True,
+        topology_strict=topo_exact,
     )
 
-    if len(hits) < 3 and topo_exact:
+    if len(hits) < top_k and topo_exact:
         seen = {h.sha for h in hits}
-        matches_any = find_similar(
-            file_pool,
-            diametro_mm=diametro_mm,
-            pacote_mm=pacote_mm,
-            carcaca=carcaca,
-            passo=passo,
-            top_k=top_k * 3,
-            passo_exact=passo_exact,
-            tipo_bobinagem=tipo_bobinagem,
-            topology_exact=False,
-        )
         extra_hits, extra_payload = _build_hits_from_matches(
-            matches_any,
+            hier.matches,
             diametro_mm=diametro_mm,
             pacote_mm=pacote_mm,
             ligacao=ligacao,
@@ -411,13 +458,15 @@ def suggest_calculation(
             calculos_payload.append(p)
             if len(hits) >= top_k:
                 break
+    hits = sorted(hits, key=lambda h: (-h.score, h.sha))[:top_k]
+    calculos_payload = calculos_payload[:top_k]
 
     topologia_mistura = any(h.topologia_cruzada for h in hits)
 
-    esp_calc = [h.espiras_calculadas for h in hits]
+    esp_calc = sorted(h.espiras_calculadas for h in hits)
     esp_hist = [h.espiras_historico for h in hits if h.espiras_historico > 0]
     dispersao = round(_coef_variation(esp_calc), 4)
-    media_prop = round(sum(esp_calc) / len(esp_calc), 1) if esp_calc else None
+    media_prop = round(median(esp_calc), 1) if esp_calc else None
     media_hist = round(median(esp_hist), 1) if esp_hist else None
     fio_list = [h.fio_sugerido_awg for h in hits if h.fio_sugerido_awg is not None]
     media_fio = round(median(fio_list), 2) if fio_list else None
@@ -430,14 +479,7 @@ def suggest_calculation(
         passo_moda = max(set(passos), key=passos.count) if passos else ""
         carcaca_moda = max(set(carcasas), key=carcasas.count) if carcasas else ""
 
-    entrada = {
-        "diametro_mm": diametro_mm,
-        "pacote_mm": pacote_mm,
-        "carcaca": carcaca,
-        "passo": passo,
-        "tipo_bobinagem": tipo_bobinagem,
-        "ligacao": ligacao,
-    }
+    entrada = dict(entrada_base)
 
     sugestao_espira = media_prop
     sugestao_fio = media_fio
@@ -458,9 +500,15 @@ def suggest_calculation(
             user_topo,
             [(h.tipo_bobinagem, h.fator_topologia) for h in hits if h.topologia_cruzada],
         )
-    if passo_exact:
+    lei_logs.append(calculo_baseado_em)
+    if modo_sobrevivencia:
         lei_logs.append(
-            f"Filtro passo exato: '{passo_canonical(passo)}' ({len(hits)} referência(s))."
+            "Modo Sobrevivência: cálculo de estimativa de ferro sem passo original "
+            f"(ranhuras={ranhuras}, polos={polos})."
+        )
+    elif passo_canonical(passo):
+        lei_logs.append(
+            f"Referências no tier '{hier.tier_label}' — passo '{passo_canonical(passo)}'."
         )
 
     referencias_escassas = len(hits) < 3
@@ -489,14 +537,23 @@ def suggest_calculation(
                 passo_canonical(passo),
             )
 
+    ranhura_saturada = False
     slot_ok = True
     if slot_limit and slot_actual and slot_actual > slot_limit * SLOT_FILL_TOLERANCE:
         slot_ok = False
+        ranhura_saturada = True
+        lei_logs.append(RANHURA_SATURADA_MSG)
         logger.warning(
-            "demo_calculo ranhura: fill %.4f > limite %.4f",
+            "demo_calculo ranhura saturada: fill %.4f > limite %.4f",
             slot_actual,
             slot_limit,
         )
+
+    fio_samples = [h.fio_principal for h in hits if h.fio_principal]
+    sugestao_fio_texto = ""
+    if sugestao_espira is not None and sugestao_fio is not None:
+        wire_cfg = choose_wire_config(float(sugestao_fio), fio_samples, prefer_parallel=True)
+        sugestao_fio_texto = format_wire_suggestion(float(sugestao_espira), wire_cfg)
 
     validation_status, validation_message = _resolve_validation(
         hits=hits,
@@ -508,21 +565,26 @@ def suggest_calculation(
         hist_divergence=hist_divergence,
         referencias_escassas=referencias_escassas,
         discrepante=discrepante,
+        modo_sobrevivencia=modo_sobrevivencia,
+        ranhura_saturada=ranhura_saturada,
     )
 
     justificativa = (
-        f"Cálculo determinístico em {len(hits)} motor(es) com passo "
-        f"'{passo_canonical(passo) or passo}': média proporcional {media_prop} espiras."
+        f"{calculo_baseado_em}. Fórmula proporcional em {len(hits)} referência(s): "
+        f"N_novo = N_hist × (L_novo/L_hist) × (A_novo/A_hist) → {media_prop} espiras."
     )
-    alerta = ""
+    if sugestao_fio_texto:
+        justificativa = f"{justificativa} {sugestao_fio_texto}"
+    alerta = RANHURA_SATURADA_MSG if ranhura_saturada else ""
     gemini_usado = False
-    modo = "proporcional_deterministico"
+    validacao_magnetica = ""
+    modo = "sobrevivencia_ferro" if modo_sobrevivencia else "proporcional_deterministico"
 
     if use_gemini and hits and sugestao_espira is not None:
         try:
-            from services.gemini_engineering_validator import justify_with_gemini
+            from services.gemini_engineering_validator import validate_magnetic_with_gemini
 
-            gem = justify_with_gemini(
+            gem = validate_magnetic_with_gemini(
                 {
                     "entrada": entrada,
                     "calculos_proporcionais": calculos_payload,
@@ -530,21 +592,31 @@ def suggest_calculation(
                     "media_historica_espiras": media_hist,
                     "sugestao_espira": sugestao_espira,
                     "sugestao_fio_awg": sugestao_fio,
+                    "sugestao_fio_texto": sugestao_fio_texto,
                     "slot_fill_limit": slot_limit,
                     "slot_fill_actual": slot_actual,
                     "dispersao_espiras": dispersao,
                     "validation_status": validation_status,
+                    "calculo_baseado_em": calculo_baseado_em,
                 }
             )
-            justificativa = gem.get("justificativa_tecnica") or justificativa
-            gem_alerta = gem.get("alerta_risco", "")
-            if gem_alerta:
+            validacao_magnetica = str(gem.get("validacao_magnetica") or "").strip()
+            comentario = str(gem.get("comentario_validacao") or "").strip()
+            if comentario:
+                justificativa = f"{justificativa} Validação magnética (IA): {comentario}"
+            gem_alerta = str(gem.get("alerta_risco") or "").strip()
+            if gem_alerta and not ranhura_saturada:
                 alerta = gem_alerta
+            if validacao_magnetica == "REVISAR" and validation_status == "APROVADO":
+                validation_status = "REVISAR"
+                validation_message = (
+                    f"{validation_message} Revisão sugerida pela validação magnética (IA)."
+                )
             gemini_usado = True
-            modo = "proporcional+gemini_justificativa"
+            modo = f"{modo}+gemini_validador"
         except Exception as exc:
-            lei_logs.append(f"Gemini (só justificativa) indisponível: {exc}")
-            modo = "proporcional_sem_gemini"
+            lei_logs.append(f"Gemini (validador magnético) indisponível: {exc}")
+            modo = f"{modo}_sem_gemini"
 
     if validation_status == "REVISAR" and not alerta:
         alerta = validation_message
@@ -574,6 +646,11 @@ def suggest_calculation(
         tipo_bobinagem=user_topo or tipo_bobinagem,
         tipo_bobinagem_label=label_tipo(user_topo or tipo_bobinagem),
         topologia_mistura=topologia_mistura,
+        calculo_baseado_em=calculo_baseado_em,
+        sugestao_fio_texto=sugestao_fio_texto,
+        modo_sobrevivencia=modo_sobrevivencia,
+        ranhura_saturada=ranhura_saturada,
+        validacao_magnetica=validacao_magnetica,
     )
 
 
