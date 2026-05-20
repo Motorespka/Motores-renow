@@ -61,13 +61,21 @@ def _catalog():
     return motors, meta
 
 
-def _render_scenario_card(cen: dict) -> None:
+def _render_scenario_card(cen: dict, *, recomendado: bool = False) -> None:
+    if recomendado:
+        st.success("Cenário recomendado (referência principal)")
+    if cen.get("desabilitado"):
+        st.error("Cenário indisponível — calibre fora do intervalo seguro.")
     score = int(cen.get("confidence_score", 0))
     c1, c2, c3 = st.columns(3)
     c1.metric("Espiras", cen.get("espiras", "—"))
     c2.metric("Confiança", f"{score}%")
     c3.metric("Ocupação ranhura", f"{cen.get('fator_ocupacao_ranhura', '—')}%")
-    st.markdown(f"**{cen.get('fio_texto', '')}**")
+    fio_show = cen.get("fio_texto", "") or cen.get("calibre_display", "")
+    if fio_show == "CALIBRE INVÁLIDO":
+        st.error("**CALIBRE INVÁLIDO** — use o Cenário B como referência.")
+    else:
+        st.markdown(f"**{fio_show}**")
     alt_par = cen.get("fio_alternativa_paralelo") or ""
     if alt_par and alt_par != cen.get("fio_texto"):
         st.info(f"Alternativa em paralelo: {alt_par}")
@@ -218,6 +226,7 @@ def _render_form(ctx) -> None:
             "modo_sobrevivencia": opt_res.modo_sobrevivencia,
             "is_estimativa": opt_res.is_estimativa,
             "forcar_gemini": opt_res.forcar_gemini,
+            "cenario_recomendado": opt_res.cenario_recomendado,
         }
         st.session_state["demo_calculo_result"] = opt_res.base_suggestion or {}
         st.session_state["demo_calculo_entrada"] = {
@@ -256,16 +265,25 @@ def _render_form(ctx) -> None:
             f"Média proporcional: **{opt_data.get('media_proporcional_espiras', '—')}** espiras · "
             f"Média histórica: **{opt_data.get('media_historica_espiras', '—')}** espiras"
         )
-        tabs = st.tabs(
-            [
-                "A — Otimizado / Eficiência",
-                "B — Padrão de Referência",
-                "C — Facilidade de Execução",
-            ]
-        )
+        rec_id = str(opt_data.get("cenario_recomendado") or "B")
+        _TAB_TITLES = {
+            "A": "A — Otimizado / Eficiência",
+            "B": "B — Padrão de Referência",
+            "C": "C — Facilidade de Execução",
+        }
+        tab_labels = []
+        for cen in opt_data["cenarios"]:
+            cid = str(cen.get("cenario_id", "B"))
+            lbl = _TAB_TITLES.get(cid, cid)
+            if cid == rec_id:
+                lbl = f"{lbl} ★"
+            tab_labels.append(lbl)
+        tabs = st.tabs(tab_labels)
         for tab, cen in zip(tabs, opt_data["cenarios"]):
             with tab:
-                _render_scenario_card(cen)
+                _render_scenario_card(
+                    cen, recomendado=str(cen.get("cenario_id")) == rec_id
+                )
         st.divider()
 
     if not res:

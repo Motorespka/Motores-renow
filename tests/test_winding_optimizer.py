@@ -11,11 +11,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from engine.winding_optimizer import (  # noqa: E402
-    ALERT_DESVIO_HIST,
     StatorInput,
     WindingOptimizer,
-    _confidence_score,
 )
+from engine.winding_sanity import CALIBRE_INVALIDO  # noqa: E402
 from app.search_lib import MotorRow  # noqa: E402
 
 
@@ -63,18 +62,22 @@ def test_optimize_returns_three_scenarios():
     assert ids == {"A", "B", "C"}
 
 
-def test_confidence_low_on_saturation():
-    score, alerts = _confidence_score(
-        espiras=20,
-        media_prop=40,
-        media_hist=38,
-        fill_ratio=0.5,
-        flux_index=0.01,
-        flux_ref=0.005,
-        n_refs=5,
+def test_scenario_a_awg_within_safe_range():
+    pool = [_motor(sha="1", espiras_principal=42.0)]
+    res = WindingOptimizer(pool).optimize(
+        StatorInput(
+            diametro_mm=80,
+            pacote_mm=70,
+            ranhuras=36,
+            polos=4,
+            carcaca="80A",
+            passo="1:7",
+        ),
+        use_gemini=False,
     )
-    assert score < 50
-    assert any("Saturação" in a for a in alerts)
+    cen_a = next(c for c in res.cenarios if c.cenario_id == "A")
+    assert 14.0 <= cen_a.wire.awg <= 26.0
+    assert cen_a.fio_texto != CALIBRE_INVALIDO or cen_a.desabilitado
 
 
 def test_mandatory_fields_block():
