@@ -14,6 +14,7 @@ from app.search_lib import (
     MatchResult,
     _geo_distance,
     find_similar,
+    motor_polos_int,
     norm_carcaca,
     passo_canonical,
     passo_exact_match,
@@ -51,6 +52,40 @@ def _motor_row_exclude_pollution_80_90(m: MotorRow) -> bool:
     if e <= 0:
         return False
     return e < _POLL_MIN_ESPIRAS_PRINCIPAL
+
+
+# Estator ~Ø80×70 mm (motor típico 4P/6P): cadastros 2P com <30 espiras poluem proporção — descartados.
+GEO_80X70_COMPAT_DIAM_BAND = (76.0, 86.0)
+GEO_80X70_COMPAT_LAM_BAND = (62.0, 80.0)
+MIN_ESPIRAS_EXCLUDE_2P_UNDER_LOW_TURNS = 30.0
+
+
+def _geometry_nominal_multi_pole_compat(diameter_mm: float, pacote_mm: float) -> bool:
+    return (
+        GEO_80X70_COMPAT_DIAM_BAND[0] <= float(diameter_mm) <= GEO_80X70_COMPAT_DIAM_BAND[1]
+        and GEO_80X70_COMPAT_LAM_BAND[0] <= float(pacote_mm) <= GEO_80X70_COMPAT_LAM_BAND[1]
+    )
+
+
+def _motor_row_exclude_two_pole_low_turns_80_geom(
+    m: MotorRow,
+    *,
+    apply_filter: bool,
+) -> bool:
+    if not apply_filter:
+        return False
+    p = motor_polos_int(m.polos)
+    if p != 2:
+        return False
+    if m.espiras_principal is None:
+        return False
+    try:
+        e = float(m.espiras_principal)
+    except (TypeError, ValueError):
+        return False
+    if e <= 0:
+        return False
+    return e < MIN_ESPIRAS_EXCLUDE_2P_UNDER_LOW_TURNS
 
 
 MSG_ESTIMATIVA_CARCACA = (
@@ -229,8 +264,14 @@ def hierarchical_find_references(
       c) Mesmo estator (Ø/pacote)
 
     Registros carcaça 80–90 com <20 espiras são excluídos do pool (cadastro sujo).
+    Com geometria Ø80×70 compatível com 4/6 polos típicos, motores cadastrados como 2P
+    e com <30 espiras não entram na hierarquia.
     """
     pool = [m for m in pool if not _motor_row_exclude_pollution_80_90(m)]
+    geom_multi = _geometry_nominal_multi_pole_compat(diametro_mm, pacote_mm)
+    pool = [
+        m for m in pool if not _motor_row_exclude_two_pole_low_turns_80_geom(m, apply_filter=geom_multi)
+    ]
     passo_key = passo_canonical(passo)
     modo_sobrevivencia = not bool(passo_key)
     car_key = norm_carcaca(carcaca)

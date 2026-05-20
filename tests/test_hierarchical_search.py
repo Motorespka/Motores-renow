@@ -130,3 +130,53 @@ def test_excludes_dirty_cadastro_80_below_20_from_pool():
     assert res.tier == ReferenceTier.PASSO_EXATO_CARCACA
     assert len(res.matches) == 1
     assert res.matches[0].motor.sha == "ok"
+
+
+def test_excludes_two_pole_below_30_esp_on_80x70_compat_geometry():
+    """Ø80×70 típico 4/6P: cadastro 2P com <30 espiras não entra na hierarquia."""
+    pool = [
+        _motor(
+            sha="bad2p",
+            passo_principal="10-12",
+            polos="2",
+            espiras_principal=8.0,
+        ),
+        _motor(
+            sha="good4p",
+            passo_principal="10-12",
+            polos="4",
+            espiras_principal=42.0,
+        ),
+    ]
+    res = hierarchical_find_references(
+        pool,
+        diametro_mm=80,
+        pacote_mm=70,
+        carcaca="80A",
+        passo="10:12",
+        min_refs=1,
+    )
+    assert res.tier == ReferenceTier.PASSO_EXATO_CARCACA
+    assert len(res.matches) == 1
+    assert res.matches[0].motor.sha == "good4p"
+
+
+def test_keeps_two_pole_30_plus_esp_on_80x70_geometry():
+    pool = [
+        _motor(
+            sha="two_ok",
+            passo_principal="10-12",
+            polos="2",
+            espiras_principal=40.0,
+        ),
+    ]
+    res = hierarchical_find_references(
+        pool,
+        diametro_mm=80,
+        pacote_mm=70,
+        carcaca="80A",
+        passo="10:12",
+        min_refs=1,
+    )
+    assert len(res.matches) == 1
+    assert res.matches[0].motor.sha == "two_ok"

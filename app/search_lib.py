@@ -69,6 +69,26 @@ def parse_scalar(raw: str) -> Optional[float]:
         return None
 
 
+def motor_polos_int(raw: Optional[str]) -> Optional[int]:
+    """Extrai número de polos de texto de cadastro (2 / 4 / 6 …)."""
+    if raw is None or not str(raw).strip():
+        return None
+    s = str(raw).strip().lower()
+    for tok in ("mono", "monof"):
+        if tok in s:
+            return None
+    m = _RE_NUM.search(s.replace(",", "."))
+    if not m:
+        return None
+    try:
+        val = int(float(m.group().replace(",", ".")))
+    except ValueError:
+        return None
+    if val not in {2, 4, 6, 8, 10, 12}:
+        return None
+    return val
+
+
 def parse_awg_number(raw: str) -> Optional[float]:
     """Extrai número AWG de '23', '2 x 23', '#23'."""
     s = (raw or "").strip().lower()

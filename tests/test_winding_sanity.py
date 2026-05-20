@@ -40,7 +40,7 @@ def test_clamp_zero_awg_to_14_for_80a():
 def test_awg_in_range_80a():
     assert is_awg_in_range(19, "80A")
     assert not is_awg_in_range(0, "80A")
-    assert not is_awg_in_range(30, "80A")
+    assert not is_awg_in_range(23, "80A")  # mesa 14–22
 
 
 def test_espiras_constante_k_thicker_wire_fewer_turns():
@@ -51,9 +51,9 @@ def test_espiras_constante_k_thicker_wire_fewer_turns():
     assert n > 20.0
 
 
-def test_espiras_busola_usa_historico_sem_blend():
+def test_espiras_busola_prioriza_proporcional_nao_mediana():
     b = espiras_busola_oficina(42.0, 19.0)
-    assert b == 42.0
+    assert b == 19.0
 
 
 def test_espiras_busola_usuario_100pct():
@@ -100,13 +100,13 @@ def test_fill_limits_never_below_14_awg():
     # slot_limit alto + poucas espiras costumava gerar 0 AWG
     awg, adj, _ = awg_for_fill_with_limits(19.0, 500.0, 0.75, "80A")
     assert awg >= 14.0
-    assert awg <= 26.0
+    assert awg <= 22.0
 
 
-def test_force_busola_when_underturn_vs_history():
+def test_force_busola_never_overrides_by_hist():
     esp, forced = force_busola_if_underturn(8.0, 42.0, diametro_mm=80, carcaca="80A")
-    assert forced
-    assert esp == 42.0
+    assert not forced
+    assert esp == 8.0
 
 
 def test_polarity_alert_2_poles_low_turns():
@@ -114,6 +114,6 @@ def test_polarity_alert_2_poles_low_turns():
     assert not polarity_sanity_alert(4, 15.0, 42.0, "80A")
 
 
-def test_scenario_a_rejected_on_hist_deviation():
-    assert not scenario_a_is_acceptable(19.0, 42.0, 0.50)
-    assert scenario_a_is_acceptable(41.0, 42.0, 0.70)
+def test_scenario_a_fill_only_not_hist():
+    assert scenario_a_is_acceptable(19.0, 0.50)
+    assert not scenario_a_is_acceptable(41.0, 0.95)

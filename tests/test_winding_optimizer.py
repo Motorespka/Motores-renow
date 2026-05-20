@@ -47,7 +47,10 @@ def _motor(**kw) -> MotorRow:
 
 
 def test_optimize_returns_three_scenarios():
-    pool = [_motor(sha="1"), _motor(sha="2", passo_principal="1-7")]
+    pool = [
+        _motor(sha="1", espiras_principal=42.0, fio_principal="17"),
+        _motor(sha="2", passo_principal="1-7", espiras_principal=42.0, fio_principal="17"),
+    ]
     opt = WindingOptimizer(pool)
     res = opt.optimize(
         StatorInput(
@@ -67,7 +70,7 @@ def test_optimize_returns_three_scenarios():
 
 
 def test_scenario_a_awg_within_safe_range():
-    pool = [_motor(sha="1", espiras_principal=42.0)]
+    pool = [_motor(sha="1", espiras_principal=42.0, fio_principal="17")]
     res = WindingOptimizer(pool).optimize(
         StatorInput(
             diametro_mm=80,
@@ -80,7 +83,7 @@ def test_scenario_a_awg_within_safe_range():
         use_gemini=False,
     )
     cen_a = next(c for c in res.cenarios if c.cenario_id == "A")
-    assert 14.0 <= cen_a.wire.awg <= 26.0
+    assert 14.0 <= cen_a.wire.awg <= 22.0
     assert cen_a.fio_texto != CALIBRE_INVALIDO or cen_a.desabilitado
 
 

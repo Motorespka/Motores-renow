@@ -68,6 +68,9 @@ def get_equivalent_wire(single_awg: float, parallel_count: int = 2) -> WireConfi
         n, strand = _SINGLE_TO_PARALLEL[single_i]
         return WireConfig(parallel_count=n, awg=float(strand))
     strand_awg = round(single_i + PARALLEL_STRAND_DELTA, 1)
+    # Mesa até AWG 22: não sugerir paralelo com fio fora da mesa (ex.: 2×26)
+    if strand_awg > 22:
+        return WireConfig(parallel_count=1, awg=float(single_i))
     return WireConfig(parallel_count=parallel_count, awg=strand_awg)
 
 

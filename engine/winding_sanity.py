@@ -55,13 +55,20 @@ FRAME_MAGNETIC_GATE_LO = 71
 FRAME_MAGNETIC_GATE_HI = 90
 MIN_ESPIRAS_2P_FRAME_71_90 = 35
 
-# Bias de engenharia: Cenário A não pode desviar mais que isto da média histórica
+# Bias de engenharia (legado): comparativos texto; cenário A já não reprova só por média histórica
 HIST_BIAS_MAX_DEVIATION = 0.20
-PESO_MEDIA_HISTORICA_BUSOLA = 0.85
 
-# Carcaças NEMA/IEC até 100: fio entre 14 AWG (mais grosso) e 26 AWG (mais fino)
+# Mesa única de bitolas usadas pelo projetista — sem AWG «16,8»: sempre inteiro próximo aqui.
+COMMERCIAL_BOBINAGEM_AWGS: tuple[int, ...] = (14, 15, 16, 17, 18, 19, 20, 21, 22)
+
+# Limites ocupação ranhura (normalizado pelo limite histórico)
+SLOT_FILL_SOFT_HIGH = 0.75  # dentro da zona alvo alta
+SLOT_FILL_SOFT_LOW = 0.65  # zona alvo baixa
+SLOT_FILL_HARD_HIGH = 0.80  # acima → afinar fio obrigatoriamente
+
+# Carcaças até 100: apenas mesa comercial acima (grosso 14 ↔ fino 22)
 AWG_THICK_MAX_FRAME_100 = 14.0
-AWG_THIN_MIN_FRAME_100 = 26.0
+AWG_THIN_MIN_FRAME_100 = float(COMMERCIAL_BOBINAGEM_AWGS[-1])
 CARCACA_FRAME_LIMIT = 100
 
 
@@ -160,13 +167,12 @@ def carcaca_frame_number(carcaca: str) -> Optional[int]:
 
 def awg_limits_for_carcaca(carcaca: str) -> tuple[float, float]:
     """
-    Retorna (awg_min, awg_max) onde awg_min é o fio mais grosso permitido (14)
-    e awg_max o mais fino (26) para carcaças até 100.
+    Retorna (awg_min, awg_max) dentro da mesa comercial bobinável (14…22).
     """
     frame = carcaca_frame_number(carcaca)
     if frame is not None and frame <= CARCACA_FRAME_LIMIT:
         return AWG_THICK_MAX_FRAME_100, AWG_THIN_MIN_FRAME_100
-    return 12.0, 28.0
+    return AWG_THICK_MAX_FRAME_100, AWG_THIN_MIN_FRAME_100
 
 
 def is_awg_in_range(awg: float, carcaca: str) -> bool:
@@ -178,36 +184,39 @@ def is_awg_in_range(awg: float, carcaca: str) -> bool:
 
 def clamp_awg_to_safe_range(awg: float, carcaca: str) -> tuple[float, bool, str]:
     """
-    Travaila AWG no intervalo realista.
+    Travaila AWG na mesa 14–22 (carcaças típicas).
     Retorna (awg_seguro, foi_ajustado, mensagem).
     """
     lo, hi = awg_limits_for_carcaca(carcaca)
     if awg <= 0 or awg > 40:
-        return lo, True, CALIBRE_INVALIDO
+        return float(nearest_awg_from_table(lo)), True, CALIBRE_INVALIDO
     if awg < lo:
-        return round(lo, 1), True, MSG_AJUSTE_LIMITE
+        return float(nearest_awg_from_table(lo)), True, MSG_AJUSTE_LIMITE
     if awg > hi:
-        return round(hi, 1), True, MSG_AJUSTE_LIMITE
-    return round(awg, 1), False, ""
+        return float(nearest_awg_from_table(hi)), True, MSG_AJUSTE_LIMITE
+    snap = float(nearest_awg_from_table(awg))
+    return snap, abs(snap - round(awg, 4)) >= 0.05, ""
 
 
 def espiras_busola_oficina(
     media_hist: Optional[float],
     media_prop: Optional[float],
     *,
-    peso_hist: float = PESO_MEDIA_HISTORICA_BUSOLA,
     espiras_usuario: Optional[float] = None,
 ) -> float:
     """
-    Referência de espiras para cenários.
-    Com validação do usuário: 100% o valor informado (sem média ponderada).
-    Sem validação: média histórica limpa ou proporcional (sem blend 85/15).
+    Referência de espiras (legado compat).
+    Com validação do usuário: 100% o valor informado.
+    Sem validação: **projetista proporcional primeiro** — cálculo do motor proporcional ao ferro,
+    não a mediana histórica do acervo como bússola.
     """
     if espiras_usuario is not None and espiras_usuario > 0:
         return round(float(espiras_usuario), 1)
+    if media_prop and media_prop > 0:
+        return round(float(media_prop), 1)
     if media_hist and media_hist > 0:
         return round(float(media_hist), 1)
-    return round(float(media_prop or 0), 1)
+    return 0.0
 
 
 def busola_historica_inconsistente(
@@ -232,9 +241,22 @@ def exceeds_hist_bias(
     return abs(espiras - media_hist) / media_hist > max_deviation
 
 
+def nearest_awg_from_table(awg_raw: float) -> int:
+    """AWG inteiro mais próximo na mesa fixa 14–22 (ex.: 16,8 → 17)."""
+    if not COMMERCIAL_BOBINAGEM_AWGS:
+        return max(14, min(22, int(round(awg_raw))))
+    clamped = max(float(COMMERCIAL_BOBINAGEM_AWGS[0]), min(float(COMMERCIAL_BOBINAGEM_AWGS[-1]), float(awg_raw)))
+    return min(COMMERCIAL_BOBINAGEM_AWGS, key=lambda z: abs(float(z) - clamped))
+
+
+def awg_table_index(awg: float) -> int:
+    wi = nearest_awg_from_table(awg)
+    return COMMERCIAL_BOBINAGEM_AWGS.index(wi)
+
+
 def round_commercial_awg(awg: float) -> int:
-    """Arredonda para AWG comercial inteiro (ex.: 16.8 → 17)."""
-    return int(round(max(1.0, min(40.0, awg))))
+    """Compat: usa mesa 14–22."""
+    return nearest_awg_from_table(awg)
 
 
 def apply_commercial_awg_preserve_copper(
@@ -246,7 +268,7 @@ def apply_commercial_awg_preserve_copper(
     Arredonda bitola e recalcula espiras mantendo N×seção (volume de cobre).
     Retorna (espiras, awg_comercial, foi_ajustado, mensagem).
     """
-    awg_comm = float(round_commercial_awg(awg_raw))
+    awg_comm = float(nearest_awg_from_table(awg_raw))
     awg_safe, adj_lim, msg_lim = clamp_awg_to_safe_range(awg_comm, carcaca)
     esp_vol = espiras_constante_k(espiras, awg_raw, awg_safe)
     msgs: list[str] = []
@@ -277,33 +299,116 @@ def force_busola_if_underturn(
     diametro_mm: float = 0,
     carcaca: str = "",
 ) -> tuple[float, bool]:
-    """
-    Se histórico indica 40+ e cálculo < 30 em estator ~80mm, força média histórica limpa.
-    """
-    if not media_hist or media_hist <= 0:
-        return round(espiras, 1), False
-    frame = carcaca_frame_number(carcaca)
-    large_stator = (frame is not None and frame >= 70) or diametro_mm >= 75
-    if media_hist >= 35 and espiras < MIN_ESPIRAS_ESTATOR_80MM and large_stator:
-        return round(float(media_hist), 1), True
-    if media_hist >= 40 and espiras < media_hist * 0.50:
-        return round(float(media_hist), 1), True
+    """Compatível: projeto não corrige mais espiras apenas por mediana do acervo."""
     return round(espiras, 1), False
 
 
 def scenario_a_is_acceptable(
     espiras_a: float,
-    media_hist: Optional[float],
     fill_ratio: float,
     *,
-    max_deviation: float = HIST_BIAS_MAX_DEVIATION,
-    max_fill: float = 0.75,
+    max_fill: float = max(SLOT_FILL_HARD_HIGH + 0.06, 0.88),
+    _ignored_media_hist: Optional[float] = None,
+    _ignored_max_deviation: Optional[float] = None,
 ) -> bool:
-    if not media_hist or media_hist <= 0:
-        return fill_ratio <= max_fill
-    if exceeds_hist_bias(espiras_a, media_hist, max_deviation):
-        return False
-    return fill_ratio <= max_fill * 1.02
+    """
+    Cenário A: apenas sanidade física de ranhura (não reprova só por média histórica).
+    """
+    return fill_ratio <= max_fill + 1e-9
+
+
+MSG_AVISO_DESVIO_HIST = (
+    "Comparativo: desvio forte em relação à mediana histórica do passo/carcaça — "
+    "revisar projeto no motor real; valores mantidos pela projeção proporcional."
+)
+
+
+def proportional_vs_hist_alert(
+    espiras_ref: float,
+    media_hist: Optional[float],
+    *,
+    threshold: float = 0.25,
+) -> Optional[str]:
+    """Apenas aviso textual; não altera espiras."""
+    if not media_hist or media_hist <= 0 or espiras_ref <= 0:
+        return None
+    if abs(espiras_ref - media_hist) / media_hist >= threshold:
+        return MSG_AVISO_DESVIO_HIST
+    return None
+
+
+def tune_slot_occupation_band(
+    espiras: float,
+    awg: float,
+    slot_limit: float,
+    *,
+    hard_high: float = SLOT_FILL_HARD_HIGH,
+    soft_high: float = SLOT_FILL_SOFT_HIGH,
+    soft_low: float = SLOT_FILL_SOFT_LOW,
+) -> tuple[float, float, list[str]]:
+    """
+    Se ocupação (fill/limit) >80 %, afina AWG na mesa e recalcula espiras (N×A constante)
+    até aproximar a faixa 65–75 % quando possível.
+    """
+    from app.search_lib import slot_fill_units
+
+    msgs: list[str] = []
+    lim = float(slot_limit)
+    if lim <= 0:
+        return round(float(espiras), 1), float(nearest_awg_from_table(float(awg))), msgs
+
+    a = float(nearest_awg_from_table(float(awg)))
+    e = round(float(espiras), 4)
+    e = round(espiras_constante_k(e, awg, a), 1)
+
+    def _ratio(ee: float, aa: float) -> float:
+        if lim <= 0 or ee <= 0 or aa <= 0:
+            return 0.0
+        return slot_fill_units(ee, aa) / lim
+
+    bumped_hard = False
+    for _ in range(18):
+        r = _ratio(e, a)
+        if soft_low <= r <= soft_high:
+            break
+        idx = awg_table_index(a)
+        if r > hard_high:
+            bumped_hard = True
+            if idx >= len(COMMERCIAL_BOBINAGEM_AWGS) - 1:
+                msgs.append(
+                    "Ocupação de ranhura elevada (>80 %) mesmo em AWG 22 — revise ranhura/passo ou espiras-base."
+                )
+                break
+            new_a = float(COMMERCIAL_BOBINAGEM_AWGS[idx + 1])
+            e = round(espiras_constante_k(e, a, new_a), 1)
+            a = new_a
+            continue
+        if r > soft_high:
+            if idx >= len(COMMERCIAL_BOBINAGEM_AWGS) - 1:
+                break
+            new_a = float(COMMERCIAL_BOBINAGEM_AWGS[idx + 1])
+            e_n = round(espiras_constante_k(e, a, new_a), 1)
+            e, a = e_n, new_a
+            continue
+        if r > 0 and r < soft_low:
+            if idx <= 0:
+                break
+            new_a = float(COMMERCIAL_BOBINAGEM_AWGS[idx - 1])
+            e_n = round(espiras_constante_k(e, a, new_a), 1)
+            e, a = e_n, new_a
+            continue
+        break
+
+    rf = _ratio(e, a)
+    if bumped_hard or rf > soft_high:
+        msgs.append(
+            "Ocupação de ranhura ajustada: bitola refinada quando >80 %; "
+            "espiras recalculadas com volume de cobre constante (N×A)."
+        )
+    elif rf < soft_low and rf > 0:
+        msgs.append("Ocupação baixa (<65 %): espiras/bitola reposicionadas na mesa comercial.")
+
+    return round(e, 1), a, msgs
 
 
 def should_alert_low_turns(
@@ -348,14 +453,18 @@ def awg_for_fill_with_limits(
     occupation: float,
     carcaca: str,
 ) -> tuple[float, bool, str]:
-    """Bitola alvo por ocupação de ranhura, já limitada ao intervalo da carcaça."""
+    """Bitola alvo por ocupação de ranhura, projetada pela mesa 14–22."""
     from app.search_lib import awg_from_mm2
 
     if espiras <= 0 or slot_limit <= 0:
         awg, adj, msg = clamp_awg_to_safe_range(23.0, carcaca)
-        return awg, adj, msg
+        return float(nearest_awg_from_table(awg)), adj, msg
     area = (occupation * slot_limit) / espiras
     raw = awg_from_mm2(max(area, 1e-9))
     if raw is None:
-        return clamp_awg_to_safe_range(23.0, carcaca)
-    return clamp_awg_to_safe_range(raw, carcaca)
+        awg, adj, msg = clamp_awg_to_safe_range(23.0, carcaca)
+        return float(nearest_awg_from_table(awg)), adj, msg
+    awg, adj, msg = clamp_awg_to_safe_range(raw, carcaca)
+    snapped = float(nearest_awg_from_table(awg))
+    adj = adj or abs(snapped - round(float(raw), 4)) >= 0.05
+    return snapped, adj, msg
