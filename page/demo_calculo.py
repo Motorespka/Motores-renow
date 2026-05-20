@@ -124,16 +124,17 @@ def _render_form(ctx) -> None:
         pacote = st.text_input("Comprimento pacote (mm)", value="70", key="demo_pac")
     with c3:
         carcaca = st.text_input("Carcaça NEMA/IEC", value="80A", key="demo_carc")
-    topo_opts = {label_tipo(k): k for k in TIPOS_UI_ORDER if k in TIPOS_BOBINAGEM}
+    topo_opts = {"(Inferir automaticamente)": ""}
+    topo_opts.update(
+        {label_tipo(k): k for k in TIPOS_UI_ORDER if k in TIPOS_BOBINAGEM and k != "DESCONHECIDO"}
+    )
     topo_labels = list(topo_opts.keys())
-    topo_default = label_tipo("IMBRICADO")
-    topo_idx = topo_labels.index(topo_default) if topo_default in topo_labels else 0
     tipo_bob_label = st.selectbox(
-        "Tipo de bobinagem *",
+        "Tipo de bobinagem",
         options=topo_labels,
-        index=topo_idx,
+        index=0,
         key="demo_tipo_bob",
-        help="Obrigatorio. O calculo so usa referencias do mesmo tipo (Imbricado, 3 e 3, etc.).",
+        help="Opcional. Se nao souber, deixe em inferir automaticamente — o sistema explica o tipo detectado.",
     )
     tipo_bob = topo_opts[tipo_bob_label]
 
@@ -190,9 +191,6 @@ def _render_form(ctx) -> None:
         if not ok_req:
             st.warning(req_msg)
             return
-        if not tipo_bob or tipo_bob == "DESCONHECIDO":
-            st.warning("Selecione o tipo de bobinagem (campo obrigatorio).")
-            return
         try:
             motors, _ = _catalog()
         except FileNotFoundError as exc:
@@ -228,6 +226,10 @@ def _render_form(ctx) -> None:
             "is_estimativa": opt_res.is_estimativa,
             "forcar_gemini": opt_res.forcar_gemini,
             "cenario_recomendado": opt_res.cenario_recomendado,
+            "tipo_inferido": opt_res.tipo_inferido,
+            "tipo_inferido_label": opt_res.tipo_inferido_label,
+            "explicacao_tipo": opt_res.explicacao_tipo,
+            "tipo_foi_inferido": opt_res.tipo_foi_inferido,
         }
         st.session_state["demo_calculo_result"] = opt_res.base_suggestion or {}
         st.session_state["demo_calculo_entrada"] = {
@@ -251,6 +253,10 @@ def _render_form(ctx) -> None:
     if opt_data and opt_data.get("cenarios"):
         st.divider()
         st.markdown("### Motor de Projetos de Bobinagem")
+        if opt_data.get("tipo_foi_inferido") and opt_data.get("explicacao_tipo"):
+            st.info(opt_data["explicacao_tipo"])
+        elif opt_data.get("tipo_inferido_label"):
+            st.caption(f"Tipo de bobinagem: **{opt_data['tipo_inferido_label']}**")
         if opt_data.get("is_estimativa"):
             st.warning(
                 opt_data.get("calculo_baseado_em")

@@ -6,7 +6,9 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from typing import Optional
+from collections import Counter
+from dataclasses import dataclass
+from typing import Any, Optional
 
 # Códigos internos (norm) -> rótulo PT para UI
 TIPOS_BOBINAGEM: dict[str, str] = {
@@ -148,6 +150,69 @@ def infer_tipo_bobinagem(
     )
     n = norm_tipo_bobinagem(blob)
     return n or "DESCONHECIDO"
+
+
+@dataclass
+class TipoInferencia:
+    codigo: str
+    label: str
+    explicacao: str
+    confianca_pct: float
+    amostra: int = 0
+
+
+def infer_tipo_from_referencias(
+    matches: list[Any],
+    *,
+    motor_by_sha: Optional[dict[str, Any]] = None,
+) -> Optional[TipoInferencia]:
+    """
+    Infere topologia a partir das referências do acervo (moda estatística).
+    Usado quando o usuário não informou o tipo de bobinagem.
+    """
+    counts: Counter[str] = Counter()
+    for mt in matches:
+        motor = None
+        if hasattr(mt, "motor"):
+            motor = mt.motor
+        elif motor_by_sha and hasattr(mt, "sha"):
+            motor = motor_by_sha.get(mt.sha)
+        if motor is None:
+            continue
+        topo = norm_tipo_bobinagem(
+            getattr(motor, "tipo_bobinagem_norm", "")
+            or getattr(motor, "tipo_bobinagem", "")
+        )
+        if topo and topo != "DESCONHECIDO":
+            counts[topo] += 1
+
+    if not counts:
+        return None
+
+    best, n_best = counts.most_common(1)[0]
+    total = sum(counts.values())
+    pct = round(100.0 * n_best / total, 1)
+    dist_txt = ", ".join(
+        f"{label_tipo(k)}: {v}" for k, v in counts.most_common(4)
+    )
+    explicacao = (
+        f"Tipo inferido automaticamente: **{label_tipo(best)}** — "
+        f"{n_best} de {total} referência(s) similares no acervo ({pct:.0f}%). "
+        f"Distribuição: {dist_txt}. "
+        f"Confirme na ficha do motor ou na inspeção visual da ranhura antes de bobinar."
+    )
+    return TipoInferencia(
+        codigo=best,
+        label=label_tipo(best),
+        explicacao=explicacao,
+        confianca_pct=pct,
+        amostra=total,
+    )
+
+
+def usuario_informou_tipo(tipo_bobinagem: str) -> bool:
+    n = norm_tipo_bobinagem(tipo_bobinagem)
+    return bool(n and n != "DESCONHECIDO")
 
 
 def correction_factor(ref_tipo: str, target_tipo: str) -> float:

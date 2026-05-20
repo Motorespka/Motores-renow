@@ -26,8 +26,16 @@ from app.fio_paralelo import (
 from app.oficial_engine import (
     HIST_DIVERGENCE_REVISAR_PCT,
     CalculationSuggestion,
+    filter_file,
     suggest_calculation,
     validate_required_motor_inputs,
+)
+from app.topologia_bobinagem import (
+    TipoInferencia,
+    infer_tipo_from_referencias,
+    label_tipo,
+    norm_tipo_bobinagem,
+    usuario_informou_tipo,
 )
 from app.search_lib import MotorRow, awg_to_mm2, slot_fill_units
 from engine.winding_sanity import (
@@ -104,6 +112,10 @@ class WindingOptimizationResult:
     forcar_gemini: bool = False
     base_suggestion: Optional[dict[str, Any]] = None
     cenario_recomendado: str = "B"
+    tipo_inferido: str = ""
+    tipo_inferido_label: str = ""
+    explicacao_tipo: str = ""
+    tipo_foi_inferido: bool = False
 
 
 def _flux_density_index(espiras: float, diametro_mm: float, pacote_mm: float, polos: int) -> float:
@@ -270,6 +282,61 @@ class WindingOptimizer:
 
     def __init__(self, motors: list[MotorRow]) -> None:
         self.motors = motors
+        self._motor_by_sha = {m.sha: m for m in motors}
+
+    def _resolve_tipo_efetivo(
+        self,
+        stator: StatorInput,
+        base: CalculationSuggestion,
+    ) -> tuple[str, Optional[TipoInferencia]]:
+        if usuario_informou_tipo(stator.tipo_bobinagem):
+            return norm_tipo_bobinagem(stator.tipo_bobinagem), None
+
+        pool = filter_file(self.motors)
+        infer = infer_tipo_from_referencias(
+            base.top_matches,
+            motor_by_sha=self._motor_by_sha,
+        )
+        if infer is None and pool:
+            from app.hierarchical_search import hierarchical_find_references
+
+            hier = hierarchical_find_references(
+                pool,
+                diametro_mm=stator.diametro_mm,
+                pacote_mm=stator.pacote_mm,
+                carcaca=stator.carcaca,
+                passo=stator.passo,
+                tipo_bobinagem="",
+                top_k=15,
+                min_refs=1,
+            )
+            infer = infer_tipo_from_referencias(
+                hier.matches,
+                motor_by_sha=self._motor_by_sha,
+            )
+
+        if infer is None:
+            from app.topologia_bobinagem import infer_tipo_bobinagem
+
+            guess = infer_tipo_bobinagem(
+                passo_principal=stator.passo,
+                explicit="",
+            )
+            if guess and guess != "DESCONHECIDO":
+                infer = TipoInferencia(
+                    codigo=guess,
+                    label=label_tipo(guess),
+                    explicacao=(
+                        f"Tipo sugerido por heurística do passo **{stator.passo or '—'}**: "
+                        f"**{label_tipo(guess)}**. Confirme na ficha ou no motor original."
+                    ),
+                    confianca_pct=55.0,
+                    amostra=0,
+                )
+
+        if infer is None:
+            return "", None
+        return infer.codigo, infer
 
     def optimize(
         self,
@@ -302,19 +369,42 @@ class WindingOptimizer:
                 validation_message=msg,
             )
 
+        tipo_calc_in = (
+            stator.tipo_bobinagem
+            if usuario_informou_tipo(stator.tipo_bobinagem)
+            else ""
+        )
         base: CalculationSuggestion = suggest_calculation(
             self.motors,
             diametro_mm=stator.diametro_mm,
             pacote_mm=stator.pacote_mm,
             carcaca=stator.carcaca,
             passo=stator.passo,
-            tipo_bobinagem=stator.tipo_bobinagem,
+            tipo_bobinagem=tipo_calc_in,
             ligacao=stator.ligacao,
             ranhuras=stator.ranhuras,
             polos=stator.polos,
             top_k=top_k,
             use_gemini=use_gemini,
         )
+
+        tipo_infer: Optional[TipoInferencia] = None
+        if not usuario_informou_tipo(stator.tipo_bobinagem):
+            _, tipo_infer = self._resolve_tipo_efetivo(stator, base)
+            if tipo_infer and tipo_infer.confianca_pct >= 40:
+                base = suggest_calculation(
+                    self.motors,
+                    diametro_mm=stator.diametro_mm,
+                    pacote_mm=stator.pacote_mm,
+                    carcaca=stator.carcaca,
+                    passo=stator.passo,
+                    tipo_bobinagem=tipo_infer.codigo,
+                    ligacao=stator.ligacao,
+                    ranhuras=stator.ranhuras,
+                    polos=stator.polos,
+                    top_k=top_k,
+                    use_gemini=use_gemini,
+                )
 
         media_prop = base.espiras_media_top5 or base.sugestao_espira
         media_hist = base.media_historica_espiras
@@ -386,6 +476,8 @@ class WindingOptimizer:
         esp_a = esp_busola
         calibre_a = ""
         desabilitar_a = False
+        awg_a = awg_b
+        wire_a = WireConfig(parallel_count=1, awg=awg_a)
 
         if slot_limit and slot_limit > 0:
             awg_a_raw, adj_a, msg_a = awg_for_fill_with_limits(
@@ -404,6 +496,7 @@ class WindingOptimizer:
             )
             awg_a = awg_b
             esp_a = esp_busola
+            wire_a = WireConfig(parallel_count=1, awg=awg_a)
         else:
             esp_a, awg_a, comm_adj, comm_msg = apply_commercial_awg_preserve_copper(
                 esp_a, awg_a_raw, stator.carcaca
@@ -525,5 +618,9 @@ class WindingOptimizer:
             is_estimativa=is_estimativa,
             forcar_gemini=forcar_gemini,
             cenario_recomendado=cenario_recomendado,
+            tipo_inferido=tipo_infer.codigo if tipo_infer else "",
+            tipo_inferido_label=tipo_infer.label if tipo_infer else "",
+            explicacao_tipo=tipo_infer.explicacao if tipo_infer else "",
+            tipo_foi_inferido=bool(tipo_infer),
             base_suggestion=asdict(base),
         )
