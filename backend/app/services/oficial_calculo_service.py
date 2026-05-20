@@ -75,16 +75,20 @@ class OficialCalculoService:
 
         out = asdict(sug)
         out["modo_processamento"] = sug.modo_processamento
-        out["validation_status"] = "APROVADO" if not sug.alerta_risco else "REVISAR"
-        out["validation_message"] = sug.alerta_risco or sug.justificativa_tecnica
+        out["validation_status"] = sug.validation_status or "REVISAR"
+        out["validation_message"] = sug.validation_message or sug.alerta_risco or ""
+        out["lei_ranhura_logs"] = sug.lei_ranhura_logs
+        out["media_historica_espiras"] = sug.media_historica_espiras
+        out["slot_fill_limit"] = sug.slot_fill_limit
+        out["slot_fill_actual"] = sug.slot_fill_actual
 
         eng_esp = parse_scalar(str(payload.get("espiras_engenheiro", "")))
-        if eng_esp and sug.sugestao_espira:
+        if eng_esp and sug.sugestao_espira and out["validation_status"] == "APROVADO":
             tol = max(sug.sugestao_espira * 0.15, 2.0)
             if abs(eng_esp - sug.sugestao_espira) > tol:
                 out["validation_status"] = "ATENCAO"
                 out["validation_message"] = (
-                    f"Sua espira ({eng_esp}) diverge da sugestao proporcional+IA ({sug.sugestao_espira})."
+                    f"Sua espira ({eng_esp}) diverge da sugestao ({sug.sugestao_espira})."
                 )
         return out
 

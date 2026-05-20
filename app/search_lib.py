@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 import sqlite3
 import statistics
@@ -85,6 +86,54 @@ def passo_overlap(user_nums: list[float], ref_nums: list[float]) -> bool:
     umin, umax = min(user_nums), max(user_nums)
     rmin, rmax = min(ref_nums), max(ref_nums)
     return not (umax < rmin - 1.0 or umin > rmax + 1.0)
+
+
+def passo_canonical(raw: str) -> str:
+    """Chave comparável para passo (ex.: '10-12', '10 : 12' -> '10-12')."""
+    nums = parse_passo_nums(raw)
+    if nums:
+        parts: list[str] = []
+        for n in nums:
+            parts.append(str(int(n)) if abs(n - int(n)) < 1e-6 else str(round(n, 2)))
+        return "-".join(parts)
+    s = (raw or "").strip().lower()
+    s = re.sub(r"[:;\s]+", "-", s)
+    return re.sub(r"-+", "-", s).strip("-")
+
+
+def passo_exact_match(user_passo: str, ref_passo: str) -> bool:
+    """Exige o mesmo passo de bobinagem (Lei da Ranhura — filtro duro)."""
+    u = passo_canonical(user_passo)
+    r = passo_canonical(ref_passo)
+    if not u:
+        return True
+    if not r:
+        return False
+    return u == r
+
+
+def awg_to_mm2(awg: float) -> float:
+    """Área da seção do fio (mm²) a partir do número AWG."""
+    if awg <= 0:
+        return 0.0
+    return 0.012668 * (92 ** ((36.0 - awg) / 39.0))
+
+
+def awg_from_mm2(area_mm2: float) -> Optional[float]:
+    if area_mm2 <= 0:
+        return None
+    try:
+        awg = 36.0 - (39.0 / math.log(92)) * math.log(area_mm2 / 0.012668)
+    except (ValueError, ZeroDivisionError):
+        return None
+    return round(max(0.0, min(40.0, awg)), 1)
+
+
+def slot_fill_units(espiras: float, awg: float) -> float:
+    """Proxy de enchimento de ranhura: espiras × seção do fio (mm²·espiras)."""
+    if espiras <= 0 or awg <= 0:
+        return 0.0
+    return espiras * awg_to_mm2(awg)
 
 
 @dataclass
@@ -196,14 +245,19 @@ def find_similar(
     passo: str,
     top_k: int = 25,
     max_geo_dist: float = 0.22,
+    passo_exact: bool = False,
 ) -> list[MatchResult]:
     car_key = norm_carcaca(carcaca)
     user_passo = parse_passo_nums(passo)
+    user_passo_key = passo_canonical(passo)
     scored: list[MatchResult] = []
 
     for m in motors:
         if m.diametro_mm is None and m.pacote_mm is None:
             continue
+        if passo_exact and user_passo_key:
+            if not passo_exact_match(passo, m.passo_principal):
+                continue
         dist = _geo_distance(diametro_mm, pacote_mm, m.diametro_mm, m.pacote_mm)
         if dist > max_geo_dist and (diametro_mm is not None or pacote_mm is not None):
             continue

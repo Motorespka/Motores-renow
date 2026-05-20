@@ -6,15 +6,19 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import math
 import sqlite3
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from statistics import median
 from typing import Any, Optional
 
 from app.search_lib import (
     DEFAULT_DB,
     MotorRow,
+    awg_from_mm2,
+    awg_to_mm2,
     connect,
     find_similar,
     load_all_motors,
@@ -23,7 +27,14 @@ from app.search_lib import (
     parse_mm,
     parse_passo_nums,
     parse_scalar,
+    passo_canonical,
+    slot_fill_units,
 )
+
+logger = logging.getLogger(__name__)
+
+HIST_DIVERGENCE_REVISAR_PCT = 0.10
+SLOT_FILL_TOLERANCE = 1.02
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 MASTER_CSV = REPO_ROOT / "exports" / "review" / "master_release_v2_manifest.csv"
@@ -104,10 +115,124 @@ class CalculationSuggestion:
     alerta_risco: str = ""
     gemini_usado: bool = False
     dispersao_espiras: float = 0.0
+    validation_status: str = ""
+    validation_message: str = ""
+    lei_ranhura_logs: list[str] = field(default_factory=list)
+    media_historica_espiras: Optional[float] = None
+    slot_fill_limit: Optional[float] = None
+    slot_fill_actual: Optional[float] = None
 
 
 def _ligacao_from_row(m: MotorRow) -> str:
     return m.ligacao or ""
+
+
+def _apply_slot_law(
+    hits: list[ProportionalHit],
+    esp_sug: float,
+    fio_base: Optional[float],
+) -> tuple[Optional[float], list[str], Optional[float], Optional[float]]:
+    """
+    Conservação de enchimento: (espiras * secao_fio) <= limite historico do passo.
+    Se espiras sobem vs mediana historica, AWG deve subir (fio mais fino).
+    """
+    logs: list[str] = []
+    fills_hist: list[float] = []
+    for h in hits:
+        awg = h.fio_sugerido_awg
+        if awg and h.espiras_historico > 0:
+            fills_hist.append(slot_fill_units(h.espiras_historico, awg))
+
+    if not fills_hist or esp_sug <= 0:
+        return fio_base, logs, None, None
+
+    limite = max(fills_hist)
+    esp_hist_med = median([h.espiras_historico for h in hits if h.espiras_historico > 0])
+    fio_adj = fio_base
+
+    if fio_adj is None and hits:
+        awgs = [h.fio_sugerido_awg for h in hits if h.fio_sugerido_awg is not None]
+        fio_adj = median(awgs) if awgs else None
+
+    if fio_adj is None:
+        return None, logs, round(limite, 4), None
+
+    area_atual = awg_to_mm2(fio_adj)
+    fill_atual = slot_fill_units(esp_sug, fio_adj)
+
+    if esp_sug > esp_hist_med * 1.001:
+        area_max = limite / esp_sug
+        fio_thinner = awg_from_mm2(area_max)
+        if fio_thinner is not None and fio_thinner > fio_adj:
+            logs.append(
+                f"Lei da ranhura: espiras subiram ({esp_sug:.1f} vs med. hist. {esp_hist_med:.1f}); "
+                f"fio ajustado AWG {fio_adj:.1f} -> {fio_thinner:.1f} (secao menor)."
+            )
+            fio_adj = fio_thinner
+    elif esp_sug < esp_hist_med * 0.999:
+        area_allow = min(limite / esp_sug, area_atual * 1.15)
+        fio_thicker = awg_from_mm2(area_allow)
+        if fio_thicker is not None and fio_thicker < fio_adj:
+            logs.append(
+                f"Lei da ranhura: espiras caíram ({esp_sug:.1f} vs med. hist. {esp_hist_med:.1f}); "
+                f"fio pode aumentar AWG {fio_adj:.1f} -> {fio_thicker:.1f}."
+            )
+            fio_adj = fio_thicker
+
+    fill_final = slot_fill_units(esp_sug, fio_adj)
+    if fill_final > limite * SLOT_FILL_TOLERANCE:
+        fio_force = awg_from_mm2(limite / esp_sug)
+        if fio_force is not None:
+            logs.append(
+                f"Enchimento {fill_final:.4f} excede limite {limite:.4f}; "
+                f"fio forcado para AWG {fio_force:.1f}."
+            )
+            fio_adj = fio_force
+            fill_final = slot_fill_units(esp_sug, fio_adj)
+
+    logs.append(
+        f"Enchimento ranhura: {fill_final:.4f} <= limite {limite:.4f} "
+        f"(Espiras×mm²_fio, tol. {SLOT_FILL_TOLERANCE:.0%})."
+    )
+    return round(fio_adj, 1), logs, round(limite, 4), round(fill_final, 4)
+
+
+def _resolve_validation(
+    *,
+    hits: list[ProportionalHit],
+    esp_sug: Optional[float],
+    passo: str,
+    slot_ok: bool,
+    hist_divergence: bool,
+    referencias_escassas: bool,
+    discrepante: bool,
+) -> tuple[str, str]:
+    if not (passo or "").strip():
+        return "INCOMPLETO", "Informe o passo de bobinagem para aplicar a Lei da Ranhura."
+
+    if not hits:
+        pk = passo_canonical(passo)
+        return (
+            "SEM_REFERENCIA",
+            f"Nenhum motor OFICIAL com passo exato '{pk or passo}' e geometria compatível.",
+        )
+
+    if referencias_escassas:
+        return "REVISAR", "Menos de 3 referências com o mesmo passo — revisar na bancada."
+
+    if hist_divergence:
+        return (
+            "REVISAR",
+            f"Sugestão diverge >{HIST_DIVERGENCE_REVISAR_PCT:.0%} da média histórica do passo.",
+        )
+
+    if not slot_ok:
+        return "REVISAR", "Enchimento de ranhura acima do limite histórico — ajustar fio ou espiras."
+
+    if discrepante:
+        return "REVISAR", "Alta dispersão entre referências proporcionais do mesmo passo."
+
+    return "APROVADO", "Cálculo proporcional alinhado ao passo e à lei da ranhura."
 
 
 def _coef_variation(values: list[float]) -> float:
@@ -134,6 +259,7 @@ def suggest_calculation(
     use_gemini: bool = True,
 ) -> CalculationSuggestion:
     file_pool = filter_file(motors)
+    passo_exact = bool((passo or "").strip())
     matches = find_similar(
         file_pool,
         diametro_mm=diametro_mm,
@@ -141,6 +267,7 @@ def suggest_calculation(
         carcaca=carcaca,
         passo=passo,
         top_k=top_k,
+        passo_exact=passo_exact,
     )
 
     lig_key = norm_carcaca(ligacao)
@@ -193,10 +320,12 @@ def suggest_calculation(
         )
 
     esp_calc = [h.espiras_calculadas for h in hits]
+    esp_hist = [h.espiras_historico for h in hits if h.espiras_historico > 0]
     dispersao = round(_coef_variation(esp_calc), 4)
     media_prop = round(sum(esp_calc) / len(esp_calc), 1) if esp_calc else None
+    media_hist = round(median(esp_hist), 1) if esp_hist else None
     fio_list = [h.fio_sugerido_awg for h in hits if h.fio_sugerido_awg is not None]
-    media_fio = round(sum(fio_list) / len(fio_list), 2) if fio_list else None
+    media_fio = round(median(fio_list), 2) if fio_list else None
 
     passo_moda = ""
     carcaca_moda = ""
@@ -216,54 +345,98 @@ def suggest_calculation(
 
     sugestao_espira = media_prop
     sugestao_fio = media_fio
-    justificativa = ""
-    alerta = ""
-    gemini_usado = False
-    modo = "proporcional"
+    lei_logs: list[str] = []
+    slot_limit: Optional[float] = None
+    slot_actual: Optional[float] = None
+
+    if passo_exact:
+        lei_logs.append(
+            f"Filtro passo exato: '{passo_canonical(passo)}' ({len(hits)} referência(s))."
+        )
 
     referencias_escassas = len(hits) < 3
     discrepante = dispersao > 0.22
-    eng_esp = parse_scalar(espiras_engenheiro)
-    if eng_esp and media_prop and abs(eng_esp - media_prop) / max(media_prop, 1) > 0.2:
-        discrepante = True
 
-    must_gemini = use_gemini and (referencias_escassas or discrepante or len(hits) > 0)
+    if sugestao_espira is not None:
+        sugestao_fio, slot_logs, slot_limit, slot_actual = _apply_slot_law(
+            hits, float(sugestao_espira), sugestao_fio
+        )
+        lei_logs.extend(slot_logs)
 
-    if must_gemini:
+    hist_divergence = False
+    if sugestao_espira is not None and media_hist and media_hist > 0:
+        rel = abs(float(sugestao_espira) - media_hist) / media_hist
+        if rel > HIST_DIVERGENCE_REVISAR_PCT:
+            hist_divergence = True
+            lei_logs.append(
+                f"Divergência histórica: sugestão {sugestao_espira} vs média histórica "
+                f"{media_hist} ({rel:.1%} > {HIST_DIVERGENCE_REVISAR_PCT:.0%})."
+            )
+            logger.warning(
+                "demo_calculo REVISAR: espiras %.1f diverge %.1f%% da media historica %.1f (passo %s)",
+                sugestao_espira,
+                rel * 100,
+                media_hist,
+                passo_canonical(passo),
+            )
+
+    slot_ok = True
+    if slot_limit and slot_actual and slot_actual > slot_limit * SLOT_FILL_TOLERANCE:
+        slot_ok = False
+        logger.warning(
+            "demo_calculo ranhura: fill %.4f > limite %.4f",
+            slot_actual,
+            slot_limit,
+        )
+
+    validation_status, validation_message = _resolve_validation(
+        hits=hits,
+        esp_sug=sugestao_espira,
+        passo=passo,
+        slot_ok=slot_ok,
+        hist_divergence=hist_divergence,
+        referencias_escassas=referencias_escassas,
+        discrepante=discrepante,
+    )
+
+    justificativa = (
+        f"Cálculo determinístico em {len(hits)} motor(es) com passo "
+        f"'{passo_canonical(passo) or passo}': média proporcional {media_prop} espiras."
+    )
+    alerta = ""
+    gemini_usado = False
+    modo = "proporcional_deterministico"
+
+    if use_gemini and hits and sugestao_espira is not None:
         try:
-            from services.gemini_engineering_validator import validate_with_gemini
+            from services.gemini_engineering_validator import justify_with_gemini
 
-            gem = validate_with_gemini(
+            gem = justify_with_gemini(
                 {
                     "entrada": entrada,
                     "calculos_proporcionais": calculos_payload,
                     "media_proporcional_espiras": media_prop,
+                    "media_historica_espiras": media_hist,
+                    "sugestao_espira": sugestao_espira,
+                    "sugestao_fio_awg": sugestao_fio,
+                    "slot_fill_limit": slot_limit,
+                    "slot_fill_actual": slot_actual,
                     "dispersao_espiras": dispersao,
-                    "referencias_escassas": referencias_escassas,
-                    "fio_engenheiro": fio_engenheiro,
-                    "espiras_engenheiro": espiras_engenheiro,
+                    "validation_status": validation_status,
                 }
             )
-            sugestao_espira = gem.get("sugestao_espira", media_prop)
-            sugestao_fio = gem.get("sugestao_fio_awg", media_fio)
-            justificativa = gem.get("justificativa_tecnica", "")
-            alerta = gem.get("alerta_risco", "")
+            justificativa = gem.get("justificativa_tecnica") or justificativa
+            gem_alerta = gem.get("alerta_risco", "")
+            if gem_alerta:
+                alerta = gem_alerta
             gemini_usado = True
-            modo = "proporcional+gemini"
+            modo = "proporcional+gemini_justificativa"
         except Exception as exc:
-            justificativa = (
-                f"Media proporcional de {len(hits)} referencia(s): {media_prop} espiras. "
-                f"(Gemini indisponivel: {exc})"
-            )
-            if discrepante or referencias_escassas:
-                alerta = "Poucas referencias ou alta dispersao — revisar manualmente."
+            lei_logs.append(f"Gemini (só justificativa) indisponível: {exc}")
             modo = "proporcional_sem_gemini"
-    elif media_prop is not None:
-        justificativa = (
-            f"Calculado por proporcionalidade em {len(hits)} motor(es): "
-            f"Espiras = Espiras_hist x (Pacote_in/Pacote_hist) x (Area_in/Area_hist). "
-            f"Media das espiras calculadas: {media_prop}."
-        )
+
+    if validation_status == "REVISAR" and not alerta:
+        alerta = validation_message
 
     return CalculationSuggestion(
         entrada=entrada,
@@ -281,6 +454,12 @@ def suggest_calculation(
         alerta_risco=alerta,
         gemini_usado=gemini_usado,
         dispersao_espiras=dispersao,
+        validation_status=validation_status,
+        validation_message=validation_message,
+        lei_ranhura_logs=lei_logs,
+        media_historica_espiras=media_hist,
+        slot_fill_limit=slot_limit,
+        slot_fill_actual=slot_actual,
     )
 
 

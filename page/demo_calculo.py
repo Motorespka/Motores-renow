@@ -171,6 +171,12 @@ def _render_form(ctx) -> None:
         if res.get("alerta_risco"):
             st.warning(res.get("alerta_risco"))
         st.caption(f"Media proporcional (ref.): {res.get('espiras_media_top5', '—')} espiras")
+        if res.get("media_historica_espiras") is not None:
+            st.caption(f"Media historica (mesmo passo): {res.get('media_historica_espiras')} espiras")
+        if res.get("slot_fill_limit") is not None:
+            st.caption(
+                f"Enchimento ranhura: {res.get('slot_fill_actual', '—')} / limite {res.get('slot_fill_limit')}"
+            )
     with b:
         st.markdown("#### Sua Entrada")
         st.write(f"Estator: **{diametro}** x **{pacote}** mm")
@@ -178,8 +184,13 @@ def _render_form(ctx) -> None:
         st.write(f"Fio: **{fio_eng or '—'}** · Espiras: **{esp_eng or '—'}**")
     with c:
         st.markdown("#### Validacao")
-        st.markdown(f"**{res.get('validation_status', '—')}**")
+        vstat = res.get("validation_status", "—")
+        st.markdown(f"**{vstat}**")
         st.write(res.get("validation_message") or "")
+        for line in res.get("lei_ranhura_logs") or []:
+            st.caption(line)
+        if vstat == "REVISAR":
+            st.warning("Calculo nao aprovado automaticamente — revisar na bancada antes de bobinar.")
 
     matches = res.get("top_matches") or []
     if matches:
@@ -205,6 +216,9 @@ def _render_form(ctx) -> None:
             use_container_width=True,
             hide_index=True,
         )
+
+    if res.get("validation_status") == "REVISAR":
+        st.caption("Salvar no manifesto so apos conferencia fisica (status REVISAR).")
 
     if st.button("Salvar Novo Calculo Oficial", use_container_width=True):
         from app.oficial_engine import save_official_calculation

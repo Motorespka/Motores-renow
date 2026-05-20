@@ -56,6 +56,10 @@ class DemoCalculoSuggestResponse(BaseModel):
     top_matches: List[ProportionalHitOut]
     validation_status: str = ""
     validation_message: str = ""
+    lei_ranhura_logs: List[str] = Field(default_factory=list)
+    media_historica_espiras: Optional[float] = None
+    slot_fill_limit: Optional[float] = None
+    slot_fill_actual: Optional[float] = None
 
 
 class DemoCalculoSaveRequest(BaseModel):
