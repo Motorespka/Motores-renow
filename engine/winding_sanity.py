@@ -205,17 +205,16 @@ def espiras_busola_oficina(
     espiras_usuario: Optional[float] = None,
 ) -> float:
     """
-    Referência de espiras (legado compat).
+    Referência de espiras (bússola).
     Com validação do usuário: 100% o valor informado.
-    Sem validação: **projetista proporcional primeiro** — cálculo do motor proporcional ao ferro,
-    não a mediana histórica do acervo como bússola.
+    Sem validação: média histórica limpa (±30% / Z-score) tem prioridade sobre proporcional.
     """
     if espiras_usuario is not None and espiras_usuario > 0:
         return round(float(espiras_usuario), 1)
-    if media_prop and media_prop > 0:
-        return round(float(media_prop), 1)
     if media_hist and media_hist > 0:
         return round(float(media_hist), 1)
+    if media_prop and media_prop > 0:
+        return round(float(media_prop), 1)
     return 0.0
 
 
@@ -280,7 +279,7 @@ def apply_commercial_awg_preserve_copper(
 
 
 def polarity_sanity_alert(
-    polos: int,
+    polos: Optional[int],
     espiras_sugeridas: float,
     media_hist: Optional[float],
     carcaca: str = "",
@@ -299,22 +298,37 @@ def force_busola_if_underturn(
     diametro_mm: float = 0,
     carcaca: str = "",
 ) -> tuple[float, bool]:
-    """Compatível: projeto não corrige mais espiras apenas por mediana do acervo."""
+    """
+    Se histórico indica 40+ e cálculo < 30 em estator ~80 mm, força bússola histórica limpa.
+    Impede sugestões contaminadas (ex.: 8 esp.) quando o acervo aponta 42+.
+    """
+    if not media_hist or media_hist <= 0:
+        return round(espiras, 1), False
+    frame = carcaca_frame_number(carcaca)
+    large_stator = (frame is not None and frame >= 70) or diametro_mm >= 75
+    if media_hist >= 35 and espiras < MIN_ESPIRAS_ESTATOR_80MM and large_stator:
+        return round(float(media_hist), 1), True
+    if media_hist >= 40 and espiras < media_hist * 0.50:
+        return round(float(media_hist), 1), True
     return round(espiras, 1), False
 
 
 def scenario_a_is_acceptable(
     espiras_a: float,
+    media_hist: Optional[float],
     fill_ratio: float,
     *,
-    max_fill: float = max(SLOT_FILL_HARD_HIGH + 0.06, 0.88),
-    _ignored_media_hist: Optional[float] = None,
-    _ignored_max_deviation: Optional[float] = None,
+    max_deviation: float = HIST_BIAS_MAX_DEVIATION,
+    max_fill: float = SLOT_FILL_SOFT_HIGH,
 ) -> bool:
     """
-    Cenário A: apenas sanidade física de ranhura (não reprova só por média histórica).
+    Cenário A: ocupação aceitável E desvio ≤ max_deviation da bússola histórica limpa.
     """
-    return fill_ratio <= max_fill + 1e-9
+    if fill_ratio > max_fill * 1.02:
+        return False
+    if not media_hist or media_hist <= 0:
+        return True
+    return not exceeds_hist_bias(espiras_a, media_hist, max_deviation)
 
 
 MSG_AVISO_DESVIO_HIST = (

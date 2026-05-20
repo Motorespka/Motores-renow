@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-from statistics import median
+from statistics import mean, median
 from typing import Optional
 
 from app.search_lib import MotorRow
@@ -67,6 +67,41 @@ def filter_outliers_median_band(
     return [v for v in vals if lo <= v <= hi]
 
 
+def filter_outliers_bussola_zscore_band(
+    values: list[float],
+    *,
+    band_pct: float = OUTLIER_BAND_PCT,
+    z_max: float = 2.0,
+) -> list[float]:
+    """
+    Anti-contaminação da bússola: descarta espiras fora de [Média ± band_pct].
+    Reforço por Z-score (desvio padrão) quando há dispersão no cluster.
+    """
+    vals = sorted(v for v in values if v is not None and v > 0)
+    if len(vals) < 2:
+        return vals
+    mu = mean(vals)
+    if mu <= 0:
+        return vals
+    lo = mu * (1.0 - band_pct)
+    hi = mu * (1.0 + band_pct)
+    in_band = [v for v in vals if lo <= v <= hi]
+    if len(in_band) >= 2:
+        return in_band
+    if len(vals) < 3:
+        return in_band if in_band else vals
+    try:
+        from statistics import pstdev
+
+        sd = pstdev(vals)
+    except Exception:
+        return in_band if in_band else vals
+    if sd <= 1e-9:
+        return in_band if in_band else vals
+    z_filtered = [v for v in vals if abs((v - mu) / sd) <= z_max]
+    return z_filtered if z_filtered else (in_band if in_band else vals)
+
+
 def robust_historical_median(
     values: list[float],
     *,
@@ -79,7 +114,9 @@ def robust_historical_median(
     vals = [v for v in values if v is not None and v > 0]
     if not vals:
         return None, 0, 0
-    cleaned = filter_outliers_median_band(vals, band_pct=band_pct)
+    cleaned = filter_outliers_bussola_zscore_band(vals, band_pct=band_pct)
+    if not cleaned:
+        cleaned = filter_outliers_median_band(vals, band_pct=band_pct)
     if not cleaned:
         cleaned = vals
     return round(median(cleaned), 1), len(vals), len(cleaned)

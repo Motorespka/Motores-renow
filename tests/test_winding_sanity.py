@@ -51,9 +51,9 @@ def test_espiras_constante_k_thicker_wire_fewer_turns():
     assert n > 20.0
 
 
-def test_espiras_busola_prioriza_proporcional_nao_mediana():
+def test_espiras_busola_prioriza_historico_limpo():
     b = espiras_busola_oficina(42.0, 19.0)
-    assert b == 19.0
+    assert b == 42.0
 
 
 def test_espiras_busola_usuario_100pct():
@@ -103,10 +103,16 @@ def test_fill_limits_never_below_14_awg():
     assert awg <= 22.0
 
 
-def test_force_busola_never_overrides_by_hist():
+def test_force_busola_when_underturn_vs_history():
     esp, forced = force_busola_if_underturn(8.0, 42.0, diametro_mm=80, carcaca="80A")
+    assert forced
+    assert esp == 42.0
+
+
+def test_force_busola_never_overrides_by_hist():
+    esp, forced = force_busola_if_underturn(40.0, 42.0, diametro_mm=80, carcaca="80A")
     assert not forced
-    assert esp == 8.0
+    assert esp == 40.0
 
 
 def test_polarity_alert_2_poles_low_turns():
@@ -114,6 +120,7 @@ def test_polarity_alert_2_poles_low_turns():
     assert not polarity_sanity_alert(4, 15.0, 42.0, "80A")
 
 
-def test_scenario_a_fill_only_not_hist():
-    assert scenario_a_is_acceptable(19.0, 0.50)
-    assert not scenario_a_is_acceptable(41.0, 0.95)
+def test_scenario_a_rejected_on_hist_deviation_or_fill():
+    assert not scenario_a_is_acceptable(19.0, 42.0, 0.50)
+    assert not scenario_a_is_acceptable(41.0, 42.0, 0.95)
+    assert scenario_a_is_acceptable(41.0, 42.0, 0.70)

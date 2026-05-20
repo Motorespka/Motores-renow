@@ -58,31 +58,49 @@ class WireConfig:
 
 def get_equivalent_wire(single_awg: float, parallel_count: int = 2) -> WireConfig:
     """
-    Equivalência AWG regra N+3 nos fios em paralelo:
-    1×19 ≡ 2×22; 1×17 ≡ 2×20; 1×15 ≡ 2×18 (nunca 2×20 = 1×14).
+    Equivalência AWG regra N-3 nos fios em paralelo (2×N ≡ 1×(N-3)):
+    1×19 ≡ 2×22; 1×17 ≡ 2×20; 1×15 ≡ 2×18 — nunca 2×20 = 1×14.
     """
     single_i = int(round(single_awg))
     if parallel_count <= 1:
         return WireConfig(parallel_count=1, awg=float(single_i))
-    if parallel_count == 2 and single_i in _SINGLE_TO_PARALLEL:
-        n, strand = _SINGLE_TO_PARALLEL[single_i]
-        return WireConfig(parallel_count=n, awg=float(strand))
-    strand_awg = round(single_i + PARALLEL_STRAND_DELTA, 1)
-    # Mesa até AWG 22: não sugerir paralelo com fio fora da mesa (ex.: 2×26)
-    if strand_awg > 22:
-        return WireConfig(parallel_count=1, awg=float(single_i))
-    return WireConfig(parallel_count=parallel_count, awg=strand_awg)
+    if parallel_count == 2:
+        if single_i in _SINGLE_TO_PARALLEL:
+            n, strand = _SINGLE_TO_PARALLEL[single_i]
+            return WireConfig(parallel_count=n, awg=float(strand))
+        strand_i = single_i + PARALLEL_STRAND_DELTA
+        if strand_i > 22:
+            return WireConfig(parallel_count=1, awg=float(single_i))
+        return WireConfig(parallel_count=2, awg=float(strand_i))
+    return WireConfig(parallel_count=1, awg=float(single_i))
 
 
 def get_single_from_parallel(parallel_awg: float, parallel_count: int = 2) -> float:
-    """Inverso: 2×22 → 1×19."""
+    """Inverso rigoroso: 2×22 → 1×19 (regra N-3)."""
     if parallel_count <= 1:
         return round(parallel_awg, 1)
     p_int = int(round(parallel_awg))
     key = (parallel_count, p_int)
     if key in _EQUIVALENCE_CANONICAL:
         return float(_EQUIVALENCE_CANONICAL[key])
+    if parallel_count == 2:
+        return float(max(14, p_int - PARALLEL_STRAND_DELTA))
     return round(parallel_awg - PARALLEL_STRAND_DELTA, 1)
+
+
+def _parallel_respects_n_minus_3(cfg: WireConfig, target_single_awg: float) -> bool:
+    """Valida que paralelo obedece 2×N ≡ 1×(N-3) — nunca 2×20 = 1×14."""
+    if cfg.parallel_count <= 1:
+        return True
+    canonical = get_equivalent_wire(target_single_awg, cfg.parallel_count)
+    eq = get_single_from_parallel(cfg.awg, cfg.parallel_count)
+    if cfg.parallel_count == 2 and int(round(cfg.awg)) == 20 and eq <= 15:
+        return False
+    return (
+        cfg.parallel_count == canonical.parallel_count
+        and int(round(cfg.awg)) == int(canonical.awg)
+        and abs(eq - target_single_awg) <= 0.6
+    )
 
 
 def parallel_from_single_awg(single_awg: float, parallel_count: int = 2) -> WireConfig:
@@ -147,7 +165,7 @@ def choose_wire_config(
                 best_key, _ = max(parallel_stats, key=lambda x: x[1])
                 cand = WireConfig(parallel_count=best_key[0], awg=best_key[1])
                 eq = get_single_from_parallel(cand.awg, cand.parallel_count)
-                if abs(eq - target_awg) <= 0.6:
+                if abs(eq - target_awg) <= 0.6 and _parallel_respects_n_minus_3(cand, target_awg):
                     return cand
         best_key, _ = stats.most_common(1)[0]
         best = WireConfig(parallel_count=best_key[0], awg=best_key[1])
@@ -155,7 +173,7 @@ def choose_wire_config(
             return best
         if best.parallel_count > 1:
             eq = get_single_from_parallel(best.awg, best.parallel_count)
-            if abs(eq - target_awg) <= 0.6:
+            if abs(eq - target_awg) <= 0.6 and _parallel_respects_n_minus_3(best, target_awg):
                 return best
 
     if prefer_parallel and target_awg >= 14:

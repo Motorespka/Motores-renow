@@ -46,6 +46,7 @@ from engine.winding_sanity import (
     ALERT_ESPIRAS_BAIXAS,
     ALERT_POLARIDADE,
     CALIBRE_INVALIDO,
+    HIST_BIAS_MAX_DEVIATION,
     MSG_AJUSTE_LIMITE,
     MSG_AWG_COMERCIAL,
     MSG_CENARIO_A_INVALIDO,
@@ -58,7 +59,9 @@ from engine.winding_sanity import (
     busola_historica_inconsistente,
     clamp_awg_to_safe_range,
     effective_frame_mm,
+    espiras_busola_oficina,
     espiras_constante_k,
+    force_busola_if_underturn,
     is_awg_in_range,
     nearest_awg_from_table,
     polarity_sanity_alert,
@@ -618,6 +621,7 @@ class WindingOptimizer:
         gemini_topologia_camada1 = False
         alertas_globais: list[str] = []
         phy_floor_msgs: list[str] = []
+        forced_busola = False
 
         if usa_validacao:
             esp_ref = round(user_esp, 1)
@@ -629,7 +633,18 @@ class WindingOptimizer:
                 "média do acervo, hierarquia e Gemini não dirigem espiras/bitola-base."
             )
         else:
-            esp_ref = round(float(esp_prop), 1)
+            esp_ref = espiras_busola_oficina(media_hist, esp_prop)
+            esp_ref, forced_busola = force_busola_if_underturn(
+                esp_ref,
+                media_hist,
+                diametro_mm=stator.diametro_mm,
+                carcaca=stator.carcaca,
+            )
+            if forced_busola:
+                alertas_globais.append(
+                    "Bússola histórica aplicada: cálculo bruto abaixo do piso físico "
+                    f"({esp_prop:.0f} esp. vs mediana limpa {media_hist or '—'} esp.)."
+                )
             aviso_hist = proportional_vs_hist_alert(esp_ref, media_hist)
             if aviso_hist:
                 alertas_globais.append(aviso_hist)
@@ -756,17 +771,19 @@ class WindingOptimizer:
                 )
             else:
                 desc_b = (
-                    "**Referência de projeto (projetista proporcional)** — média histórica do acervo só para "
-                    "**comparação/aviso**, não como bússola de espiras-base."
-                    f"\n\nProporcional atual: **{esp_prop}** esp.; mediana histórica limpa: "
-                    f"**{(round(media_hist, 1) if media_hist else '—')}** esp."
+                    f"**Padrão de referência (Bússola)** — mediana histórica limpa "
+                    f"**{(round(media_hist, 1) if media_hist else '—')}** espiras"
                 )
                 if n_outliers > 0:
-                    desc_b += f" ({n_outliers} outliers removidos pela faixa robusta ±30%)."
+                    desc_b += (
+                        f" ({n_outliers} outlier(s) removido(s) — faixa Média ±30% / Z-score)."
+                    )
+                desc_b += f" Proporcional (comparativo): **{esp_prop}** esp."
+                if forced_busola:
+                    desc_b += " Espiras forçadas para a bússola (resultado bruto abaixo de 30 esp. em Ø~80 mm)."
                 if n_removed_pollution > 0:
                     desc_b += (
-                        f" Cadastro limpo excluiu **{n_removed_pollution}** registro(s) "
-                        "(<20 esp. em carcaça 80–90)."
+                        f" **{n_removed_pollution}** registro(s) excluído(s) (<20 esp. em carcaça 80–90)."
                     )
         if awg_adj_b and msg_b_awg:
             desc_b = f"{desc_b} {msg_b_awg}"
@@ -857,16 +874,23 @@ class WindingOptimizer:
             fill_a_ratio = _slot_occupation_ratio(
                 slot_fill_units(esp_a, awg_a), slot_limit
             )
-            a_ok = scenario_a_is_acceptable(esp_a, fill_a_ratio)
+            a_ok = scenario_a_is_acceptable(
+                esp_a,
+                meta_hist_comparison or media_hist,
+                fill_a_ratio,
+                max_deviation=HIST_BIAS_MAX_DEVIATION,
+            )
         else:
             a_ok = True
         if not a_ok:
             desabilitar_a = True
             calibre_a = MSG_CENARIO_A_INVALIDO
+            ref_val = meta_hist_comparison if meta_hist_comparison is not None else media_hist
+            ref_txt = f"{ref_val:.0f}" if ref_val is not None else "—"
             alertas_a.append(
-                f"{MSG_CENARIO_A_INVALIDO}: ocupação de ranhura "
-                "acima da folga física mesmo após ajuste pela mesa 14–22 AWG "
-                "(N×A constante). Mantenha o Cenário B como principal."
+                f"{MSG_CENARIO_A_INVALIDO}: desvio >20% da bússola histórica limpa "
+                f"({esp_a:.0f} vs {ref_txt}) ou ocupação de ranhura inaceitável. "
+                "Use o Cenário B como referência principal."
             )
             esp_a = esp_ref
             awg_a = awg_b
