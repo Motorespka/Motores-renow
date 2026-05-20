@@ -2,7 +2,8 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Save, Search, Shield } from "lucide-react";
+import Link from "next/link";
+import { Calculator, Save, Search, Shield } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { apiFetch } from "@/lib/api";
@@ -88,7 +89,7 @@ export default function AdminPage() {
   }
 
   if (!me) {
-    return <div className="center-screen text-muted">Carregando admin...</div>;
+    return <div className="center-screen">Carregando admin...</div>;
   }
 
   return (
@@ -110,7 +111,16 @@ export default function AdminPage() {
               Gerenciamento de usuários, planos e permissões.
             </div>
           </div>
-          <Shield className="w-4 h-4 text-primary" />
+          <div className="flex items-center gap-2">
+            <Link
+              href="/admin/demo-calculo"
+              className="h-9 px-3 rounded-xl border border-primary/30 bg-primary/10 text-[11px] font-tech text-primary flex items-center gap-1.5 hover:bg-primary/15"
+            >
+              <Calculator className="w-4 h-4" />
+              Demo cálculo
+            </Link>
+            <Shield className="w-4 h-4 text-primary" />
+          </div>
         </div>
 
         <form onSubmit={onSearch} className="mt-4 flex gap-2 flex-wrap">

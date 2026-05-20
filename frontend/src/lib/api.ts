@@ -148,14 +148,22 @@ function mockFetch<T>(path: string, init?: RequestInit): T {
   return {} as T;
 }
 
+/** Rotas que sempre usam API real (motor proporcional + Gemini). */
+function isForceRealApiPath(path: string): boolean {
+  const clean = path.split("?")[0] || path;
+  return clean.startsWith("/admin/demo-calculo");
+}
+
 export async function apiFetch<T>(
   path: string,
   token: string,
   init?: RequestInit
 ): Promise<T> {
+  const forceReal = isForceRealApiPath(path);
+
   // Local DEV fallback: when auth returns the "dev" token, serve mock data
   // so the UI can be validated without Supabase/backend running.
-  if (token === "dev") {
+  if (token === "dev" && !forceReal) {
     return mockFetch<T>(path, init);
   }
 
@@ -178,7 +186,7 @@ export async function apiFetch<T>(
     });
   } catch (e) {
     // If the API is offline locally, keep the UI functional with mock data.
-    if (allowMockFallback) {
+    if (allowMockFallback && !forceReal) {
       return mockFetch<T>(path, init);
     }
     throw e;

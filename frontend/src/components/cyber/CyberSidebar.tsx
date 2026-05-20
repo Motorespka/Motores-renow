@@ -64,6 +64,7 @@ export function CyberSidebar({
       label: "SISTEMA",
       items: [
         { href: "/admin", label: "Administração", icon: Shield, visible: isAdmin },
+        { href: "/admin/demo-calculo", label: "Demo cálculo", icon: Gauge, visible: isAdmin },
         { href: "/settings", label: "Configurações", icon: Settings, visible: true },
       ],
     },
