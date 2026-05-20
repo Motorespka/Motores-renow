@@ -18,6 +18,7 @@ from core.access_control import require_admin_access
 from core.navigation import Route
 from core.streamlit_perf import maybe_fragment, pop_page_ctx_pack, stash_page_ctx
 from core.ui_feedback import mrw_render_banner_zone
+from app.topologia_bobinagem import TIPOS_BOBINAGEM, TIPOS_UI_ORDER, label_tipo
 from services.acervo_oficial_stats import load_acervo_stats
 from services.demo_calculo_report import build_report_html
 
@@ -82,6 +83,19 @@ def _render_form(ctx) -> None:
         pacote = st.text_input("Comprimento pacote (mm)", value="70", key="demo_pac")
     with c3:
         carcaca = st.text_input("Carcaça NEMA/IEC", value="80A", key="demo_carc")
+    topo_opts = {label_tipo(k): k for k in TIPOS_UI_ORDER if k in TIPOS_BOBINAGEM}
+    topo_labels = list(topo_opts.keys())
+    topo_default = label_tipo("IMBRICADO")
+    topo_idx = topo_labels.index(topo_default) if topo_default in topo_labels else 0
+    tipo_bob_label = st.selectbox(
+        "Tipo de bobinagem *",
+        options=topo_labels,
+        index=topo_idx,
+        key="demo_tipo_bob",
+        help="Obrigatorio. O calculo so usa referencias do mesmo tipo (Imbricado, 3 e 3, etc.).",
+    )
+    tipo_bob = topo_opts[tipo_bob_label]
+
     c4, c5 = st.columns(2)
     with c4:
         passo = st.text_input("Passos bobinagem", value="1:7", key="demo_passo")
@@ -105,6 +119,9 @@ def _render_form(ctx) -> None:
         if d <= 0 or p <= 0:
             st.warning("Diametro e pacote devem ser maiores que zero.")
             return
+        if not tipo_bob or tipo_bob == "DESCONHECIDO":
+            st.warning("Selecione o tipo de bobinagem (campo obrigatorio).")
+            return
         try:
             motors, _ = _catalog()
         except FileNotFoundError as exc:
@@ -117,6 +134,7 @@ def _render_form(ctx) -> None:
                 pacote_mm=p,
                 carcaca=carcaca,
                 passo=passo,
+                tipo_bobinagem=tipo_bob,
                 ligacao=ligacao,
                 fio_engenheiro=fio_eng,
                 espiras_engenheiro=esp_eng,
@@ -129,6 +147,7 @@ def _render_form(ctx) -> None:
             "pacote_mm": p,
             "carcaca": carcaca,
             "passo": passo,
+            "tipo_bobinagem": tipo_bob,
             "ligacao": ligacao,
             "fio_engenheiro": fio_eng,
             "espiras_engenheiro": esp_eng,
@@ -152,6 +171,7 @@ def _render_form(ctx) -> None:
             "pacote_mm": pacote,
             "carcaca": carcaca,
             "passo": passo,
+            "tipo_bobinagem": tipo_bob,
             "ligacao": ligacao,
             "fio_engenheiro": fio_eng,
             "espiras_engenheiro": esp_eng,
@@ -185,7 +205,13 @@ def _render_form(ctx) -> None:
     with c:
         st.markdown("#### Validacao")
         vstat = res.get("validation_status", "—")
+        tipo_lbl = res.get("tipo_bobinagem_label") or label_tipo(res.get("tipo_bobinagem", ""))
         st.markdown(f"**{vstat}**")
+        st.caption(f"Tipo de bobinagem detectado: **{tipo_lbl or '—'}**")
+        if res.get("topologia_mistura"):
+            st.warning(
+                "Atenção: Mistura de topologias de bobinagem detectada. Precisão reduzida."
+            )
         st.write(res.get("validation_message") or "")
         for line in res.get("lei_ranhura_logs") or []:
             st.caption(line)

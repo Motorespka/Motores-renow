@@ -29,6 +29,7 @@ from app.search_lib import (  # noqa: E402
     parse_passo_nums,
     parse_scalar,
 )
+from app.topologia_bobinagem import infer_tipo_bobinagem, label_tipo, norm_tipo_bobinagem  # noqa: E402
 
 
 def _t(v) -> str:
@@ -83,6 +84,16 @@ def row_from_rec(rec: dict, sha: str, status: str) -> dict | None:
     rebob = (sidecar.get("campos_expandidos") or {}).get("rebobinagem") or {}
     nested_p = rebob.get("_gemini_nested_principal") or {}
     ligacao = _t(nested_p.get("ligacao")) or _t(res.get("ligacao"))
+    obs = _t(res.get("observacoes"))
+    ocr = _t((rec.get("local") or {}).get("texto_ocr_bruto"))
+    tipo_topo = infer_tipo_bobinagem(
+        passo_principal=passo_p,
+        passo_auxiliar=_t(res.get("passo_auxiliar")),
+        observacoes=obs,
+        texto_ocr=ocr,
+        rebobinagem_sidecar=rebob,
+    )
+    tipo_norm = norm_tipo_bobinagem(tipo_topo) or "DESCONHECIDO"
     is_file = int(
         bool(d_mm and p_mm and _t(res.get("carcaca")) and passo_p and _t(res.get("fio_principal")) and esp_p)
     )
@@ -109,6 +120,8 @@ def row_from_rec(rec: dict, sha: str, status: str) -> dict | None:
         "tipo_motor": _t(res.get("tipo_motor")),
         "source_jsonl": _t(rec.get("_source_jsonl")),
         "ligacao": ligacao,
+        "tipo_bobinagem": label_tipo(tipo_norm),
+        "tipo_bobinagem_norm": tipo_norm,
         "is_file": is_file,
     }
 
@@ -169,11 +182,14 @@ def build_db(db_path: Path, manifest_path: Path, review_dir: Path) -> dict:
             tipo_motor TEXT,
             source_jsonl TEXT,
             ligacao TEXT,
+            tipo_bobinagem TEXT,
+            tipo_bobinagem_norm TEXT,
             is_file INTEGER NOT NULL DEFAULT 0
         );
         CREATE INDEX idx_is_file ON motores_oficial(is_file);
         CREATE INDEX idx_geom ON motores_oficial(diametro_mm, pacote_mm);
         CREATE INDEX idx_carcaca_norm ON motores_oficial(carcaca_norm);
+        CREATE INDEX idx_tipo_bobinagem_norm ON motores_oficial(tipo_bobinagem_norm);
         CREATE TABLE index_meta (
             key TEXT PRIMARY KEY,
             value TEXT
@@ -203,6 +219,8 @@ def build_db(db_path: Path, manifest_path: Path, review_dir: Path) -> dict:
         "tipo_motor",
         "source_jsonl",
         "ligacao",
+        "tipo_bobinagem",
+        "tipo_bobinagem_norm",
         "is_file",
     ]
     conn.executemany(

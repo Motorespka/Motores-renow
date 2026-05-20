@@ -154,6 +154,8 @@ class MotorRow:
     polos: str
     tipo_motor: str
     ligacao: str = ""
+    tipo_bobinagem: str = ""
+    tipo_bobinagem_norm: str = ""
     is_file: int = 0
 
     @property
@@ -207,13 +209,14 @@ def connect(db_path: Path | None = None) -> sqlite3.Connection:
 def load_all_motors(conn: sqlite3.Connection) -> list[MotorRow]:
     cols = {r[1] for r in conn.execute("PRAGMA table_info(motores_oficial)").fetchall()}
     lig_col = ", ligacao" if "ligacao" in cols else ", '' AS ligacao"
+    topo_col = ", tipo_bobinagem, tipo_bobinagem_norm" if "tipo_bobinagem" in cols else ", '' AS tipo_bobinagem, '' AS tipo_bobinagem_norm"
     file_col = ", is_file" if "is_file" in cols else ", 0 AS is_file"
     rows = conn.execute(
         f"""
         SELECT sha, arquivo_rel, melhor_status, carcaca,
                diametro_mm, pacote_mm, passo_principal, passo_nums_json,
                fio_principal, espiras_principal, fio_auxiliar, espiras_auxiliar,
-               potencia_cv, polos, tipo_motor{lig_col}{file_col}
+               potencia_cv, polos, tipo_motor{lig_col}{topo_col}{file_col}
         FROM motores_oficial
         """
     ).fetchall()
@@ -246,10 +249,15 @@ def find_similar(
     top_k: int = 25,
     max_geo_dist: float = 0.22,
     passo_exact: bool = False,
+    tipo_bobinagem: str = "",
+    topology_exact: bool = False,
 ) -> list[MatchResult]:
+    from app.topologia_bobinagem import norm_tipo_bobinagem, tipo_exact_match
+
     car_key = norm_carcaca(carcaca)
     user_passo = parse_passo_nums(passo)
     user_passo_key = passo_canonical(passo)
+    user_topo = norm_tipo_bobinagem(tipo_bobinagem)
     scored: list[MatchResult] = []
 
     for m in motors:
@@ -257,6 +265,10 @@ def find_similar(
             continue
         if passo_exact and user_passo_key:
             if not passo_exact_match(passo, m.passo_principal):
+                continue
+        if topology_exact and user_topo:
+            ref_topo = m.tipo_bobinagem_norm or m.tipo_bobinagem
+            if not tipo_exact_match(tipo_bobinagem, ref_topo):
                 continue
         dist = _geo_distance(diametro_mm, pacote_mm, m.diametro_mm, m.pacote_mm)
         if dist > max_geo_dist and (diametro_mm is not None or pacote_mm is not None):
@@ -268,6 +280,10 @@ def find_similar(
             score += 0.2
         if user_passo and passo_overlap(user_passo, m.passo_nums):
             score += 0.25
+        if user_topo:
+            ref_topo = norm_tipo_bobinagem(m.tipo_bobinagem_norm or m.tipo_bobinagem)
+            if ref_topo == user_topo:
+                score += 0.4
         scored.append(MatchResult(motor=m, score=score, dist_mm=dist))
 
     scored.sort(key=lambda x: (-x.score, x.dist_mm))

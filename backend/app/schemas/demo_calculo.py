@@ -17,6 +17,7 @@ class DemoCalculoSuggestRequest(BaseModel):
     pacote_mm: float = Field(..., gt=0)
     carcaca: str = ""
     passo: str = ""
+    tipo_bobinagem: str = ""
     ligacao: str = ""
     fio_engenheiro: str = ""
     espiras_engenheiro: str = ""
@@ -60,6 +61,9 @@ class DemoCalculoSuggestResponse(BaseModel):
     media_historica_espiras: Optional[float] = None
     slot_fill_limit: Optional[float] = None
     slot_fill_actual: Optional[float] = None
+    tipo_bobinagem: str = ""
+    tipo_bobinagem_label: str = ""
+    topologia_mistura: bool = False
 
 
 class DemoCalculoSaveRequest(BaseModel):

@@ -66,6 +66,7 @@ class OficialCalculoService:
             pacote_mm=float(payload["pacote_mm"]),
             carcaca=str(payload.get("carcaca", "")),
             passo=str(payload.get("passo", "")),
+            tipo_bobinagem=str(payload.get("tipo_bobinagem", "")),
             ligacao=str(payload.get("ligacao", "")),
             fio_engenheiro=str(payload.get("fio_engenheiro", "")),
             espiras_engenheiro=str(payload.get("espiras_engenheiro", "")),
