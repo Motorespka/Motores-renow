@@ -81,7 +81,7 @@ class StatorInput:
     diametro_mm: float
     pacote_mm: float
     ranhuras: int
-    polos: int
+    polos: Optional[int] = None
     carcaca: str = ""
     passo: str = ""
     tipo_bobinagem: str = ""
@@ -146,9 +146,12 @@ class WindingOptimizationResult:
     gemini_topologia_camada1: bool = False
 
 
-def _flux_density_index(espiras: float, diametro_mm: float, pacote_mm: float, polos: int) -> float:
+def _flux_density_index(
+    espiras: float, diametro_mm: float, pacote_mm: float, polos: Optional[int]
+) -> float:
     """Proxy adimensional: menos espiras no mesmo ferro => maior risco de saturação."""
-    denom = max(diametro_mm * pacote_mm * max(polos, 2), 1.0)
+    p = polos if polos and polos > 0 else 4
+    denom = max(diametro_mm * pacote_mm * max(p, 2), 1.0)
     return round(espiras / denom, 6)
 
 

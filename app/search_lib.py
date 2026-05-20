@@ -92,7 +92,7 @@ def motor_polos_int(raw: Optional[str]) -> Optional[int]:
 def parse_polos_for_calc(raw: Any, *, default: int | None = None) -> int | None:
     """
     Normaliza polos vindos de UI (int, float, '4', '4P', '2 polos').
-    Usado antes de validate_required_motor_inputs.
+    Zero ou vazio = não informado (None). Polaridade é opcional no cálculo.
     """
     if raw is None or (isinstance(raw, str) and not str(raw).strip()):
         return default
@@ -100,15 +100,19 @@ def parse_polos_for_calc(raw: Any, *, default: int | None = None) -> int | None:
         return default
     if isinstance(raw, (int, float)):
         n = int(raw)
-        return n if n > 0 else default
+        if n <= 0:
+            return None
+        return n
     txt = str(raw).strip()
+    if txt in {"0", "—", "-"}:
+        return None
     p = motor_polos_int(txt)
     if p is not None:
         return p
     v = parse_scalar(txt)
     if v is not None:
         n = int(v)
-        return n if n > 0 else default
+        return n if n > 0 else None
     return default
 
 

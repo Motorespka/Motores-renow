@@ -127,7 +127,7 @@ def _render_stats_bar() -> None:
 def _render_form(ctx) -> None:
     st.markdown("### Entrada do motor")
     st.session_state.setdefault("demo_ranhuras", 36)
-    st.session_state.setdefault("demo_polos", 4)
+    st.session_state.setdefault("demo_polos", 0)
     c1, c2, c3 = st.columns(3)
     with c1:
         diametro = st.text_input("Diametro estator (mm)", value="80", key="demo_diam")
@@ -160,12 +160,15 @@ def _render_form(ctx) -> None:
         )
     with c5:
         polos = st.number_input(
-            "Número de polos *",
-            min_value=2,
+            "Número de polos (opcional)",
+            min_value=0,
             max_value=12,
             step=2,
             key="demo_polos",
-            help="Obrigatório. Use 2, 4, 6, 8, 10 ou 12 (padrão: 4).",
+            help=(
+                "Opcional (polaridade). Deixe **0** se não souber — o cálculo usa ferro, "
+                "passo e ranhuras. Se souber: 2, 4, 6, 8, 10 ou 12."
+            ),
         )
     with c6:
         ligacao = st.text_input("Tipo de ligacao", value="Estrela", key="demo_lig")
@@ -205,7 +208,7 @@ def _render_form(ctx) -> None:
             st.warning("Diametro e pacote devem ser maiores que zero.")
             return
         n_ranh = parse_ranhuras_for_calc(ranhuras, default=36)
-        n_polos = parse_polos_for_calc(polos, default=4)
+        n_polos = parse_polos_for_calc(polos)
         ok_req, req_msg = validate_required_motor_inputs(
             diametro_mm=d,
             pacote_mm=p,
@@ -230,7 +233,7 @@ def _render_form(ctx) -> None:
                     diametro_mm=d,
                     pacote_mm=p,
                     ranhuras=int(n_ranh),
-                    polos=int(n_polos),
+                    polos=n_polos,
                     carcaca=carcaca,
                     passo=passo,
                     tipo_bobinagem=tipo_bob,
@@ -284,7 +287,7 @@ def _render_form(ctx) -> None:
             "tipo_bobinagem": tipo_bob,
             "ligacao": ligacao,
             "ranhuras": int(n_ranh),
-            "polos": int(n_polos),
+            "polos": n_polos,
             "fio_engenheiro": fio_eng,
             "espiras_engenheiro": esp_eng,
         }

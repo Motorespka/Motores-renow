@@ -96,6 +96,26 @@ def test_mandatory_fields_block():
     assert not res.cenarios
 
 
+def test_optimize_without_polos_is_allowed():
+    pool = [
+        _motor(sha="1", espiras_principal=42.0, fio_principal="17"),
+        _motor(sha="2", passo_principal="1-7", espiras_principal=42.0, fio_principal="17"),
+    ]
+    res = WindingOptimizer(pool).optimize(
+        StatorInput(
+            diametro_mm=80,
+            pacote_mm=70,
+            ranhuras=36,
+            polos=None,
+            carcaca="80A",
+            passo="1:7",
+        ),
+        use_gemini=False,
+    )
+    assert res.validation_status != "INCOMPLETO"
+    assert len(res.cenarios) >= 2
+
+
 def test_user_validation_overrides_historical_busola():
     pool = [
         _motor(sha="1", espiras_principal=8.0),
