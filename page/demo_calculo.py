@@ -15,7 +15,15 @@ import streamlit.components.v1 as components
 from app.oficial_engine import validate_required_motor_inputs
 from engine.winding_optimizer import StatorInput, WindingOptimizer
 from engine.winding_sanity import MSG_MAGNETIC_GATE_HIST_OVERRIDE
-from app.search_lib import DEFAULT_DB, connect, load_all_motors, parse_awg_number, parse_scalar
+from app.search_lib import (
+    DEFAULT_DB,
+    connect,
+    load_all_motors,
+    parse_awg_number,
+    parse_polos_for_calc,
+    parse_ranhuras_for_calc,
+    parse_scalar,
+)
 from core.access_control import require_admin_access
 from core.navigation import Route
 from core.streamlit_perf import maybe_fragment, pop_page_ctx_pack, stash_page_ctx
@@ -118,6 +126,8 @@ def _render_stats_bar() -> None:
 
 def _render_form(ctx) -> None:
     st.markdown("### Entrada do motor")
+    st.session_state.setdefault("demo_ranhuras", 36)
+    st.session_state.setdefault("demo_polos", 4)
     c1, c2, c3 = st.columns(3)
     with c1:
         diametro = st.text_input("Diametro estator (mm)", value="80", key="demo_diam")
@@ -141,9 +151,22 @@ def _render_form(ctx) -> None:
 
     c4, c5, c6 = st.columns(3)
     with c4:
-        ranhuras = st.text_input("Número de ranhuras *", value="36", key="demo_ranhuras")
+        ranhuras = st.number_input(
+            "Número de ranhuras *",
+            min_value=1,
+            step=1,
+            key="demo_ranhuras",
+            help="Obrigatório. Padrão: 36 ranhuras.",
+        )
     with c5:
-        polos = st.text_input("Número de polos *", value="4", key="demo_polos")
+        polos = st.number_input(
+            "Número de polos *",
+            min_value=2,
+            max_value=12,
+            step=2,
+            key="demo_polos",
+            help="Obrigatório. Use 2, 4, 6, 8, 10 ou 12 (padrão: 4).",
+        )
     with c6:
         ligacao = st.text_input("Tipo de ligacao", value="Estrela", key="demo_lig")
 
@@ -181,13 +204,13 @@ def _render_form(ctx) -> None:
         if d <= 0 or p <= 0:
             st.warning("Diametro e pacote devem ser maiores que zero.")
             return
-        n_ranh = parse_scalar(str(ranhuras))
-        n_polos = parse_scalar(str(polos))
+        n_ranh = parse_ranhuras_for_calc(ranhuras, default=36)
+        n_polos = parse_polos_for_calc(polos, default=4)
         ok_req, req_msg = validate_required_motor_inputs(
             diametro_mm=d,
             pacote_mm=p,
-            ranhuras=int(n_ranh) if n_ranh is not None else None,
-            polos=int(n_polos) if n_polos is not None else None,
+            ranhuras=n_ranh,
+            polos=n_polos,
         )
         if not ok_req:
             st.warning(req_msg)
@@ -218,6 +241,12 @@ def _render_form(ctx) -> None:
                 use_gemini=True,
                 top_k=5,
             )
+        if opt_res.validation_status == "INCOMPLETO" or not opt_res.cenarios:
+            st.error(
+                opt_res.validation_message
+                or "Cálculo bloqueado — confira diâmetro, pacote, ranhuras e polos."
+            )
+            return
         st.session_state["demo_calculo_optimizer"] = {
             "entrada": opt_res.entrada,
             "cenarios": [asdict(c) for c in opt_res.cenarios],
@@ -254,8 +283,8 @@ def _render_form(ctx) -> None:
             "passo": passo,
             "tipo_bobinagem": tipo_bob,
             "ligacao": ligacao,
-            "ranhuras": int(n_ranh) if n_ranh is not None else None,
-            "polos": int(n_polos) if n_polos is not None else None,
+            "ranhuras": int(n_ranh),
+            "polos": int(n_polos),
             "fio_engenheiro": fio_eng,
             "espiras_engenheiro": esp_eng,
         }

@@ -236,7 +236,11 @@ def validate_required_motor_inputs(
     if ranhuras is None or int(ranhuras) <= 0:
         return False, "Número de ranhuras é obrigatório para iniciar o cálculo."
     if polos is None or int(polos) <= 0:
-        return False, "Número de polos é obrigatório para iniciar o cálculo."
+        return (
+            False,
+            "Número de polos é obrigatório para iniciar o cálculo "
+            "(informe 2, 4, 6, 8, 10 ou 12 — ou deixe o padrão 4 no formulário).",
+        )
     return True, ""
 
 
