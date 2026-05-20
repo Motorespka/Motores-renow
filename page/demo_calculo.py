@@ -5,10 +5,12 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from app.oficial_engine import suggest_calculation
 from app.search_lib import DEFAULT_DB, connect, load_all_motors
@@ -17,6 +19,35 @@ from core.navigation import Route
 from core.streamlit_perf import maybe_fragment, pop_page_ctx_pack, stash_page_ctx
 from core.ui_feedback import mrw_render_banner_zone
 from services.acervo_oficial_stats import load_acervo_stats
+from services.demo_calculo_report import build_report_html
+
+
+@st.dialog("Prévia do Relatório de Engenharia", width="large")
+def _report_preview_dialog() -> None:
+    entrada = st.session_state.get("demo_calculo_entrada") or {}
+    res = st.session_state.get("demo_calculo_result") or {}
+    html_doc = st.session_state.get("demo_calculo_report_html") or build_report_html(
+        entrada=entrada, result=res
+    )
+    ref = datetime.now(timezone.utc).strftime("PRE-%Y%m%d-%H%M%S")
+    st.caption(
+        "Somente visualização — não grava cadastro, manifesto nem banco. "
+        "Use **Imprimir / Salvar PDF** no documento abaixo ou baixe o HTML."
+    )
+    c1, c2 = st.columns(2)
+    with c1:
+        st.download_button(
+            "Baixar HTML",
+            data=html_doc,
+            file_name=f"previa-rebobinagem-{ref}.html",
+            mime="text/html",
+            use_container_width=True,
+            key="demo_report_download",
+        )
+    with c2:
+        if st.button("Fechar", use_container_width=True, key="demo_report_close"):
+            st.rerun()
+    components.html(html_doc, height=780, scrolling=True)
 
 
 @st.cache_resource
@@ -93,12 +124,43 @@ def _render_form(ctx) -> None:
                 use_gemini=True,
             )
         st.session_state["demo_calculo_result"] = asdict(sug)
+        st.session_state["demo_calculo_entrada"] = {
+            "diametro_mm": d,
+            "pacote_mm": p,
+            "carcaca": carcaca,
+            "passo": passo,
+            "ligacao": ligacao,
+            "fio_engenheiro": fio_eng,
+            "espiras_engenheiro": esp_eng,
+        }
 
     res = st.session_state.get("demo_calculo_result")
     if not res:
         return
 
     st.divider()
+    st.markdown("### Prévia de relatório (bancada)")
+    if st.button(
+        "Visualizar Relatório",
+        type="secondary",
+        use_container_width=True,
+        key="demo_btn_visualizar_relatorio",
+        help="Abre documento A4 para impressão ou print — não salva no banco.",
+    ):
+        entrada = st.session_state.get("demo_calculo_entrada") or {
+            "diametro_mm": diametro,
+            "pacote_mm": pacote,
+            "carcaca": carcaca,
+            "passo": passo,
+            "ligacao": ligacao,
+            "fio_engenheiro": fio_eng,
+            "espiras_engenheiro": esp_eng,
+        }
+        st.session_state["demo_calculo_report_html"] = build_report_html(
+            entrada=entrada, result=res
+        )
+        _report_preview_dialog()
+
     a, b, c = st.columns(3)
     with a:
         st.markdown("#### Sugestao do Sistema")

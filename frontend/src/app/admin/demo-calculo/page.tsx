@@ -3,7 +3,9 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Calculator, ChevronLeft, Save, Sparkles } from "lucide-react";
+import { Calculator, ChevronLeft, FileText, Save, Sparkles } from "lucide-react";
+
+import { DemoCalculoReportModal } from "@/components/demo-calculo-report-modal";
 
 import { AppShell } from "@/components/app-shell";
 import { apiFetch } from "@/lib/api";
@@ -62,6 +64,7 @@ export default function AdminDemoCalculoPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [okMessage, setOkMessage] = useState("");
+  const [reportOpen, setReportOpen] = useState(false);
 
   const [diametro, setDiametro] = useState("");
   const [pacote, setPacote] = useState("");
@@ -237,7 +240,30 @@ export default function AdminDemoCalculoPage() {
       ) : null}
 
       {result ? (
-        <div className="mt-4 grid lg:grid-cols-3 gap-3">
+        <>
+          <button
+            type="button"
+            onClick={() => setReportOpen(true)}
+            className="mt-4 h-11 w-full rounded-xl border border-primary/30 bg-primary/5 text-primary font-semibold tracking-wider flex items-center justify-center gap-2 text-[12px]"
+          >
+            <FileText className="w-4 h-4" />
+            Visualizar Relatório (prévia A4)
+          </button>
+          <DemoCalculoReportModal
+            open={reportOpen}
+            onClose={() => setReportOpen(false)}
+            entrada={{
+              diametro_mm: diametro,
+              pacote_mm: pacote,
+              carcaca,
+              passo,
+              ligacao,
+              fio_engenheiro: fioEng,
+              espiras_engenheiro: espEng,
+            }}
+            result={result}
+          />
+          <div className="mt-4 grid lg:grid-cols-3 gap-3">
           <Panel title="Sugestao do Sistema">
             <Row label="Modo" value={result.modo_processamento} />
             <Row label="Espiras (IA + proporcional)" value={result.sugestao_espira ?? "—"} />
@@ -273,6 +299,7 @@ export default function AdminDemoCalculoPage() {
             </button>
           </Panel>
         </div>
+        </>
       ) : null}
 
       {result?.top_matches?.length ? (
