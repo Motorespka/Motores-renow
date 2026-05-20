@@ -21,6 +21,7 @@ from app.fio_paralelo import (
     equivalent_single_awg,
     format_wire_suggestion,
     parallel_from_single_awg,
+    wire_display_options,
 )
 from app.oficial_engine import (
     HIST_DIVERGENCE_REVISAR_PCT,
@@ -70,6 +71,7 @@ class WindingScenario:
     espiras_proporcional_ref: Optional[float] = None
     slot_fill_units: Optional[float] = None
     slot_fill_limite: Optional[float] = None
+    fio_alternativa_paralelo: str = ""
 
 
 @dataclass
@@ -84,6 +86,8 @@ class WindingOptimizationResult:
     validation_status: str = ""
     validation_message: str = ""
     modo_sobrevivencia: bool = False
+    is_estimativa: bool = False
+    forcar_gemini: bool = False
     base_suggestion: Optional[dict[str, Any]] = None
 
 
@@ -129,6 +133,7 @@ def _confidence_score(
     flux_index: float,
     flux_ref: float,
     n_refs: int,
+    is_estimativa: bool = False,
 ) -> tuple[int, list[str]]:
     score = 92
     alertas: list[str] = []
@@ -157,8 +162,10 @@ def _confidence_score(
         if ALERT_DESVIO_HIST not in alertas:
             alertas.append(ALERT_DESVIO_HIST)
 
-    if n_refs < 3:
+    if n_refs < 3 and not is_estimativa:
         score -= 12
+    elif is_estimativa and n_refs >= 3:
+        score -= 5
     if n_refs == 0:
         score = min(score, 35)
 
@@ -178,6 +185,8 @@ def _build_scenario(
     flux_ref: float,
     stator: StatorInput,
     n_refs: int,
+    fio_alternativa_paralelo: str = "",
+    is_estimativa: bool = False,
 ) -> WindingScenario:
     eq_awg = equivalent_single_awg(wire)
     fill_u = slot_fill_units(espiras, eq_awg)
@@ -191,6 +200,7 @@ def _build_scenario(
         flux_index=flux_idx,
         flux_ref=flux_ref,
         n_refs=n_refs,
+        is_estimativa=is_estimativa,
     )
     desvio_hist = _hist_deviation_pct(espiras, media_hist)
     desvio_prop = _prop_deviation_pct(espiras, media_prop)
@@ -215,7 +225,22 @@ def _build_scenario(
         espiras_proporcional_ref=media_prop,
         slot_fill_units=round(fill_u, 4),
         slot_fill_limite=slot_limit,
+        fio_alternativa_paralelo=fio_alternativa_paralelo,
     )
+
+
+def _wire_texts_for_awg(espiras: float, awg: float) -> tuple[str, str, WireConfig]:
+    opts = wire_display_options(espiras, awg)
+    principal = opts["principal"]
+    alt = opts.get("alternativa_paralelo") or ""
+    wire = WireConfig(parallel_count=1, awg=round(awg, 1))
+    if alt:
+        from app.fio_paralelo import parallel_alternative_for_single
+
+        par = parallel_alternative_for_single(awg)
+        if par:
+            wire = par
+    return principal, alt, wire
 
 
 class WindingOptimizer:
@@ -275,6 +300,9 @@ class WindingOptimizer:
         n_refs = base.n_matches
         fio_samples = [h.fio_principal for h in base.top_matches if h.fio_principal]
 
+        is_estimativa = base.is_estimativa
+        forcar_gemini = base.forcar_gemini
+
         if media_prop is None or media_prop <= 0:
             return WindingOptimizationResult(
                 entrada=entrada,
@@ -282,6 +310,8 @@ class WindingOptimizer:
                 calculo_baseado_em=base.calculo_baseado_em,
                 validation_status=base.validation_status or "SEM_REFERENCIA",
                 validation_message=base.validation_message,
+                is_estimativa=is_estimativa,
+                forcar_gemini=forcar_gemini,
                 base_suggestion=asdict(base),
             )
 
@@ -292,11 +322,14 @@ class WindingOptimizer:
         )
 
         # --- Cenário B: média estatística / proporcional do acervo ---
-        wire_b = choose_wire_config(awg_base, fio_samples, prefer_parallel=False)
+        txt_b, alt_b, wire_b = _wire_texts_for_awg(esp_base, awg_base)
+        desc_b = "Mediana proporcional do acervo OFICIAL com lei da ranhura."
+        if is_estimativa:
+            desc_b = f"{desc_b} {base.validation_message or base.calculo_baseado_em}"
         cenario_b = _build_scenario(
             cenario_id="B",
             titulo="Padrão de Referência",
-            descricao="Mediana proporcional do acervo OFICIAL com lei da ranhura.",
+            descricao=desc_b,
             espiras=esp_base,
             wire=wire_b,
             media_prop=media_prop,
@@ -305,7 +338,10 @@ class WindingOptimizer:
             flux_ref=flux_ref,
             stator=stator,
             n_refs=n_refs,
+            fio_alternativa_paralelo=alt_b,
+            is_estimativa=is_estimativa,
         )
+        cenario_b.fio_texto = txt_b
 
         # --- Cenário A: máxima ocupação de cobre (até 75% do limite histórico) ---
         if slot_limit and slot_limit > 0:
@@ -319,6 +355,7 @@ class WindingOptimizer:
         if fill_a > MAX_SLOT_OCCUPATION and slot_limit:
             awg_a = _awg_for_target_fill(esp_base, slot_limit, MAX_SLOT_OCCUPATION * 0.98)
             wire_a = WireConfig(parallel_count=1, awg=awg_a)
+        _, alt_a, _ = _wire_texts_for_awg(esp_base, awg_a)
         cenario_a = _build_scenario(
             cenario_id="A",
             titulo="Otimizado / Eficiência",
@@ -334,6 +371,8 @@ class WindingOptimizer:
             flux_ref=flux_ref,
             stator=stator,
             n_refs=n_refs,
+            fio_alternativa_paralelo=alt_a,
+            is_estimativa=is_estimativa,
         )
 
         # --- Cenário C: facilidade — fios em paralelo para bobina manual ---
@@ -346,6 +385,7 @@ class WindingOptimizer:
             fill_c = slot_fill_units(esp_c, eq) * wire_c.parallel_count / slot_limit
             if fill_c > MAX_SLOT_OCCUPATION:
                 esp_c = round(esp_base * 1.02, 1)
+        txt_c = format_wire_suggestion(esp_c, wire_c)
         cenario_c = _build_scenario(
             cenario_id="C",
             titulo="Facilidade de Execução",
@@ -358,7 +398,10 @@ class WindingOptimizer:
             flux_ref=flux_ref,
             stator=stator,
             n_refs=n_refs,
+            fio_alternativa_paralelo=txt_c if wire_c.parallel_count <= 1 else "",
+            is_estimativa=is_estimativa,
         )
+        cenario_c.fio_texto = txt_c
 
         cenarios = [cenario_a, cenario_b, cenario_c]
         return WindingOptimizationResult(
@@ -372,5 +415,7 @@ class WindingOptimizer:
             validation_status=base.validation_status,
             validation_message=base.validation_message,
             modo_sobrevivencia=base.modo_sobrevivencia,
+            is_estimativa=is_estimativa,
+            forcar_gemini=forcar_gemini,
             base_suggestion=asdict(base),
         )

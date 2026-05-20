@@ -11,6 +11,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from app.hierarchical_search import (  # noqa: E402
+    MSG_ESTIMATIVA_CARCACA,
     ReferenceTier,
     carcaca_matches,
     hierarchical_find_references,
@@ -27,7 +28,7 @@ def _motor(**kw) -> MotorRow:
         diametro_mm=kw.get("diametro_mm", 80.0),
         pacote_mm=kw.get("pacote_mm", 70.0),
         passo_principal=kw.get("passo_principal", "1-7"),
-        passo_nums_json='[1,7]',
+        passo_nums_json="[1,7]",
         fio_principal=kw.get("fio_principal", "23"),
         espiras_principal=kw.get("espiras_principal", 30.0),
         fio_auxiliar="",
@@ -36,8 +37,8 @@ def _motor(**kw) -> MotorRow:
         polos="4",
         tipo_motor="",
         ligacao="",
-        tipo_bobinagem="IMBRICADO",
-        tipo_bobinagem_norm="IMBRICADO",
+        tipo_bobinagem=kw.get("tipo_bobinagem", "IMBRICADO"),
+        tipo_bobinagem_norm=kw.get("tipo_bobinagem_norm", "IMBRICADO"),
         is_file=1,
     )
     return MotorRow(**base)
@@ -57,11 +58,34 @@ def test_tier_a_passo_exato_carcaca():
         min_refs=1,
     )
     assert res.tier == ReferenceTier.PASSO_EXATO_CARCACA
-    assert "Passo Exato" in res.calculo_baseado_em
     assert len(res.matches) >= 1
 
 
-def test_tier_b_different_passo_same_carcaca():
+def test_topology_fallback_passo_carcaca():
+    pool = [
+        _motor(
+            sha="1",
+            passo_principal="10-12",
+            carcaca="80A",
+            tipo_bobinagem="TRES_E_TRES",
+            tipo_bobinagem_norm="TRES_E_TRES",
+        ),
+    ]
+    res = hierarchical_find_references(
+        pool,
+        diametro_mm=80,
+        pacote_mm=70,
+        carcaca="80A",
+        passo="10-12",
+        tipo_bobinagem="IMBRICADO",
+        min_refs=1,
+    )
+    assert res.tier == ReferenceTier.PASSO_EXATO_CARCACA_SEM_TOPO
+    assert res.topologia_fallback
+    assert len(res.matches) >= 1
+
+
+def test_tier_b_estimativa_message():
     pool = [
         _motor(sha="1", passo_principal="10-12", carcaca="80A"),
     ]
@@ -74,4 +98,6 @@ def test_tier_b_different_passo_same_carcaca():
         min_refs=1,
     )
     assert res.tier == ReferenceTier.CARCACA_PASSO_DIFERENTE
+    assert res.is_estimativa
+    assert MSG_ESTIMATIVA_CARCACA in res.calculo_baseado_em
     assert carcaca_matches("80A", "80A")

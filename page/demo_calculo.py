@@ -68,6 +68,9 @@ def _render_scenario_card(cen: dict) -> None:
     c2.metric("Confiança", f"{score}%")
     c3.metric("Ocupação ranhura", f"{cen.get('fator_ocupacao_ranhura', '—')}%")
     st.markdown(f"**{cen.get('fio_texto', '')}**")
+    alt_par = cen.get("fio_alternativa_paralelo") or ""
+    if alt_par and alt_par != cen.get("fio_texto"):
+        st.info(f"Alternativa em paralelo: {alt_par}")
     st.caption(cen.get("descricao", ""))
     if score < 50:
         st.error("Confiança baixa — revisar na bancada antes de bobinar.")
@@ -199,7 +202,7 @@ def _render_form(ctx) -> None:
                     tipo_bobinagem=tipo_bob,
                     ligacao=ligacao,
                 ),
-                use_gemini=False,
+                use_gemini=True,
                 top_k=5,
             )
         st.session_state["demo_calculo_optimizer"] = {
@@ -213,6 +216,8 @@ def _render_form(ctx) -> None:
             "validation_status": opt_res.validation_status,
             "validation_message": opt_res.validation_message,
             "modo_sobrevivencia": opt_res.modo_sobrevivencia,
+            "is_estimativa": opt_res.is_estimativa,
+            "forcar_gemini": opt_res.forcar_gemini,
         }
         st.session_state["demo_calculo_result"] = opt_res.base_suggestion or {}
         st.session_state["demo_calculo_entrada"] = {
@@ -236,8 +241,16 @@ def _render_form(ctx) -> None:
     if opt_data and opt_data.get("cenarios"):
         st.divider()
         st.markdown("### Motor de Projetos de Bobinagem")
-        if opt_data.get("calculo_baseado_em"):
+        if opt_data.get("is_estimativa"):
+            st.warning(
+                opt_data.get("calculo_baseado_em")
+                or "Referência exata não encontrada. Sugestão baseada em motores similares "
+                "da mesma carcaça (confiança: média)."
+            )
+        elif opt_data.get("calculo_baseado_em"):
             st.info(opt_data["calculo_baseado_em"])
+        if opt_data.get("forcar_gemini"):
+            st.caption("Validação / interpolação proporcional via Gemini (≥3 motores na mesma carcaça).")
         st.caption(
             f"Referências: **{opt_data.get('n_referencias', 0)}** · "
             f"Média proporcional: **{opt_data.get('media_proporcional_espiras', '—')}** espiras · "

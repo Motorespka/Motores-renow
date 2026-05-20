@@ -14,7 +14,11 @@ from pathlib import Path
 from statistics import median
 from typing import Any, Optional
 
-from app.fio_paralelo import choose_wire_config, format_wire_suggestion
+from app.fio_paralelo import (
+    choose_wire_config,
+    format_wire_suggestion,
+    wire_display_options,
+)
 from app.hierarchical_search import hierarchical_find_references
 from app.search_lib import (
     DEFAULT_DB,
@@ -140,6 +144,9 @@ class CalculationSuggestion:
     modo_sobrevivencia: bool = False
     ranhura_saturada: bool = False
     validacao_magnetica: str = ""
+    is_estimativa: bool = False
+    sugestao_fio_alternativa_paralelo: str = ""
+    forcar_gemini: bool = False
 
 
 def _ligacao_from_row(m: MotorRow) -> str:
@@ -246,6 +253,8 @@ def _resolve_validation(
     discrepante: bool,
     modo_sobrevivencia: bool,
     ranhura_saturada: bool,
+    is_estimativa: bool = False,
+    mensagem_estimativa: str = "",
 ) -> tuple[str, str]:
     tipo_lbl = label_tipo(norm_tipo_bobinagem(tipo_bobinagem) or tipo_bobinagem or "—")
     base_msg = f"Tipo de bobinagem: {tipo_lbl}."
@@ -266,6 +275,15 @@ def _resolve_validation(
             "SEM_REFERENCIA",
             f"{base_msg} Nenhum motor OFICIAL com geometria compatível no acervo indexado.",
         )
+
+    if is_estimativa:
+        est_msg = mensagem_estimativa or (
+            "Referência exata não encontrada. Sugestão baseada em motores similares "
+            "(confiança: média)."
+        )
+        if referencias_escassas or hist_divergence or not slot_ok or discrepante:
+            return "ESTIMATIVA", f"{est_msg} Revisar na bancada."
+        return "ESTIMATIVA", est_msg
 
     if referencias_escassas:
         return "REVISAR", f"{base_msg} Menos de 3 referências no mesmo passo e topologia."
@@ -430,17 +448,38 @@ def suggest_calculation(
     )
     calculo_baseado_em = hier.calculo_baseado_em
     modo_sobrevivencia = hier.modo_sobrevivencia
+    is_estimativa = hier.is_estimativa
+    forcar_gemini = hier.forcar_gemini
 
+    topology_strict = topo_exact and not hier.topologia_fallback and not is_estimativa
     hits, calculos_payload = _build_hits_from_matches(
         hier.matches,
         diametro_mm=diametro_mm,
         pacote_mm=pacote_mm,
         ligacao=ligacao,
         user_tipo=tipo_bobinagem,
-        topology_strict=topo_exact,
+        topology_strict=topology_strict,
     )
 
-    if len(hits) < top_k and topo_exact:
+    if not hits and hier.matches:
+        hits, calculos_payload = _build_hits_from_matches(
+            hier.matches,
+            diametro_mm=diametro_mm,
+            pacote_mm=pacote_mm,
+            ligacao=ligacao,
+            user_tipo=tipo_bobinagem,
+            topology_strict=False,
+        )
+        if hits:
+            lei_logs_pre = [
+                "Fallback: filtro de topologia removido — busca por passo e carcaça."
+            ]
+        else:
+            lei_logs_pre = []
+    else:
+        lei_logs_pre = []
+
+    if len(hits) < top_k and (topo_exact or hier.topologia_fallback):
         seen = {h.sha for h in hits}
         extra_hits, extra_payload = _build_hits_from_matches(
             hier.matches,
@@ -483,9 +522,21 @@ def suggest_calculation(
 
     sugestao_espira = media_prop
     sugestao_fio = media_fio
-    lei_logs: list[str] = []
+    lei_logs: list[str] = list(lei_logs_pre)
     slot_limit: Optional[float] = None
     slot_actual: Optional[float] = None
+
+    if hier.topologia_fallback and topo_exact:
+        lei_logs.append(
+            "Fallback topologia: sem match no tipo informado — referências por passo e carcaça."
+        )
+    if is_estimativa and hier.mensagem_estimativa:
+        lei_logs.append(hier.mensagem_estimativa)
+    if forcar_gemini:
+        lei_logs.append(
+            f"Interpolação IA: {hier.n_motores_mesma_carcaca} motor(es) na mesma carcaça "
+            f"(≥3 — validação proporcional via Gemini)."
+        )
 
     if topo_exact:
         lei_logs.append(
@@ -551,9 +602,15 @@ def suggest_calculation(
 
     fio_samples = [h.fio_principal for h in hits if h.fio_principal]
     sugestao_fio_texto = ""
+    sugestao_fio_alternativa_paralelo = ""
     if sugestao_espira is not None and sugestao_fio is not None:
-        wire_cfg = choose_wire_config(float(sugestao_fio), fio_samples, prefer_parallel=True)
-        sugestao_fio_texto = format_wire_suggestion(float(sugestao_espira), wire_cfg)
+        awg_calc = float(sugestao_fio)
+        opts = wire_display_options(float(sugestao_espira), awg_calc)
+        sugestao_fio_texto = opts["principal"]
+        sugestao_fio_alternativa_paralelo = opts.get("alternativa_paralelo") or ""
+        if not sugestao_fio_alternativa_paralelo:
+            wire_cfg = choose_wire_config(awg_calc, fio_samples, prefer_parallel=False)
+            sugestao_fio_texto = format_wire_suggestion(float(sugestao_espira), wire_cfg)
 
     validation_status, validation_message = _resolve_validation(
         hits=hits,
@@ -567,6 +624,8 @@ def suggest_calculation(
         discrepante=discrepante,
         modo_sobrevivencia=modo_sobrevivencia,
         ranhura_saturada=ranhura_saturada,
+        is_estimativa=is_estimativa,
+        mensagem_estimativa=hier.mensagem_estimativa,
     )
 
     justificativa = (
@@ -580,7 +639,13 @@ def suggest_calculation(
     validacao_magnetica = ""
     modo = "sobrevivencia_ferro" if modo_sobrevivencia else "proporcional_deterministico"
 
-    if use_gemini and hits and sugestao_espira is not None:
+    chamar_gemini = bool(
+        use_gemini
+        and hits
+        and sugestao_espira is not None
+        and (forcar_gemini or len(hits) >= 3)
+    )
+    if chamar_gemini:
         try:
             from services.gemini_engineering_validator import validate_magnetic_with_gemini
 
@@ -598,6 +663,9 @@ def suggest_calculation(
                     "dispersao_espiras": dispersao,
                     "validation_status": validation_status,
                     "calculo_baseado_em": calculo_baseado_em,
+                    "is_estimativa": is_estimativa,
+                    "forcar_gemini": forcar_gemini,
+                    "interpolacao_proporcional": forcar_gemini,
                 }
             )
             validacao_magnetica = str(gem.get("validacao_magnetica") or "").strip()
@@ -651,6 +719,9 @@ def suggest_calculation(
         modo_sobrevivencia=modo_sobrevivencia,
         ranhura_saturada=ranhura_saturada,
         validacao_magnetica=validacao_magnetica,
+        is_estimativa=is_estimativa,
+        sugestao_fio_alternativa_paralelo=sugestao_fio_alternativa_paralelo,
+        forcar_gemini=forcar_gemini,
     )
 
 

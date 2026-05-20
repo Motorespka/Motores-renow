@@ -33,6 +33,8 @@ RESULTADO FIXO (valide coerencia magnetica apenas):
   Media historica: {payload.get("media_historica_espiras")}
   Enchimento ranhura: {payload.get("slot_fill_actual')} / limite {payload.get("slot_fill_limit")}
   Base do calculo: {payload.get("calculo_baseado_em", "")}
+  Estimativa (referencia parcial): {payload.get("is_estimativa", False)}
+  Interpolacao proporcional solicitada: {payload.get("interpolacao_proporcional", False)}
 
 REFERENCIAS (amostra):
 {json.dumps(payload.get("calculos_proporcionais", [])[:3], ensure_ascii=False, indent=2)}

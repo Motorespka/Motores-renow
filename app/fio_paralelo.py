@@ -134,6 +134,37 @@ def format_wire_suggestion(espiras: float, config: WireConfig) -> str:
     )
 
 
+# AWG <= 19: fio grosso — sempre oferecer alternativa 2x(N+3) na interface
+THICK_WIRE_AWG_MAX = 19
+
+
+def parallel_alternative_for_single(single_awg: float) -> Optional[WireConfig]:
+    """Alternativa em paralelo para fio grosso (ex.: 1x19 → 2x22)."""
+    if single_awg <= 0 or single_awg > THICK_WIRE_AWG_MAX:
+        return None
+    return parallel_from_single_awg(single_awg, 2)
+
+
+def wire_display_options(
+    espiras: float,
+    single_awg: float,
+) -> dict[str, str]:
+    """
+    Retorna textos para UI: configuração principal (matemática) e alternativa em paralelo.
+    """
+    single_cfg = WireConfig(parallel_count=1, awg=round(single_awg, 1))
+    principal = format_wire_suggestion(espiras, single_cfg)
+    par_cfg = parallel_alternative_for_single(single_awg)
+    alternativa = ""
+    if par_cfg is not None:
+        alternativa = format_wire_suggestion(espiras, par_cfg)
+    return {
+        "principal": principal,
+        "alternativa_paralelo": alternativa,
+        "tem_alternativa_paralelo": bool(alternativa),
+    }
+
+
 def median_target_awg(awg_values: list[float]) -> Optional[float]:
     vals = sorted(v for v in awg_values if v is not None and v > 0)
     if not vals:

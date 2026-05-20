@@ -13,8 +13,9 @@ if str(ROOT) not in sys.path:
 from app.fio_paralelo import (  # noqa: E402
     choose_wire_config,
     format_wire_suggestion,
-    parse_wire_config,
     parallel_from_single_awg,
+    parse_wire_config,
+    wire_display_options,
 )
 
 
@@ -37,3 +38,9 @@ def test_choose_wire_prefers_catalog_parallel():
     cfg = choose_wire_config(19.0, ["2x22", "2x22", "19"], prefer_parallel=True)
     assert cfg.parallel_count == 2
     assert cfg.awg == 22.0
+
+
+def test_wire_display_always_offers_parallel_for_thick():
+    opts = wire_display_options(40, 19.0)
+    assert opts["tem_alternativa_paralelo"]
+    assert "2x 22" in opts["alternativa_paralelo"]
