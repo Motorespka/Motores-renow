@@ -68,6 +68,7 @@ class Route(str, Enum):
     BIBLIOTECA_CALCULOS = "biblioteca_calculos"
     ORDENS_SERVICO = "ordens_servico"
     ADMIN = "admin"
+    DEMO_CALCULO = "demo_calculo"
     HUB_COMERCIAL = "hub_comercial"
     SITE_MOTO_RENOW = "site_moto_renow"
 
@@ -251,6 +252,12 @@ def render_navigation_sidebar(session, supabase_client=None) -> None:
         if admin_user:
             _group("SISTEMA")
             _nav_button("Administração", Route.ADMIN, badge="ADMIN", badge_kind="destructive")
+            _nav_button(
+                "Demo cálculo (1.062 OFICIAIS)",
+                Route.DEMO_CALCULO,
+                badge="NOVO",
+                badge_kind="primary",
+            )
 
         st.divider()
         st.caption(f"Rota atual: {current_route.value}")
@@ -349,6 +356,12 @@ def render_route_header(route: Route, session: Any = None) -> None:
             "warning",
         ),
         Route.ADMIN.value: ("ADMINISTRAÇÃO", "Controle do workspace", "ADMIN", "destructive"),
+        Route.DEMO_CALCULO.value: (
+            "DEMO CÁLCULO",
+            "Motor proporcional + Gemini sobre acervo OFICIAL",
+            "CALC",
+            "primary",
+        ),
         Route.ATUALIZACOES.value: ("ATUALIZAÇÕES", "Notas de versão e mudanças do sistema", "NEW", "accent"),
         Route.DETALHE.value: ("DETALHE DO MOTOR", "Visualização técnica e histórico", "MOTOR", "primary"),
         Route.EDIT.value: ("EDIÇÃO", "Ajustes e correções do cadastro", "EDIT", "warning"),

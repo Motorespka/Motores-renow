@@ -24,6 +24,7 @@ from core.navigation import Route
 from core.streamlit_perf import maybe_fragment, pop_page_ctx_pack, stash_page_ctx
 from core.ui_feedback import mrw_render_banner_zone
 from core.user_identity import resolve_current_user_identity
+from services.acervo_oficial_stats import load_acervo_stats
 from services.modulo_comercial import (
     CommercialModuleStore,
     STATUS_ACTIVE,
@@ -91,7 +92,8 @@ def _render_header() -> None:
     )
 
 
-def _render_general(client) -> None:
+def _render_general(ctx) -> None:
+    client = ctx.supabase
     access = get_access_profile(client=client)
     tier = resolve_access_tier(client=client)
     rows = _query_users_snapshot(client)
@@ -115,6 +117,16 @@ def _render_general(client) -> None:
 
     if not rows and not getattr(client, "is_local_runtime", False):
         st.info("Nao foi possivel carregar o resumo de usuarios. Verifique permissoes RLS para admin.")
+
+    acervo = load_acervo_stats()
+    st.markdown("### Acervo OFICIAL (rebobinagem)")
+    a1, a2, a3 = st.columns(3)
+    a1.metric("Motores OFICIAIS", acervo.get("oficial_manifest", 0))
+    a2.metric("Indice local (file)", acervo.get("file_complete", 0))
+    a3.metric("Indice atualizado", (acervo.get("index_generated_at") or "—")[:10])
+    if st.button("Abrir Demo Calculo proporcional", use_container_width=True, key="admin_open_demo_calculo"):
+        ctx.session.set_route(Route.DEMO_CALCULO)
+        st.rerun()
 
 
 def _resolve_selected_user(client) -> Dict[str, Any] | None:
@@ -597,7 +609,7 @@ def _admin_panel_page_fragment() -> None:
     with right:
         section = SECTIONS.get(st.session_state.get("admin_panel_section_label", "General"), "general")
         if section == "general":
-            _render_general(ctx.supabase)
+            _render_general(ctx)
         elif section == "users":
             _render_users(ctx.supabase)
         elif section == "cadastro_permissions":

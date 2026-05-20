@@ -14,6 +14,7 @@ from services.oficina_workshop import (
     summarize_open_os_by_creator,
     workshop_tables_available,
 )
+from services.acervo_oficial_stats import load_acervo_stats
 from services.supabase_data import fetch_motores_cached
 
 
@@ -149,11 +150,20 @@ def _visao_geral_page_fragment() -> None:
     total = len(motores)
     last7 = _count_recent(motores, days=7)
     ocr_total = _count_ocr(motores)
+    acervo = load_acervo_stats()
+    oficial_n = int(acervo.get("oficial_manifest") or 0)
 
     # Header já vem do shell; aqui só conteúdo.
     c1, c2, c3, c4 = st.columns(4, gap="small")
     with c1:
-        _kpi("Motores cadastrados", _fmt_int(total), f"+{_fmt_int(last7)} este período", icon="DB", variant="primary")
+        hint_db = f"Supabase: {_fmt_int(total)} · Acervo OFICIAL: {_fmt_int(oficial_n)}"
+        _kpi(
+            "Motores no sistema",
+            _fmt_int(total),
+            hint_db,
+            icon="DB",
+            variant="primary",
+        )
     with c2:
         _kpi("OCR concluído", _fmt_int(ocr_total), "+ esta semana", icon="OCR", variant="accent")
     with c3:

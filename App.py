@@ -42,6 +42,7 @@ from page import (
     guia_oficina,
     hub_comercial,
     motor_detail,
+    demo_calculo,
     ordens_servico,
     site_moto_renow,
     visao_geral,
@@ -232,6 +233,7 @@ def build_router() -> Router:
     router.register(Route.BIBLIOTECA_CALCULOS, biblioteca_calculos.show)
     router.register(Route.ORDENS_SERVICO, ordens_servico.show)
     router.register(Route.ADMIN, admin_panel.show)
+    router.register(Route.DEMO_CALCULO, demo_calculo.show)
     router.register(Route.HUB_COMERCIAL, hub_comercial.show)
     return router
 

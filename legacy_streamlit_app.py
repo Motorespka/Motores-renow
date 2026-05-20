@@ -183,7 +183,10 @@ def build_router() -> Router:
     router.register(Route.DETALHE, motor_detail.show)
     router.register(Route.EDIT, edit.show)
     router.register(Route.DIAGNOSTICO, diagnostico.show)
+    from page import demo_calculo
+
     router.register(Route.ADMIN, admin_panel.show)
+    router.register(Route.DEMO_CALCULO, demo_calculo.show)
     router.register(Route.HUB_COMERCIAL, hub_comercial.show)
     return router
 
