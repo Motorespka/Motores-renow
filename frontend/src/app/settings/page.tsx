@@ -40,7 +40,7 @@ export default function SettingsPage() {
     })();
   }, [router]);
 
-  if (loading) return <div className="center-screen text-muted">Carregando configurações...</div>;
+  if (loading) return <div className="center-screen">Carregando configurações...</div>;
   if (!me) return <div className="center-screen error">{error || "Sessão inválida."}</div>;
 
   return (

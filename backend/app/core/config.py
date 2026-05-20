@@ -22,6 +22,9 @@ class Settings(BaseSettings):
 
     backend_cors_origins: str = "http://localhost:3000"
 
+    # URL do Next.js (browser). Usado para redirecionar quem abre /dashboard na API por engano.
+    frontend_public_url: str = Field(default="http://localhost:3000", alias="FRONTEND_PUBLIC_URL")
+
     # Allow backend to boot without Supabase in local dev.
     # When missing, auth/protected endpoints will return 503 with clear message.
     supabase_url: str = Field(default="", alias="SUPABASE_URL")

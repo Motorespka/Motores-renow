@@ -137,11 +137,19 @@ export default function DashboardPage() {
   }, [dashRows, fallbackItems]);
 
   if (loading) {
-    return <div className="center-screen text-muted">Carregando dashboard...</div>;
+    return <div className="center-screen">Carregando dashboard...</div>;
   }
 
   if (!me) {
-    return <div className="center-screen error">{error || "Sessao invalida."}</div>;
+    return (
+      <div className="center-screen max-w-md gap-4">
+        <p className="text-destructive font-medium">{error || "Sessão inválida ou expirada."}</p>
+        <p className="text-muted-foreground text-xs">
+          Entre em <Link href="/login" className="text-primary underline">/login</Link> e use o teste{" "}
+          <code className="font-mono-tech text-foreground/90">admin</code> / <code className="font-mono-tech text-foreground/90">admin</code> em modo dev.
+        </p>
+      </div>
+    );
   }
 
   const isAdmin = me.profile.is_admin;

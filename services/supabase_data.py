@@ -377,3 +377,9 @@ def clear_motores_cache() -> None:
     fetch_motor_by_id_cached.clear()
     fetch_variaveis_by_motor_id_cached.clear()
     fetch_arquivo_by_id_cached.clear()
+    try:
+        from services.audit_manifest_bundle import clear_audit_quality_bundle_cache
+
+        clear_audit_quality_bundle_cache()
+    except Exception:
+        pass

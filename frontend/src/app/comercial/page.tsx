@@ -28,7 +28,7 @@ export default function HubComercialPage() {
   }, [router]);
 
   if (!me) {
-    return <div className="center-screen text-muted">Carregando…</div>;
+    return <div className="center-screen">Carregando…</div>;
   }
 
   return (

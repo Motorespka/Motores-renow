@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Plataforma técnica para motores industriais.",
     start_url: "/",
     display: "standalone",
-    background_color: "#070d18",
-    theme_color: "#2fd5ff",
+    background_color: "#050a12",
+    theme_color: "#24d7ff",
     icons: [
       {
         src: "/icon.svg",

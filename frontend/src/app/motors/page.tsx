@@ -65,7 +65,7 @@ export default function MotorsPage() {
   }
 
   if (!me) {
-    return <div className="center-screen text-muted">Carregando consulta...</div>;
+    return <div className="center-screen">Carregando consulta...</div>;
   }
 
   const isAdmin = me.profile.is_admin;

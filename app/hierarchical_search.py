@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+import re
 from typing import Optional
 
 from app.search_lib import (
@@ -19,6 +20,39 @@ from app.search_lib import (
 )
 from app.topologia_bobinagem import norm_tipo_bobinagem, tipo_exact_match
 
+MIN_CARCACA_FOR_GEMINI = 3
+
+# Sincronizar com engine/outlier_filter.should_exclude_motor_row_pollution
+_POLL_FRAME_LO = 80
+_POLL_FRAME_HI = 90
+_POLL_MIN_ESPIRAS_PRINCIPAL = 20.0
+_RE_FRAME_DIGITS = re.compile(r"(\d{2,3})")
+
+
+def _frame_number_from_carcaca(carcaca: str) -> Optional[int]:
+    s = (carcaca or "").strip().upper()
+    if not s:
+        return None
+    m = _RE_FRAME_DIGITS.search(s)
+    return int(m.group(1)) if m else None
+
+
+def _motor_row_exclude_pollution_80_90(m: MotorRow) -> bool:
+    """Motores carcaça 80–90 com menos de 20 espiras são erros típicos de cadastro."""
+    fn = _frame_number_from_carcaca(m.carcaca)
+    if fn is None or fn < _POLL_FRAME_LO or fn > _POLL_FRAME_HI:
+        return False
+    if m.espiras_principal is None:
+        return False
+    try:
+        e = float(m.espiras_principal)
+    except (TypeError, ValueError):
+        return False
+    if e <= 0:
+        return False
+    return e < _POLL_MIN_ESPIRAS_PRINCIPAL
+
+
 MSG_ESTIMATIVA_CARCACA = (
     "Referência exata não encontrada. Sugestão baseada em motores similares "
     "da mesma carcaça (confiança: média)."
@@ -27,7 +61,6 @@ MSG_ESTIMATIVA_GEOMETRIA = (
     "Referência exata não encontrada. Sugestão baseada em geometria de estator "
     "similar (confiança: média)."
 )
-MIN_CARCACA_FOR_GEMINI = 3
 
 
 class ReferenceTier(str, Enum):
@@ -194,7 +227,10 @@ def hierarchical_find_references(
       a2) Mesmo passo + mesma carcaça (sem filtro de topologia)
       b) Passos diferentes + mesma carcaça
       c) Mesmo estator (Ø/pacote)
+
+    Registros carcaça 80–90 com <20 espiras são excluídos do pool (cadastro sujo).
     """
+    pool = [m for m in pool if not _motor_row_exclude_pollution_80_90(m)]
     passo_key = passo_canonical(passo)
     modo_sobrevivencia = not bool(passo_key)
     car_key = norm_carcaca(carcaca)

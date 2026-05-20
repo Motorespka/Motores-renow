@@ -4,7 +4,12 @@ import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { getCurrentSession } from "@/lib/auth";
+import {
+  getCurrentSession,
+  isDevDemoLoginAllowed,
+  setDevDemoSession,
+  tryDevDemoCredentials,
+} from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 
 export default function LoginPage() {
@@ -35,6 +40,15 @@ export default function LoginPage() {
 
     try {
       if (mode === "login") {
+        if (tryDevDemoCredentials(emailNorm, password)) {
+          if (!setDevDemoSession()) {
+            throw new Error(
+              "Não foi possível gravar a sessão de teste (localStorage). Tente sair do modo privado ou use outro browser."
+            );
+          }
+          router.replace("/dashboard");
+          return;
+        }
         const { error: loginError } = await supabase.auth.signInWithPassword({
           email: emailNorm,
           password
@@ -91,6 +105,14 @@ export default function LoginPage() {
         <p className="text-[11px] text-muted-foreground font-tech mt-1">
           Acesso web (Next.js) integrado ao Supabase Auth.
         </p>
+        {isDevDemoLoginAllowed() ? (
+          <p className="mt-2 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground font-tech">
+            <span className="text-primary/90 font-semibold">Teste local:</span> email{" "}
+            <code className="font-mono-tech text-foreground/90">admin</code> ou{" "}
+            <code className="font-mono-tech text-foreground/90">admin@localhost</code> · palavra-passe{" "}
+            <code className="font-mono-tech text-foreground/90">admin</code>
+          </p>
+        ) : null}
 
         {error ? (
           <div className="mt-4 p-3 rounded-lg border border-destructive/30 bg-destructive/10 text-[12px] text-destructive">
@@ -98,7 +120,7 @@ export default function LoginPage() {
           </div>
         ) : null}
 
-        <form onSubmit={onSubmit} className="mt-5 space-y-3">
+        <form noValidate onSubmit={onSubmit} className="mt-5 space-y-3">
           {mode === "register" ? (
             <>
               <div className="space-y-1">
@@ -144,7 +166,7 @@ export default function LoginPage() {
           </div>
 
           <button
-            className="w-full h-10 rounded-xl bg-primary/15 border border-primary/25 text-primary font-semibold tracking-wider hover:bg-primary/20 transition-colors"
+            className="w-full h-10 rounded-xl bg-primary/15 border border-primary/30 text-primary font-semibold tracking-wider hover:bg-primary/20 transition-colors shadow-[0_0_24px_rgba(var(--glow-primary-rgb),0.12)]"
             disabled={loading}
             type="submit"
           >

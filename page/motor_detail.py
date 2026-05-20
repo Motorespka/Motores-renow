@@ -11,6 +11,13 @@ from core.streamlit_perf import maybe_fragment, pop_page_ctx_pack, stash_page_ct
 from core.ui_feedback import mrw_render_banner_zone
 from services.oficina_workshop import insert_ordem_servico
 from services.supabase_data import fetch_motor_by_id_cached
+from services.audit_manifest_bundle import (
+    AUDIT_WARNING_QUARENTENA,
+    audit_status_chips_html,
+    format_engineering_reference_line,
+    get_audit_ui_state,
+    load_audit_quality_bundle_cached,
+)
 from components.consulta_ficha_usuario_banner import render_consulta_ficha_usuario_banner
 from components.motor_hologram import render_engine_hologram
 from utils.motor_hologram_glb import NEMA_56_CARCACA_LEGENDA_COMPLETA
@@ -145,6 +152,10 @@ def _motor_detail_page_fragment() -> None:
 
     chip_fases = m.get("fases") or motor_info.get("fases") or ui.get("tipo_motor")
 
+    audit_bundle = load_audit_quality_bundle_cached()
+    audit_state = get_audit_ui_state(motor_row, audit_bundle)
+    audit_chip_html = audit_status_chips_html(audit_state)
+
     id_badge = seq_disp if seq_disp is not None else motor_id
 
     st.markdown(
@@ -154,13 +165,28 @@ def _motor_detail_page_fragment() -> None:
                 <div class="motor-id">#{html.escape(str(id_badge))}</div>
                 <div class="motor-title">{friendly(m.get('marca'))} <span>{friendly(m.get('modelo'))}</span></div>
             </div>
-            <div class="motor-chip">{friendly(chip_fases)} | {friendly(m.get('polos'))} polos</div>
+            <div class="motor-chip-row">
+                <div class="motor-chip">{friendly(chip_fases)} | {friendly(m.get('polos'))} polos</div>
+                {audit_chip_html}
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
+    if audit_state.get("quarantine"):
+        st.warning(AUDIT_WARNING_QUARENTENA)
+
     render_consulta_ficha_usuario_banner(m)
+
+    cs = audit_state.get("cluster")
+    if cs is not None:
+        with st.container(border=True):
+            st.markdown("**Referência de engenharia**")
+            st.caption(
+                "Comparativo com a média do cluster (CV + polos + tensão) calculada na auditoria física do índice oficial."
+            )
+            st.markdown(format_engineering_reference_line(cs))
 
     os_cols = st.columns([1, 1, 2])
     with os_cols[0]:

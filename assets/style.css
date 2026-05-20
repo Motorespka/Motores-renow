@@ -1000,6 +1000,18 @@ div[data-testid="stButton"] > button:hover {
     color: #ffd6dc;
 }
 
+.motor-chip--audit-valid {
+    border-color: rgba(120, 220, 160, 0.55);
+    background: rgba(18, 52, 36, 0.55);
+    color: #c8f5d8;
+}
+
+.motor-chip--quarantine {
+    border-color: rgba(255, 200, 100, 0.55);
+    background: rgba(60, 45, 12, 0.55);
+    color: #ffe8b8;
+}
+
 .metric-tile {
     border: 1px solid rgba(88, 127, 164, 0.42);
     border-radius: 12px;

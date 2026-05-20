@@ -76,3 +76,65 @@ def justify_with_gemini(payload: dict[str, Any]) -> dict[str, Any]:
 
 def validate_with_gemini(payload: dict[str, Any]) -> dict[str, Any]:
     return validate_magnetic_with_gemini(payload)
+
+
+def _prompt_topologia_base_engenharia(payload: dict[str, Any]) -> str:
+    return f"""Voce e engenheiro eletrico senior em rebobinagem reversa.
+
+CAMADA 1 — TOPOLOGIA DE BASE (proposta primaria antes de travar em leis fisicas locais):
+
+Tarefa principal: ler o CONTEXTO BRUTO DO ACERVO amostrad abaixo (subconjunto estratificado).
+Ignore medias contaminadas baixas (ex.: registros duvidosos com ~8 espiras em motores grandes de 4/6 polos).
+De prioridade aos padroes de bobinagem plausivelmente corretos (ex.: familia ~40-45 esp em carcaca ~80 tipo 80A,
+4 ou 6 polos; para 2 polos em ferro medio a tendencia pode ser menor MAS deve ser fisicamente plausivel — nunca
+aceite outliers obvios de cadastro se o cluster principal do acervo sugere bem mais espiras equivalentes por ranhura).
+
+ENTRADA DO ESTATOR QUE SE DESEJA PROJETAR:
+{json.dumps(payload.get("estator_entrada", {}), ensure_ascii=False, indent=2)}
+
+METADADOS ESTATISTICOS (nao usar como obrigacao literal; apenas triagem rapida — confie mais no padrao observado nas linhas crus):
+mediana proporcional atual: {payload.get('media_proporcional')}
+mediana historica atual (podera estar contaminada): {payload.get('media_historica')}
+
+NORTE PARA CALCULO (se existir é prioridade ABSOLUTA para espiras-base e deve orientar escolha de bitola e enchimento de ranhura coerente):
+{json.dumps(payload.get("norte_validacao_usuario", {}), ensure_ascii=False, indent=2)}
+
+RESUMO DO ACERVO:
+{json.dumps(payload.get("resumo_acervo", {}), ensure_ascii=False, indent=2)}
+
+AMOSTRA DE REGISTROS (contexto bruto — max {payload.get('n_amostra', 0)} linhas):
+{json.dumps(payload.get("amostra_registros", []), ensure_ascii=False, indent=2)}
+
+Responda APENAS JSON valido com:
+{{
+  "espiras_topologia_base": <numero float plausivel para camada 1 — se houver NORTE do usuario, use exatamente esse valor>,
+  "awg_principal_sugerido": <numero ou null>,
+  "tipo_bobinagem_reconhecido": "<texto curto ou vazio>",
+  "comentario_topologia": "<2-4 frases: por que escolheu esse padrao em relacao ao contexto bruto>",
+  "confianca_0_100": <int 0-100>
+}}
+"""
+
+
+def propose_topology_base_with_gemini(payload: dict[str, Any]) -> dict[str, Any]:
+    """
+    Camada 1: IA propoe topologia base a partir de contexto bruto + estator.
+    O motor determinístico aplica depois as travas em winding_sanity.
+    """
+    from config.api_manager import get_gemini_api_manager
+
+    mgr = get_gemini_api_manager()
+    raw = mgr.call_json(_prompt_topologia_base_engenharia(payload))
+    if not isinstance(raw, dict):
+        raise ValueError("Resposta Gemini topologia nao e objeto JSON.")
+    esp = raw.get("espiras_topologia_base")
+    try:
+        if esp is None:
+            raise ValueError("espiras_topologia_base ausente")
+        fe = float(esp)
+        if fe <= 0:
+            raise ValueError("espiras invalidas")
+    except (TypeError, ValueError):
+        raise ValueError("Campo espiras_topologia_base invalido na resposta.")
+    raw["espiras_topologia_base"] = fe
+    return raw

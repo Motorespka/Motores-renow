@@ -1,5 +1,11 @@
 .env
 .streamlit/secrets.toml
+logs/gemini_keys_status.json
+logs/security_scrub_report.json
+exports/
+audit_reports/
+*_bak_*.csv
+banco_motores_completos_bak_*.csv
 __pycache__/
 *.pyc
 .pytest_cache/

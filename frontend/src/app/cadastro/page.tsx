@@ -152,7 +152,7 @@ export default function CadastroPage() {
   }
 
   if (!me) {
-    return <div className="center-screen text-muted">Carregando cadastro...</div>;
+    return <div className="center-screen">Carregando cadastro...</div>;
   }
 
   return (

@@ -51,7 +51,7 @@ export default function DiagnosticoPage() {
   const isAdmin = Boolean(me?.profile?.is_admin);
   const items = useMemo(() => (motors || []).slice(0, 8), [motors]);
 
-  if (loading) return <div className="center-screen text-muted">Carregando diagnóstico...</div>;
+  if (loading) return <div className="center-screen">Carregando diagnóstico...</div>;
   if (!me) return <div className="center-screen error">{error || "Sessão inválida."}</div>;
 
   return (

@@ -2,51 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap");
+/* Alinhado a `assets/style.css` (motor-nova-vision): bg profundo, ciano, violeta, Orbitron/Rajdhani */
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap");
 
 @layer base {
   :root {
-    --background: 220 50% 4%;
-    --foreground: 210 20% 92%;
+    /* ≈ --bg-0 / --bg-1 / ink do motor-nova-vision */
+    --background: 218 58% 5%;
+    --foreground: 198 86% 94%;
 
-    --card: 220 40% 7%;
-    --card-foreground: 210 20% 92%;
-    --card-elevated: 220 35% 9%;
+    --card: 218 52% 8%;
+    --card-foreground: 198 86% 94%;
+    --card-elevated: 217 48% 11%;
 
-    --popover: 220 40% 8%;
-    --popover-foreground: 210 20% 92%;
+    --popover: 218 52% 8%;
+    --popover-foreground: 198 86% 94%;
 
-    --primary: 187 85% 43%;
-    --primary-foreground: 220 50% 4%;
+    /* --cyan */
+    --primary: 192 100% 57%;
+    --primary-foreground: 218 58% 8%;
 
-    --secondary: 220 30% 11%;
-    --secondary-foreground: 210 15% 70%;
+    --secondary: 216 42% 12%;
+    --secondary-foreground: 198 45% 88%;
 
-    --muted: 220 25% 10%;
-    --muted-foreground: 215 15% 45%;
+    --muted: 216 38% 13%;
+    --muted-foreground: 206 28% 68%;
 
-    --accent: 165 70% 40%;
-    --accent-foreground: 220 50% 4%;
+    /* Realce legível em fundo escuro (alinhado a --glow-accent-rgb) */
+    --accent: 168 72% 42%;
+    --accent-foreground: 198 86% 96%;
 
-    --warning: 38 90% 50%;
-    --warning-foreground: 38 90% 10%;
+    /* --orange */
+    --warning: 33 100% 55%;
+    --warning-foreground: 218 58% 8%;
 
-    --destructive: 0 75% 45%;
-    --destructive-foreground: 0 0% 95%;
+    --destructive: 0 72% 52%;
+    --destructive-foreground: 198 86% 96%;
 
-    --border: 215 25% 15%;
-    --border-accent: 187 50% 30%;
-    --input: 220 30% 10%;
-    --ring: 187 85% 43%;
+    --border: 210 32% 24%;
+    --border-accent: 192 55% 38%;
+    --input: 216 40% 11%;
+    --ring: 192 100% 57%;
 
-    --sidebar-background: 220 50% 3.5%;
-    --sidebar-foreground: 215 15% 60%;
-    --sidebar-primary: 187 85% 43%;
-    --sidebar-primary-foreground: 220 50% 4%;
-    --sidebar-accent: 220 30% 10%;
-    --sidebar-accent-foreground: 187 85% 43%;
-    --sidebar-border: 215 25% 12%;
-    --sidebar-ring: 187 85% 43%;
+    --sidebar-background: 218 56% 6%;
+    --sidebar-foreground: 206 26% 62%;
+    --sidebar-primary: 192 100% 57%;
+    --sidebar-primary-foreground: 218 58% 8%;
+    --sidebar-accent: 216 42% 12%;
+    --sidebar-accent-foreground: 192 85% 58%;
+    --sidebar-border: 210 32% 22%;
+    --sidebar-ring: 192 100% 57%;
 
     --glow-primary-rgb: 0, 180, 220;
     --glow-accent-rgb: 0, 210, 160;
@@ -56,48 +61,73 @@
     @apply border-border;
   }
 
+  html {
+    @apply scroll-smooth;
+  }
+
   body {
-    @apply bg-background text-foreground antialiased;
-    font-family: "Rajdhani", "Inter", sans-serif;
+    @apply bg-background text-foreground antialiased min-h-screen relative;
+    font-family: "Rajdhani", "Inter", system-ui, sans-serif;
+  }
+
+  /* Mesma lógica de fundo que .stApp em assets/style.css */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(980px 360px at 10% -6%, rgba(36, 215, 255, 0.14), transparent 58%),
+      radial-gradient(760px 340px at 96% 0%, rgba(183, 125, 255, 0.12), transparent 52%),
+      linear-gradient(170deg, #040811 0%, #060b15 45%, #060912 100%);
   }
 }
 
 @layer components {
   .grid-bg {
     background-image:
-      linear-gradient(rgba(var(--glow-primary-rgb), 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(var(--glow-primary-rgb), 0.03) 1px, transparent 1px);
-    background-size: 40px 40px;
+      linear-gradient(rgba(37, 88, 131, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(37, 88, 131, 0.08) 1px, transparent 1px);
+    background-size: 64px 64px;
   }
 
   .premium-card {
-    @apply relative overflow-hidden rounded-lg border border-border;
+    @apply relative overflow-hidden rounded-xl border border-border/90 bg-card;
     background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--card-elevated)) 100%);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition:
+      box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+      border-color 0.3s ease,
+      transform 0.3s ease;
   }
 
   .premium-card::before {
     content: "";
-    @apply absolute top-0 left-0 right-0 h-px;
-    background: linear-gradient(90deg, transparent 0%, rgba(var(--glow-primary-rgb), 0.4) 50%, transparent 100%);
+    @apply absolute top-0 left-0 right-0 h-px pointer-events-none;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(var(--glow-primary-rgb), 0.45) 50%,
+      transparent 100%
+    );
     opacity: 0.55;
   }
 
   .premium-card:hover {
-    border-color: hsl(var(--border-accent));
+    border-color: hsl(var(--border-accent) / 0.55);
     transform: translateY(-2px);
     box-shadow:
-      0 4px 20px rgba(0, 0, 0, 0.3),
-      0 0 40px rgba(var(--glow-primary-rgb), 0.08),
-      inset 0 1px 0 rgba(var(--glow-primary-rgb), 0.1);
+      0 4px 20px rgba(0, 0, 0, 0.35),
+      0 0 40px rgba(var(--glow-primary-rgb), 0.12),
+      inset 0 1px 0 rgba(var(--glow-primary-rgb), 0.12);
   }
 
   .premium-card-elevated {
-    @apply relative overflow-hidden rounded-lg border border-border;
+    @apply relative overflow-hidden rounded-xl border border-border/90;
     background: linear-gradient(135deg, hsl(var(--card-elevated)) 0%, hsl(var(--card)) 100%);
     box-shadow:
-      0 4px 16px rgba(0, 0, 0, 0.2),
-      0 0 0 1px rgba(var(--glow-primary-rgb), 0.05);
+      0 4px 16px rgba(0, 0, 0, 0.28),
+      0 0 0 1px rgba(var(--glow-primary-rgb), 0.06);
   }
 
   .badge-premium {
@@ -107,32 +137,47 @@
   .badge-primary {
     background: hsla(var(--primary), 0.15);
     color: hsl(var(--primary));
-    border-color: hsla(var(--primary), 0.25);
+    border-color: hsla(var(--primary), 0.28);
   }
 
   .badge-accent {
-    @apply bg-accent/15 text-accent border-accent/25;
+    @apply bg-accent/20 text-accent-foreground border-emerald-400/25;
   }
 
   .badge-warning {
     background: hsla(var(--warning), 0.15);
     color: hsl(var(--warning));
-    border-color: hsla(var(--warning), 0.25);
+    border-color: hsla(var(--warning), 0.28);
   }
 
   .progress-premium {
-    @apply h-1.5 rounded-full overflow-hidden;
-    background: hsl(var(--muted));
+    @apply h-1.5 rounded-full overflow-hidden bg-muted;
   }
 
   .progress-premium-fill {
     @apply h-full rounded-full transition-all duration-700;
-    background: linear-gradient(90deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+    background: linear-gradient(90deg, hsl(var(--primary)) 0%, hsl(268 75% 62%) 100%);
   }
 
-  .font-display { font-family: "Orbitron", sans-serif; }
-  .font-tech { font-family: "Rajdhani", sans-serif; }
-  .font-mono-tech { font-family: "JetBrains Mono", monospace; }
+  .font-display {
+    font-family: "Orbitron", "Rajdhani", sans-serif;
+  }
+
+  .font-tech {
+    font-family: "Rajdhani", "Inter", sans-serif;
+  }
+
+  .font-mono-tech {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+  }
+
+  /* Estados de carregamento / erro (várias páginas usam center-screen) */
+  .center-screen {
+    @apply min-h-screen w-full flex flex-col items-center justify-center gap-3 px-6 text-center;
+    @apply bg-background text-muted-foreground text-sm;
+  }
+
+  .center-screen.error {
+    color: hsl(var(--destructive));
+  }
 }
-
-

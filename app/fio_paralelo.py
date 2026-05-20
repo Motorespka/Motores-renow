@@ -12,6 +12,27 @@ from typing import Optional
 
 from app.search_lib import awg_from_mm2, awg_to_mm2, parse_awg_number
 
+# Regra rigorosa de bancada: 2×(N) AWG ≡ 1×(N−3) AWG  →  fios em paralelo = single + 3
+PARALLEL_STRAND_DELTA = 3
+
+# Tabela obrigatória: (n_paralelo, awg_fio) -> awg_equivalente_unico
+_EQUIVALENCE_CANONICAL: dict[tuple[int, int], int] = {
+    (2, 22): 19,
+    (2, 20): 17,
+    (2, 18): 15,
+    (2, 23): 20,
+    (2, 21): 18,
+    (2, 24): 21,
+    (2, 25): 22,
+}
+
+# Inverso: single -> (n, strand_awg)
+_SINGLE_TO_PARALLEL: dict[int, tuple[int, int]] = {
+    19: (2, 22),
+    17: (2, 20),
+    15: (2, 18),
+}
+
 _RE_PARALLEL = re.compile(
     r"(?P<n>\d+)\s*[x×/]\s*(?P<awg>\d+(?:[.,]\d+)?)|"
     r"(?P<awg2>\d+(?:[.,]\d+)?)\s*[x×/]\s*(?P<n2>\d+)",
@@ -35,8 +56,37 @@ class WireConfig:
         return f"{self.parallel_count}x {awg_i} AWG"
 
 
+def get_equivalent_wire(single_awg: float, parallel_count: int = 2) -> WireConfig:
+    """
+    Equivalência AWG regra N+3 nos fios em paralelo:
+    1×19 ≡ 2×22; 1×17 ≡ 2×20; 1×15 ≡ 2×18 (nunca 2×20 = 1×14).
+    """
+    single_i = int(round(single_awg))
+    if parallel_count <= 1:
+        return WireConfig(parallel_count=1, awg=float(single_i))
+    if parallel_count == 2 and single_i in _SINGLE_TO_PARALLEL:
+        n, strand = _SINGLE_TO_PARALLEL[single_i]
+        return WireConfig(parallel_count=n, awg=float(strand))
+    strand_awg = round(single_i + PARALLEL_STRAND_DELTA, 1)
+    return WireConfig(parallel_count=parallel_count, awg=strand_awg)
+
+
+def get_single_from_parallel(parallel_awg: float, parallel_count: int = 2) -> float:
+    """Inverso: 2×22 → 1×19."""
+    if parallel_count <= 1:
+        return round(parallel_awg, 1)
+    p_int = int(round(parallel_awg))
+    key = (parallel_count, p_int)
+    if key in _EQUIVALENCE_CANONICAL:
+        return float(_EQUIVALENCE_CANONICAL[key])
+    return round(parallel_awg - PARALLEL_STRAND_DELTA, 1)
+
+
+def parallel_from_single_awg(single_awg: float, parallel_count: int = 2) -> WireConfig:
+    return get_equivalent_wire(single_awg, parallel_count)
+
+
 def parse_wire_config(raw: str) -> Optional[WireConfig]:
-    """Interpreta '23', '2x22', '2 x 23 AWG', etc."""
     s = (raw or "").strip()
     if not s:
         return None
@@ -56,24 +106,10 @@ def parse_wire_config(raw: str) -> Optional[WireConfig]:
     return WireConfig(parallel_count=1, awg=round(awg, 1))
 
 
-def single_awg_from_area(area_mm2: float) -> Optional[float]:
-    return awg_from_mm2(area_mm2)
-
-
 def equivalent_single_awg(config: WireConfig) -> float:
-    eq = single_awg_from_area(config.total_area_mm2)
-    return round(eq if eq is not None else config.awg, 1)
-
-
-def parallel_from_single_awg(single_awg: float, parallel_count: int = 2) -> WireConfig:
-    """
-    Regra prática de bancada: 1x(N) ≈ 2x(N+3) em área aproximada
-    (ex.: 1x19 AWG ≈ 2x22 AWG).
-    """
-    return WireConfig(
-        parallel_count=parallel_count,
-        awg=round(single_awg + 3.0, 1),
-    )
+    if config.parallel_count <= 1:
+        return round(config.awg, 1)
+    return get_single_from_parallel(config.awg, config.parallel_count)
 
 
 def _area_close(a: float, b: float, tol: float = 0.08) -> bool:
@@ -97,10 +133,6 @@ def choose_wire_config(
     *,
     prefer_parallel: bool = True,
 ) -> WireConfig:
-    """
-    Escolhe configuração determinística (mediana + moda do acervo).
-    Prioriza paralelo se for padrão estatístico ou equivalente clássico 1x/2x.
-    """
     target_area = awg_to_mm2(target_awg)
     base = WireConfig(parallel_count=1, awg=round(target_awg, 1))
     stats = _catalog_parallel_stats(fio_samples)
@@ -110,48 +142,50 @@ def choose_wire_config(
             parallel_stats = [(k, c) for k, c in stats.items() if k[0] > 1]
             if parallel_stats:
                 best_key, _ = max(parallel_stats, key=lambda x: x[1])
-                return WireConfig(parallel_count=best_key[0], awg=best_key[1])
+                cand = WireConfig(parallel_count=best_key[0], awg=best_key[1])
+                eq = get_single_from_parallel(cand.awg, cand.parallel_count)
+                if abs(eq - target_awg) <= 0.6:
+                    return cand
         best_key, _ = stats.most_common(1)[0]
         best = WireConfig(parallel_count=best_key[0], awg=best_key[1])
-        if _area_close(best.total_area_mm2, target_area):
+        if best.parallel_count <= 1 and _area_close(best.total_area_mm2, target_area):
             return best
+        if best.parallel_count > 1:
+            eq = get_single_from_parallel(best.awg, best.parallel_count)
+            if abs(eq - target_awg) <= 0.6:
+                return best
 
-    if prefer_parallel and target_awg >= 17:
-        return parallel_from_single_awg(target_awg, 2)
+    if prefer_parallel and target_awg >= 14:
+        return get_equivalent_wire(target_awg, 2)
 
     return base
 
 
 def format_wire_suggestion(espiras: float, config: WireConfig) -> str:
     esp_i = int(espiras) if abs(espiras - int(espiras)) < 1e-6 else round(espiras, 1)
-    equiv = equivalent_single_awg(config)
-    equiv_i = int(equiv) if abs(equiv - int(equiv)) < 1e-6 else equiv
     if config.parallel_count <= 1:
         return f"Sugestão: {esp_i} espiras, {config.label()}"
+    equiv = equivalent_single_awg(config)
+    equiv_i = int(equiv) if abs(equiv - int(equiv)) < 1e-6 else equiv
     return (
         f"Sugestão: {esp_i} espiras, {config.label()} "
         f"(Equivalente a 1x {equiv_i} AWG)"
     )
 
 
-# AWG <= 19: fio grosso — sempre oferecer alternativa 2x(N+3) na interface
 THICK_WIRE_AWG_MAX = 19
 
 
 def parallel_alternative_for_single(single_awg: float) -> Optional[WireConfig]:
-    """Alternativa em paralelo para fio grosso (ex.: 1x19 → 2x22)."""
     if single_awg <= 0 or single_awg > THICK_WIRE_AWG_MAX:
         return None
-    return parallel_from_single_awg(single_awg, 2)
+    return get_equivalent_wire(single_awg, 2)
 
 
 def wire_display_options(
     espiras: float,
     single_awg: float,
 ) -> dict[str, str]:
-    """
-    Retorna textos para UI: configuração principal (matemática) e alternativa em paralelo.
-    """
     single_cfg = WireConfig(parallel_count=1, awg=round(single_awg, 1))
     principal = format_wire_suggestion(espiras, single_cfg)
     par_cfg = parallel_alternative_for_single(single_awg)

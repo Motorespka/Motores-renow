@@ -24,6 +24,12 @@ from components.motor_hologram import render_engine_hologram
 from components.motor_inteligencia_panel import render_intel_consulta_inline
 from components.motor_rebobinagem_panel import render_rebobinagem_consulta_inline
 from services.supabase_data import clear_motores_cache, fetch_motores_cached
+from services.audit_manifest_bundle import (
+    AUDIT_WARNING_QUARENTENA,
+    audit_status_chips_html,
+    get_audit_ui_state,
+    load_audit_quality_bundle_cached,
+)
 from utils.motor_display_hints import (
     RPM_INFERIDO_TOOLTIP,
     is_rpm_inferred,
@@ -291,6 +297,9 @@ def _normalize_motor_record(row: Dict[str, Any]) -> Dict[str, Any]:
         "_consulta_ui": ui,
         "consulta_pronto_usuario": consulta_pronto,
         "consulta_mensagem_usuario_pt": consulta_msg,
+        "sha256_arquivo": _pick_first(row, "sha256_arquivo", "Sha256Arquivo"),
+        "arquivo_origem": _pick_first(row, "arquivo_origem", "ArquivoOrigem"),
+        "variaveis_site": row.get("variaveis_site") or row.get("VariaveisSite"),
     }
 
 
@@ -887,8 +896,15 @@ def _render_teaser_consulta(motores: List[Dict[str, Any]], admin_user: bool = Fa
         )
 
     amostra = motores[:8]
+    audit_bundle = load_audit_quality_bundle_cached()
     for m in amostra:
         with st.container(border=True):
+            chips = audit_status_chips_html(get_audit_ui_state(m, audit_bundle))
+            if chips:
+                st.markdown(
+                    f'<div class="motor-chip-row" style="margin-bottom:0.5rem;">{chips}</div>',
+                    unsafe_allow_html=True,
+                )
             c1, c2, c3 = st.columns(3)
             with c1:
                 st.caption("Marca")
@@ -917,6 +933,7 @@ def _consulta_paid_body_impl(ctx, admin_user: bool) -> None:
 
     motores = [_normalize_motor_record(r) for r in raw]
     _assign_cadastro_sequencia(motores)
+    audit_bundle = load_audit_quality_bundle_cached()
 
     col_busca, col_revisao = st.columns([2.35, 1.0], gap="medium")
     with col_busca:
@@ -1075,7 +1092,10 @@ def _consulta_paid_body_impl(ctx, admin_user: bool) -> None:
                 rev_chip = ""
                 if snap_requires_review(snap):
                     rev_chip = '<div class="motor-chip motor-chip--review">Revisao tecnica</div>'
-    
+
+                audit_state = get_audit_ui_state(m, audit_bundle)
+                audit_chip = audit_status_chips_html(audit_state)
+
                 marca_disp = _consulta_marca_display(m, motor_info)
                 modelo_disp = _consulta_modelo_display(m, motor_info)
     
@@ -1087,7 +1107,7 @@ def _consulta_paid_body_impl(ctx, admin_user: bool) -> None:
                             <div class="motor-title">{_safe(marca_disp)} <span>{_safe(modelo_disp)}</span></div>
                         </div>
                         <div class="motor-chip-row">
-                            <div class="motor-chip">{_safe(m.get('tipo_motor'), fallback='Tipo nao informado')}</div>{rev_chip}
+                            <div class="motor-chip">{_safe(m.get('tipo_motor'), fallback='Tipo nao informado')}</div>{rev_chip}{audit_chip}
                         </div>
                     </div>
                     """,
@@ -1119,6 +1139,8 @@ def _consulta_paid_body_impl(ctx, admin_user: bool) -> None:
                     st.warning(
                         "Revisao tecnica sugerida: conferir placa/bobinagem antes de usar como referencia definitiva."
                     )
+                if audit_state.get("quarantine"):
+                    st.warning(AUDIT_WARNING_QUARENTENA)
                 note_raw = _to_text(snap.get("parse_note"))
                 if note_raw:
                     st.caption(f"Nota do parser: {html.escape(_trunc_plain(note_raw, 120))}")

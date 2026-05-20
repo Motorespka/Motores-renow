@@ -85,7 +85,7 @@ export default function ParaOficinasPage() {
 
         <section className="mt-14 premium-card-elevated border border-border/50 p-6">
           <h2 className="font-display text-sm font-bold tracking-wide text-foreground flex items-center gap-2">
-            <MessageCircle className="h-4 w-4 text-emerald-400/90" />
+            <MessageCircle className="h-4 w-4 text-cyan-400/90" />
             Comercial e dados sensíveis
           </h2>
           <ul className="mt-4 space-y-2 text-[12px] text-muted-foreground leading-relaxed">

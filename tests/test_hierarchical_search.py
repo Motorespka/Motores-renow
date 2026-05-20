@@ -101,3 +101,32 @@ def test_tier_b_estimativa_message():
     assert res.is_estimativa
     assert MSG_ESTIMATIVA_CARCACA in res.calculo_baseado_em
     assert carcaca_matches("80A", "80A")
+
+
+def test_excludes_dirty_cadastro_80_below_20_from_pool():
+    """Carcaça 80–90 com <20 espiras não entra na hierarquia."""
+    pool = [
+        _motor(
+            sha="dirty",
+            passo_principal="10-12",
+            carcaca="80A",
+            espiras_principal=8.0,
+        ),
+        _motor(
+            sha="ok",
+            passo_principal="10-12",
+            carcaca="80A",
+            espiras_principal=42.0,
+        ),
+    ]
+    res = hierarchical_find_references(
+        pool,
+        diametro_mm=80,
+        pacote_mm=70,
+        carcaca="80A",
+        passo="10:12",
+        min_refs=1,
+    )
+    assert res.tier == ReferenceTier.PASSO_EXATO_CARCACA
+    assert len(res.matches) == 1
+    assert res.matches[0].motor.sha == "ok"

@@ -53,7 +53,7 @@ export default function MotorDetailPage() {
   }, [router, motorId, cadastroSeqQ]);
 
   if (!me) {
-    return <div className="center-screen text-muted">Carregando detalhe...</div>;
+    return <div className="center-screen">Carregando detalhe...</div>;
   }
 
   return (

@@ -37,21 +37,37 @@ from app.topologia_bobinagem import (
     norm_tipo_bobinagem,
     usuario_informou_tipo,
 )
-from app.search_lib import MotorRow, awg_to_mm2, slot_fill_units
+from app.search_lib import MotorRow, awg_to_mm2, norm_carcaca, passo_canonical, passo_exact_match, slot_fill_units
+from engine.outlier_filter import (
+    robust_historical_median,
+    should_exclude_cadastro_pollution_80_90,
+    should_exclude_motor_row_pollution,
+)
 from engine.winding_sanity import (
     ALERT_ESPIRAS_BAIXAS,
+    ALERT_POLARIDADE,
     CALIBRE_INVALIDO,
     HIST_BIAS_MAX_DEVIATION,
     MSG_AJUSTE_LIMITE,
-    MSG_CENARIO_A_TRAVADO,
+    MSG_CENARIO_A_INVALIDO,
+    MSG_MAGNETIC_GATE_HIST_OVERRIDE,
+    MSG_ESTIMATIVA_TECNICA_FORCADA,
+    MSG_BUSSOLA_DIVERGENTE,
     apply_commercial_awg_preserve_copper,
+    apply_magnetic_floor_two_pole_frame,
     awg_for_fill_with_limits,
+    busola_historica_inconsistente,
     clamp_awg_to_safe_range,
+    effective_frame_mm,
     espiras_busola_oficina,
     espiras_constante_k,
-    exceeds_hist_bias,
+    force_busola_if_underturn,
     is_awg_in_range,
+    polarity_sanity_alert,
+    scenario_a_is_acceptable,
     should_alert_low_turns,
+    should_override_hist_by_magnetic_gate,
+    stator_volume_mm3,
 )
 
 MAX_SLOT_OCCUPATION = 0.75
@@ -70,6 +86,8 @@ class StatorInput:
     passo: str = ""
     tipo_bobinagem: str = ""
     ligacao: str = ""
+    espiras_validacao_usuario: Optional[float] = None
+    fio_validacao_usuario_awg: Optional[float] = None
 
 
 @dataclass
@@ -116,6 +134,16 @@ class WindingOptimizationResult:
     tipo_inferido_label: str = ""
     explicacao_tipo: str = ""
     tipo_foi_inferido: bool = False
+    media_historica_limpa: Optional[float] = None
+    n_outliers_removidos: int = 0
+    cenario_a_suprimido: bool = False
+    usa_validacao_usuario: bool = False
+    busola_historica_inconsistente: bool = False
+    espiras_validacao_usuario: Optional[float] = None
+    magnetic_sanity_gate_active: bool = False
+    volume_estator_mm3: float = 0.0
+    n_removed_pollution: int = 0
+    gemini_topologia_camada1: bool = False
 
 
 def _flux_density_index(espiras: float, diametro_mm: float, pacote_mm: float, polos: int) -> float:
@@ -277,6 +305,124 @@ def _wire_texts_for_awg(espiras: float, awg: float) -> tuple[str, str, WireConfi
     return principal, alt, wire
 
 
+GEMINI_LAYER1_SAMPLE_CAP = 280
+
+
+def _parse_topologia_layer1_espiras(topo: dict[str, Any]) -> Optional[float]:
+    for key in (
+        "espiras_topologia_base",
+        "espiras_base",
+        "espiras_sugeridas",
+        "espiras",
+        "N_base",
+    ):
+        v = topo.get(key)
+        if v is None:
+            continue
+        try:
+            fv = float(v)
+            if fv > 0:
+                return fv
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
+def _motor_compact_gemini_row(m: MotorRow) -> dict[str, Any]:
+    return {
+        "sha": (m.sha or "")[:12],
+        "carcaca": m.carcaca,
+        "d_mm": round(float(m.diametro_mm or 0), 1) if m.diametro_mm else None,
+        "p_mm": round(float(m.pacote_mm or 0), 1) if m.pacote_mm else None,
+        "polos_txt": str(m.polos or "").strip(),
+        "passo": m.passo_principal,
+        "tipo": (m.tipo_bobinagem_norm or m.tipo_bobinagem or "").strip(),
+        "espiras": float(m.espiras_principal) if m.espiras_principal else None,
+        "fio": (m.fio_principal or "").strip(),
+    }
+
+
+def build_gemini_layer1_topology_payload(
+    *,
+    stator: StatorInput,
+    base: CalculationSuggestion,
+    motors: list[MotorRow],
+    media_prop: float,
+    media_hist: Optional[float],
+    user_norte_espiras: Optional[float],
+    user_norte_awg: Optional[float],
+) -> dict[str, Any]:
+    pool = filter_file(motors)
+    pool = [m for m in pool if not should_exclude_motor_row_pollution(m)]
+    uc = norm_carcaca(stator.carcaca)
+    pp = passo_canonical(stator.passo)
+
+    def _prior(motor: MotorRow) -> tuple[int, int]:
+        pc = (
+            0
+            if (uc and uc == norm_carcaca(motor.carcaca))
+            else 1
+        )
+        pe = (
+            0
+            if (pp and passo_exact_match(stator.passo, motor.passo_principal))
+            else 1
+        )
+        return (pc, pe)
+
+    ordered = sorted(pool, key=_prior)
+    amostra = [_motor_compact_gemini_row(m) for m in ordered[:GEMINI_LAYER1_SAMPLE_CAP]]
+
+    norte: dict[str, Any]
+    if (user_norte_espiras and user_norte_espiras > 0) or (
+        user_norte_awg and user_norte_awg > 0
+    ):
+        norte = {
+            "ativo": True,
+            "espiras_norte_obrigatorias": round(float(user_norte_espiras), 1)
+            if user_norte_espiras and user_norte_espiras > 0
+            else None,
+            "awg_norte": round(float(user_norte_awg), 1)
+            if user_norte_awg and user_norte_awg > 0
+            else None,
+            "mensagem": (
+                "O usuario definiu valores de validacao — use-os como norte absoluto para "
+                "espiras-base e compatibilidade de bitola/enchimento de ranhura."
+            ),
+        }
+    else:
+        norte = {
+            "ativo": False,
+            "mensagem": "Sem norte do usuario: escolha o padrao dominante fisicamente plausivel no contexto cru.",
+        }
+
+    return {
+        "estator_entrada": {
+            "diametro_mm": stator.diametro_mm,
+            "pacote_mm": stator.pacote_mm,
+            "ranhuras": stator.ranhuras,
+            "polos": stator.polos,
+            "carcaca": stator.carcaca,
+            "passo": str(stator.passo or "").strip(),
+            "tipo_bobinagem": stator.tipo_bobinagem,
+            "ligacao": stator.ligacao,
+            "volume_estator_mm3_aprox": round(
+                stator_volume_mm3(stator.diametro_mm, stator.pacote_mm), 1
+            ),
+        },
+        "media_proporcional": media_prop,
+        "media_historica": media_hist,
+        "norte_validacao_usuario": norte,
+        "resumo_acervo": {
+            "n_registros_pos_filtros": len(pool),
+            "amostras_enviadas_ia": len(amostra),
+            "referencias_topo_engine": getattr(base, "n_matches", 0),
+        },
+        "amostra_registros": amostra,
+        "n_amostra": len(amostra),
+    }
+
+
 class WindingOptimizer:
     """Gera cenários A/B/C de bobinagem a partir do acervo e leis de ranhura."""
 
@@ -407,7 +553,26 @@ class WindingOptimizer:
                 )
 
         media_prop = base.espiras_media_top5 or base.sugestao_espira
-        media_hist = base.media_historica_espiras
+        filtered_espiras: list[float] = []
+        n_removed_pollution = 0
+        for h in base.top_matches:
+            if not h.espiras_historico or h.espiras_historico <= 0:
+                continue
+            eh = float(h.espiras_historico)
+            if should_exclude_cadastro_pollution_80_90(h.carcaca, eh):
+                n_removed_pollution += 1
+                continue
+            filtered_espiras.append(eh)
+
+        media_hist_clean: Optional[float]
+        if filtered_espiras:
+            media_hist_clean, n_hist_total, n_hist_clean = robust_historical_median(
+                filtered_espiras
+            )
+        else:
+            media_hist_clean, n_hist_total, n_hist_clean = None, 0, 0
+        media_hist = media_hist_clean
+        n_outliers = max(0, n_hist_total - n_hist_clean)
         slot_limit = base.slot_fill_limit
         n_refs = base.n_matches
         fio_samples = [h.fio_principal for h in base.top_matches if h.fio_principal]
@@ -428,23 +593,208 @@ class WindingOptimizer:
             )
 
         esp_prop = float(media_prop)
-        esp_busola = espiras_busola_oficina(media_hist, media_prop)
-        awg_base_raw = float(base.sugestao_fio_awg or 23.0)
+        vol_mm3 = stator_volume_mm3(stator.diametro_mm, stator.pacote_mm)
+        frame_eff = effective_frame_mm(stator.carcaca, stator.diametro_mm)
+
+        user_esp = (
+            float(stator.espiras_validacao_usuario)
+            if stator.espiras_validacao_usuario and stator.espiras_validacao_usuario > 0
+            else None
+        )
+        usa_validacao = user_esp is not None
+        busola_inconsistente = False
+        magnetic_sanity_gate_active = False
+        gemini_topologia_camada1 = False
+        alertas_globais: list[str] = []
+        forced_busola = False
+
+        if usa_validacao:
+            esp_ref = round(user_esp, 1)
+            if busola_historica_inconsistente(esp_ref, media_hist):
+                busola_inconsistente = True
+                alertas_globais.append(MSG_BUSSOLA_DIVERGENTE)
+            forced_busola = False
+
+        elif use_gemini:
+            try:
+                from services.gemini_engineering_validator import (
+                    propose_topology_base_with_gemini,
+                )
+
+                topo_payload = build_gemini_layer1_topology_payload(
+                    stator=stator,
+                    base=base,
+                    motors=self.motors,
+                    media_prop=esp_prop,
+                    media_hist=media_hist,
+                    user_norte_espiras=user_esp,
+                    user_norte_awg=float(stator.fio_validacao_usuario_awg)
+                    if (
+                        stator.fio_validacao_usuario_awg
+                        and stator.fio_validacao_usuario_awg > 0
+                    )
+                    else None,
+                )
+                topo_ia = propose_topology_base_with_gemini(topo_payload)
+                esp_topo = _parse_topologia_layer1_espiras(topo_ia)
+                if esp_topo is not None:
+                    esp_ref = round(esp_topo, 1)
+                    gemini_topologia_camada1 = True
+                    forcar_gemini = True
+                    is_estimativa = True
+                    cmt = (
+                        str(
+                            topo_ia.get("comentario_topologia")
+                            or topo_ia.get("comentario")
+                            or ""
+                        ).strip()
+                    )
+                    if cmt:
+                        alertas_globais.append(
+                            f"Gemini Camada 1 — topologia-base: {cmt[:520]}"
+                        )
+            except Exception:
+                gemini_topologia_camada1 = False
+
+            if not gemini_topologia_camada1:
+                if should_override_hist_by_magnetic_gate(
+                    stator.polos,
+                    frame_eff,
+                    media_hist,
+                ):
+                    magnetic_sanity_gate_active = True
+                    is_estimativa = True
+                    alertas_globais.append(MSG_MAGNETIC_GATE_HIST_OVERRIDE)
+                    esp_ref = round(float(esp_prop), 1)
+                    esp_ref, forced_busola = force_busola_if_underturn(
+                        esp_ref,
+                        None,
+                        diametro_mm=stator.diametro_mm,
+                        carcaca=stator.carcaca,
+                    )
+                else:
+                    esp_ref = espiras_busola_oficina(media_hist, media_prop)
+                    esp_ref, forced_busola = force_busola_if_underturn(
+                        esp_ref,
+                        media_hist,
+                        diametro_mm=stator.diametro_mm,
+                        carcaca=stator.carcaca,
+                    )
+
+        elif should_override_hist_by_magnetic_gate(
+            stator.polos,
+            frame_eff,
+            media_hist,
+        ):
+            magnetic_sanity_gate_active = True
+            is_estimativa = True
+            alertas_globais.append(MSG_MAGNETIC_GATE_HIST_OVERRIDE)
+            esp_ref = round(float(esp_prop), 1)
+            esp_ref, forced_busola = force_busola_if_underturn(
+                esp_ref,
+                None,
+                diametro_mm=stator.diametro_mm,
+                carcaca=stator.carcaca,
+            )
+        else:
+            esp_ref = espiras_busola_oficina(media_hist, media_prop)
+            esp_ref, forced_busola = force_busola_if_underturn(
+                esp_ref,
+                media_hist,
+                diametro_mm=stator.diametro_mm,
+                carcaca=stator.carcaca,
+            )
+
+        esp_pre_floor = esp_ref
+        esp_ref, phy_floor_msgs = apply_magnetic_floor_two_pole_frame(
+            esp_pre_floor,
+            polos=stator.polos,
+            carcaca=stator.carcaca,
+            diametro_mm=stator.diametro_mm,
+            pacote_mm=stator.pacote_mm,
+            cite_ia_correction_msg=bool(gemini_topologia_camada1),
+        )
+        if phy_floor_msgs:
+            alertas_globais.extend(phy_floor_msgs)
+
+        meta_hist_comparison: Optional[float] = (
+            esp_ref
+            if usa_validacao
+            or magnetic_sanity_gate_active
+            or gemini_topologia_camada1
+            else media_hist
+        )
+
+        if stator.fio_validacao_usuario_awg and stator.fio_validacao_usuario_awg > 0:
+            awg_base_raw = float(stator.fio_validacao_usuario_awg)
+        else:
+            awg_base_raw = float(base.sugestao_fio_awg or 23.0)
         esp_b, awg_b, awg_adj_b, msg_b_awg = apply_commercial_awg_preserve_copper(
-            esp_busola, awg_base_raw, stator.carcaca
+            esp_ref, awg_base_raw, stator.carcaca
         )
         wire_b = WireConfig(parallel_count=1, awg=awg_b)
         flux_ref = _flux_density_index(
-            esp_busola, stator.diametro_mm, stator.pacote_mm, stator.polos
+            esp_ref, stator.diametro_mm, stator.pacote_mm, stator.polos
+        )
+        ref_cenario_a = (
+            esp_ref
+            if usa_validacao
+            or magnetic_sanity_gate_active
+            or gemini_topologia_camada1
+            else media_hist
         )
 
-        # --- Cenário B: bússola = média histórica (85%) + proporcional (15%) ---
+        # --- Cenário B: referência principal (usuário ou histórico limpo) ---
         txt_b, alt_b, _ = _wire_texts_for_awg(esp_b, awg_b)
-        desc_b = (
-            f"Padrão de referência da oficina: média histórica "
-            f"{round(media_hist, 1) if media_hist else '—'} espiras "
-            f"(bússola {esp_busola}; proporcional {esp_prop})."
-        )
+        if usa_validacao:
+            desc_b = (
+                f"Padrão validado pelo usuário: **{esp_ref}** espiras "
+                f"(Constante K a partir desta referência; média histórica não dita o resultado)."
+            )
+            if media_hist:
+                desc_b += (
+                    f" Média histórica limpa (somente comparativo): "
+                    f"{round(media_hist, 1)} espiras."
+                )
+            if busola_inconsistente:
+                desc_b += f" {MSG_BUSSOLA_DIVERGENTE}."
+        else:
+            if gemini_topologia_camada1:
+                desc_b = (
+                    "Referência **Camada 1 (Gemini)**: topologia-base a partir de contexto bruto amostrado "
+                    f"(até {GEMINI_LAYER1_SAMPLE_CAP} registros). **Camada 2** aplicou travas físicas "
+                    f"(espiras após piso magnético: **{esp_ref}**). "
+                    f"Proporcional (engine): {esp_prop} esp.; histórico limpo: {media_hist or '—'}."
+                )
+            elif magnetic_sanity_gate_active:
+                desc_b = (
+                    f"Bloqueio de sanidade magnético (2 polos, carcaça {frame_eff or '—'}, "
+                    f"≥71–90 mm): média histórica **{(round(media_hist, 1) if media_hist else '—')}** "
+                    "espiras ignorada (< 35). "
+                    f"Referência física desde **42** espiras @ Ø80×70 mm escalada pelo volume "
+                    f"útil (**{vol_mm3:.0f} mm³**). Comparativo proporcional: {esp_prop} espiras."
+                )
+                if forced_busola:
+                    desc_b += (
+                        " Ajuste adicional pela regra física do estator grande."
+                    )
+            else:
+                desc_b = (
+                    f"Padrão de referência da oficina: média histórica limpa "
+                    f"{round(media_hist, 1) if media_hist else '—'} espiras"
+                )
+                if n_outliers > 0:
+                    desc_b += f" ({n_outliers} outlier(s) removido(s) — faixa ±30%)."
+                desc_b += f" Proporcional (comparativo): {esp_prop} espiras."
+                if n_removed_pollution > 0:
+                    desc_b += (
+                        f" **{n_removed_pollution}** registro(s) excluído(s) (< 20 esp. em carcaça 80–90)."
+                    )
+                if forced_busola:
+                    desc_b += (
+                        " Espiras forçadas para a bússola "
+                        "(cálculo bruto abaixo do mínimo físico)."
+                    )
         if awg_adj_b and msg_b_awg:
             desc_b = f"{desc_b} {msg_b_awg}"
         if is_estimativa:
@@ -456,7 +806,7 @@ class WindingOptimizer:
             espiras=esp_b,
             wire=wire_b,
             media_prop=media_prop,
-            media_hist=media_hist,
+            media_hist=meta_hist_comparison,
             slot_limit=slot_limit,
             flux_ref=flux_ref,
             stator=stator,
@@ -466,6 +816,8 @@ class WindingOptimizer:
             cenario_principal=True,
         )
         cenario_b.fio_texto = txt_b
+        if alertas_globais:
+            cenario_b.alertas = alertas_globais + cenario_b.alertas
 
         # --- Cenário A: máxima ocupação de cobre (AWG 14–26, espiras com constante K) ---
         alertas_a: list[str] = []
@@ -473,7 +825,7 @@ class WindingOptimizer:
             f"Maior seção de cobre possível com ocupação de ranhura até "
             f"{MAX_SLOT_OCCUPATION:.0%} do limite histórico."
         )
-        esp_a = esp_busola
+        esp_a = esp_ref
         calibre_a = ""
         desabilitar_a = False
         awg_a = awg_b
@@ -495,7 +847,7 @@ class WindingOptimizer:
                 f"{CALIBRE_INVALIDO} — use o Cenário B (referência proporcional) como principal."
             )
             awg_a = awg_b
-            esp_a = esp_busola
+            esp_a = esp_ref
             wire_a = WireConfig(parallel_count=1, awg=awg_a)
         else:
             esp_a, awg_a, comm_adj, comm_msg = apply_commercial_awg_preserve_copper(
@@ -523,24 +875,56 @@ class WindingOptimizer:
                             alertas_a.append(msg_comm2)
                         wire_a = WireConfig(parallel_count=1, awg=awg_a)
 
-        if media_hist and exceeds_hist_bias(esp_a, media_hist, HIST_BIAS_MAX_DEVIATION):
+        fill_a_ratio = _slot_occupation_ratio(
+            slot_fill_units(esp_a, awg_a), slot_limit
+        )
+        a_ok = scenario_a_is_acceptable(
+            esp_a,
+            ref_cenario_a,
+            fill_a_ratio,
+            max_deviation=HIST_BIAS_MAX_DEVIATION,
+        )
+        if not a_ok:
             desabilitar_a = True
-            alertas_a.append(
-                f"{MSG_CENARIO_A_TRAVADO} (sugerido {esp_a:.0f} vs média histórica {media_hist:.0f})."
+            calibre_a = MSG_CENARIO_A_INVALIDO
+            ref_lbl = (
+                "validação do usuário"
+                if usa_validacao
+                else (
+                    "referência física segura"
+                    if magnetic_sanity_gate_active
+                    else "média histórica limpa"
+                )
             )
-            esp_a = round(float(media_hist), 1)
+            ref_val = ref_cenario_a if ref_cenario_a is not None else meta_hist_comparison
+            alertas_a.append(
+                f"{MSG_CENARIO_A_INVALIDO}: desvio >20% da {ref_lbl} "
+                f"({esp_a:.0f} vs {ref_val:.0f}) ou ocupação de ranhura inaceitável."
+            )
+            esp_a = esp_ref
             awg_a = awg_b
             wire_a = WireConfig(parallel_count=1, awg=awg_a)
 
+        if (
+            not usa_validacao
+            and polarity_sanity_alert(stator.polos, esp_a, media_hist, stator.carcaca)
+        ):
+            alertas_a.append(ALERT_POLARIDADE)
+
         _, alt_a, _ = _wire_texts_for_awg(esp_a, awg_a)
+        titulo_a = (
+            MSG_CENARIO_A_INVALIDO
+            if desabilitar_a and calibre_a == MSG_CENARIO_A_INVALIDO
+            else "Otimizado / Eficiência"
+        )
         cenario_a = _build_scenario(
             cenario_id="A",
-            titulo="Otimizado / Eficiência",
+            titulo=titulo_a,
             descricao=desc_a,
             espiras=esp_a,
             wire=wire_a,
             media_prop=media_prop,
-            media_hist=media_hist,
+            media_hist=meta_hist_comparison,
             slot_limit=slot_limit,
             flux_ref=flux_ref,
             stator=stator,
@@ -553,8 +937,17 @@ class WindingOptimizer:
         )
         cenario_a.alertas = alertas_a + cenario_a.alertas
         if desabilitar_a:
-            cenario_a.confidence_score = min(cenario_a.confidence_score, 25)
-            cenario_a.fio_texto = CALIBRE_INVALIDO
+            cenario_a.confidence_score = min(cenario_a.confidence_score, 20)
+            if calibre_a == MSG_CENARIO_A_INVALIDO:
+                cenario_a.fio_texto = MSG_CENARIO_A_INVALIDO
+            elif calibre_a == CALIBRE_INVALIDO:
+                cenario_a.fio_texto = CALIBRE_INVALIDO
+
+        if (
+            not usa_validacao
+            and polarity_sanity_alert(stator.polos, esp_b, media_hist, stator.carcaca)
+        ):
+            cenario_b.alertas = [ALERT_POLARIDADE] + cenario_b.alertas
 
         # --- Cenário C: facilidade — fios em paralelo (bússola histórica) ---
         awg_c_base, _, _ = clamp_awg_to_safe_range(awg_b, stator.carcaca)
@@ -563,17 +956,17 @@ class WindingOptimizer:
             wire_c = parallel_from_single_awg(awg_c_base, 2)
         eq_c_raw = equivalent_single_awg(wire_c)
         esp_c, eq_c, _, _ = apply_commercial_awg_preserve_copper(
-            esp_busola, eq_c_raw, stator.carcaca
+            esp_ref, eq_c_raw, stator.carcaca
         )
         wire_c = choose_wire_config(eq_c, fio_samples, prefer_parallel=True)
         if wire_c.parallel_count < 2 and eq_c >= 17:
             wire_c = parallel_from_single_awg(eq_c, 2)
-        esp_c = espiras_constante_k(esp_busola, awg_b, equivalent_single_awg(wire_c))
+        esp_c = espiras_constante_k(esp_ref, awg_b, equivalent_single_awg(wire_c))
         if slot_limit and slot_limit > 0:
             eq_fill = equivalent_single_awg(wire_c)
             fill_c = _slot_occupation_ratio(slot_fill_units(esp_c, eq_fill), slot_limit)
             if fill_c > MAX_SLOT_OCCUPATION:
-                esp_c = round(espiras_constante_k(esp_busola, awg_b, eq_fill) * 0.98, 1)
+                esp_c = round(espiras_constante_k(esp_ref, awg_b, eq_fill) * 0.98, 1)
         txt_c = format_wire_suggestion(esp_c, wire_c)
         cenario_c = _build_scenario(
             cenario_id="C",
@@ -582,7 +975,7 @@ class WindingOptimizer:
             espiras=esp_c,
             wire=wire_c,
             media_prop=media_prop,
-            media_hist=media_hist,
+            media_hist=meta_hist_comparison,
             slot_limit=slot_limit,
             flux_ref=flux_ref,
             stator=stator,
@@ -593,22 +986,25 @@ class WindingOptimizer:
         cenario_c.fio_texto = txt_c
 
         cenario_recomendado = "B"
-        if desabilitar_a or calibre_a == CALIBRE_INVALIDO:
-            cenario_recomendado = "B"
-        elif cenario_b.confidence_score >= cenario_a.confidence_score:
-            cenario_recomendado = "B"
-        else:
-            cenario_recomendado = "A"
+        cenario_a_suprimido = desabilitar_a and calibre_a == MSG_CENARIO_A_INVALIDO
+        cenarios: list[WindingScenario] = [cenario_b, cenario_c]
+        if not cenario_a_suprimido:
+            cenarios.insert(1, cenario_a)
 
-        cenarios = [cenario_b, cenario_a, cenario_c]
-        if cenario_recomendado == "A":
-            cenarios = [cenario_a, cenario_b, cenario_c]
+        if magnetic_sanity_gate_active:
+            for cen in cenarios:
+                cen.confidence_score = min(int(cen.confidence_score), 40)
+                if MSG_ESTIMATIVA_TECNICA_FORCADA not in cen.alertas:
+                    cen.alertas.insert(0, MSG_ESTIMATIVA_TECNICA_FORCADA)
 
         return WindingOptimizationResult(
             entrada=entrada,
             cenarios=cenarios,
             calculo_baseado_em=base.calculo_baseado_em,
             media_historica_espiras=media_hist,
+            media_historica_limpa=media_hist,
+            n_outliers_removidos=n_outliers,
+            cenario_a_suprimido=cenario_a_suprimido,
             media_proporcional_espiras=media_prop,
             slot_fill_limite=slot_limit,
             n_referencias=n_refs,
@@ -622,5 +1018,12 @@ class WindingOptimizer:
             tipo_inferido_label=tipo_infer.label if tipo_infer else "",
             explicacao_tipo=tipo_infer.explicacao if tipo_infer else "",
             tipo_foi_inferido=bool(tipo_infer),
+            usa_validacao_usuario=usa_validacao,
+            busola_historica_inconsistente=busola_inconsistente,
+            espiras_validacao_usuario=user_esp,
+            magnetic_sanity_gate_active=magnetic_sanity_gate_active,
+            volume_estator_mm3=vol_mm3,
+            n_removed_pollution=n_removed_pollution,
+            gemini_topologia_camada1=gemini_topologia_camada1,
             base_suggestion=asdict(base),
         )

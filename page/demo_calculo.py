@@ -14,7 +14,8 @@ import streamlit.components.v1 as components
 
 from app.oficial_engine import validate_required_motor_inputs
 from engine.winding_optimizer import StatorInput, WindingOptimizer
-from app.search_lib import DEFAULT_DB, connect, load_all_motors, parse_scalar
+from engine.winding_sanity import MSG_MAGNETIC_GATE_HIST_OVERRIDE
+from app.search_lib import DEFAULT_DB, connect, load_all_motors, parse_awg_number, parse_scalar
 from core.access_control import require_admin_access
 from core.navigation import Route
 from core.streamlit_perf import maybe_fragment, pop_page_ctx_pack, stash_page_ctx
@@ -196,6 +197,9 @@ def _render_form(ctx) -> None:
         except FileNotFoundError as exc:
             st.error(str(exc))
             return
+        esp_user = parse_scalar(str(esp_eng).strip()) if str(esp_eng).strip() else None
+        fio_user = parse_awg_number(str(fio_eng).strip()) if str(fio_eng).strip() else None
+
         with st.spinner("Otimizando bobinagem (3 cenários)..."):
             opt = WindingOptimizer(motors)
             opt_res = opt.optimize(
@@ -208,6 +212,8 @@ def _render_form(ctx) -> None:
                     passo=passo,
                     tipo_bobinagem=tipo_bob,
                     ligacao=ligacao,
+                    espiras_validacao_usuario=esp_user,
+                    fio_validacao_usuario_awg=fio_user,
                 ),
                 use_gemini=True,
                 top_k=5,
@@ -230,6 +236,15 @@ def _render_form(ctx) -> None:
             "tipo_inferido_label": opt_res.tipo_inferido_label,
             "explicacao_tipo": opt_res.explicacao_tipo,
             "tipo_foi_inferido": opt_res.tipo_foi_inferido,
+            "media_historica_limpa": opt_res.media_historica_limpa,
+            "n_outliers_removidos": opt_res.n_outliers_removidos,
+            "cenario_a_suprimido": opt_res.cenario_a_suprimido,
+            "usa_validacao_usuario": opt_res.usa_validacao_usuario,
+            "busola_historica_inconsistente": opt_res.busola_historica_inconsistente,
+            "espiras_validacao_usuario": opt_res.espiras_validacao_usuario,
+            "magnetic_sanity_gate_active": opt_res.magnetic_sanity_gate_active,
+            "volume_estator_mm3": opt_res.volume_estator_mm3,
+            "n_removed_pollution": opt_res.n_removed_pollution,
         }
         st.session_state["demo_calculo_result"] = opt_res.base_suggestion or {}
         st.session_state["demo_calculo_entrada"] = {
@@ -267,12 +282,47 @@ def _render_form(ctx) -> None:
             st.info(opt_data["calculo_baseado_em"])
         if opt_data.get("forcar_gemini"):
             st.caption("Validação / interpolação proporcional via Gemini (≥3 motores na mesma carcaça).")
+        n_out = int(opt_data.get("n_outliers_removidos") or 0)
+        hist_txt = f"**{opt_data.get('media_historica_espiras', '—')}**"
+        if n_out > 0:
+            hist_txt += f" (mediana limpa; {n_out} outlier(s) removido(s) ±30%)"
+        npoll = int(opt_data.get("n_removed_pollution") or 0)
+        if npoll > 0:
+            st.caption(
+                f"Filtro de cadastro: **{npoll}** referência(s) em carcaça 80–90 com < 20 espiras "
+                "excluída(s) da bússola."
+            )
+        if opt_data.get("magnetic_sanity_gate_active"):
+            st.warning(MSG_MAGNETIC_GATE_HIST_OVERRIDE)
+            vol = opt_data.get("volume_estator_mm3")
+            if vol:
+                st.caption(f"Volume útil do estator (proxy πr²h): **{float(vol):,.0f} mm³**")
+        if opt_data.get("usa_validacao_usuario"):
+            st.success(
+                f"Validação do usuário ativa: **{opt_data.get('espiras_validacao_usuario', '—')}** "
+                "espiras definem o cálculo (Constante K). Média histórica só como comparativo."
+            )
+        if opt_data.get("busola_historica_inconsistente"):
+            st.warning(
+                "Bússola histórica divergente: usando valores validados pelo usuário."
+            )
+        busola_lbl = (
+            "Média histórica (comparativo)"
+            if opt_data.get("usa_validacao_usuario")
+            else "Média histórica (referência)"
+        )
         st.caption(
             f"Referências: **{opt_data.get('n_referencias', 0)}** · "
-            f"Bússola (hist. 85% + prop. 15%): ver Cenário B · "
-            f"Média histórica: **{opt_data.get('media_historica_espiras', '—')}** espiras · "
-            f"Média proporcional: **{opt_data.get('media_proporcional_espiras', '—')}** espiras"
+            f"Cenário B = padrão principal · "
+            f"{busola_lbl}: {hist_txt} espiras · "
+            f"Média proporcional (comparativo): **{opt_data.get('media_proporcional_espiras', '—')}** espiras"
         )
+        if opt_data.get("cenario_a_suprimido"):
+            st.warning(
+                "Cenário A oculto: cálculo inválido por inconsistência física "
+                "(desvio >20% da média histórica ou ocupação de ranhura inaceitável). "
+                "Use o **Cenário B** como referência principal."
+            )
         rec_id = str(opt_data.get("cenario_recomendado") or "B")
         _TAB_TITLES = {
             "A": "A — Otimizado / Eficiência",

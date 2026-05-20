@@ -33,8 +33,18 @@ python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 copy .env.example .env
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
+
+### Windows: `WinError 10013` ao iniciar o uvicorn
+
+Significa que o Windows **não deixa abrir o socket** nessa porta (permissão / porta reservada / conflito com Hyper-V ou WSL).
+
+1. **Usar outra porta** (recomendado): no `backend/.env` define `BACKEND_PORT=8010` (ou `8020`) e arranca com o mesmo número:
+   `uvicorn app.main:app --reload --host 127.0.0.1 --port 8010`
+2. No frontend, alinha `NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8010/api` no `.env.local` (ou usa o `dev-local.ps1`, que lê `BACKEND_PORT` e passa a URL ao `npm run dev`).
+3. Ver faixas reservadas: `netsh interface ipv4 show excludedportrange protocol=tcp` (PowerShell como admin). Se `8000` cair numa faixa excluída, escolhe uma porta **fora** dessa lista.
+4. Confirma que **nada mais** está a ouvir na mesma porta (outro uvicorn, Docker, etc.).
 
 ## Variaveis
 

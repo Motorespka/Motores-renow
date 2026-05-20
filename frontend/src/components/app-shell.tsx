@@ -3,6 +3,7 @@
 import { ReactNode, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
+import { clearDevDemoSession } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { SUPABASE_CONFIGURED } from "@/lib/supabase";
 import { CyberHeader } from "@/components/cyber/CyberHeader";
@@ -30,6 +31,7 @@ export function AppShell({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   async function handleLogout() {
+    clearDevDemoSession();
     if (SUPABASE_CONFIGURED) {
       await supabase.auth.signOut();
     }

@@ -13,6 +13,8 @@ if str(ROOT) not in sys.path:
 from app.fio_paralelo import (  # noqa: E402
     choose_wire_config,
     format_wire_suggestion,
+    get_equivalent_wire,
+    get_single_from_parallel,
     parallel_from_single_awg,
     parse_wire_config,
     wire_display_options,
@@ -44,3 +46,17 @@ def test_wire_display_always_offers_parallel_for_thick():
     opts = wire_display_options(40, 19.0)
     assert opts["tem_alternativa_paralelo"]
     assert "2x 22" in opts["alternativa_paralelo"]
+
+
+def test_awg_equivalence_rule_n_plus_3():
+    """2×N ≡ 1×(N−3): 2×22=19, 2×20=17, 2×18=15 — nunca 2×20=14."""
+    assert get_single_from_parallel(22.0, 2) == 19.0
+    assert get_single_from_parallel(20.0, 2) == 17.0
+    assert get_single_from_parallel(18.0, 2) == 15.0
+    w19 = get_equivalent_wire(19.0, 2)
+    assert w19.parallel_count == 2 and w19.awg == 22.0
+    w17 = get_equivalent_wire(17.0, 2)
+    assert w17.awg == 20.0
+    w15 = get_equivalent_wire(15.0, 2)
+    assert w15.awg == 18.0
+    assert get_single_from_parallel(20.0, 2) != 14.0
