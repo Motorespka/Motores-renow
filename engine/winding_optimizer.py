@@ -31,12 +31,19 @@ from app.oficial_engine import (
 )
 from app.search_lib import MotorRow, awg_to_mm2, slot_fill_units
 from engine.winding_sanity import (
+    ALERT_ESPIRAS_BAIXAS,
     CALIBRE_INVALIDO,
+    HIST_BIAS_MAX_DEVIATION,
     MSG_AJUSTE_LIMITE,
+    MSG_CENARIO_A_TRAVADO,
+    apply_commercial_awg_preserve_copper,
     awg_for_fill_with_limits,
     clamp_awg_to_safe_range,
+    espiras_busola_oficina,
     espiras_constante_k,
+    exceeds_hist_bias,
     is_awg_in_range,
+    should_alert_low_turns,
 )
 
 MAX_SLOT_OCCUPATION = 0.75
@@ -72,6 +79,7 @@ class WindingScenario:
     desvio_historico_pct: Optional[float] = None
     desvio_proporcional_pct: Optional[float] = None
     espiras_proporcional_ref: Optional[float] = None
+    espiras_busola_ref: Optional[float] = None
     slot_fill_units: Optional[float] = None
     slot_fill_limite: Optional[float] = None
     fio_alternativa_paralelo: str = ""
@@ -209,6 +217,11 @@ def _build_scenario(
         msg = ALERT_DESVIO_HIST
         if msg not in alertas:
             alertas.append(msg)
+    if should_alert_low_turns(
+        espiras, media_hist, polos=stator.polos, ranhuras=stator.ranhuras
+    ):
+        if ALERT_ESPIRAS_BAIXAS not in alertas:
+            alertas.append(ALERT_ESPIRAS_BAIXAS)
 
     fio_txt = calibre_display or format_wire_suggestion(espiras, wire)
     if calibre_display == CALIBRE_INVALIDO:
@@ -231,6 +244,7 @@ def _build_scenario(
         desvio_historico_pct=desvio_hist,
         desvio_proporcional_pct=desvio_prop,
         espiras_proporcional_ref=media_prop,
+        espiras_busola_ref=media_hist,
         slot_fill_units=round(fill_u, 4),
         slot_fill_limite=slot_limit,
         fio_alternativa_paralelo=fio_alternativa_paralelo,
@@ -323,25 +337,33 @@ class WindingOptimizer:
                 base_suggestion=asdict(base),
             )
 
-        esp_base = float(media_prop)
+        esp_prop = float(media_prop)
+        esp_busola = espiras_busola_oficina(media_hist, media_prop)
         awg_base_raw = float(base.sugestao_fio_awg or 23.0)
-        awg_base, base_adj, base_msg = clamp_awg_to_safe_range(awg_base_raw, stator.carcaca)
-        if base_adj and base_msg == CALIBRE_INVALIDO:
-            awg_base = 23.0
+        esp_b, awg_b, awg_adj_b, msg_b_awg = apply_commercial_awg_preserve_copper(
+            esp_busola, awg_base_raw, stator.carcaca
+        )
+        wire_b = WireConfig(parallel_count=1, awg=awg_b)
         flux_ref = _flux_density_index(
-            esp_base, stator.diametro_mm, stator.pacote_mm, stator.polos
+            esp_busola, stator.diametro_mm, stator.pacote_mm, stator.polos
         )
 
-        # --- Cenário B: média estatística / proporcional do acervo (referência K) ---
-        txt_b, alt_b, wire_b = _wire_texts_for_awg(esp_base, awg_base)
-        desc_b = "Mediana proporcional do acervo OFICIAL com lei da ranhura."
+        # --- Cenário B: bússola = média histórica (85%) + proporcional (15%) ---
+        txt_b, alt_b, _ = _wire_texts_for_awg(esp_b, awg_b)
+        desc_b = (
+            f"Padrão de referência da oficina: média histórica "
+            f"{round(media_hist, 1) if media_hist else '—'} espiras "
+            f"(bússola {esp_busola}; proporcional {esp_prop})."
+        )
+        if awg_adj_b and msg_b_awg:
+            desc_b = f"{desc_b} {msg_b_awg}"
         if is_estimativa:
             desc_b = f"{desc_b} {base.validation_message or base.calculo_baseado_em}"
         cenario_b = _build_scenario(
             cenario_id="B",
             titulo="Padrão de Referência",
             descricao=desc_b,
-            espiras=esp_base,
+            espiras=esp_b,
             wire=wire_b,
             media_prop=media_prop,
             media_hist=media_hist,
@@ -361,7 +383,7 @@ class WindingOptimizer:
             f"Maior seção de cobre possível com ocupação de ranhura até "
             f"{MAX_SLOT_OCCUPATION:.0%} do limite histórico."
         )
-        esp_a = esp_base
+        esp_a = esp_busola
         calibre_a = ""
         desabilitar_a = False
 
@@ -371,7 +393,7 @@ class WindingOptimizer:
             )
         else:
             awg_a_raw, adj_a, msg_a = clamp_awg_to_safe_range(
-                max(awg_base - 1.0, 14.0), stator.carcaca
+                max(awg_b - 1.0, 14.0), stator.carcaca
             )
 
         if msg_a == CALIBRE_INVALIDO or not is_awg_in_range(awg_a_raw, stator.carcaca):
@@ -380,28 +402,42 @@ class WindingOptimizer:
             alertas_a.append(
                 f"{CALIBRE_INVALIDO} — use o Cenário B (referência proporcional) como principal."
             )
-            awg_a = awg_base
-            esp_a = esp_base
+            awg_a = awg_b
+            esp_a = esp_busola
         else:
-            awg_a = awg_a_raw
+            esp_a, awg_a, comm_adj, comm_msg = apply_commercial_awg_preserve_copper(
+                esp_a, awg_a_raw, stator.carcaca
+            )
             if adj_a and msg_a:
                 alertas_a.append(msg_a)
-                esp_a = espiras_constante_k(esp_base, awg_base, awg_a)
-                desc_a = f"{desc_a} {MSG_AJUSTE_LIMITE} Espiras recalculadas (constante K)."
+            if comm_adj and comm_msg:
+                alertas_a.append(comm_msg)
+                desc_a = f"{desc_a} {comm_msg}"
+            wire_a = WireConfig(parallel_count=1, awg=awg_a)
+            if slot_limit and slot_limit > 0:
+                fill_a = _slot_occupation_ratio(slot_fill_units(esp_a, awg_a), slot_limit)
+                if fill_a > MAX_SLOT_OCCUPATION:
+                    awg_a2, adj2, msg2 = awg_for_fill_with_limits(
+                        esp_a, slot_limit, MAX_SLOT_OCCUPATION * 0.98, stator.carcaca
+                    )
+                    if msg2 != CALIBRE_INVALIDO:
+                        if adj2 and msg2:
+                            alertas_a.append(msg2)
+                        esp_a, awg_a, comm2, msg_comm2 = apply_commercial_awg_preserve_copper(
+                            esp_a, awg_a2, stator.carcaca
+                        )
+                        if comm2 and msg_comm2:
+                            alertas_a.append(msg_comm2)
+                        wire_a = WireConfig(parallel_count=1, awg=awg_a)
 
-        wire_a = WireConfig(parallel_count=1, awg=awg_a)
-        if not desabilitar_a and slot_limit and slot_limit > 0:
-            fill_a = _slot_occupation_ratio(slot_fill_units(esp_a, awg_a), slot_limit)
-            if fill_a > MAX_SLOT_OCCUPATION:
-                awg_a2, adj2, msg2 = awg_for_fill_with_limits(
-                    esp_a, slot_limit, MAX_SLOT_OCCUPATION * 0.98, stator.carcaca
-                )
-                if msg2 != CALIBRE_INVALIDO:
-                    if adj2 and msg2:
-                        alertas_a.append(msg2)
-                    esp_a = espiras_constante_k(esp_base, awg_base, awg_a2)
-                    awg_a = awg_a2
-                    wire_a = WireConfig(parallel_count=1, awg=awg_a)
+        if media_hist and exceeds_hist_bias(esp_a, media_hist, HIST_BIAS_MAX_DEVIATION):
+            desabilitar_a = True
+            alertas_a.append(
+                f"{MSG_CENARIO_A_TRAVADO} (sugerido {esp_a:.0f} vs média histórica {media_hist:.0f})."
+            )
+            esp_a = round(float(media_hist), 1)
+            awg_a = awg_b
+            wire_a = WireConfig(parallel_count=1, awg=awg_a)
 
         _, alt_a, _ = _wire_texts_for_awg(esp_a, awg_a)
         cenario_a = _build_scenario(
@@ -427,19 +463,24 @@ class WindingOptimizer:
             cenario_a.confidence_score = min(cenario_a.confidence_score, 25)
             cenario_a.fio_texto = CALIBRE_INVALIDO
 
-        # --- Cenário C: facilidade — fios em paralelo para bobina manual ---
-        awg_c_base, _, _ = clamp_awg_to_safe_range(awg_base, stator.carcaca)
+        # --- Cenário C: facilidade — fios em paralelo (bússola histórica) ---
+        awg_c_base, _, _ = clamp_awg_to_safe_range(awg_b, stator.carcaca)
         wire_c = choose_wire_config(awg_c_base, fio_samples, prefer_parallel=True)
         if wire_c.parallel_count < 2 and awg_c_base >= 17:
             wire_c = parallel_from_single_awg(awg_c_base, 2)
-        eq_c = equivalent_single_awg(wire_c)
-        eq_c, _, _ = clamp_awg_to_safe_range(eq_c, stator.carcaca)
-        esp_c = espiras_constante_k(esp_base, awg_base, eq_c)
+        eq_c_raw = equivalent_single_awg(wire_c)
+        esp_c, eq_c, _, _ = apply_commercial_awg_preserve_copper(
+            esp_busola, eq_c_raw, stator.carcaca
+        )
+        wire_c = choose_wire_config(eq_c, fio_samples, prefer_parallel=True)
+        if wire_c.parallel_count < 2 and eq_c >= 17:
+            wire_c = parallel_from_single_awg(eq_c, 2)
+        esp_c = espiras_constante_k(esp_busola, awg_b, equivalent_single_awg(wire_c))
         if slot_limit and slot_limit > 0:
             eq_fill = equivalent_single_awg(wire_c)
             fill_c = _slot_occupation_ratio(slot_fill_units(esp_c, eq_fill), slot_limit)
             if fill_c > MAX_SLOT_OCCUPATION:
-                esp_c = round(espiras_constante_k(esp_base, awg_base, eq_fill) * 0.98, 1)
+                esp_c = round(espiras_constante_k(esp_busola, awg_b, eq_fill) * 0.98, 1)
         txt_c = format_wire_suggestion(esp_c, wire_c)
         cenario_c = _build_scenario(
             cenario_id="C",

@@ -11,6 +11,18 @@ from app.search_lib import awg_to_mm2
 
 MSG_AJUSTE_LIMITE = "Cálculo de bitola ajustado para limite seguro da carcaça."
 CALIBRE_INVALIDO = "CALIBRE INVÁLIDO"
+MSG_CENARIO_A_TRAVADO = (
+    "Cenário A travado: desvio superior a 20% da média histórica. "
+    "Use o Cenário B (média de referência da oficina)."
+)
+MSG_AWG_COMERCIAL = "Bitola arredondada para calibre comercial AWG; espiras recalculadas (volume de cobre)."
+ALERT_ESPIRAS_BAIXAS = (
+    "Aviso: Número de espiras baixo. Verifique se o cálculo considerou a polaridade correta."
+)
+
+# Bias de engenharia: Cenário A não pode desviar mais que isto da média histórica
+HIST_BIAS_MAX_DEVIATION = 0.20
+PESO_MEDIA_HISTORICA_BUSOLA = 0.85
 
 # Carcaças NEMA/IEC até 100: fio entre 14 AWG (mais grosso) e 26 AWG (mais fino)
 AWG_THICK_MAX_FRAME_100 = 14.0
@@ -60,6 +72,73 @@ def clamp_awg_to_safe_range(awg: float, carcaca: str) -> tuple[float, bool, str]
     if awg > hi:
         return round(hi, 1), True, MSG_AJUSTE_LIMITE
     return round(awg, 1), False, ""
+
+
+def espiras_busola_oficina(
+    media_hist: Optional[float],
+    media_prop: Optional[float],
+    *,
+    peso_hist: float = PESO_MEDIA_HISTORICA_BUSOLA,
+) -> float:
+    """Bússola principal: prioriza média histórica do passo (ex.: 42–45 espiras)."""
+    if media_hist and media_hist > 0 and media_prop and media_prop > 0:
+        return round(peso_hist * float(media_hist) + (1.0 - peso_hist) * float(media_prop), 1)
+    if media_hist and media_hist > 0:
+        return round(float(media_hist), 1)
+    return round(float(media_prop or 0), 1)
+
+
+def exceeds_hist_bias(
+    espiras: float,
+    media_hist: Optional[float],
+    max_deviation: float = HIST_BIAS_MAX_DEVIATION,
+) -> bool:
+    if not media_hist or media_hist <= 0 or espiras <= 0:
+        return False
+    return abs(espiras - media_hist) / media_hist > max_deviation
+
+
+def round_commercial_awg(awg: float) -> int:
+    """Arredonda para AWG comercial inteiro (ex.: 16.8 → 17)."""
+    return int(round(max(1.0, min(40.0, awg))))
+
+
+def apply_commercial_awg_preserve_copper(
+    espiras: float,
+    awg_raw: float,
+    carcaca: str,
+) -> tuple[float, float, bool, str]:
+    """
+    Arredonda bitola e recalcula espiras mantendo N×seção (volume de cobre).
+    Retorna (espiras, awg_comercial, foi_ajustado, mensagem).
+    """
+    awg_comm = float(round_commercial_awg(awg_raw))
+    awg_safe, adj_lim, msg_lim = clamp_awg_to_safe_range(awg_comm, carcaca)
+    esp_vol = espiras_constante_k(espiras, awg_raw, awg_safe)
+    msgs: list[str] = []
+    if abs(awg_safe - awg_raw) >= 0.05:
+        msgs.append(MSG_AWG_COMERCIAL)
+    if adj_lim and msg_lim and msg_lim != CALIBRE_INVALIDO:
+        msgs.append(msg_lim)
+    return esp_vol, awg_safe, bool(msgs), " ".join(msgs)
+
+
+def should_alert_low_turns(
+    espiras: float,
+    media_hist: Optional[float],
+    *,
+    polos: int = 0,
+    ranhuras: int = 0,
+) -> bool:
+    if espiras <= 0:
+        return False
+    if media_hist and media_hist > 0 and espiras < media_hist * 0.55:
+        return True
+    if espiras < 22:
+        return True
+    if polos == 2 and ranhuras >= 36 and espiras < 32:
+        return True
+    return False
 
 
 def espiras_constante_k(

@@ -96,7 +96,8 @@ def _render_scenario_card(cen: dict, *, recomendado: bool = False) -> None:
         st.caption(f"Desvio vs média histórica: {pct:.1f}%")
     st.caption(
         f"Índice fluxo (proxy): {cen.get('densidade_fluxo_indice', '—')} · "
-        f"Ref. proporcional: {cen.get('espiras_proporcional_ref', '—')} espiras"
+        f"Bússola hist.: {cen.get('espiras_busola_ref', '—')} · "
+        f"Prop.: {cen.get('espiras_proporcional_ref', '—')} espiras"
     )
 
 
@@ -262,8 +263,9 @@ def _render_form(ctx) -> None:
             st.caption("Validação / interpolação proporcional via Gemini (≥3 motores na mesma carcaça).")
         st.caption(
             f"Referências: **{opt_data.get('n_referencias', 0)}** · "
-            f"Média proporcional: **{opt_data.get('media_proporcional_espiras', '—')}** espiras · "
-            f"Média histórica: **{opt_data.get('media_historica_espiras', '—')}** espiras"
+            f"Bússola (hist. 85% + prop. 15%): ver Cenário B · "
+            f"Média histórica: **{opt_data.get('media_historica_espiras', '—')}** espiras · "
+            f"Média proporcional: **{opt_data.get('media_proporcional_espiras', '—')}** espiras"
         )
         rec_id = str(opt_data.get("cenario_recomendado") or "B")
         _TAB_TITLES = {
