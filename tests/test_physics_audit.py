@@ -11,8 +11,12 @@ from engine.physics_audit import (
     check_extreme_saturation_abort,
     check_required_inputs,
     estimate_operating_flux_density_t,
+    estimate_power_from_iron_kw,
     espiras_weg_fem,
+    is_camada_dupla_context,
     physics_confidence_score,
+    power_kw_from_cv,
+    resolve_power_and_current,
 )
 from engine.winding_sanity import espiras_from_fem_equation
 from services.digital_twin_engine import run_auditoria, run_caixa_preta
@@ -126,6 +130,50 @@ def test_audit_auditoria_abort_zero_confidence():
     assert r.confidence_score == 0
     assert r.espiras == 8.0
     assert MSG_B_ABORT in r.alerts[0]
+
+
+def test_iron_power_estimate_realistic_80x70():
+    kw = estimate_power_from_iron_kw(80, 70, 2)
+    assert 0.5 <= kw <= 3.0
+
+
+def test_power_from_cv_15():
+    assert 1.0 <= power_kw_from_cv(1.5) <= 1.2
+
+
+def test_camada_dupla_passo_detected():
+    assert is_camada_dupla_context("", "4-6-8")
+    assert is_camada_dupla_context("CAMADA_DUPLA", "1:7")
+
+
+def test_audit_15cv_plate_current_not_aborted():
+    """1×21 AWG, 45 esp — J com corrente de placa, não superestimada pelo ferro."""
+    p_kw, i_a, user = resolve_power_and_current(
+        diametro_mm=80,
+        pacote_mm=70,
+        polos=2,
+        corrente_nominal_a=3.8,
+        potencia_cv=1.5,
+    )
+    assert user
+    assert 3.5 <= i_a <= 4.5
+    r = audit_auditoria_user_winding(
+        espiras=45,
+        awg=21,
+        diametro_mm=80,
+        pacote_mm=70,
+        ranhuras=24,
+        polos=2,
+        corrente_nominal_a=3.8,
+        potencia_cv=1.5,
+        tipo_bobinagem="CAMADA_DUPLA",
+        passo="4-6-8",
+    )
+    assert not r.calculation_aborted
+    assert r.survival_pass
+    assert r.current_density_j is not None
+    assert r.current_density_j > 0
+    assert any("corrente nominal informada" in a for a in r.alerts) or r.confidence_score >= 0
 
 
 def test_auditoria_suspeito():

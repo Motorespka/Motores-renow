@@ -130,6 +130,38 @@ def _optimizer_session_payload(opt_res) -> dict[str, Any]:
     }
 
 
+_AUTH_KEYS_PRESERVE = frozenset(
+    {
+        "is_authenticated",
+        "auth_user_id",
+        "auth_user_email",
+        "auth_user_profile",
+        "auth_force_logged_out",
+        "authentication_status",
+        "username",
+        "name",
+        "logout",
+        "route",
+        "_supabase_client",
+        "_runtime_client_mode",
+        "_access_cache_key",
+        "_access_cache_value",
+        "user_plan",
+        "user_id",
+        "user_email",
+        "access_token",
+    }
+)
+
+
+def _reset_demo_session() -> None:
+    """Novo motor na bancada — st.session_state.clear() preservando login."""
+    preserved = {k: st.session_state[k] for k in _AUTH_KEYS_PRESERVE if k in st.session_state}
+    st.session_state.clear()
+    for k, v in preserved.items():
+        st.session_state[k] = v
+
+
 def _entrada_from_form(
     *,
     d: float,
@@ -142,8 +174,11 @@ def _entrada_from_form(
     n_polos: int | None,
     fio_eng: str,
     esp_eng: str,
+    tensao_v: float | None = None,
+    corrente_nominal_a: float | None = None,
+    potencia_cv: float | None = None,
 ) -> dict[str, Any]:
-    return {
+    out: dict[str, Any] = {
         "diametro_mm": d,
         "pacote_mm": p,
         "carcaca": carcaca,
@@ -155,6 +190,14 @@ def _entrada_from_form(
         "fio_engenheiro": fio_eng,
         "espiras_engenheiro": esp_eng,
     }
+    if tensao_v is not None:
+        out["tensao_v"] = float(tensao_v)
+        out["voltagem"] = float(tensao_v)
+    if corrente_nominal_a is not None and corrente_nominal_a > 0:
+        out["corrente_nominal_a"] = float(corrente_nominal_a)
+    if potencia_cv is not None and potencia_cv > 0:
+        out["potencia_cv"] = float(potencia_cv)
+    return out
 
 
 def _run_demo_optimizer(
@@ -471,6 +514,15 @@ def _render_form(ctx) -> None:
         st.markdown('<div class="dt-panel">', unsafe_allow_html=True)
         panel_title("Entrada e visão")
 
+        if st.button(
+            "Limpar dados / Novo cálculo",
+            use_container_width=True,
+            key="demo_btn_reset",
+            help="Zera resultados e formulário de cálculo para testar outro motor sem F5.",
+        ):
+            _reset_demo_session()
+            st.rerun()
+
         modo_op = st.radio(
             "Modo de operação",
             options=[
@@ -556,7 +608,42 @@ def _render_form(ctx) -> None:
                 key="demo_stator_images",
             )
 
-        passo = st.text_input("Passo (opcional)", value="1:7", key="demo_passo")
+        passo = st.text_input(
+            "Passo (opcional)",
+            value="1:7",
+            key="demo_passo",
+            help="Camada dupla: use 4-6-8 ou 1:4-6-8 conforme a bobina.",
+        )
+
+        corrente_nominal_a: float | None = None
+        potencia_cv: float | None = None
+        if modo_op == "Auditoria — cálculo suspeito":
+            panel_title("Dados elétricos (auditoria)")
+            st.caption(
+                "Informe corrente ou potência reais da placa para J e B corretos "
+                "(ex.: 1,5 CV ≈ 3,5–4 A em 220 V)."
+            )
+            e1, e2 = st.columns(2)
+            with e1:
+                corrente_nominal_a = st.number_input(
+                    "Corrente nominal (A)",
+                    min_value=0.0,
+                    max_value=200.0,
+                    value=0.0,
+                    step=0.1,
+                    key="demo_corrente_nom",
+                    help="0 = estimar pela potência ou pelo ferro.",
+                )
+            with e2:
+                potencia_cv = st.number_input(
+                    "Potência (CV)",
+                    min_value=0.0,
+                    max_value=500.0,
+                    value=0.0,
+                    step=0.1,
+                    key="demo_potencia_cv",
+                    help="0 = usar 1,5 CV implícito só se corrente também estiver vazia.",
+                )
 
         panel_title("Validação / auditoria")
         v1, v2 = st.columns(2)
@@ -615,6 +702,11 @@ def _render_form(ctx) -> None:
         if not parsed:
             return
 
+        corrente_in = float(corrente_nominal_a) if corrente_nominal_a and corrente_nominal_a > 0 else None
+        pot_cv_in = float(potencia_cv) if potencia_cv and potencia_cv > 0 else None
+        if modo_op == "Auditoria — cálculo suspeito" and not corrente_in and not pot_cv_in:
+            pot_cv_in = 1.5
+
         entrada_twin = _entrada_from_form(
             d=parsed["d"],
             p=parsed["p"],
@@ -626,9 +718,10 @@ def _render_form(ctx) -> None:
             n_polos=parsed["n_polos"],
             fio_eng=parsed["fio_eng"],
             esp_eng=parsed["esp_eng"],
+            tensao_v=float(tensao),
+            corrente_nominal_a=corrente_in,
+            potencia_cv=pot_cv_in,
         )
-        entrada_twin["tensao_v"] = float(tensao)
-        entrada_twin["voltagem"] = float(tensao)
 
         if modo_op == "Caixa preta — estator vazio (FEM + visão)":
             with st.spinner("Visão + FEM + candidatos…"):

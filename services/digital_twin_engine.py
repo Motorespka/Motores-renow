@@ -310,6 +310,25 @@ def run_auditoria(
     except ValueError:
         awg = 19
 
+    from engine.physics_audit import infer_wire_from_fio
+
+    tipo_bob = str(ent.get("tipo_bobinagem") or "")
+    passo_ent = str(ent.get("passo") or "")
+    par_count, awg_wire = infer_wire_from_fio(awg_raw, tipo_bobinagem=tipo_bob)
+    if par_count > 1:
+        awg = int(round(awg_wire))
+
+    corrente_user = ent.get("corrente_nominal_a")
+    try:
+        corrente_f = float(corrente_user) if corrente_user not in (None, "") else None
+    except (TypeError, ValueError):
+        corrente_f = None
+    pot_cv = ent.get("potencia_cv")
+    try:
+        pot_cv_f = float(pot_cv) if pot_cv not in (None, "") else None
+    except (TypeError, ValueError):
+        pot_cv_f = None
+
     audit_user = audit_auditoria_user_winding(
         espiras=esp,
         awg=awg,
@@ -318,7 +337,12 @@ def run_auditoria(
         ranhuras=ran,
         polos=pol_i,
         carcaca=car,
+        parallel_count=par_count,
         voltage_v=v,
+        corrente_nominal_a=corrente_f,
+        potencia_cv=pot_cv_f,
+        tipo_bobinagem=tipo_bob,
+        passo=passo_ent,
     )
     abort = bool(audit_user.calculation_aborted)
 
@@ -327,7 +351,7 @@ def run_auditoria(
             opcao="SUSPEITO",
             espiras_por_bobina=esp,
             fio_awg=awg,
-            paralelo=1,
+            paralelo=par_count,
             densidade_j=audit_user.current_density_j,
             ocupacao_ff=audit_user.fill_factor_ff,
             confianca_pct=0 if abort else audit_user.confidence_score,
@@ -350,14 +374,19 @@ def run_auditoria(
             ranhuras=ran,
             polos=pol_i,
             carcaca=car,
+            parallel_count=par_count,
             voltage_v=v,
+            corrente_nominal_a=corrente_f,
+            potencia_cv=pot_cv_f,
+            tipo_bobinagem=tipo_bob,
+            passo=passo_ent,
         )
         candidatos.append(
             WindingCandidate(
                 opcao="CORRIGIDO",
                 espiras_por_bobina=audit_corr.espiras,
                 fio_awg=int(awg_corr),
-                paralelo=1,
+                paralelo=par_count,
                 densidade_j=audit_corr.current_density_j,
                 ocupacao_ff=audit_corr.fill_factor_ff,
                 confianca_pct=audit_corr.confidence_score,

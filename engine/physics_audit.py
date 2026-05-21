@@ -8,6 +8,7 @@ saturação magnética (B ≤ 1.5 T) e score de confiança dinâmico.
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -51,6 +52,11 @@ MSG_B_ABORT = (
 # Calibração ff: ocupação relativa 67% → ff nominal 35%
 _FF_FROM_FILL_RATIO = FF_IDEAL / 0.67
 
+# 1 CV (Brasil/IEC) ≈ 735,5 W
+CV_TO_KW = 0.7355
+# Heurística ferro (Ø e L em mm) calibrada ~1,1 kW em 80×70 mm 2p — não superestimar J
+_IRON_KW_PER_MM3_SCALE = 0.0000025
+
 
 @dataclass
 class PhysicsAuditResult:
@@ -71,6 +77,81 @@ class PhysicsAuditResult:
     corrections: list[str] = field(default_factory=list)
 
 
+def is_camada_dupla_context(tipo_bobinagem: str = "", passo: str = "") -> bool:
+    """Camada dupla / passos 4-6-8 — faixa de ff um pouco mais ampla na bancada."""
+    t = (tipo_bobinagem or "").upper()
+    p = re.sub(r"\s+", "", (passo or "").upper())
+    if any(k in t for k in ("DUPLA", "DUPLO", "DOUBLE", "CD")):
+        return True
+    if re.search(r"4[-:./]6[-:./]8|4-6-8|4/6/8", p):
+        return True
+    if re.search(r"1[:/]4[-:./]6", p):
+        return True
+    return False
+
+
+def infer_wire_from_fio(
+    fio_raw: str | float | int,
+    *,
+    tipo_bobinagem: str = "",
+) -> tuple[int, float]:
+    """Retorna (paralelos, AWG por condutor) a partir do campo fio (ex.: 2x22, 21)."""
+    from app.fio_paralelo import parse_wire_config
+
+    cfg = parse_wire_config(str(fio_raw).strip())
+    if cfg:
+        return max(1, cfg.parallel_count), float(cfg.awg)
+    try:
+        awg = float(str(fio_raw).replace(",", "."))
+    except ValueError:
+        awg = 19.0
+    return 1, awg
+
+
+def power_kw_from_cv(cv: float) -> float:
+    if cv <= 0:
+        return 0.0
+    return round(float(cv) * CV_TO_KW, 3)
+
+
+def resolve_power_and_current(
+    *,
+    diametro_mm: float,
+    pacote_mm: float,
+    polos: Optional[int] = None,
+    voltage_v: float = FEM_DEFAULT_VOLTAGE_V,
+    potencia_cv: Optional[float] = None,
+    potencia_kw: Optional[float] = None,
+    corrente_nominal_a: Optional[float] = None,
+) -> tuple[float, float, bool]:
+    """
+    (power_kw, current_a, corrente_informada_pelo_usuario)
+    Prioridade: corrente direta > CV/kW informados > estimativa pelo ferro.
+    """
+    user_current = corrente_nominal_a is not None and float(corrente_nominal_a) > 0
+    if user_current:
+        i_a = round(float(corrente_nominal_a), 3)
+        if potencia_kw and float(potencia_kw) > 0:
+            p_kw = round(float(potencia_kw), 3)
+        elif potencia_cv and float(potencia_cv) > 0:
+            p_kw = power_kw_from_cv(float(potencia_cv))
+        else:
+            p_kw = round(
+                (i_a * voltage_v * math.sqrt(3.0) * 0.78 * 0.85) / 1000.0, 3
+            )
+        return p_kw, i_a, True
+
+    if potencia_kw and float(potencia_kw) > 0:
+        p_kw = round(float(potencia_kw), 3)
+        return p_kw, nominal_line_current_a(p_kw, voltage_v=voltage_v), False
+    if potencia_cv and float(potencia_cv) > 0:
+        p_kw = power_kw_from_cv(float(potencia_cv))
+        return p_kw, nominal_line_current_a(p_kw, voltage_v=voltage_v), False
+
+    p_kw = estimate_power_from_iron_kw(diametro_mm, pacote_mm, polos)
+    return p_kw, nominal_line_current_a(p_kw, voltage_v=voltage_v), False
+
+
 def estimate_slot_fill_factor_ff(
     espiras: float,
     awg: float,
@@ -79,6 +160,8 @@ def estimate_slot_fill_factor_ff(
     diametro_mm: float,
     pacote_mm: float,
     parallel_count: int = 1,
+    tipo_bobinagem: str = "",
+    passo: str = "",
 ) -> float:
     """ff ≈ cobre na ranhura / área útil (calibrado via slot_fill_ratio do acervo)."""
     if espiras <= 0 or awg <= 0 or ranhuras <= 0:
@@ -86,8 +169,12 @@ def estimate_slot_fill_factor_ff(
     limit = estimate_physical_slot_fill_limit(ranhuras, diametro_mm, pacote_mm)
     if limit <= 0:
         return 0.0
-    eq_awg = awg  # caller passes equivalent single AWG when parallel
+    eq_awg = awg
     ratio = slot_fill_ratio(espiras, eq_awg, limit)
+    if is_camada_dupla_context(tipo_bobinagem, passo):
+        ratio = ratio * 1.85
+    if parallel_count > 1:
+        ratio = ratio * min(parallel_count, 3)
     return round(min(1.0, ratio * _FF_FROM_FILL_RATIO), 4)
 
 
@@ -104,7 +191,7 @@ def estimate_power_from_iron_kw(
     l = max(float(pacote_mm), 1.0)
     p = int(polos) if polos and polos >= 2 else 4
     pole_factor = 1.0 if p == 2 else (1.15 if p == 4 else 1.25)
-    kw = 0.00085 * (d**2) * l * pole_factor
+    kw = _IRON_KW_PER_MM3_SCALE * (d**2) * l * pole_factor
     return round(max(0.15, min(kw, 75.0)), 3)
 
 
@@ -238,6 +325,11 @@ def audit_auditoria_user_winding(
     carcaca: str = "",
     parallel_count: int = 1,
     voltage_v: float = FEM_DEFAULT_VOLTAGE_V,
+    corrente_nominal_a: Optional[float] = None,
+    potencia_cv: Optional[float] = None,
+    potencia_kw: Optional[float] = None,
+    tipo_bobinagem: str = "",
+    passo: str = "",
 ) -> PhysicsAuditResult:
     """
     Avalia o cálculo informado pelo usuário (espiras originais, sem guarda FEM).
@@ -274,6 +366,11 @@ def audit_auditoria_user_winding(
         carcaca=carcaca,
         parallel_count=parallel_count,
         voltage_v=voltage_v,
+        corrente_nominal_a=corrente_nominal_a,
+        potencia_cv=potencia_cv,
+        power_kw=potencia_kw,
+        tipo_bobinagem=tipo_bobinagem,
+        passo=passo,
         apply_fem_turns_guard=False,
     )
 
@@ -318,7 +415,11 @@ def audit_winding_physics(
     parallel_count: int = 1,
     voltage_v: float = FEM_DEFAULT_VOLTAGE_V,
     power_kw: Optional[float] = None,
+    corrente_nominal_a: Optional[float] = None,
+    potencia_cv: Optional[float] = None,
     ligacao: str = "",
+    tipo_bobinagem: str = "",
+    passo: str = "",
     apply_fem_turns_guard: bool = True,
 ) -> PhysicsAuditResult:
     """Filtros de sobrevivência + score para modo auditoria ou candidatos."""
@@ -371,6 +472,10 @@ def audit_winding_physics(
     if not flux_ok:
         alerts.append(MSG_B_SATURACAO)
 
+    camada_dupla = is_camada_dupla_context(tipo_bobinagem, passo)
+    ff_max = 0.52 if camada_dupla else FF_MAX
+    ff_min = 0.20 if camada_dupla else FF_MIN
+
     ff = estimate_slot_fill_factor_ff(
         esp,
         awg_f,
@@ -378,22 +483,36 @@ def audit_winding_physics(
         diametro_mm=diametro_mm,
         pacote_mm=pacote_mm,
         parallel_count=parallel_count,
+        tipo_bobinagem=tipo_bobinagem,
+        passo=passo,
     )
-    if ff > FF_MAX:
+    if ff > ff_max:
         alerts.append(MSG_FF_IMPOSSIVEL)
-    elif 0 < ff < FF_MIN:
+    elif 0 < ff < ff_min:
         alerts.append(MSG_FF_SUB)
 
-    p_kw = power_kw if power_kw and power_kw > 0 else estimate_power_from_iron_kw(
-        diametro_mm, pacote_mm, polos
+    p_kw, i_nom, user_i = resolve_power_and_current(
+        diametro_mm=diametro_mm,
+        pacote_mm=pacote_mm,
+        polos=polos,
+        voltage_v=voltage_v,
+        potencia_cv=potencia_cv,
+        potencia_kw=power_kw,
+        corrente_nominal_a=corrente_nominal_a,
     )
-    i_nom = nominal_line_current_a(p_kw, voltage_v=voltage_v)
     j_val = current_density_a_per_mm2(i_nom, awg_f, parallel_count=parallel_count)
     if j_val is not None and (j_val < J_MIN_A_MM2 or j_val > J_MAX_A_MM2):
-        alerts.append(MSG_J_INVALIDO)
+        if user_i:
+            alerts.append(
+                f"Aviso: J≈{j_val} A/mm² fora da faixa típica 3–7 (corrente nominal informada: {i_nom} A)."
+            )
+        else:
+            alerts.append(MSG_J_INVALIDO)
 
     survival = not any(
-        a.startswith("Cálculo impossível") or "invalidado" in a for a in alerts
+        a.startswith("Cálculo impossível")
+        or ("invalidado" in a and not user_i)
+        for a in alerts
     )
     score = physics_confidence_score(
         j_a_mm2=j_val, ff=ff, flux_ok=flux_ok, survival_pass=survival
