@@ -1,0 +1,226 @@
+/* Gêmeo Digital — dashboard industrial (escopo .demo-twin-dashboard) */
+
+.demo-twin-dashboard {
+  --dt-bg: #0e1117;
+  --dt-panel: #161b22;
+  --dt-panel-2: #1c2128;
+  --dt-border: rgba(222, 255, 154, 0.22);
+  --dt-accent: #deff9a;
+  --dt-accent-dim: rgba(222, 255, 154, 0.12);
+  --dt-ink: #e6edf3;
+  --dt-muted: #8b949e;
+  --dt-green: #3fb950;
+  --dt-yellow: #d29922;
+  --dt-red: #f85149;
+  --dt-radius: 12px;
+  --dt-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.demo-twin-dashboard .dt-hero {
+  border: 1px solid var(--dt-border);
+  border-radius: var(--dt-radius);
+  background: linear-gradient(135deg, #0e1117 0%, #161b22 55%, #0d1015 100%);
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--dt-shadow);
+}
+
+.demo-twin-dashboard .dt-hero h1 {
+  font-family: "Orbitron", "Rajdhani", sans-serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--dt-accent);
+  margin: 0 0 0.25rem 0;
+  letter-spacing: 0.04em;
+}
+
+.demo-twin-dashboard .dt-hero p {
+  margin: 0;
+  color: var(--dt-muted);
+  font-size: 0.92rem;
+}
+
+.demo-twin-dashboard .dt-panel {
+  border: 1px solid var(--dt-border);
+  border-radius: var(--dt-radius);
+  background: var(--dt-panel);
+  padding: 1rem 1.1rem;
+  margin-bottom: 0.85rem;
+  box-shadow: var(--dt-shadow);
+}
+
+.demo-twin-dashboard .dt-panel-title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--dt-accent);
+  margin: 0 0 0.75rem 0;
+  font-weight: 700;
+}
+
+.demo-twin-dashboard .dt-report-panel {
+  border: 1px solid var(--dt-border);
+  border-radius: var(--dt-radius);
+  background: linear-gradient(180deg, #161b22 0%, #0e1117 100%);
+  padding: 1.15rem 1.2rem;
+  min-height: 420px;
+  box-shadow: var(--dt-shadow);
+}
+
+.demo-twin-dashboard .dt-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+.demo-twin-dashboard .dt-kpi {
+  border-radius: var(--dt-radius);
+  padding: 0.75rem 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--dt-panel-2);
+}
+
+.demo-twin-dashboard .dt-kpi-label {
+  display: block;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dt-muted);
+  margin-bottom: 0.25rem;
+}
+
+.demo-twin-dashboard .dt-kpi-value {
+  font-size: 1.55rem;
+  font-weight: 700;
+  line-height: 1.1;
+  font-family: "JetBrains Mono", "Consolas", monospace;
+}
+
+.demo-twin-dashboard .dt-kpi-green .dt-kpi-value { color: var(--dt-green); }
+.demo-twin-dashboard .dt-kpi-yellow .dt-kpi-value { color: var(--dt-yellow); }
+.demo-twin-dashboard .dt-kpi-red .dt-kpi-value { color: var(--dt-red); }
+.demo-twin-dashboard .dt-kpi-green { border-color: rgba(63, 185, 80, 0.35); }
+.demo-twin-dashboard .dt-kpi-yellow { border-color: rgba(210, 153, 34, 0.35); }
+.demo-twin-dashboard .dt-kpi-red { border-color: rgba(248, 81, 73, 0.35); }
+
+.demo-twin-dashboard table.dt-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.88rem;
+  border-radius: var(--dt-radius);
+  overflow: hidden;
+  border: 1px solid var(--dt-border);
+  margin: 0.5rem 0 1rem 0;
+}
+
+.demo-twin-dashboard table.dt-table thead th {
+  background: var(--dt-accent-dim);
+  color: var(--dt-accent);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  padding: 0.55rem 0.65rem;
+  border-bottom: 1px solid var(--dt-border);
+}
+
+.demo-twin-dashboard table.dt-table tbody td {
+  padding: 0.5rem 0.65rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--dt-ink);
+}
+
+.demo-twin-dashboard table.dt-table tbody tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.demo-twin-dashboard table.dt-table tbody tr:hover td {
+  background: rgba(222, 255, 154, 0.06);
+}
+
+.demo-twin-dashboard .dt-badge {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.demo-twin-dashboard .dt-badge-ok { background: rgba(63, 185, 80, 0.2); color: var(--dt-green); }
+.demo-twin-dashboard .dt-badge-warn { background: rgba(210, 153, 34, 0.2); color: var(--dt-yellow); }
+.demo-twin-dashboard .dt-badge-danger { background: rgba(248, 81, 73, 0.2); color: var(--dt-red); }
+
+.demo-twin-dashboard .dt-mermaid-wrap {
+  border: 1px solid var(--dt-border);
+  border-radius: var(--dt-radius);
+  background: #0d1117;
+  padding: 0.5rem;
+  margin: 0.65rem 0;
+  overflow: hidden;
+}
+
+.demo-twin-dashboard .dt-alert-abort {
+  border: 1px solid rgba(248, 81, 73, 0.55);
+  border-radius: var(--dt-radius);
+  background: rgba(248, 81, 73, 0.12);
+  padding: 0.85rem 1rem;
+  margin: 0 0 1rem 0;
+  color: #f85149;
+  box-shadow: 0 4px 16px rgba(248, 81, 73, 0.15);
+}
+
+.demo-twin-dashboard .dt-empty-state {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: var(--dt-muted);
+  border: 1px dashed rgba(222, 255, 154, 0.25);
+  border-radius: var(--dt-radius);
+}
+
+/* Inputs / botões dentro do escopo da página */
+.demo-twin-dashboard [data-testid="stFileUploader"] section {
+  border-radius: var(--dt-radius) !important;
+  border: 1px dashed var(--dt-border) !important;
+  background: var(--dt-panel-2) !important;
+}
+
+.demo-twin-dashboard .stButton > button[kind="primary"] {
+  border-radius: var(--dt-radius) !important;
+  background: linear-gradient(180deg, #c8f07a 0%, #9fd64d 100%) !important;
+  color: #0e1117 !important;
+  font-weight: 700 !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(159, 214, 77, 0.35) !important;
+}
+
+.demo-twin-dashboard .stButton > button[kind="secondary"] {
+  border-radius: var(--dt-radius) !important;
+  border: 1px solid var(--dt-border) !important;
+  background: var(--dt-panel-2) !important;
+  color: var(--dt-accent) !important;
+}
+
+.demo-twin-dashboard div[data-baseweb="input"] > div,
+.demo-twin-dashboard div[data-baseweb="textarea"] > div,
+.demo-twin-dashboard div[data-baseweb="select"] > div {
+  border-radius: var(--dt-radius) !important;
+  border-color: rgba(222, 255, 154, 0.2) !important;
+  background-color: var(--dt-panel-2) !important;
+}
+
+.demo-twin-dashboard .stTabs [data-baseweb="tab-list"] {
+  gap: 0.35rem;
+}
+
+.demo-twin-dashboard .stTabs [data-baseweb="tab"] {
+  border-radius: 10px 10px 0 0 !important;
+  background: var(--dt-panel-2) !important;
+  color: var(--dt-muted) !important;
+}
+
+.demo-twin-dashboard .stTabs [aria-selected="true"] {
+  color: var(--dt-accent) !important;
+  border-bottom: 2px solid var(--dt-accent) !important;
+}

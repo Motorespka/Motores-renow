@@ -19,6 +19,12 @@ try:
 except ImportError:
     pass
 
+from config.settings import get_settings
+from core.logging_config import setup_logging
+
+_settings = get_settings()
+setup_logging(_settings)
+
 try:
     from supabase import create_client
 except Exception:
@@ -247,6 +253,12 @@ def build_router() -> Router:
 
 def bootstrap_system(session: SessionManager) -> None:
     bootstrap_database()
+    try:
+        from saas.database import bootstrap_saas_database
+
+        bootstrap_saas_database()
+    except Exception:
+        pass
     session.bootstrap()
     try:
         bootstrap_styles()

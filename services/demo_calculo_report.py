@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import html
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -28,6 +29,7 @@ def build_report_html(
     *,
     entrada: dict[str, Any],
     result: dict[str, Any],
+    optimizer: dict[str, Any] | None = None,
     emitted_at: str | None = None,
     ref_id: str | None = None,
 ) -> str:
@@ -43,13 +45,37 @@ def build_report_html(
     fio_eng = entrada.get("fio_engenheiro") or entrada.get("fio_eng") or ""
     esp_eng = entrada.get("espiras_engenheiro") or entrada.get("esp_eng") or ""
 
-    esp_sug = result.get("sugestao_espira") or result.get("espiras_media_top5")
-    fio_sug = result.get("sugestao_fio_awg") or result.get("fio_medio_top5")
-    justificativa = (
-        result.get("justificativa_tecnica")
-        or result.get("validation_message")
-        or "Calculo proporcional sobre acervo OFICIAL; conferir na bancada antes de bobinar."
-    )
+    cen_b = None
+    if optimizer and optimizer.get("cenarios"):
+        for cen in optimizer["cenarios"]:
+            if str(cen.get("cenario_id")) == "B":
+                cen_b = cen
+                break
+
+    if cen_b:
+        esp_sug = cen_b.get("espiras")
+        fio_sug = cen_b.get("wire", {}).get("awg") if isinstance(cen_b.get("wire"), dict) else None
+        if fio_sug is None:
+            fio_txt = cen_b.get("fio_texto") or ""
+            if "AWG" in fio_txt:
+                m = re.search(r"(\d+(?:\.\d+)?)\s*AWG", fio_txt)
+                if m:
+                    fio_sug = m.group(1)
+        justificativa = (
+            cen_b.get("descricao")
+            or result.get("justificativa_tecnica")
+            or result.get("validation_message")
+            or "Calculo proporcional sobre acervo OFICIAL; conferir na bancada antes de bobinar."
+        )
+    else:
+        esp_sug = result.get("sugestao_espira") or result.get("espiras_media_top5")
+        fio_sug = result.get("sugestao_fio_awg") or result.get("fio_medio_top5")
+        justificativa = (
+            result.get("justificativa_tecnica")
+            or result.get("validation_message")
+            or "Calculo proporcional sobre acervo OFICIAL; conferir na bancada antes de bobinar."
+        )
+
     alerta = result.get("alerta_risco") or ""
     modo = result.get("modo_processamento") or "proporcional"
     gemini = "Sim" if result.get("gemini_usado") else "Nao"
@@ -80,6 +106,35 @@ def build_report_html(
             '<table class="data"><thead><tr>'
             "<th>#</th><th>Arquivo</th><th>Ø × pacote</th><th>Esp. hist.</th><th>Esp. calc.</th>"
             f"</tr></thead><tbody>{ref_rows}</tbody></table>"
+        )
+
+    cenarios_section = ""
+    if optimizer and optimizer.get("cenarios"):
+        cen_rows = ""
+        for cen in optimizer["cenarios"]:
+            cid = _esc(cen.get("cenario_id", ""))
+            esp_c = _fmt_num(cen.get("espiras"))
+            fio_c = _esc(cen.get("fio_texto") or cen.get("calibre_display") or "—")
+            alt_c = _esc(cen.get("fio_alternativa_paralelo") or "")
+            alt_cell = f"<br/><span class='sub'>{alt_c}</span>" if alt_c else ""
+            j_c = cen.get("current_density_j")
+            ff_c = cen.get("fill_factor_ff")
+            conf_c = cen.get("physics_confidence") or cen.get("confidence_score")
+            cen_rows += (
+                f"<tr><td><strong>{cid}</strong></td>"
+                f"<td class='highlight'>{esp_c}</td>"
+                f"<td>{fio_c}{alt_cell}</td>"
+                f"<td>{_fmt_num(j_c)}</td>"
+                f"<td>{_fmt_num(ff_c * 100 if ff_c is not None else None, suffix='%')}</td>"
+                f"<td>{_fmt_num(cen.get('fator_ocupacao_ranhura'), suffix='%')}</td>"
+                f"<td>{_fmt_num(conf_c, suffix='%')}</td></tr>"
+            )
+        cenarios_section = (
+            "<h2 class='section'>Cenários A / B / C (motor de projetos)</h2>"
+            "<table class='data'><thead><tr>"
+            "<th>Cenário</th><th>Espiras</th><th>Fio</th><th>J (A/mm²)</th>"
+            "<th>ff</th><th>Ocupação</th><th>Confiança</th>"
+            f"</tr></thead><tbody>{cen_rows}</tbody></table>"
         )
 
     parts = [
@@ -147,6 +202,7 @@ def build_report_html(
         f"<tr><th>Média proporcional</th><td>{_fmt_num(result.get('espiras_media_top5'))} espiras</td></tr>",
         f"<tr><th>Processamento</th><td>{_esc(modo)} · Gemini: {_esc(gemini)} · Validação: {_esc(validacao)}</td></tr>",
         "</table>",
+        cenarios_section,
         "<h2 class='section'>Nota de engenharia</h2>",
         f"<div class='nota'>{_esc(justificativa)}</div>",
         alerta_block,

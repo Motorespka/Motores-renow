@@ -1,0 +1,43 @@
+# Orquestração local e base para Render / Railway
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      DATABASE_URL: postgresql+psycopg2://saas:${POSTGRES_PASSWORD:-saas_secret}@postgres:5432/gemeo_digital
+      SAAS_STREAMLIT_AUTH_ENABLED: ${SAAS_STREAMLIT_AUTH_ENABLED:-true}
+      LOG_JSON: ${LOG_JSON:-false}
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./config/auth_credentials.yaml:/app/config/auth_credentials.yaml:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: saas
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-saas_secret}
+      POSTGRES_DB: gemeo_digital
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U saas -d gemeo_digital"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

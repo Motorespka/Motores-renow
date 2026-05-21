@@ -58,18 +58,215 @@ MIN_ESPIRAS_2P_FRAME_71_90 = 35
 # Bias de engenharia (legado): comparativos texto; cenário A já não reprova só por média histórica
 HIST_BIAS_MAX_DEVIATION = 0.20
 
-# Mesa única de bitolas usadas pelo projetista — sem AWG «16,8»: sempre inteiro próximo aqui.
-COMMERCIAL_BOBINAGEM_AWGS: tuple[int, ...] = (14, 15, 16, 17, 18, 19, 20, 21, 22)
+# Mesa comercial completa 10–36 AWG (inteiros)
+COMMERCIAL_BOBINAGEM_AWGS: tuple[int, ...] = tuple(range(10, 37))
 
-# Limites ocupação ranhura (normalizado pelo limite histórico)
+# Limites ocupação ranhura (normalizado pelo limite histórico/físico)
 SLOT_FILL_SOFT_HIGH = 0.75  # dentro da zona alvo alta
-SLOT_FILL_SOFT_LOW = 0.65  # zona alvo baixa
+SLOT_FILL_SOFT_LOW = 0.60  # zona alvo baixa (faixa verde)
 SLOT_FILL_HARD_HIGH = 0.80  # acima → afinar fio obrigatoriamente
+SLOT_FILL_ABSURD = 1.20  # >120 % indica erro de modelo — recalcular limite
 
-# Carcaças até 100: apenas mesa comercial acima (grosso 14 ↔ fino 22)
-AWG_THICK_MAX_FRAME_100 = 14.0
-AWG_THIN_MIN_FRAME_100 = float(COMMERCIAL_BOBINAGEM_AWGS[-1])
+# Carcaças típicas: mesa 10–36 AWG
+AWG_THICK_MAX_FRAME_100 = 10.0
+AWG_THIN_MIN_FRAME_100 = 36.0
 CARCACA_FRAME_LIMIT = 100
+
+# --- Equação fundamental FEM (Lei de Faraday-Lenz) ---
+# N = V / (4.44 × f × B × A_fe × k_w)
+FEM_DEFAULT_VOLTAGE_V = 220.0
+FEM_DEFAULT_FREQUENCY_HZ = 60.0
+FEM_MAX_FLUX_DENSITY_T = 1.5
+FEM_WINDING_FACTOR = 0.95
+FEM_SAFE_TURNS_DEFAULT = 45.0
+FEM_TURNS_BAND_LO = 40.0
+FEM_TURNS_BAND_HI = 45.0
+# Fator calibrado: Ø80×70 mm 2p → ~42 espiras @ 220 V / 60 Hz / 1.5 T
+POLE_IRON_EFFECTIVE_FACTOR = 2.302
+
+MSG_FEM_SATURACAO_CORRECAO = (
+    "Correção FEM (Faraday-Lenz): espiras abaixo do mínimo físico para evitar saturação "
+    "magnética do núcleo (B > 1.5 T). Ajustado pela equação N = V/(4.44·f·B·A_fe·k_w)."
+)
+MSG_FEM_2P_BLOQUEIO = (
+    "Bloqueio magnético 2 polos: espiras < 35 em carcaça ~80×70 mm violam a FEM de corrente "
+    "alternada (60 Hz / 220 V). Forçado para referência segura de 45 espiras."
+)
+MSG_FEM_REFERENCIA = (
+    "Referência FEM: intervalo físico esperado 40–45 espiras para ferro Ø80×70 mm / 2 polos."
+)
+
+
+def pole_net_iron_area_m2(
+    diameter_mm: float,
+    pacote_mm: float,
+    polos: Optional[int],
+) -> float:
+    """
+    Área líquida de ferro por polo (m²) — modelo cilíndrico NEMA/IEC.
+    A_fe ≈ (D × L) × fator_efetivo / pares_de_polos.
+    Calibrado para Ø80×70 mm / 2 polos → ~42 espiras via FEM.
+    """
+    d_m = max(float(diameter_mm), 1.0) / 1000.0
+    l_m = max(float(pacote_mm), 1.0) / 1000.0
+    p = int(polos) if polos and polos >= 2 else 2
+    pole_pairs = max(p // 2, 1)
+    gross_m2 = d_m * l_m
+    return gross_m2 * POLE_IRON_EFFECTIVE_FACTOR * (2.0 / float(p)) / float(pole_pairs)
+
+
+def espiras_from_fem_equation(
+    diameter_mm: float,
+    pacote_mm: float,
+    polos: Optional[int],
+    *,
+    tensao_fase_v: float = FEM_DEFAULT_VOLTAGE_V,
+    frequencia_hz: float = FEM_DEFAULT_FREQUENCY_HZ,
+    flux_density_t: float = FEM_MAX_FLUX_DENSITY_T,
+    winding_factor: float = FEM_WINDING_FACTOR,
+) -> float:
+    """
+    N = V / (4.44 × f × B × A_fe × k_w)
+    Calibrado em 2 polos / Ø80×70 mm → ~45 espiras (220 V, 60 Hz, B=1.5 T).
+    """
+    d_m = max(float(diameter_mm), 1.0) / 1000.0
+    l_m = max(float(pacote_mm), 1.0) / 1000.0
+    a_fe_2p = d_m * l_m * POLE_IRON_EFFECTIVE_FACTOR
+    denom = 4.44 * frequencia_hz * flux_density_t * a_fe_2p * winding_factor
+    if denom <= 0:
+        return 0.0
+    n_2p = tensao_fase_v / denom
+    p = int(polos) if polos and polos >= 2 else 2
+    if p == 2:
+        return round(n_2p, 1)
+    return round(n_2p * (2.0 / float(p)) ** 0.72, 1)
+
+
+def is_two_pole_large_frame(
+    polos: Optional[int],
+    carcaca: str,
+    diametro_mm: float,
+) -> bool:
+    if polos != 2:
+        return False
+    fr = effective_frame_mm(carcaca, diametro_mm)
+    if fr is not None:
+        return FRAME_MAGNETIC_GATE_LO <= fr <= FRAME_MAGNETIC_GATE_HI
+    return FRAME_MAGNETIC_GATE_LO <= diametro_mm <= FRAME_MAGNETIC_GATE_HI
+
+
+def apply_fem_physics_guard(
+    espiras: float,
+    *,
+    diametro_mm: float,
+    pacote_mm: float,
+    polos: Optional[int],
+    ranhuras: int = 0,
+    carcaca: str = "",
+    tensao_fase_v: float = FEM_DEFAULT_VOLTAGE_V,
+) -> tuple[float, float, list[str]]:
+    """
+    Aplica a equação FEM como validador físico principal.
+    Resultados < 35 espiras em 2p / carcaça ~80 mm são rejeitados → 45 espiras seguras.
+    """
+    msgs: list[str] = []
+    esp_in = round(float(espiras), 1)
+    esp_fem = espiras_from_fem_equation(
+        diametro_mm, pacote_mm, polos, tensao_fase_v=tensao_fase_v
+    )
+    esp_out = esp_in
+
+    if is_two_pole_large_frame(polos, carcaca, diametro_mm):
+        if esp_out < float(MIN_ESPIRAS_2P_FRAME_71_90):
+            esp_out = FEM_SAFE_TURNS_DEFAULT
+            msgs.append(MSG_FEM_2P_BLOQUEIO)
+        elif esp_fem > 0 and esp_out < esp_fem * 0.85:
+            esp_out = round(max(esp_fem, FEM_TURNS_BAND_LO), 1)
+            msgs.append(MSG_FEM_SATURACAO_CORRECAO)
+        if FEM_TURNS_BAND_LO <= esp_fem <= FEM_TURNS_BAND_HI + 2:
+            msgs.append(MSG_FEM_REFERENCIA)
+
+    return round(esp_out, 1), esp_fem, msgs
+
+
+def estimate_physical_slot_fill_limit(
+    ranhuras: int,
+    diametro_mm: float,
+    pacote_mm: float = 70.0,
+) -> float:
+    """
+    Limite físico de enchimento (Espiras×mm²) coerente com slot_fill_units do acervo.
+    Calibrado: 45 espiras / AWG 19 / 24 ranhuras / Ø80 mm → ~67 % de ocupação.
+    """
+    from app.search_lib import slot_fill_units
+
+    if ranhuras <= 0 or diametro_mm <= 0:
+        return 0.0
+    ref_r, ref_d, ref_p = 24, 80.0, 70.0
+    ref_lim = slot_fill_units(45, 19) / 0.675
+    scale = (
+        (float(ranhuras) / ref_r)
+        * (float(diametro_mm) / ref_d) ** 2
+        * (max(float(pacote_mm), 1.0) / ref_p) ** 0.25
+    )
+    return round(ref_lim * max(scale, 0.45), 4)
+
+
+def resolve_slot_fill_limit(
+    hist_limit: Optional[float],
+    *,
+    ranhuras: int,
+    diametro_mm: float,
+    pacote_mm: float,
+) -> float:
+    """Combina limite histórico com piso físico por geometria de ranhuras."""
+    phys = estimate_physical_slot_fill_limit(ranhuras, diametro_mm, pacote_mm)
+    if hist_limit and hist_limit > 0:
+        if phys > 0 and hist_limit < phys * 0.55:
+            return round(max(hist_limit, phys * 0.85), 4)
+        if phys > 0 and hist_limit > phys * 8.0:
+            return round(min(hist_limit, phys * 4.0), 4)
+        return round(float(hist_limit), 4)
+    return phys
+
+
+def slot_fill_ratio(espiras: float, awg: float, slot_limit: float) -> float:
+    from app.search_lib import slot_fill_units
+
+    if slot_limit <= 0 or espiras <= 0:
+        return 0.0
+    return slot_fill_units(espiras, awg) / slot_limit
+
+
+def select_awg_for_slot_fill(
+    espiras: float,
+    slot_limit: float,
+    *,
+    target_lo: float = SLOT_FILL_SOFT_LOW,
+    target_hi: float = SLOT_FILL_SOFT_HIGH,
+    prefer_awg: Optional[float] = None,
+) -> int:
+    """
+    Escolhe AWG inteiro (10–36) para ocupação na faixa verde (60–75 %),
+    mantendo espiras fixas. Preferência por prefer_awg se couber na faixa.
+    """
+    from app.search_lib import awg_from_mm2, slot_fill_units
+
+    if espiras <= 0 or slot_limit <= 0:
+        return nearest_awg_from_table(prefer_awg or 19.0)
+
+    if prefer_awg is not None and prefer_awg > 0:
+        pa = float(nearest_awg_from_table(prefer_awg))
+        r_pref = slot_fill_units(espiras, pa) / slot_limit
+        if target_lo * 0.85 <= r_pref <= min(target_hi * 1.15, 0.92):
+            return int(pa)
+
+    target = (target_lo + target_hi) / 2.0
+    area_needed = (target * slot_limit) / espiras
+    awg_raw = awg_from_mm2(max(area_needed, 1e-9))
+    if awg_raw is None:
+        return int(nearest_awg_from_table(prefer_awg or 19.0))
+    return int(nearest_awg_from_table(awg_raw))
 
 
 def stator_volume_mm3(diameter_mm: float, pacote_mm: float) -> float:
@@ -166,12 +363,7 @@ def carcaca_frame_number(carcaca: str) -> Optional[int]:
 
 
 def awg_limits_for_carcaca(carcaca: str) -> tuple[float, float]:
-    """
-    Retorna (awg_min, awg_max) dentro da mesa comercial bobinável (14…22).
-    """
-    frame = carcaca_frame_number(carcaca)
-    if frame is not None and frame <= CARCACA_FRAME_LIMIT:
-        return AWG_THICK_MAX_FRAME_100, AWG_THIN_MIN_FRAME_100
+    """Retorna (awg_min, awg_max) na mesa comercial 10–36 AWG."""
     return AWG_THICK_MAX_FRAME_100, AWG_THIN_MIN_FRAME_100
 
 
@@ -184,7 +376,7 @@ def is_awg_in_range(awg: float, carcaca: str) -> bool:
 
 def clamp_awg_to_safe_range(awg: float, carcaca: str) -> tuple[float, bool, str]:
     """
-    Travaila AWG na mesa 14–22 (carcaças típicas).
+    Travaila AWG na mesa 10–36.
     Retorna (awg_seguro, foi_ajustado, mensagem).
     """
     lo, hi = awg_limits_for_carcaca(carcaca)
@@ -198,6 +390,27 @@ def clamp_awg_to_safe_range(awg: float, carcaca: str) -> tuple[float, bool, str]
     return snap, abs(snap - round(awg, 4)) >= 0.05, ""
 
 
+def nearest_awg_from_table(awg_raw: float) -> int:
+    """AWG inteiro mais próximo na mesa 10–36."""
+    if not COMMERCIAL_BOBINAGEM_AWGS:
+        return max(10, min(36, int(round(awg_raw))))
+    clamped = max(
+        float(COMMERCIAL_BOBINAGEM_AWGS[0]),
+        min(float(COMMERCIAL_BOBINAGEM_AWGS[-1]), float(awg_raw)),
+    )
+    return min(COMMERCIAL_BOBINAGEM_AWGS, key=lambda z: abs(float(z) - clamped))
+
+
+def awg_table_index(awg: float) -> int:
+    wi = nearest_awg_from_table(awg)
+    return COMMERCIAL_BOBINAGEM_AWGS.index(wi)
+
+
+def round_commercial_awg(awg: float) -> int:
+    """Compat: usa mesa 10–36."""
+    return nearest_awg_from_table(awg)
+
+
 def espiras_busola_oficina(
     media_hist: Optional[float],
     media_prop: Optional[float],
@@ -205,16 +418,16 @@ def espiras_busola_oficina(
     espiras_usuario: Optional[float] = None,
 ) -> float:
     """
-    Referência de espiras (bússola).
+    Referência de espiras.
     Com validação do usuário: 100% o valor informado.
-    Sem validação: média histórica limpa (±30% / Z-score) tem prioridade sobre proporcional.
+    Sem validação: projeção proporcional (histórico só para comparativo na UI).
     """
     if espiras_usuario is not None and espiras_usuario > 0:
         return round(float(espiras_usuario), 1)
-    if media_hist and media_hist > 0:
-        return round(float(media_hist), 1)
     if media_prop and media_prop > 0:
         return round(float(media_prop), 1)
+    if media_hist and media_hist > 0:
+        return round(float(media_hist), 1)
     return 0.0
 
 
@@ -238,24 +451,6 @@ def exceeds_hist_bias(
     if not media_hist or media_hist <= 0 or espiras <= 0:
         return False
     return abs(espiras - media_hist) / media_hist > max_deviation
-
-
-def nearest_awg_from_table(awg_raw: float) -> int:
-    """AWG inteiro mais próximo na mesa fixa 14–22 (ex.: 16,8 → 17)."""
-    if not COMMERCIAL_BOBINAGEM_AWGS:
-        return max(14, min(22, int(round(awg_raw))))
-    clamped = max(float(COMMERCIAL_BOBINAGEM_AWGS[0]), min(float(COMMERCIAL_BOBINAGEM_AWGS[-1]), float(awg_raw)))
-    return min(COMMERCIAL_BOBINAGEM_AWGS, key=lambda z: abs(float(z) - clamped))
-
-
-def awg_table_index(awg: float) -> int:
-    wi = nearest_awg_from_table(awg)
-    return COMMERCIAL_BOBINAGEM_AWGS.index(wi)
-
-
-def round_commercial_awg(awg: float) -> int:
-    """Compat: usa mesa 14–22."""
-    return nearest_awg_from_table(awg)
 
 
 def apply_commercial_awg_preserve_copper(

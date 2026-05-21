@@ -1,4 +1,7 @@
 .env
+.env.*
+!.env.example
+config/auth_credentials.yaml
 .streamlit/secrets.toml
 logs/gemini_keys_status.json
 logs/security_scrub_report.json

@@ -64,9 +64,16 @@ def _normalize_model_name(name: str) -> str:
 
 
 def resolve_gemini_models() -> tuple[str, str]:
-    """Primario + fallback a partir de Secrets/.env (ignora GEMINI_MODEL legado 1.5 se houver DEFAULT)."""
-    primary = _read_secret_or_env("GEMINI_MODEL_DEFAULT", "GEMINI_MODEL") or "gemini-2.5-flash"
-    fallback = _read_secret_or_env("GEMINI_MODEL_FALLBACK") or "gemini-2.5-flash-lite"
+    """Primario + fallback a partir de config/settings (.env por ambiente)."""
+    try:
+        from config.settings import get_settings
+
+        s = get_settings()
+        primary = s.gemini_model_primary
+        fallback = s.gemini_model_fallback
+    except Exception:
+        primary = _read_secret_or_env("GEMINI_MODEL_DEFAULT", "GEMINI_MODEL") or "gemini-2.5-flash"
+        fallback = _read_secret_or_env("GEMINI_MODEL_FALLBACK") or "gemini-2.5-flash-lite"
     primary = _normalize_model_name(primary) or "gemini-2.5-flash"
     fallback = _normalize_model_name(fallback) or "gemini-2.5-flash-lite"
     if fallback == primary:
@@ -185,6 +192,59 @@ class GeminiApiManager:
                 continue
         raise RuntimeError(f"Gemini falhou apos {max_attempts} tentativa(s): {last_err}")
 
+    def call_multimodal_json(
+        self,
+        *,
+        prompt_text: str,
+        image_parts: list[dict[str, Any]],
+        require_ok: bool = False,
+        max_attempts: int = 3,
+    ) -> dict[str, Any]:
+        """Gemini com imagens inline + texto; resposta JSON."""
+        try:
+            import google.generativeai as genai
+        except ImportError as exc:
+            raise RuntimeError(f"google-generativeai nao instalado: {exc}") from exc
+
+        from services.gemini_ocr_fallback import _extract_json
+
+        self.ensure_loaded()
+        last_err: Optional[Exception] = None
+        gen_cfg = {"response_mime_type": "application/json", "temperature": 0.1}
+        models = _model_chain(self._model_primary, self._model_fallback)
+        content: list[Any] = []
+        for part in image_parts:
+            mime = part.get("mime_type") or "image/jpeg"
+            data = part.get("data") or ""
+            content.append({"mime_type": mime, "data": data})
+        content.append(prompt_text)
+
+        for _ in range(max(1, max_attempts)):
+            try:
+                alias, key = self.acquire_key(require_ok=require_ok)
+            except RuntimeError as exc:
+                raise RuntimeError(str(exc)) from exc
+            genai.configure(api_key=key)
+            for model_name in models:
+                try:
+                    gm = genai.GenerativeModel(model_name)
+                    resp = gm.generate_content(content, generation_config=gen_cfg)
+                    text = (getattr(resp, "text", None) or "").strip()
+                    data = _extract_json(text)
+                    self._km.mark_success(alias)
+                    self._km.save_status()
+                    if isinstance(data, dict):
+                        return data
+                    raise ValueError("Resposta multimodal nao e JSON objeto.")
+                except Exception as exc:
+                    last_err = exc
+                    if _is_model_not_found(exc):
+                        continue
+                    self._km.mark_failure(alias, exc)
+                    self._km.save_status()
+                    break
+        raise RuntimeError(f"Gemini multimodal falhou: {last_err}")
+
     def status_summary(self) -> dict[str, Any]:
         self.ensure_loaded()
         n = len(self._km._keys_by_alias)
@@ -216,6 +276,17 @@ class GeminiApiManager:
 def get_gemini_api_manager(*, reload: bool = False) -> GeminiApiManager:
     global _singleton
     if _singleton is None or reload:
-        max_per = int(os.environ.get("GEMINI_MAX_CALLS_PER_KEY_PER_RUN", "0") or "0")
-        _singleton = GeminiApiManager(max_calls_per_key_per_run=max_per)
+        try:
+            from config.settings import get_settings
+
+            cfg = get_settings()
+            max_per = cfg.gemini_max_calls_per_key
+            status_path = cfg.gemini_status_path
+        except Exception:
+            max_per = int(os.environ.get("GEMINI_MAX_CALLS_PER_KEY_PER_RUN", "0") or "0")
+            status_path = _DEFAULT_STATUS
+        _singleton = GeminiApiManager(
+            status_path=status_path,
+            max_calls_per_key_per_run=max_per,
+        )
     return _singleton

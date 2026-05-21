@@ -154,6 +154,7 @@ def choose_wire_config(
     *,
     prefer_parallel: bool = True,
 ) -> WireConfig:
+    """Escolhe configuração de fio; paralelo sempre pela regra N-3 de bancada."""
     target_area = awg_to_mm2(target_awg)
     base = WireConfig(parallel_count=1, awg=round(target_awg, 1))
     stats = _catalog_parallel_stats(fio_samples)
@@ -164,20 +165,19 @@ def choose_wire_config(
             if parallel_stats:
                 best_key, _ = max(parallel_stats, key=lambda x: x[1])
                 cand = WireConfig(parallel_count=best_key[0], awg=best_key[1])
-                eq = get_single_from_parallel(cand.awg, cand.parallel_count)
-                if abs(eq - target_awg) <= 0.6 and _parallel_respects_n_minus_3(cand, target_awg):
+                if _parallel_respects_n_minus_3(cand, target_awg):
                     return cand
         best_key, _ = stats.most_common(1)[0]
         best = WireConfig(parallel_count=best_key[0], awg=best_key[1])
         if best.parallel_count <= 1 and _area_close(best.total_area_mm2, target_area):
             return best
-        if best.parallel_count > 1:
-            eq = get_single_from_parallel(best.awg, best.parallel_count)
-            if abs(eq - target_awg) <= 0.6 and _parallel_respects_n_minus_3(best, target_awg):
-                return best
+        if best.parallel_count > 1 and _parallel_respects_n_minus_3(best, target_awg):
+            return best
 
     if prefer_parallel and target_awg >= 14:
-        return get_equivalent_wire(target_awg, 2)
+        canonical = get_equivalent_wire(target_awg, 2)
+        if canonical.parallel_count > 1:
+            return canonical
 
     return base
 
