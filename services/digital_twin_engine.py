@@ -329,6 +329,15 @@ def run_auditoria(
     except (TypeError, ValueError):
         pot_cv_f = None
 
+    pot_cv_ent = pot_cv_f
+    if pot_cv_ent is None:
+        try:
+            raw_cv = ent.get("potencia_cv")
+            if raw_cv not in (None, ""):
+                pot_cv_ent = float(str(raw_cv).replace(",", "."))
+        except (TypeError, ValueError):
+            pot_cv_ent = None
+
     audit_user = audit_auditoria_user_winding(
         espiras=esp,
         awg=awg,
@@ -340,7 +349,7 @@ def run_auditoria(
         parallel_count=par_count,
         voltage_v=v,
         corrente_nominal_a=corrente_f,
-        potencia_cv=pot_cv_f,
+        potencia_cv=pot_cv_ent,
         tipo_bobinagem=tipo_bob,
         passo=passo_ent,
     )
@@ -377,7 +386,7 @@ def run_auditoria(
             parallel_count=par_count,
             voltage_v=v,
             corrente_nominal_a=corrente_f,
-            potencia_cv=pot_cv_f,
+            potencia_cv=pot_cv_ent,
             tipo_bobinagem=tipo_bob,
             passo=passo_ent,
         )

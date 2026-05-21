@@ -49,6 +49,9 @@ MSG_B_ABORT = (
     "Cálculo Abortado: Risco Severo de Saturação. O núcleo excederia 1.8T."
 )
 
+# Prioridade: acervo da oficina (referencia_oficina.json) sobre faixas IEC genéricas.
+_OFICINA_KB_MIN_REGISTROS = 20
+
 # Calibração ff: ocupação relativa 67% → ff nominal 35%
 _FF_FROM_FILL_RATIO = FF_IDEAL / 0.67
 
@@ -375,6 +378,81 @@ def audit_auditoria_user_winding(
     )
 
 
+def _resolve_cv_for_kb(
+    *,
+    potencia_cv: Optional[float] = None,
+    power_kw: Optional[float] = None,
+) -> Optional[float]:
+    if potencia_cv is not None and float(potencia_cv) > 0:
+        return float(potencia_cv)
+    if power_kw is not None and float(power_kw) > 0:
+        return round(float(power_kw) / CV_TO_KW, 3)
+    return None
+
+
+def _apply_oficina_knowledge_priority(
+    *,
+    alerts: list[str],
+    espiras: float,
+    j_val: Optional[float],
+    flux_ok: bool,
+    b_t: float,
+    potencia_cv: Optional[float],
+    power_kw: Optional[float],
+    carcaca: str,
+    pacote_mm: float,
+    user_i: bool,
+) -> tuple[bool, bool, list[str]]:
+    """
+    Consulta referencia_oficina.json antes de invalidar por J ou saturação IEC.
+    Retorna (flux_ok_ajustado, j_conforme_historico, alerts).
+    """
+    try:
+        from knowledge.oficina_kb import get_oficina_knowledge
+
+        kb = get_oficina_knowledge()
+    except Exception:
+        return flux_ok, False, alerts
+
+    if kb.total_registros < _OFICINA_KB_MIN_REGISTROS:
+        return flux_ok, False, alerts
+
+    cv_use = _resolve_cv_for_kb(potencia_cv=potencia_cv, power_kw=power_kw)
+    out = list(alerts)
+    j_hist_ok = False
+    flux_adj = flux_ok
+
+    if j_val is not None and (j_val < J_MIN_A_MM2 or j_val > J_MAX_A_MM2):
+        ok_j, msg_j = kb.j_no_historico(
+            j_val,
+            cv=cv_use,
+            carcaca=carcaca,
+            pacote_mm=pacote_mm,
+        )
+        if ok_j:
+            j_hist_ok = True
+            out = [a for a in out if MSG_J_INVALIDO not in a and "invalidado" not in a]
+            if msg_j not in out:
+                out.append(msg_j)
+
+    if not flux_ok and cv_use and cv_use > 0:
+        ok_e, msg_e = kb.espiras_no_historico_cv(cv_use, espiras)
+        if ok_e:
+            flux_adj = True
+            out = [a for a in out if a != MSG_B_SATURACAO]
+            if msg_e not in out:
+                out.append(msg_e)
+        elif b_t > B_MAX_TESLA and b_t < B_ABORT_TESLA:
+            ok_b, msg_b = kb.b_saturacao_tolerada_por_cv(cv_use, espiras, b_t)
+            if ok_b:
+                flux_adj = True
+                out = [a for a in out if a != MSG_B_SATURACAO]
+                if msg_b not in out:
+                    out.append(msg_b)
+
+    return flux_adj, j_hist_ok, out
+
+
 def physics_confidence_score(
     *,
     j_a_mm2: Optional[float],
@@ -509,9 +587,22 @@ def audit_winding_physics(
         else:
             alerts.append(MSG_J_INVALIDO)
 
+    flux_ok, j_hist_ok, alerts = _apply_oficina_knowledge_priority(
+        alerts=alerts,
+        espiras=esp,
+        j_val=j_val,
+        flux_ok=flux_ok,
+        b_t=b_t,
+        potencia_cv=potencia_cv,
+        power_kw=p_kw,
+        carcaca=carcaca,
+        pacote_mm=pacote_mm,
+        user_i=user_i,
+    )
+
     survival = not any(
         a.startswith("Cálculo impossível")
-        or ("invalidado" in a and not user_i)
+        or ("invalidado" in a and not user_i and not j_hist_ok)
         for a in alerts
     )
     score = physics_confidence_score(
