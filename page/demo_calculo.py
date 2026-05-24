@@ -1001,8 +1001,8 @@ def _render_form(ctx) -> None:
         st.session_state.pop("demo_digital_twin", None)
         use_neuro_symbolic = (
             not usuario_informou_tipo(tipo_bob)
-            and esp_user is None
-            and fio_user is None
+            and parsed["esp_user"] is None
+            and parsed["fio_user"] is None
         )
         try:
             with st.spinner(
