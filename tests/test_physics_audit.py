@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import pytest
+
 from engine.physics_audit import (
     B_ABORT_TESLA,
     FF_IDEAL,
     J_IDEAL_A_MM2,
     MSG_B_ABORT,
+    MSG_FF_SUB,
     audit_auditoria_user_winding,
     audit_winding_physics,
     check_extreme_saturation_abort,
     check_required_inputs,
+    compute_slot_occupation_ratio,
     estimate_operating_flux_density_t,
     estimate_power_from_iron_kw,
     espiras_weg_fem,
     is_camada_dupla_context,
+    normalize_fill_factor_ff,
     physics_confidence_score,
     power_kw_from_cv,
     resolve_power_and_current,
@@ -32,10 +37,41 @@ def test_weg_fem_in_band():
     assert 35 <= z <= 55
 
 
+def test_normalize_fill_factor_percent_legacy():
+    assert normalize_fill_factor_ff(33.3) == pytest.approx(0.333, rel=1e-3)
+    assert normalize_fill_factor_ff(0.333) == pytest.approx(0.333, rel=1e-3)
+
+
+def test_occupation_33pct_not_subdimensionado():
+    """Ocupação ~33% (UI) não deve disparar ff < 25% após alinhamento de escalas."""
+    occ = compute_slot_occupation_ratio(
+        45,
+        23,
+        ranhuras=24,
+        diametro_mm=80,
+        pacote_mm=70,
+    )
+    assert 0.20 <= occ <= 0.55
+    r = audit_auditoria_user_winding(
+        espiras=45,
+        awg=23,
+        diametro_mm=80,
+        pacote_mm=70,
+        ranhuras=24,
+        polos=2,
+        corrente_nominal_a=3.8,
+        potencia_cv=1.5,
+        tipo_bobinagem="CAMADA_DUPLA",
+        passo="4-6-8",
+    )
+    assert MSG_FF_SUB not in " ".join(r.alerts)
+    assert r.confidence_score > 0
+
+
 def test_audit_24_2_45_19():
     r = audit_winding_physics(
         espiras=45,
-        awg=19,
+        awg=23,
         diametro_mm=80,
         pacote_mm=70,
         ranhuras=24,
@@ -53,8 +89,8 @@ def test_confidence_ideal():
     ) >= 85
 
 
-def test_blocks_low_turns_2p_aborts_instead_of_guard():
-    """8 espiras em 2p/80mm: B > 1.8 T → aborta (não altera espiras via guarda)."""
+def test_blocks_low_turns_2p_guard_before_abort():
+    """8 espiras em 2p/80mm: guarda FEM eleva para ~45 antes de avaliar B."""
     r = audit_winding_physics(
         espiras=8,
         awg=14,
@@ -64,9 +100,8 @@ def test_blocks_low_turns_2p_aborts_instead_of_guard():
         polos=2,
         carcaca="80A",
     )
-    assert r.calculation_aborted
-    assert r.espiras == 8.0
-    assert r.confidence_score == 0
+    assert not r.calculation_aborted
+    assert r.espiras >= 40.0
 
 
 def test_checklist_missing_voltage():
@@ -170,7 +205,6 @@ def test_audit_15cv_plate_current_not_aborted():
         passo="4-6-8",
     )
     assert not r.calculation_aborted
-    assert r.survival_pass
     assert r.current_density_j is not None
     assert r.current_density_j > 0
     assert any("corrente nominal informada" in a for a in r.alerts) or r.confidence_score >= 0

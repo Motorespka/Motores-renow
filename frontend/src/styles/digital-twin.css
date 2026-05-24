@@ -1,0 +1,238 @@
+/**
+ * Gêmeo Digital — componentes (espelho de assets/demo_calculo_dashboard.css)
+ * Importar em páginas: import "@/styles/digital-twin.css";
+ */
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800&family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+.dt-root {
+  --dt-bg0: #0b1117;
+  --dt-panel: #141c24;
+  --dt-panel-elevated: #1a2430;
+  --dt-ink: #e9f7ff;
+  --dt-ink-soft: #9fb9cf;
+  --dt-ink-muted: #6b8499;
+  --dt-cyan: #00e5ff;
+  --dt-cyan-glow: rgba(0, 229, 255, 0.35);
+  --dt-lime: #deff9a;
+  --dt-orange: #ff8a00;
+  --dt-green: #3fb950;
+  --dt-red: #f85149;
+  --dt-border: rgba(0, 229, 255, 0.22);
+  --dt-border-strong: rgba(0, 229, 255, 0.45);
+  --dt-radius: 12px;
+  --dt-radius-lg: 16px;
+  --dt-font-display: "Orbitron", "Rajdhani", sans-serif;
+  --dt-font-mono: "JetBrains Mono", Consolas, monospace;
+  color: var(--dt-ink);
+  font-family: "Rajdhani", "Inter", sans-serif;
+}
+
+/* Veredito, gauges, comparativo — mesmas classes do Streamlit */
+.dt-root .dt-verdict {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 1rem 1.25rem;
+  align-items: center;
+  padding: 1rem 1.2rem;
+  margin-bottom: 1rem;
+  border-radius: var(--dt-radius-lg);
+  border: 1px solid var(--dt-border-strong);
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.12) 0%, rgba(20, 28, 36, 0.95) 55%);
+  box-shadow: 0 0 24px rgba(0, 229, 255, 0.18);
+}
+
+.dt-root .dt-verdict--danger {
+  border-color: rgba(248, 81, 73, 0.45);
+  background: linear-gradient(135deg, rgba(248, 81, 73, 0.14) 0%, rgba(20, 28, 36, 0.95) 55%);
+}
+
+.dt-root .dt-verdict__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--dt-bg0);
+  background: linear-gradient(180deg, var(--dt-cyan), #00a8c4);
+}
+
+.dt-root .dt-verdict--danger .dt-verdict__icon {
+  background: linear-gradient(180deg, #f85149, #c42e26);
+}
+
+.dt-root .dt-verdict__title {
+  font-family: var(--dt-font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--dt-cyan);
+  letter-spacing: 0.04em;
+}
+
+.dt-root .dt-verdict--danger .dt-verdict__title {
+  color: var(--dt-red);
+}
+
+.dt-root .dt-verdict__sub {
+  font-size: 0.82rem;
+  color: var(--dt-ink-soft);
+  margin-top: 0.2rem;
+}
+
+.dt-root .dt-verdict__metrics {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.dt-root .dt-verdict__metric-label {
+  display: block;
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dt-ink-muted);
+}
+
+.dt-root .dt-verdict__metric-value {
+  font-family: var(--dt-font-mono);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.dt-root .dt-verdict__metric-value--accent {
+  color: var(--dt-lime);
+}
+
+.dt-root .dt-gauge-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.dt-root .dt-arc-gauge {
+  text-align: center;
+  padding: 0.35rem;
+  border-radius: var(--dt-radius);
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(0, 229, 255, 0.08);
+}
+
+.dt-root .dt-arc-gauge__value {
+  font-family: var(--dt-font-mono);
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-top: -0.35rem;
+}
+
+.dt-root .dt-arc-gauge__label {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--dt-ink-muted);
+}
+
+.dt-root .dt-compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.dt-root .dt-compare-col {
+  border-radius: var(--dt-radius);
+  padding: 0.85rem;
+  border: 1px solid var(--dt-border);
+  background: var(--dt-panel-elevated);
+}
+
+.dt-root .dt-insights-panel {
+  border: 1px solid var(--dt-border);
+  border-radius: var(--dt-radius-lg);
+  background: var(--dt-panel);
+  padding: 1rem 1.1rem;
+}
+
+.dt-root .dt-insights-panel__title {
+  font-family: var(--dt-font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dt-cyan);
+  margin-bottom: 0.75rem;
+}
+
+.dt-root .dt-compare-col__badge {
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dt-ink-muted);
+  margin-bottom: 0.25rem;
+}
+
+.dt-root .dt-compare-col__title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.dt-root .dt-compare-stat {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  margin-bottom: 0.35rem;
+}
+
+.dt-root .dt-compare-stat span {
+  color: var(--dt-ink-muted);
+}
+
+.dt-root .dt-compare-stat strong {
+  font-family: var(--dt-font-mono);
+}
+
+.dt-root .dt-compare-bar__label {
+  font-size: 0.65rem;
+  color: var(--dt-ink-muted);
+  text-transform: uppercase;
+}
+
+.dt-root .dt-compare-bar__track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  margin: 0.25rem 0;
+  overflow: hidden;
+}
+
+.dt-root .dt-compare-bar__track > div {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--dt-cyan);
+}
+
+.dt-root .dt-compare-bar--ok .dt-compare-bar__track > div {
+  background: var(--dt-green);
+}
+
+.dt-root .dt-compare-bar--warn .dt-compare-bar__track > div {
+  background: var(--dt-orange);
+}
+
+.dt-root .dt-compare-bar--danger .dt-compare-bar__track > div {
+  background: var(--dt-red);
+}
+
+.dt-root .dt-compare-bar__val {
+  font-family: var(--dt-font-mono);
+  font-size: 0.72rem;
+  color: var(--dt-ink-soft);
+}
+
+@media (max-width: 900px) {
+  .dt-root .dt-verdict,
+  .dt-root .dt-gauge-row,
+  .dt-root .dt-compare-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -45,28 +45,36 @@ def build_report_html(
     fio_eng = entrada.get("fio_engenheiro") or entrada.get("fio_eng") or ""
     esp_eng = entrada.get("espiras_engenheiro") or entrada.get("esp_eng") or ""
 
-    cen_b = None
+    cen_rec = None
     if optimizer and optimizer.get("cenarios"):
-        for cen in optimizer["cenarios"]:
-            if str(cen.get("cenario_id")) == "B":
-                cen_b = cen
-                break
+        from page.demo_calculo_ui import (
+            MSG_SUGESTAO_BLOQUEADA,
+            resolve_recommended_optimizer_scenario,
+        )
 
-    if cen_b:
-        esp_sug = cen_b.get("espiras")
-        fio_sug = cen_b.get("wire", {}).get("awg") if isinstance(cen_b.get("wire"), dict) else None
+        cen_rec = resolve_recommended_optimizer_scenario(optimizer)
+
+    if cen_rec:
+        esp_sug = cen_rec.get("espiras")
+        fio_sug = cen_rec.get("wire", {}).get("awg") if isinstance(cen_rec.get("wire"), dict) else None
         if fio_sug is None:
-            fio_txt = cen_b.get("fio_texto") or ""
+            fio_txt = cen_rec.get("fio_texto") or ""
             if "AWG" in fio_txt:
                 m = re.search(r"(\d+(?:\.\d+)?)\s*AWG", fio_txt)
                 if m:
                     fio_sug = m.group(1)
         justificativa = (
-            cen_b.get("descricao")
+            cen_rec.get("descricao")
             or result.get("justificativa_tecnica")
             or result.get("validation_message")
             or "Calculo proporcional sobre acervo OFICIAL; conferir na bancada antes de bobinar."
         )
+    elif optimizer and optimizer.get("cenarios"):
+        from page.demo_calculo_ui import MSG_PROJETO_INVIAVEL
+
+        esp_sug = "—"
+        fio_sug = "—"
+        justificativa = MSG_PROJETO_INVIAVEL
     else:
         esp_sug = result.get("sugestao_espira") or result.get("espiras_media_top5")
         fio_sug = result.get("sugestao_fio_awg") or result.get("fio_medio_top5")

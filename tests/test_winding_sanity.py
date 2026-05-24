@@ -10,17 +10,23 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from engine.physics_audit import (  # noqa: E402
+    FF_MAX,
+    select_awg_for_ff_cap,
+)
 from engine.winding_sanity import (  # noqa: E402
     CALIBRE_INVALIDO,
     FEM_SAFE_TURNS_DEFAULT,
     FEM_TURNS_BAND_HI,
     FEM_TURNS_BAND_LO,
     MSG_BUSSOLA_DIVERGENTE,
+    MSG_FEM_VETO_TURNS,
     apply_commercial_awg_preserve_copper,
     apply_fem_physics_guard,
     awg_for_fill_with_limits,
     busola_historica_inconsistente,
     clamp_awg_to_safe_range,
+    enforce_fem_turns_veto,
     espiras_busola_oficina,
     espiras_constante_k,
     espiras_from_fem_equation,
@@ -164,3 +170,35 @@ def test_select_awg_19_for_45_turns_24_slots():
     assert awg == 19
     ratio = slot_fill_units(45.0, awg) / lim
     assert 0.45 <= ratio <= 0.95
+
+
+def test_fem_veto_raises_low_hist_turns():
+    n_fem = espiras_from_fem_equation(80.0, 70.0, 2)
+    out, fem, msgs = enforce_fem_turns_veto(
+        19.0,
+        diametro_mm=80,
+        pacote_mm=70,
+        polos=2,
+        ranhuras=24,
+        carcaca="80A",
+    )
+    assert fem == n_fem
+    assert out >= n_fem
+    assert out > 19.0
+    assert MSG_FEM_VETO_TURNS in msgs
+
+
+def test_select_awg_for_ff_cap_thins_wire():
+    awg, ff, msgs = select_awg_for_ff_cap(
+        45.0,
+        15.0,
+        ranhuras=24,
+        diametro_mm=80,
+        pacote_mm=70,
+        carcaca="80A",
+        ff_max=FF_MAX,
+        polos=2,
+    )
+    assert awg >= 15.0
+    assert ff <= FF_MAX + 0.01
+    assert awg >= 17.0

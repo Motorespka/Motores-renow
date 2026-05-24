@@ -1,19 +1,20 @@
-/* Gêmeo Digital — dashboard industrial (escopo .demo-twin-dashboard) */
+/* Gêmeo Digital — dashboard PMTH (escopo .demo-twin-dashboard) */
+@import url("../design-system/digital-twin.css");
 
 .demo-twin-dashboard {
-  --dt-bg: #0e1117;
-  --dt-panel: #161b22;
-  --dt-panel-2: #1c2128;
-  --dt-border: rgba(222, 255, 154, 0.22);
-  --dt-accent: #deff9a;
-  --dt-accent-dim: rgba(222, 255, 154, 0.12);
-  --dt-ink: #e6edf3;
-  --dt-muted: #8b949e;
-  --dt-green: #3fb950;
-  --dt-yellow: #d29922;
-  --dt-red: #f85149;
-  --dt-radius: 12px;
-  --dt-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --dt-bg: var(--dt-bg0, #0b1117);
+  --dt-panel: var(--dt-panel, #141c24);
+  --dt-panel-2: var(--dt-panel-elevated, #1a2430);
+  --dt-border: var(--dt-border, rgba(0, 229, 255, 0.22));
+  --dt-accent: var(--dt-cyan, #00e5ff);
+  --dt-accent-dim: var(--dt-cyan-dim, rgba(0, 229, 255, 0.14));
+  --dt-ink: var(--dt-ink, #e9f7ff);
+  --dt-muted: var(--dt-ink-muted, #6b8499);
+  --dt-green: var(--dt-green, #3fb950);
+  --dt-yellow: var(--dt-yellow, #d29922);
+  --dt-red: var(--dt-red, #f85149);
+  --dt-radius: var(--dt-radius, 12px);
+  --dt-shadow: var(--dt-shadow, 0 8px 32px rgba(0, 0, 0, 0.55));
 }
 
 .demo-twin-dashboard .dt-hero {
@@ -25,11 +26,40 @@
   box-shadow: var(--dt-shadow);
 }
 
+.demo-twin-dashboard .dt-hero__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.45rem;
+}
+
+.demo-twin-dashboard .dt-hero__logo {
+  font-family: var(--dt-font-display);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  color: var(--dt-cyan);
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--dt-border);
+  border-radius: 6px;
+}
+
+.demo-twin-dashboard .dt-hero__sys {
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dt-green);
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(63, 185, 80, 0.12);
+  border: 1px solid rgba(63, 185, 80, 0.35);
+}
+
 .demo-twin-dashboard .dt-hero h1 {
-  font-family: "Orbitron", "Rajdhani", sans-serif;
+  font-family: var(--dt-font-display);
   font-size: 1.35rem;
   font-weight: 700;
-  color: var(--dt-accent);
+  color: var(--dt-cyan);
   margin: 0 0 0.25rem 0;
   letter-spacing: 0.04em;
 }
@@ -223,4 +253,417 @@
 .demo-twin-dashboard .stTabs [aria-selected="true"] {
   color: var(--dt-accent) !important;
   border-bottom: 2px solid var(--dt-accent) !important;
+}
+
+/* ── Veredito físico (banner PMTH) ── */
+.demo-twin-dashboard .dt-verdict {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 1rem 1.25rem;
+  align-items: center;
+  padding: 1rem 1.2rem;
+  margin-bottom: 1rem;
+  border-radius: var(--dt-radius-lg, 16px);
+  border: 1px solid var(--dt-border-strong, rgba(0, 229, 255, 0.45));
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.12) 0%, rgba(20, 28, 36, 0.95) 55%);
+  box-shadow: var(--dt-glow, 0 0 24px rgba(0, 229, 255, 0.18));
+}
+
+.demo-twin-dashboard .dt-verdict--danger {
+  border-color: rgba(248, 81, 73, 0.45);
+  background: linear-gradient(135deg, rgba(248, 81, 73, 0.14) 0%, rgba(20, 28, 36, 0.95) 55%);
+  box-shadow: 0 0 20px rgba(248, 81, 73, 0.15);
+}
+
+.demo-twin-dashboard .dt-verdict__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--dt-bg0);
+  background: linear-gradient(180deg, var(--dt-cyan), #00a8c4);
+  box-shadow: 0 0 16px var(--dt-cyan-glow);
+}
+
+.demo-twin-dashboard .dt-verdict--danger .dt-verdict__icon {
+  background: linear-gradient(180deg, #f85149, #c42e26);
+  box-shadow: 0 0 16px rgba(248, 81, 73, 0.35);
+}
+
+.demo-twin-dashboard .dt-verdict__title {
+  font-family: var(--dt-font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--dt-cyan);
+  letter-spacing: 0.04em;
+}
+
+.demo-twin-dashboard .dt-verdict--danger .dt-verdict__title {
+  color: var(--dt-red);
+}
+
+.demo-twin-dashboard .dt-verdict__sub {
+  font-size: 0.82rem;
+  color: var(--dt-ink-soft);
+  margin-top: 0.2rem;
+}
+
+.demo-twin-dashboard .dt-verdict__metrics {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.demo-twin-dashboard .dt-verdict__metric-label {
+  display: block;
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dt-ink-muted);
+}
+
+.demo-twin-dashboard .dt-verdict__metric-value {
+  font-family: var(--dt-font-mono);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--dt-ink);
+}
+
+.demo-twin-dashboard .dt-verdict__metric-value--accent {
+  color: var(--dt-lime);
+}
+
+/* ── Seções de formulário ── */
+.demo-twin-dashboard .dt-section-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0.85rem 0 0.5rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--dt-border);
+}
+
+.demo-twin-dashboard .dt-section-head__title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dt-cyan);
+}
+
+.demo-twin-dashboard .dt-section-head__sub {
+  font-size: 0.72rem;
+  color: var(--dt-ink-muted);
+}
+
+/* ── Insights: gauges + barras ── */
+.demo-twin-dashboard .dt-insights-panel {
+  border: 1px solid var(--dt-border);
+  border-radius: var(--dt-radius-lg);
+  background: var(--dt-panel);
+  padding: 1rem 1.1rem;
+  margin-bottom: 0.85rem;
+}
+
+.demo-twin-dashboard .dt-insights-panel__title {
+  font-family: var(--dt-font-display);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dt-cyan);
+  margin-bottom: 0.75rem;
+}
+
+.demo-twin-dashboard .dt-gauge-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+}
+
+.demo-twin-dashboard .dt-arc-gauge {
+  text-align: center;
+  padding: 0.35rem;
+  border-radius: var(--dt-radius);
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(0, 229, 255, 0.08);
+}
+
+.demo-twin-dashboard .dt-arc-gauge__value {
+  font-family: var(--dt-font-mono);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--dt-ink);
+  margin-top: -0.35rem;
+}
+
+.demo-twin-dashboard .dt-arc-gauge__label {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--dt-ink-muted);
+  margin-top: 0.15rem;
+}
+
+.demo-twin-dashboard .dt-arc-gauge--ok .dt-arc-gauge__value { color: var(--dt-green); }
+.demo-twin-dashboard .dt-arc-gauge--warn .dt-arc-gauge__value { color: var(--dt-orange); }
+.demo-twin-dashboard .dt-arc-gauge--danger .dt-arc-gauge__value { color: var(--dt-red); }
+
+.demo-twin-dashboard .dt-metric-bar {
+  margin-bottom: 0.65rem;
+}
+
+.demo-twin-dashboard .dt-metric-bar__head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--dt-ink-soft);
+  margin-bottom: 0.3rem;
+}
+
+.demo-twin-dashboard .dt-metric-bar__vals {
+  font-family: var(--dt-font-mono);
+  font-size: 0.68rem;
+}
+
+.demo-twin-dashboard .dt-metric-bar__track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(0, 229, 255, 0.08);
+  overflow: hidden;
+}
+
+.demo-twin-dashboard .dt-metric-bar__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--dt-cyan), #00a8c4);
+  box-shadow: 0 0 10px var(--dt-cyan-glow);
+}
+
+.demo-twin-dashboard .dt-metric-bar--warn .dt-metric-bar__fill {
+  background: linear-gradient(90deg, var(--dt-orange), #cc6e00);
+}
+
+.demo-twin-dashboard .dt-metric-bar--danger .dt-metric-bar__fill {
+  background: linear-gradient(90deg, var(--dt-red), #a82822);
+}
+
+.demo-twin-dashboard .dt-mini-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.55rem;
+  margin-top: 0.5rem;
+}
+
+.demo-twin-dashboard .dt-mini-kpi {
+  border-radius: var(--dt-radius);
+  padding: 0.55rem 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--dt-panel-2);
+}
+
+.demo-twin-dashboard .dt-mini-kpi__label {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--dt-ink-muted);
+}
+
+.demo-twin-dashboard .dt-mini-kpi__value {
+  font-family: var(--dt-font-mono);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--dt-ink);
+}
+
+.demo-twin-dashboard .dt-mini-kpi__delta {
+  font-size: 0.65rem;
+  color: var(--dt-cyan);
+}
+
+.demo-twin-dashboard .dt-mini-kpi--warn .dt-mini-kpi__delta {
+  color: var(--dt-orange);
+}
+
+/* ── Comparativo A/B ── */
+.demo-twin-dashboard .dt-compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.demo-twin-dashboard .dt-compare-col {
+  border-radius: var(--dt-radius);
+  padding: 0.85rem;
+  border: 1px solid var(--dt-border);
+  background: var(--dt-panel-2);
+}
+
+.demo-twin-dashboard .dt-compare-col--a {
+  border-color: rgba(159, 185, 207, 0.25);
+}
+
+.demo-twin-dashboard .dt-compare-col--b {
+  border-color: rgba(0, 229, 255, 0.35);
+  box-shadow: inset 0 0 20px rgba(0, 229, 255, 0.04);
+}
+
+.demo-twin-dashboard .dt-compare-col__badge {
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dt-ink-muted);
+  margin-bottom: 0.25rem;
+}
+
+.demo-twin-dashboard .dt-compare-col__title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--dt-ink);
+  margin-bottom: 0.5rem;
+}
+
+.demo-twin-dashboard .dt-compare-stat {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  margin-bottom: 0.35rem;
+}
+
+.demo-twin-dashboard .dt-compare-stat span {
+  color: var(--dt-ink-muted);
+}
+
+.demo-twin-dashboard .dt-compare-stat strong {
+  font-family: var(--dt-font-mono);
+  color: var(--dt-ink);
+}
+
+.demo-twin-dashboard .dt-compare-bar {
+  margin-top: 0.5rem;
+}
+
+.demo-twin-dashboard .dt-compare-bar__label {
+  font-size: 0.65rem;
+  color: var(--dt-ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.demo-twin-dashboard .dt-compare-bar__track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  margin: 0.25rem 0;
+  overflow: hidden;
+}
+
+.demo-twin-dashboard .dt-compare-bar__track > div {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--dt-cyan);
+}
+
+.demo-twin-dashboard .dt-compare-bar--ok .dt-compare-bar__track > div { background: var(--dt-green); }
+.demo-twin-dashboard .dt-compare-bar--warn .dt-compare-bar__track > div { background: var(--dt-orange); }
+.demo-twin-dashboard .dt-compare-bar--danger .dt-compare-bar__track > div { background: var(--dt-red); }
+
+.demo-twin-dashboard .dt-compare-bar__val {
+  font-family: var(--dt-font-mono);
+  font-size: 0.72rem;
+  color: var(--dt-ink-soft);
+}
+
+/* ── Material + status ── */
+.demo-twin-dashboard .dt-material-card {
+  border: 1px solid var(--dt-border);
+  border-radius: var(--dt-radius);
+  padding: 0.85rem;
+  background: var(--dt-panel-2);
+  margin-bottom: 0.75rem;
+}
+
+.demo-twin-dashboard .dt-material-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--dt-ink-soft);
+}
+
+.demo-twin-dashboard .dt-material-card__head strong {
+  font-family: var(--dt-font-mono);
+  font-size: 1.1rem;
+  color: var(--dt-lime);
+}
+
+.demo-twin-dashboard .dt-table--compact tbody td {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.78rem;
+}
+
+.demo-twin-dashboard .dt-mat-qty {
+  font-family: var(--dt-font-mono);
+  color: var(--dt-cyan) !important;
+  font-weight: 600;
+}
+
+.demo-twin-dashboard .dt-status-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--dt-radius);
+  font-size: 0.82rem;
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--dt-border);
+  background: rgba(0, 229, 255, 0.06);
+}
+
+.demo-twin-dashboard .dt-status-chip--ok {
+  border-color: rgba(63, 185, 80, 0.35);
+  background: rgba(63, 185, 80, 0.08);
+}
+
+.demo-twin-dashboard .dt-status-chip--danger {
+  border-color: rgba(248, 81, 73, 0.35);
+  background: rgba(248, 81, 73, 0.08);
+}
+
+.demo-twin-dashboard .dt-status-chip__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dt-green);
+  box-shadow: 0 0 8px var(--dt-green);
+}
+
+.demo-twin-dashboard .dt-status-chip--danger .dt-status-chip__dot {
+  background: var(--dt-red);
+  box-shadow: 0 0 8px var(--dt-red);
+}
+
+.demo-twin-dashboard .dt-diagnostics-shell {
+  border: 1px solid var(--dt-border);
+  border-radius: var(--dt-radius-lg);
+  padding: 1rem 1.1rem;
+  margin: 0.75rem 0;
+  background: linear-gradient(180deg, var(--dt-panel) 0%, var(--dt-bg1) 100%);
+}
+
+@media (max-width: 900px) {
+  .demo-twin-dashboard .dt-verdict {
+    grid-template-columns: 1fr;
+  }
+  .demo-twin-dashboard .dt-gauge-row,
+  .demo-twin-dashboard .dt-compare-grid,
+  .demo-twin-dashboard .dt-mini-kpi-row {
+    grid-template-columns: 1fr;
+  }
 }

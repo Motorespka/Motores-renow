@@ -41,6 +41,12 @@ from engine.outlier_filter import (
     should_exclude_cadastro_pollution_80_90,
     should_exclude_motor_row_pollution,
 )
+from engine.physics_audit import (
+    FF_MAX,
+    MSG_FF_IMPOSSIVEL,
+    select_awg_for_ff_cap,
+    scenario_passes_hard_physics_limits,
+)
 from engine.winding_sanity import (
     ALERT_ESPIRAS_BAIXAS,
     ALERT_POLARIDADE,
@@ -51,12 +57,13 @@ from engine.winding_sanity import (
     MSG_CENARIO_A_INVALIDO,
     MSG_ESTIMATIVA_TECNICA_FORCADA,
     MSG_BUSSOLA_DIVERGENTE,
+    MSG_FEM_VETO_TURNS,
     apply_commercial_awg_preserve_copper,
-    apply_fem_physics_guard,
     awg_for_fill_with_limits,
     awg_table_index,
     busola_historica_inconsistente,
     clamp_awg_to_safe_range,
+    enforce_fem_turns_veto,
     espiras_from_fem_equation,
     is_awg_in_range,
     nearest_awg_from_table,
@@ -116,6 +123,7 @@ class WindingScenario:
     fill_factor_ff: Optional[float] = None
     current_density_j: Optional[float] = None
     physics_confidence: Optional[int] = None
+    reprovado_fisicamente: bool = False
 
 
 @dataclass
@@ -243,6 +251,7 @@ def _build_scenario(
     calibre_display: str = "",
     desabilitado: bool = False,
     cenario_principal: bool = False,
+    apply_fem_turns_guard: bool = True,
 ) -> WindingScenario:
     eq_awg = equivalent_single_awg(wire)
     fill_u = slot_fill_units(espiras, eq_awg)
@@ -259,7 +268,20 @@ def _build_scenario(
         polos=stator.polos,
         carcaca=stator.carcaca,
         parallel_count=wire.parallel_count,
+        tipo_bobinagem=stator.tipo_bobinagem,
+        passo=stator.passo,
+        apply_fem_turns_guard=apply_fem_turns_guard,
     )
+    esp_final = round(float(phys.espiras), 1)
+    if phys.calculation_aborted:
+        desabilitado = True
+    if esp_final != round(float(espiras), 1):
+        espiras = esp_final
+        fill_u = slot_fill_units(espiras, eq_awg)
+        fill_ratio = _slot_occupation_ratio(fill_u, slot_limit)
+        flux_idx = _flux_density_index(
+            espiras, stator.diametro_mm, stator.pacote_mm, stator.polos
+        )
     score, alertas = _confidence_score(
         espiras=espiras,
         media_prop=media_prop,
@@ -290,6 +312,57 @@ def _build_scenario(
     if calibre_display == CALIBRE_INVALIDO:
         fio_txt = CALIBRE_INVALIDO
 
+    from engine.physics_audit import compute_slot_occupation_ratio
+
+    final_ff = compute_slot_occupation_ratio(
+        espiras,
+        eq_awg,
+        ranhuras=stator.ranhuras,
+        diametro_mm=stator.diametro_mm,
+        pacote_mm=stator.pacote_mm,
+        parallel_count=wire.parallel_count,
+        tipo_bobinagem=stator.tipo_bobinagem,
+        passo=stator.passo,
+    )
+    physics_conf = int(phys.confidence_score)
+    if final_ff > FF_MAX + 1e-6:
+        desabilitado = True
+        if MSG_FF_IMPOSSIVEL not in alertas:
+            alertas.append(MSG_FF_IMPOSSIVEL)
+        score = 0
+        physics_conf = 0
+
+    from engine.physics_validator import PhysicsValidatorEngine
+
+    awg_ref: Optional[float] = None
+    if stator.fio_validacao_usuario_awg and stator.fio_validacao_usuario_awg > 0:
+        awg_ref = float(stator.fio_validacao_usuario_awg)
+    usa_val = bool(
+        stator.espiras_validacao_usuario and stator.espiras_validacao_usuario > 0
+    )
+    verdict = PhysicsValidatorEngine.validate_scenario_render(
+        espiras=espiras,
+        awg=eq_awg,
+        parallel_count=wire.parallel_count,
+        fill_factor_ff=final_ff,
+        current_density_j=phys.current_density_j if usa_val else None,
+        b_tesla=phys.flux_density_b_t,
+        awg_referencia=awg_ref if awg_ref and abs(awg_ref - eq_awg) >= 0.05 else None,
+        parallel_referencia=1,
+        espiras_referencia=stator.espiras_validacao_usuario,
+        strict_j=usa_val,
+        validate_j=usa_val,
+    )
+    reprovado_fisicamente = verdict.reprovado_fisicamente
+    if reprovado_fisicamente:
+        desabilitado = True
+        cenario_principal = False
+        score = 0
+        physics_conf = 0
+        for msg in verdict.mensagens:
+            if msg not in alertas:
+                alertas.append(msg)
+
     return WindingScenario(
         cenario_id=cenario_id,
         titulo=titulo,
@@ -311,9 +384,10 @@ def _build_scenario(
         slot_fill_units=round(fill_u, 4),
         slot_fill_limite=slot_limit,
         fio_alternativa_paralelo=fio_alternativa_paralelo,
-        fill_factor_ff=phys.fill_factor_ff,
+        fill_factor_ff=final_ff,
         current_density_j=phys.current_density_j,
-        physics_confidence=phys.confidence_score,
+        physics_confidence=physics_conf,
+        reprovado_fisicamente=reprovado_fisicamente,
     )
 
 
@@ -568,7 +642,7 @@ class WindingOptimizer:
             ranhuras=stator.ranhuras,
             polos=stator.polos,
             top_k=top_k,
-            use_gemini=use_gemini_eff,
+            use_gemini=False,
         )
 
         tipo_infer: Optional[TipoInferencia] = None
@@ -590,7 +664,7 @@ class WindingOptimizer:
                     ranhuras=stator.ranhuras,
                     polos=stator.polos,
                     top_k=top_k,
-                    use_gemini=use_gemini_eff,
+                    use_gemini=False,
                 )
 
         media_prop = base.espiras_media_top5 or base.sugestao_espira
@@ -643,14 +717,15 @@ class WindingOptimizer:
 
         user_esp = user_esp_pre
         usa_validacao = _lei_absoluta_validacao(stator, user_esp)
+        apply_fem_guard = not usa_validacao
         busola_inconsistente = False
         magnetic_sanity_gate_active = False
         gemini_topologia_camada1 = False
         alertas_globais: list[str] = []
 
         if usa_validacao:
-            esp_ref = round(float(user_esp), 1)
-            if busola_historica_inconsistente(esp_ref, media_hist):
+            espiras_hist = round(float(user_esp), 1)
+            if busola_historica_inconsistente(espiras_hist, media_hist):
                 busola_inconsistente = True
                 alertas_globais.append(MSG_BUSSOLA_DIVERGENTE)
             alertas_globais.append(
@@ -662,16 +737,13 @@ class WindingOptimizer:
                     "Motor 24 ranhuras / 2 polos: espiras informadas tratadas como constante K central."
                 )
         else:
-            esp_ref = round(esp_prop, 1)
-            aviso_hist = proportional_vs_hist_alert(esp_ref, media_hist)
+            espiras_hist = round(esp_prop, 1)
+            aviso_hist = proportional_vs_hist_alert(espiras_hist, media_hist)
             if aviso_hist:
                 alertas_globais.append(aviso_hist)
 
-        esp_fem = espiras_from_fem_equation(
-            stator.diametro_mm, stator.pacote_mm, stator.polos
-        )
-        esp_ref, _, fem_msgs = apply_fem_physics_guard(
-            esp_ref,
+        esp_ref, esp_fem, fem_msgs = enforce_fem_turns_veto(
+            espiras_hist,
             diametro_mm=stator.diametro_mm,
             pacote_mm=stator.pacote_mm,
             polos=stator.polos,
@@ -680,10 +752,12 @@ class WindingOptimizer:
         )
         if fem_msgs:
             alertas_globais.extend(fem_msgs)
-        if esp_fem > 0 and not usa_validacao:
+        if esp_fem > 0:
             alertas_globais.append(
                 f"Referência FEM (220 V / 60 Hz / B=1.5 T): **{esp_fem}** espiras por polo."
             )
+        if esp_ref > espiras_hist + 0.05 and MSG_FEM_VETO_TURNS not in alertas_globais:
+            alertas_globais.append(MSG_FEM_VETO_TURNS)
 
         meta_hist_comparison: Optional[float] = (
             esp_ref
@@ -696,34 +770,63 @@ class WindingOptimizer:
         else:
             awg_base_raw = float(base.sugestao_fio_awg or 23.0)
 
+        esp_b = round(esp_ref, 1)
+        from engine.physics_audit import compute_slot_occupation_ratio
+
         if usa_validacao:
-            esp_b = round(esp_ref, 1)
-            awg_b = float(nearest_awg_from_table(awg_base_raw))
+            awg_b = awg_base_raw
+            ff_b = compute_slot_occupation_ratio(
+                esp_b,
+                awg_b,
+                ranhuras=stator.ranhuras,
+                diametro_mm=stator.diametro_mm,
+                pacote_mm=stator.pacote_mm,
+                tipo_bobinagem=stator.tipo_bobinagem,
+                passo=stator.passo,
+            )
+            ff_msgs_b = []
+            if ff_b > FF_MAX + 1e-6:
+                alertas_globais.append(MSG_FF_IMPOSSIVEL)
+            awg_adj_b = False
+            msg_b_awg = ""
+        else:
+            awg_b, ff_b, ff_msgs_b = select_awg_for_ff_cap(
+                esp_b,
+                awg_base_raw,
+                ranhuras=stator.ranhuras,
+                diametro_mm=stator.diametro_mm,
+                pacote_mm=stator.pacote_mm,
+                carcaca=stator.carcaca,
+                ff_max=FF_MAX,
+                tipo_bobinagem=stator.tipo_bobinagem,
+                passo=stator.passo,
+                polos=stator.polos,
+            )
+            if ff_msgs_b:
+                alertas_globais.extend(ff_msgs_b)
+            if ff_b > FF_MAX + 1e-6:
+                alertas_globais.append(MSG_FF_IMPOSSIVEL)
             awg_adj_b = abs(awg_b - awg_base_raw) >= 0.05
             msg_b_awg = MSG_AWG_COMERCIAL if awg_adj_b else ""
-        else:
-            esp_b = round(esp_ref, 1)
-            if slot_limit and slot_limit > 0:
-                awg_b = float(
-                    select_awg_for_slot_fill(
-                        esp_b,
-                        slot_limit,
-                        prefer_awg=awg_base_raw if awg_base_raw > 0 else None,
-                    )
+        if usa_validacao and slot_limit and slot_limit > 0:
+            fill_hist = slot_fill_ratio(esp_b, awg_b, slot_limit)
+            if fill_hist > MAX_SLOT_OCCUPATION:
+                alertas_globais.append(
+                    f"Aviso: ocupação de ranhura {fill_hist:.0%} acima do alvo "
+                    f"({MAX_SLOT_OCCUPATION:.0%}) — bitola informada mantida na validação humana."
                 )
-                awg_adj_b = abs(awg_b - awg_base_raw) >= 0.05
-                msg_b_awg = MSG_AWG_COMERCIAL if awg_adj_b else ""
-            else:
-                esp_b, awg_b, awg_adj_b, msg_b_awg = apply_commercial_awg_preserve_copper(
-                    esp_ref, awg_base_raw, stator.carcaca
-                )
-        if slot_limit and slot_limit > 0 and not usa_validacao:
-            fill_b = slot_fill_ratio(esp_b, awg_b, slot_limit)
-            if fill_b > 0.80:
-                awg_b = float(
-                    select_awg_for_slot_fill(esp_b, slot_limit, prefer_awg=awg_b)
+                ff_b = compute_slot_occupation_ratio(
+                    esp_b,
+                    awg_b,
+                    ranhuras=stator.ranhuras,
+                    diametro_mm=stator.diametro_mm,
+                    pacote_mm=stator.pacote_mm,
+                    tipo_bobinagem=stator.tipo_bobinagem,
+                    passo=stator.passo,
                 )
         wire_b = WireConfig(parallel_count=1, awg=awg_b)
+        if ff_b > FF_MAX + 1e-6 and MSG_FF_IMPOSSIVEL not in alertas_globais:
+            alertas_globais.append(MSG_FF_IMPOSSIVEL)
         flux_ref = _flux_density_index(
             esp_ref, stator.diametro_mm, stator.pacote_mm, stator.polos
         )
@@ -744,7 +847,8 @@ class WindingOptimizer:
                 desc_b += f" {MSG_BUSSOLA_DIVERGENTE}."
         else:
             desc_b = (
-                f"**Padrão de referência (proporcional)** — **{esp_ref}** espiras"
+                f"**Padrão de referência (física validada)** — **{esp_ref}** espiras "
+                f"(max entre histórico proporcional e FEM B≤1.5 T)"
             )
             if media_hist:
                 desc_b += (
@@ -779,6 +883,7 @@ class WindingOptimizer:
             fio_alternativa_paralelo=alt_b,
             is_estimativa=is_estimativa,
             cenario_principal=True,
+            apply_fem_turns_guard=apply_fem_guard,
         )
         cenario_b.fio_texto = txt_b
         if alertas_globais:
@@ -921,6 +1026,7 @@ class WindingOptimizer:
             calibre_display=calibre_a,
             desabilitado=desabilitar_a,
             cenario_principal=False,
+            apply_fem_turns_guard=apply_fem_guard,
         )
         cenario_a.alertas = alertas_a + cenario_a.alertas
         if desabilitar_a:
@@ -964,22 +1070,110 @@ class WindingOptimizer:
             n_refs=n_refs,
             fio_alternativa_paralelo=txt_c if wire_c.parallel_count <= 1 else "",
             is_estimativa=is_estimativa,
+            apply_fem_turns_guard=apply_fem_guard,
         )
         cenario_c.fio_texto = txt_c
         if tune_c_msgs:
             cenario_c.alertas = tune_c_msgs + list(cenario_c.alertas)
 
-        cenario_recomendado = "B"
         cenario_a_suprimido = desabilitar_a and calibre_a == MSG_CENARIO_A_INVALIDO
         cenarios: list[WindingScenario] = [cenario_b, cenario_c]
         if not cenario_a_suprimido:
             cenarios.insert(1, cenario_a)
+
+        for cen in cenarios:
+            cen.cenario_principal = False
+        cenario_recomendado = ""
+        for cid in ("B", "C", "A"):
+            cen_pick = next((c for c in cenarios if c.cenario_id == cid), None)
+            if cen_pick and scenario_passes_hard_physics_limits(cen_pick):
+                cenario_recomendado = cid
+                cen_pick.cenario_principal = True
+                break
+        if not cenario_recomendado:
+            cenario_recomendado = ""
+            for cen in cenarios:
+                cen.cenario_principal = False
 
         if magnetic_sanity_gate_active:
             for cen in cenarios:
                 cen.confidence_score = min(int(cen.confidence_score), 40)
                 if MSG_ESTIMATIVA_TECNICA_FORCADA not in cen.alertas:
                     cen.alertas.insert(0, MSG_ESTIMATIVA_TECNICA_FORCADA)
+
+        base_out: dict[str, Any] = asdict(base)
+        if use_gemini_eff and cenarios:
+            from engine.physics_audit import cenario_valido_para_painel_recomendado
+
+            cen_gem = None
+            if cenario_recomendado:
+                cand = next(
+                    (c for c in cenarios if c.cenario_id == cenario_recomendado),
+                    None,
+                )
+                if cand and cenario_valido_para_painel_recomendado(asdict(cand)):
+                    cen_gem = cand
+            if cen_gem is None:
+                for cid in ("B", "C", "A"):
+                    cand = next((c for c in cenarios if c.cenario_id == cid), None)
+                    if cand and cenario_valido_para_painel_recomendado(asdict(cand)):
+                        cen_gem = cand
+                        break
+            try:
+                from services.gemini_engineering_validator import (
+                    _GEMINI_ABORT_COMENTARIO,
+                    build_magnetic_validation_abort_payload,
+                    build_magnetic_validation_payload_final,
+                    validate_magnetic_with_gemini,
+                )
+
+                if cen_gem is not None:
+                    gem_payload = build_magnetic_validation_payload_final(
+                        entrada=entrada,
+                        cen=asdict(cen_gem),
+                        base=base,
+                        slot_fill_limit=slot_limit,
+                        modo_validacao_usuario=usa_validacao,
+                        espiras_validacao_usuario=user_esp,
+                    )
+                else:
+                    gem_payload = build_magnetic_validation_abort_payload(
+                        entrada=entrada,
+                        cenarios=[asdict(c) for c in cenarios],
+                        base=base,
+                        slot_fill_limit=slot_limit,
+                    )
+                gem = validate_magnetic_with_gemini(gem_payload)
+                comentario = str(gem.get("comentario_validacao") or "").strip()
+                if cen_gem is not None:
+                    if comentario:
+                        base_out["justificativa_tecnica"] = (
+                            f"{base.calculo_baseado_em}. Cenario {cen_gem.cenario_id}: "
+                            f"{cen_gem.espiras} espiras, {cen_gem.fio_texto}. "
+                            f"Validacao magnetica (valores finais pos-FEM/ff): {comentario}"
+                        )
+                    base_out["sugestao_espira"] = cen_gem.espiras
+                    base_out["sugestao_fio_awg"] = cen_gem.wire.awg
+                    base_out["sugestao_fio_texto"] = cen_gem.fio_texto
+                    base_out["calculo_abortado"] = False
+                else:
+                    base_out["calculo_abortado"] = True
+                    base_out["sugestao_espira"] = None
+                    base_out["sugestao_fio_awg"] = None
+                    base_out["sugestao_fio_texto"] = ""
+                    base_out["justificativa_tecnica"] = _GEMINI_ABORT_COMENTARIO
+                    comentario = _GEMINI_ABORT_COMENTARIO
+                base_out["gemini_usado"] = True
+                base_out["validacao_magnetica"] = (
+                    "ABORTADO" if cen_gem is None else gem.get("validacao_magnetica", "")
+                )
+                gem_alerta = str(gem.get("alerta_risco") or "").strip()
+                if gem_alerta:
+                    base_out["alerta_risco"] = gem_alerta
+            except Exception as exc:
+                base_out["justificativa_tecnica"] = (
+                    f"{base.calculo_baseado_em} (Gemini indisponivel: {exc})"
+                )
 
         return WindingOptimizationResult(
             entrada=entrada,
@@ -1009,5 +1203,5 @@ class WindingOptimizer:
             volume_estator_mm3=vol_mm3,
             n_removed_pollution=n_removed_pollution,
             gemini_topologia_camada1=gemini_topologia_camada1,
-            base_suggestion=asdict(base),
+            base_suggestion=base_out,
         )

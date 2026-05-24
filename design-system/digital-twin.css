@@ -1,0 +1,33 @@
+/**
+ * PMTH Digital Twin — design tokens (Streamlit + Next)
+ * Import: @import url("../design-system/digital-twin.css");
+ */
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800&family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap");
+
+:root {
+  --dt-bg0: #0b1117;
+  --dt-bg1: #0e1419;
+  --dt-bg2: #121a22;
+  --dt-panel: #141c24;
+  --dt-panel-elevated: #1a2430;
+  --dt-ink: #e9f7ff;
+  --dt-ink-soft: #9fb9cf;
+  --dt-ink-muted: #6b8499;
+  --dt-cyan: #00e5ff;
+  --dt-cyan-dim: rgba(0, 229, 255, 0.14);
+  --dt-cyan-glow: rgba(0, 229, 255, 0.35);
+  --dt-lime: #deff9a;
+  --dt-orange: #ff8a00;
+  --dt-green: #3fb950;
+  --dt-yellow: #d29922;
+  --dt-red: #f85149;
+  --dt-border: rgba(0, 229, 255, 0.22);
+  --dt-border-strong: rgba(0, 229, 255, 0.45);
+  --dt-radius: 12px;
+  --dt-radius-lg: 16px;
+  --dt-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
+  --dt-glow: 0 0 24px rgba(0, 229, 255, 0.18);
+  --dt-font-display: "Orbitron", "Rajdhani", sans-serif;
+  --dt-font-body: "Rajdhani", "Inter", sans-serif;
+  --dt-font-mono: "JetBrains Mono", "Consolas", monospace;
+}

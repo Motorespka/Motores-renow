@@ -11,6 +11,7 @@ from app.routers import (
     auth,
     cadastro,
     conferences,
+    design,
     diagnostics,
     health,
     motors,
@@ -39,6 +40,7 @@ app.include_router(motors.router, prefix=settings.api_prefix)
 app.include_router(cadastro.router, prefix=settings.api_prefix)
 app.include_router(admin.router, prefix=settings.api_prefix)
 app.include_router(admin_demo_calculo.router, prefix=settings.api_prefix)
+app.include_router(design.router, prefix=settings.api_prefix)
 app.include_router(diagnostics.router, prefix=settings.api_prefix)
 app.include_router(conferences.router, prefix=settings.api_prefix)
 app.include_router(settings_router.router, prefix=settings.api_prefix)

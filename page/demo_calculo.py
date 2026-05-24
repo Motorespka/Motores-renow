@@ -26,6 +26,7 @@ from app.search_lib import (
 )
 from saas.audit import record_calculation
 from saas.auth_guard import require_gemelo_digital_access
+from services.motor_qualidade import MSG_CALCULO_SEM_HISTORICO_OFICINA
 from core.navigation import Route
 from core.streamlit_perf import maybe_fragment, pop_page_ctx_pack, stash_page_ctx
 from core.ui_feedback import mrw_render_banner_zone
@@ -42,12 +43,21 @@ from services.digital_twin_engine import (
     twin_result_to_optimizer_payload,
 )
 from services.gemini_engineering_validator import get_agent_system_prompt
-from engine.physics_audit import MSG_B_ABORT
+from engine.physics_audit import (
+    MSG_B_ABORT,
+    cenario_valido_para_painel_recomendado,
+    scenario_passes_hard_physics_limits,
+)
+from page.demo_calculo_components import render_section_header, render_verdict_banner
 from page.demo_calculo_ui import (
+    MSG_PROJETO_INVIAVEL,
     close_dashboard_shell,
+    cenario_valido_para_painel_recomendado,
+    is_projeto_inviavel_nuclear,
+    optimizer_has_cenarios,
     open_dashboard_shell,
     panel_title,
-    pick_primary_candidate,
+    projeto_fisicamente_aprovado,
     render_candidates_table,
     render_checklist,
     render_critical_alert,
@@ -56,8 +66,11 @@ from page.demo_calculo_ui import (
     render_kpi_row,
     render_mermaid_dark,
     render_vision_manual_warning,
+    resolve_cenario_recomendado_raw,
+    resolve_recommended_optimizer_scenario,
     confidence_tier,
 )
+from engine.physics_audit import scenario_dict_passes_hard_physics_limits
 from page.demo_calculo_validation import validate_demo_submit, vision_needs_manual_fallback
 
 
@@ -236,7 +249,29 @@ def _run_demo_optimizer(
 
 def _persist_demo_results(*, opt_res, entrada: dict[str, Any]) -> None:
     st.session_state["demo_calculo_optimizer"] = _optimizer_session_payload(opt_res)
-    st.session_state["demo_calculo_result"] = opt_res.base_suggestion or {}
+    res = dict(opt_res.base_suggestion or {})
+    rec_id = str(opt_res.cenario_recomendado or "").strip()
+    rec = None
+    if rec_id:
+        rec = next((c for c in opt_res.cenarios if c.cenario_id == rec_id), None)
+    if rec is None and opt_res.cenarios:
+        for c in opt_res.cenarios:
+            if scenario_passes_hard_physics_limits(c):
+                rec = c
+                break
+    if rec and scenario_passes_hard_physics_limits(rec):
+        res["sugestao_espira"] = rec.espiras
+        res["sugestao_fio_awg"] = rec.wire.awg
+        res["sugestao_fio_texto"] = rec.fio_texto
+        res["calculo_abortado"] = False
+    else:
+        res["sugestao_espira"] = None
+        res["sugestao_fio_awg"] = None
+        res["sugestao_fio_texto"] = ""
+        res["calculo_abortado"] = True
+        res["justificativa_tecnica"] = MSG_PROJETO_INVIAVEL
+        res["validacao_magnetica"] = "ABORTADO"
+    st.session_state["demo_calculo_result"] = res
     st.session_state["demo_calculo_entrada"] = entrada
     st.session_state.pop("demo_calculo_report_html", None)
 
@@ -307,13 +342,19 @@ def _render_stats_compact() -> None:
 
 
 def _render_scenario_card_compact(cen: dict, *, recomendado: bool = False) -> None:
+    passes_physics = cenario_valido_para_painel_recomendado(cen)
     score = int(cen.get("physics_confidence") or cen.get("confidence_score") or 0)
     tier = confidence_tier(score)
-    if recomendado:
+    show_star = recomendado and passes_physics and score > 0
+    if show_star:
         st.markdown(
-            f'<span class="dt-badge dt-badge-ok">★ Cenário recomendado</span>',
+            '<span class="dt-badge dt-badge-ok">★ Cenário recomendado</span>',
             unsafe_allow_html=True,
         )
+    elif recomendado and score <= 0:
+        st.caption("Falha na auditoria física — sem recomendação (confiança 0%).")
+    elif recomendado:
+        st.caption("Cenário reprovado pela física — sem recomendação para bobina.")
     render_kpi_row(
         espiras=cen.get("espiras", "—"),
         bitola=cen.get("fio_texto") or cen.get("calibre_display") or "—",
@@ -347,8 +388,9 @@ def _render_ordem_servico_export(
     twin_data: dict[str, Any] | None,
     opt_data: dict[str, Any] | None,
     res: dict[str, Any] | None,
+    inviable: bool = False,
 ) -> None:
-    if not calculation_ready_for_export(twin_data, opt_data, res):
+    if inviable or not calculation_ready_for_export(twin_data, opt_data, res):
         return
     entrada = _resolve_export_entrada(twin_data)
     st.divider()
@@ -388,10 +430,8 @@ def _render_report_panel(
     res: dict[str, Any] | None,
 ) -> None:
     """Painel direito — relatório executivo e KPIs."""
-    st.markdown('<div class="dt-report-panel">', unsafe_allow_html=True)
-    panel_title("Relatório executivo")
-
     if not twin_data and not opt_data and not res:
+        st.markdown('<div class="dt-report-panel">', unsafe_allow_html=True)
         render_empty_report(
             "Configure o motor à esquerda, envie fotos (modo caixa preta) "
             "e execute o cálculo para ver candidatos, FEM e score de confiança."
@@ -399,68 +439,205 @@ def _render_report_panel(
         st.markdown("</div>", unsafe_allow_html=True)
         return
 
-    esp, bitola, conf, occ, kpi_tier = pick_primary_candidate(twin_data, opt_data)
-    render_kpi_row(
-        espiras=esp,
-        bitola=bitola,
-        confianca=conf,
-        ocupacao=occ,
-        force_tier=kpi_tier,
-    )
+    opt_abc = optimizer_has_cenarios(opt_data)
+    optimizer_session = isinstance(opt_data, dict) and bool(opt_data)
+    cenario_recomendado = resolve_cenario_recomendado_raw(opt_data) if opt_abc else None
+    cenario_aprovado = resolve_recommended_optimizer_scenario(opt_data) if opt_abc else None
 
-    if twin_data:
-        if twin_data.get("saturacao_abortada"):
-            render_critical_alert(
-                MSG_B_ABORT,
-                b_tesla=twin_data.get("flux_density_b_t"),
+    if opt_abc:
+        is_inviavel = (
+            is_projeto_inviavel_nuclear(cenario_recomendado)
+            or cenario_aprovado is None
+            or bool(res and res.get("calculo_abortado"))
+        )
+    elif optimizer_session and (res and res.get("calculo_abortado")):
+        is_inviavel = True
+    else:
+        is_inviavel = False
+
+    st.markdown('<div class="dt-report-panel">', unsafe_allow_html=True)
+
+    if is_inviavel:
+        entrada_banner = st.session_state.get("demo_calculo_entrada") or {}
+        render_verdict_banner(
+            aprovado=False,
+            confianca_pct=0.0,
+            espiras=entrada_banner.get("espiras_engenheiro") or "—",
+            bitola=entrada_banner.get("fio_engenheiro") or "—",
+            subtitulo="Ajuste parâmetros físicos ou bitola antes de bobinar.",
+        )
+        st.error(
+            "🚨 PROJETO INVIÁVEL: Os limites físicos obrigatórios (Saturação Magnética ou "
+            "Fator de Enchimento) foram excedidos."
+        )
+        st.info(
+            "Nenhuma configuração pode ser recomendada para este estator. "
+            "Ajuste os parâmetros físicos."
+        )
+        st.warning("Motor reprovado na auditoria física.")
+        if res:
+            just = (res.get("justificativa_tecnica") or "").strip()
+            if just:
+                st.markdown(just)
+            elif res.get("alerta_risco"):
+                st.warning(res.get("alerta_risco"))
+        if cenario_recomendado:
+            for alerta in cenario_recomendado.get("alertas") or []:
+                st.error(str(alerta))
+        entrada_inv = st.session_state.get("demo_calculo_entrada") or {}
+        if isinstance(entrada_inv, dict) and entrada_inv:
+            from page.demo_calculo_diagnostics import render_diagnostic_suite
+
+            render_diagnostic_suite(
+                entrada=entrada_inv,
+                opt_data=opt_data,
+                twin_data=twin_data,
+                res=res,
+                show_pdf_button=True,
             )
-        if vision_needs_manual_fallback(twin_data.get("visao")):
-            render_vision_manual_warning()
-        modo_lbl = "Caixa preta" if twin_data.get("modo") == "caixa_preta" else "Auditoria"
-        st.caption(f"Modo ativo: **{modo_lbl}** · Completo: **{'Sim' if twin_data.get('completo') else 'Não'}**")
-        if twin_data.get("bloqueado"):
-            render_checklist(twin_data.get("checklist") or [])
-        md = twin_data.get("relatorio_markdown") or ""
-        if md and twin_data.get("completo"):
-            st.markdown(md)
-        cands = twin_data.get("candidatos") or []
-        if cands:
-            panel_title("Candidatos otimizados")
-            render_candidates_table(cands)
-        mv = twin_data.get("mermaid_validacao")
-        ml = twin_data.get("mermaid_ligacao")
-        if mv:
-            render_mermaid_dark(mv, height=320, title="Fluxo de validação física")
-        if ml:
-            render_mermaid_dark(ml, height=220, title="Esquema de ligação")
+    else:
+        if opt_abc and cenario_aprovado:
+            conf = float(
+                cenario_aprovado.get("physics_confidence")
+                or cenario_aprovado.get("confidence_score")
+                or 0
+            )
+            render_verdict_banner(
+                aprovado=True,
+                confianca_pct=conf,
+                espiras=cenario_aprovado.get("espiras", "—"),
+                bitola=cenario_aprovado.get("fio_texto")
+                or cenario_aprovado.get("calibre_display")
+                or "—",
+                lt_mm=entrada_diag.get("pacote_mm") if (entrada_diag := st.session_state.get("demo_calculo_entrada") or {}) else None,
+            )
+        elif twin_data and twin_data.get("completo"):
+            cand = (twin_data.get("candidatos") or [{}])[0]
+            render_verdict_banner(
+                aprovado=not twin_data.get("bloqueado"),
+                confianca_pct=float(cand.get("confianca_pct") or 0),
+                espiras=cand.get("espiras_por_bobina", "—"),
+                bitola=cand.get("descricao", "—"),
+            )
 
-    if opt_data and opt_data.get("cenarios"):
-        panel_title("Cenários A / B / C")
-        rec_id = str(opt_data.get("cenario_recomendado") or "B")
-        tab_map = {
-            "A": "A — Eficiência",
-            "B": "B — Referência ★",
-            "C": "C — Execução",
-        }
-        labels = []
-        for cen in opt_data["cenarios"]:
-            cid = str(cen.get("cenario_id", "B"))
-            labels.append(tab_map.get(cid, cid))
-        tabs = st.tabs(labels)
-        for tab, cen in zip(tabs, opt_data["cenarios"]):
-            with tab:
-                _render_scenario_card_compact(
-                    cen, recomendado=str(cen.get("cenario_id")) == rec_id
+        panel_title("Relatório executivo")
+
+        if opt_abc and cenario_aprovado:
+            panel_title("Cenário recomendado (★)")
+            render_kpi_row(
+                espiras=cenario_aprovado.get("espiras", "—"),
+                bitola=cenario_aprovado.get("fio_texto")
+                or cenario_aprovado.get("calibre_display")
+                or "—",
+                confianca=int(
+                    cenario_aprovado.get("physics_confidence")
+                    or cenario_aprovado.get("confidence_score")
+                    or 0
+                ),
+                ocupacao=cenario_aprovado.get("fator_ocupacao_ranhura"),
+            )
+            st.caption(
+                f"Fonte: otimizador A/B/C — cenário **{cenario_aprovado.get('cenario_id')}** "
+                f"(veto FEM + bitola por ff)."
+            )
+
+        if twin_data and not opt_abc and not optimizer_session:
+            if twin_data.get("saturacao_abortada"):
+                render_critical_alert(
+                    MSG_B_ABORT,
+                    b_tesla=twin_data.get("flux_density_b_t"),
                 )
+            if vision_needs_manual_fallback(twin_data.get("visao")):
+                render_vision_manual_warning()
+            modo_lbl = "Caixa preta" if twin_data.get("modo") == "caixa_preta" else "Auditoria"
+            st.caption(
+                f"Modo ativo: **{modo_lbl}** · Completo: **"
+                f"{'Sim' if twin_data.get('completo') else 'Não'}**"
+            )
+            for cand in twin_data.get("candidatos") or []:
+                for alerta in cand.get("alertas") or []:
+                    if MSG_CALCULO_SEM_HISTORICO_OFICINA in str(alerta):
+                        st.warning(alerta)
+                        break
+                else:
+                    continue
+                break
+            if twin_data.get("bloqueado"):
+                render_checklist(twin_data.get("checklist") or [])
+            md = twin_data.get("relatorio_markdown") or ""
+            if md and twin_data.get("completo"):
+                st.markdown(md)
+            cands = twin_data.get("candidatos") or []
+            if cands:
+                panel_title("Candidatos otimizados")
+                render_candidates_table(cands)
+            mv = twin_data.get("mermaid_validacao")
+            ml = twin_data.get("mermaid_ligacao")
+            if mv:
+                render_mermaid_dark(mv, height=320, title="Fluxo de validação física")
+            if ml:
+                render_mermaid_dark(ml, height=220, title="Esquema de ligação")
 
-    if res and not twin_data:
-        st.caption(f"Validação: **{res.get('validation_status', '—')}**")
-        if res.get("alerta_risco"):
-            st.warning(res.get("alerta_risco"))
-        if res.get("justificativa_tecnica"):
-            st.info(res.get("justificativa_tecnica"))
+        if opt_abc:
+            panel_title("Cenários A / B / C")
+            tab_map = {
+                "A": "A — Eficiência",
+                "B": "B — Referência",
+                "C": "C — Execução",
+            }
+            rec_id_effective = (
+                str(cenario_aprovado.get("cenario_id")) if cenario_aprovado else ""
+            )
+            labels = []
+            for cen in opt_data["cenarios"]:
+                cid = str(cen.get("cenario_id", "B"))
+                lbl = tab_map.get(cid, cid)
+                cen_score = int(
+                    cen.get("physics_confidence") or cen.get("confidence_score") or 0
+                )
+                if (
+                    rec_id_effective
+                    and cid == rec_id_effective
+                    and cenario_valido_para_painel_recomendado(cen)
+                    and cen_score > 0
+                ):
+                    lbl = f"{lbl} ★"
+                labels.append(lbl)
+            tabs = st.tabs(labels)
+            for tab, cen in zip(tabs, opt_data["cenarios"]):
+                with tab:
+                    _render_scenario_card_compact(
+                        cen,
+                        recomendado=bool(
+                            rec_id_effective
+                            and str(cen.get("cenario_id")) == rec_id_effective
+                        ),
+                    )
 
-    _render_ordem_servico_export(twin_data=twin_data, opt_data=opt_data, res=res)
+        if res and projeto_fisicamente_aprovado(opt_data):
+            st.caption(f"Validação: **{res.get('validation_status', '—')}**")
+            if res.get("alerta_risco"):
+                st.warning(res.get("alerta_risco"))
+            if res.get("justificativa_tecnica") and not res.get("calculo_abortado"):
+                st.info(res.get("justificativa_tecnica"))
+
+        _render_ordem_servico_export(
+            twin_data=twin_data,
+            opt_data=opt_data,
+            res=res,
+            inviable=False,
+        )
+
+        entrada_diag = st.session_state.get("demo_calculo_entrada") or {}
+        if isinstance(entrada_diag, dict) and entrada_diag:
+            from page.demo_calculo_diagnostics import render_diagnostic_suite
+
+            render_diagnostic_suite(
+                entrada=entrada_diag,
+                opt_data=opt_data,
+                twin_data=twin_data,
+                res=res,
+            )
 
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -512,7 +689,7 @@ def _render_form(ctx) -> None:
 
     with col_in:
         st.markdown('<div class="dt-panel">', unsafe_allow_html=True)
-        panel_title("Entrada e visão")
+        render_section_header("Entrada de dados do motor", "Geometria · bobinagem · elétrico")
 
         if st.button(
             "Limpar dados / Novo cálculo",
@@ -538,6 +715,7 @@ def _render_form(ctx) -> None:
         st.session_state.setdefault("demo_ranhuras", 24)
         st.session_state.setdefault("demo_polos", 2)
 
+        render_section_header("Estator", "Geometria")
         g1, g2, g3 = st.columns(3)
         with g1:
             diametro = st.number_input(
@@ -568,6 +746,7 @@ def _render_form(ctx) -> None:
             st.selectbox("Bobinagem", list(topo_opts.keys()), key="demo_tipo_bob")
         ]
 
+        render_section_header("Bobinagem", "Ranhuras · polos · ligação")
         g4, g5, g6 = st.columns(3)
         with g4:
             ranhuras = st.number_input(
@@ -645,7 +824,7 @@ def _render_form(ctx) -> None:
                     help="0 = usar 1,5 CV implícito só se corrente também estiver vazia.",
                 )
 
-        panel_title("Validação / auditoria")
+        render_section_header("Validação / auditoria", "Fio e espiras informados")
         v1, v2 = st.columns(2)
         with v1:
             fio_eng = st.text_input("Fio AWG", value="19", key="demo_fio")
@@ -765,6 +944,7 @@ def _render_form(ctx) -> None:
             )
             st.rerun()
 
+        st.session_state.pop("demo_digital_twin", None)
         try:
             with st.spinner("Otimizando A/B/C…"):
                 opt_res = _run_demo_optimizer(
@@ -801,6 +981,7 @@ def _render_form(ctx) -> None:
         entrada["tensao_v"] = float(tensao)
         st.session_state["demo_calculo_entrada"] = entrada
         st.session_state.pop("demo_digital_twin", None)
+        st.session_state.pop("demo_ordem_servico_html", None)
         st.session_state.pop("demo_ordem_servico_html", None)
         st.rerun()
 

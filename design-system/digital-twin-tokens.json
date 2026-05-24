@@ -1,0 +1,56 @@
+{
+  "meta": {
+    "name": "PMTH Digital Twin",
+    "version": "1.0.0",
+    "description": "Tokens compartilhados Streamlit + Next.js — Gêmeo Digital de Motores"
+  },
+  "colors": {
+    "bg0": "#0B1117",
+    "bg1": "#0E1419",
+    "bg2": "#121A22",
+    "panel": "#141C24",
+    "panelElevated": "#1A2430",
+    "ink": "#E9F7FF",
+    "inkSoft": "#9FB9CF",
+    "inkMuted": "#6B8499",
+    "cyan": "#00E5FF",
+    "cyanDim": "rgba(0, 229, 255, 0.14)",
+    "cyanGlow": "rgba(0, 229, 255, 0.35)",
+    "lime": "#DEFF9A",
+    "orange": "#FF8A00",
+    "green": "#3FB950",
+    "yellow": "#D29922",
+    "red": "#F85149",
+    "border": "rgba(0, 229, 255, 0.22)",
+    "borderStrong": "rgba(0, 229, 255, 0.45)"
+  },
+  "typography": {
+    "display": "Orbitron, Rajdhani, sans-serif",
+    "body": "Rajdhani, Inter, sans-serif",
+    "mono": "JetBrains Mono, Consolas, monospace"
+  },
+  "radius": {
+    "sm": "8px",
+    "md": "12px",
+    "lg": "16px",
+    "pill": "999px"
+  },
+  "physics": {
+    "bMaxT": 2.0,
+    "bLimitT": 1.5,
+    "jMaxAmm2": 8.0,
+    "jIdealAmm2": 4.0,
+    "jMinAmm2": 3.0,
+    "jHardMaxAmm2": 7.0,
+    "ffMaxPercent": 50.0,
+    "ffIdealLoPercent": 30.0,
+    "ffIdealHiPercent": 40.0,
+    "ffMinPercent": 25.0,
+    "ffMaxPercentLimit": 45.0
+  },
+  "layout": {
+    "maxWidth": "1400px",
+    "inputColumnRatio": 2,
+    "outputColumnRatio": 3
+  }
+}

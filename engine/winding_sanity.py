@@ -95,6 +95,11 @@ MSG_FEM_2P_BLOQUEIO = (
 MSG_FEM_REFERENCIA = (
     "Referência FEM: intervalo físico esperado 40–45 espiras para ferro Ø80×70 mm / 2 polos."
 )
+MSG_FEM_VETO_TURNS = (
+    "Veto FEM (B ≤ 1.5 T): espiras recomendadas = max(N_histórico, N_fem) — "
+    "a projeção proporcional foi corrigida pelo piso eletromagnético."
+)
+FF_HARD_CAP = 0.45
 
 
 def pole_net_iron_area_m2(
@@ -187,6 +192,48 @@ def apply_fem_physics_guard(
             msgs.append(MSG_FEM_REFERENCIA)
 
     return round(esp_out, 1), esp_fem, msgs
+
+
+def enforce_fem_turns_veto(
+    n_hist: float,
+    *,
+    diametro_mm: float,
+    pacote_mm: float,
+    polos: Optional[int],
+    ranhuras: int = 0,
+    carcaca: str = "",
+    tensao_fase_v: float = FEM_DEFAULT_VOLTAGE_V,
+) -> tuple[float, float, list[str]]:
+    """
+    Hard limit: N_recomendado = MAX(N_hist, N_fem @ B=1.5 T), depois guarda 2p se aplicável.
+    Nunca retorna menos espiras que o FEM exige.
+    """
+    msgs: list[str] = []
+    n_hist_r = round(max(float(n_hist), 0.0), 1)
+    n_fem = espiras_from_fem_equation(
+        diametro_mm,
+        pacote_mm,
+        polos,
+        tensao_fase_v=tensao_fase_v,
+        flux_density_t=FEM_MAX_FLUX_DENSITY_T,
+    )
+    n_floor = round(max(n_hist_r, n_fem), 1) if n_fem > 0 else n_hist_r
+    if n_fem > 0 and n_floor > n_hist_r + 0.05:
+        msgs.append(MSG_FEM_VETO_TURNS)
+
+    n_out, _, guard_msgs = apply_fem_physics_guard(
+        n_floor,
+        diametro_mm=diametro_mm,
+        pacote_mm=pacote_mm,
+        polos=polos,
+        ranhuras=ranhuras,
+        carcaca=carcaca,
+        tensao_fase_v=tensao_fase_v,
+    )
+    for m in guard_msgs:
+        if m not in msgs:
+            msgs.append(m)
+    return n_out, round(n_fem, 1), msgs
 
 
 def estimate_physical_slot_fill_limit(

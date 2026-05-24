@@ -35,12 +35,16 @@ def calculation_ready_for_export(
     res: Optional[dict[str, Any]],
 ) -> bool:
     """Botão de OS só aparece após cálculo utilizável na tela."""
+    if res and res.get("calculo_abortado"):
+        return False
+    if opt_data and opt_data.get("cenarios"):
+        from page.demo_calculo_ui import projeto_fisicamente_aprovado
+
+        return projeto_fisicamente_aprovado(opt_data)
     if twin_data:
         if twin_data.get("bloqueado"):
             return False
         return bool(twin_data.get("candidatos")) and bool(twin_data.get("completo"))
-    if opt_data and opt_data.get("cenarios"):
-        return True
     if res:
         if str(res.get("validation_status") or "").upper() == "INCOMPLETO":
             return False
@@ -111,10 +115,14 @@ def collect_export_rows(
     opt_data: Optional[dict[str, Any]],
     res: Optional[dict[str, Any]],
 ) -> list[dict[str, Any]]:
+    if opt_data and opt_data.get("cenarios"):
+        from page.demo_calculo_ui import resolve_recommended_optimizer_scenario
+
+        if resolve_recommended_optimizer_scenario(opt_data):
+            return _rows_from_optimizer(opt_data)
+        return []
     if twin_data and twin_data.get("candidatos"):
         return _rows_from_twin(twin_data)
-    if opt_data and opt_data.get("cenarios"):
-        return _rows_from_optimizer(opt_data)
     if res:
         return _rows_from_result(res)
     return []

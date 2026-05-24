@@ -47,6 +47,10 @@ def render_hero(*, subtitle: str = "") -> None:
     st.markdown(
         f"""
         <div class="dt-hero">
+          <div class="dt-hero__brand">
+            <span class="dt-hero__logo">PMTH</span>
+            <span class="dt-hero__sys">SYS OPERACIONAL</span>
+          </div>
           <h1>GÊMEO DIGITAL DE MOTORES</h1>
           <p>{html.escape(sub)}</p>
         </div>
@@ -206,45 +210,176 @@ def render_checklist(items: list[str]) -> None:
         st.markdown(f"- [ ] {item}")
 
 
+MSG_SUGESTAO_BLOQUEADA = "Nenhuma (Limites físicos excedidos)"
+MSG_PROJETO_INVIAVEL = (
+    "PROJETO INVIÁVEL: O motor não passou nos limites físicos obrigatórios "
+    "(Risco de Saturação ou Fator de Enchimento). Nenhuma configuração foi recomendada."
+)
+MSG_PROJETO_INVIAVEL_UI = (
+    "🚨 PROJETO INVIÁVEL: Limites físicos (Saturação ou Fator de Enchimento) foram excedidos. "
+    "Nenhuma configuração sugerida."
+)
+KPI_NA = "—"
+
+from engine.physics_audit import cenario_valido_para_painel_recomendado  # re-export UI
+
+
+def optimizer_has_cenarios(opt_data: Optional[dict[str, Any]]) -> bool:
+    """Modo otimizador A/B/C ativo (session com cenários calculados)."""
+    return bool(opt_data and opt_data.get("cenarios"))
+
+
+def _find_optimizer_scenario(
+    opt_data: dict[str, Any], cenario_id: str
+) -> Optional[dict[str, Any]]:
+    for cen in opt_data.get("cenarios") or []:
+        if str(cen.get("cenario_id")) == cenario_id:
+            return cen
+    return None
+
+
+def resolve_cenario_recomendado_raw(
+    opt_data: Optional[dict[str, Any]],
+) -> Optional[dict[str, Any]]:
+    """Cenário indicado pelo backend (id em cenario_recomendado), sem filtro visual."""
+    if not optimizer_has_cenarios(opt_data):
+        return None
+    rec_id = str(opt_data.get("cenario_recomendado") or "B").strip() or "B"
+    return _find_optimizer_scenario(opt_data, rec_id)
+
+
+def _cenario_abort_reason_blob(cenario: dict[str, Any]) -> str:
+    parts = [str(cenario.get("abort_reason", "") or "")]
+    parts.extend(str(a) for a in (cenario.get("alertas") or []))
+    return " ".join(parts)
+
+
+def is_projeto_inviavel_nuclear(
+    cenario_recomendado: Optional[dict[str, Any]],
+) -> bool:
+    """Trava visual estrita (abort_reason + alertas) — usada no painel de resultados."""
+    if cenario_recomendado is None:
+        return True
+    abort_txt = _cenario_abort_reason_blob(cenario_recomendado)
+    from engine.physics_audit import normalize_fill_factor_ff
+
+    ff = normalize_fill_factor_ff(cenario_recomendado.get("fill_factor_ff", 0)) or 0.0
+    try:
+        conf = int(cenario_recomendado.get("physics_confidence", 0) or 0)
+    except (TypeError, ValueError):
+        conf = 0
+    return (
+        conf == 0
+        or ff > 0.45
+        or "Risco Severo de Saturação" in abort_txt
+        or "Cálculo Abortado" in abort_txt
+    )
+
+
+def is_cenario_inviavel_visual(
+    cenario_recomendado: Optional[dict[str, Any]],
+) -> bool:
+    """Trava de segurança visual — espelha o gate do painel ★ e alertas de aborto."""
+    return is_projeto_inviavel_nuclear(cenario_recomendado)
+
+
+def resolve_recommended_optimizer_scenario(
+    opt_data: Optional[dict[str, Any]],
+) -> Optional[dict[str, Any]]:
+    """Cenário ★ aprovado pelo gate visual estrito. None = nenhum apto."""
+    if not optimizer_has_cenarios(opt_data):
+        return None
+
+    from engine.physics_audit import cenario_valido_para_painel_recomendado
+
+    rec_id = str(opt_data.get("cenario_recomendado") or "").strip()
+    if rec_id:
+        cen = _find_optimizer_scenario(opt_data, rec_id)
+        if cenario_valido_para_painel_recomendado(cen):
+            return cen
+
+    for cid in ("B", "C", "A"):
+        cen = _find_optimizer_scenario(opt_data, cid)
+        if cenario_valido_para_painel_recomendado(cen):
+            return cen
+    return None
+
+
+def projeto_fisicamente_aprovado(opt_data: Optional[dict[str, Any]]) -> bool:
+    if not optimizer_has_cenarios(opt_data):
+        return False
+    return resolve_recommended_optimizer_scenario(opt_data) is not None
+
+
+def is_projeto_inviavel(
+    opt_data: Optional[dict[str, Any]],
+    *,
+    twin_data: Optional[dict[str, Any]] = None,
+) -> bool:
+    """Modo A/B/C: inviável conforme cenário bruto retornado pelo backend."""
+    _ = twin_data
+    if not optimizer_has_cenarios(opt_data):
+        return False
+    return is_cenario_inviavel_visual(resolve_cenario_recomendado_raw(opt_data))
+
+
+def render_projeto_inviavel_alert() -> None:
+    st.error(MSG_PROJETO_INVIAVEL_UI)
+
+
+def render_painel_cenario_recomendado(
+    opt_data: Optional[dict[str, Any]],
+    *,
+    twin_data: Optional[dict[str, Any]] = None,
+) -> bool:
+    """
+    Desenha o painel ★ Cenário recomendado.
+    Modo A/B/C: NUNCA usa twin_data. Retorna True se exibiu sugestão válida.
+    """
+    _ = twin_data
+    panel_title("Cenário recomendado (★)")
+
+    if optimizer_has_cenarios(opt_data):
+        rec = resolve_recommended_optimizer_scenario(opt_data)
+        if not rec or not cenario_valido_para_painel_recomendado(rec):
+            st.error(MSG_PROJETO_INVIAVEL_UI)
+            return False
+        conf = int(rec.get("physics_confidence") or rec.get("confidence_score") or 0)
+        if conf <= 0:
+            st.error(MSG_PROJETO_INVIAVEL_UI)
+            return False
+        render_kpi_row(
+            espiras=rec.get("espiras", KPI_NA),
+            bitola=rec.get("fio_texto") or rec.get("calibre_display") or KPI_NA,
+            confianca=int(rec.get("physics_confidence") or rec.get("confidence_score") or 0),
+            ocupacao=rec.get("fator_ocupacao_ranhura"),
+        )
+        st.caption(
+            f"Fonte: otimizador A/B/C — cenário **{rec.get('cenario_id')}** "
+            f"(veto FEM + bitola por ff)."
+        )
+        return True
+
+    return False
+
+
 def pick_primary_candidate(
     twin_data: Optional[dict[str, Any]],
     opt_data: Optional[dict[str, Any]],
 ) -> tuple[Any, Any, int, Optional[float], Optional[str]]:
-    """Retorna (espiras, bitola, confiança, ocupação, force_tier) para KPI."""
-    if twin_data and twin_data.get("saturacao_abortada"):
-        cands = twin_data.get("candidatos") or []
-        sus = next((c for c in cands if c.get("opcao") == "SUSPEITO"), cands[0] if cands else {})
-        return (
-            sus.get("espiras_por_bobina", "—"),
-            sus.get("descricao", "—"),
-            0,
-            (sus.get("ocupacao_ff") or 0) * 100 if sus.get("ocupacao_ff") else None,
-            "red",
-        )
-    if twin_data and twin_data.get("candidatos"):
-        cands = twin_data["candidatos"]
-        best = max(cands, key=lambda c: int(c.get("confianca_pct") or 0))
-        desc = best.get("descricao") or f"{best.get('fio_awg')} AWG"
-        return (
-            best.get("espiras_por_bobina"),
-            desc,
-            int(best.get("confianca_pct") or 0),
-            (best.get("ocupacao_ff") or 0) * 100,
-            None,
-        )
-    if opt_data and opt_data.get("cenarios"):
-        rec = str(opt_data.get("cenario_recomendado") or "B")
-        cen = next(
-            (c for c in opt_data["cenarios"] if str(c.get("cenario_id")) == rec),
-            opt_data["cenarios"][0],
-        )
-        score = int(cen.get("physics_confidence") or cen.get("confidence_score") or 0)
-        fio = cen.get("fio_texto") or cen.get("calibre_display") or "—"
-        return (
-            cen.get("espiras"),
-            fio,
-            score,
-            cen.get("fator_ocupacao_ranhura"),
-            None,
-        )
-    return "—", "—", 0, None, None
+    """
+    KPI do relatório executivo. Modo A/B/C: somente cenário validado; sem twin/res bruto.
+    """
+    if optimizer_has_cenarios(opt_data):
+        rec = resolve_recommended_optimizer_scenario(opt_data)
+        if rec is not None:
+            return (
+                rec.get("espiras"),
+                rec.get("fio_texto") or rec.get("calibre_display") or KPI_NA,
+                int(rec.get("physics_confidence") or rec.get("confidence_score") or 0),
+                rec.get("fator_ocupacao_ranhura"),
+                None,
+            )
+        return KPI_NA, KPI_NA, 0, None, "red"
+
+    return KPI_NA, KPI_NA, 0, None, None

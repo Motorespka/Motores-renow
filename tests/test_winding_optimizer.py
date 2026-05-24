@@ -114,6 +114,26 @@ def test_optimize_without_polos_is_allowed():
     assert len(res.cenarios) >= 2
 
 
+def test_optimize_recommended_passes_ff_cap():
+    pool = [_motor(sha="1", espiras_principal=42.0, fio_principal="17")]
+    res = WindingOptimizer(pool).optimize(
+        StatorInput(
+            diametro_mm=80,
+            pacote_mm=70,
+            ranhuras=24,
+            polos=2,
+            carcaca="80A",
+            passo="1:7",
+        ),
+        use_gemini=False,
+    )
+    rec_id = res.cenario_recomendado
+    assert rec_id, "esperado cenário recomendado com ff dentro do limite"
+    rec = next(c for c in res.cenarios if c.cenario_id == rec_id)
+    assert rec.fill_factor_ff is None or rec.fill_factor_ff <= 0.451
+    assert rec.espiras >= 35
+
+
 def test_user_validation_overrides_historical_busola():
     pool = [
         _motor(sha="1", espiras_principal=8.0),

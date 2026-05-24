@@ -10,7 +10,10 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
+
+if TYPE_CHECKING:
+    from engine.winding_optimizer import WindingScenario
 
 from engine.winding_sanity import (
     FEM_DEFAULT_FREQUENCY_HZ,
@@ -52,8 +55,57 @@ MSG_B_ABORT = (
 # Prioridade: acervo da oficina (referencia_oficina.json) sobre faixas IEC genéricas.
 _OFICINA_KB_MIN_REGISTROS = 20
 
-# Calibração ff: ocupação relativa 67% → ff nominal 35%
+# Calibração ff interna (legado AWG cap): ocupação relativa 67% → ff nominal 35%
 _FF_FROM_FILL_RATIO = FF_IDEAL / 0.67
+
+
+def normalize_fill_factor_ff(value: Any) -> Optional[float]:
+    """
+    ff em fração 0–1 (mesma escala da ocupação de ranhura na UI).
+    Aceita legado em percentual inteiro (ex.: 33.3 → 0.333).
+    """
+    if value is None or value == "":
+        return None
+    try:
+        x = float(value)
+    except (TypeError, ValueError):
+        return None
+    if x <= 0:
+        return 0.0
+    if x > 1.0:
+        if x <= 100.0:
+            return round(x / 100.0, 6)
+        return 1.0
+    return round(x, 6)
+
+
+def compute_slot_occupation_ratio(
+    espiras: float,
+    awg: float,
+    *,
+    ranhuras: int,
+    diametro_mm: float,
+    pacote_mm: float,
+    parallel_count: int = 1,
+    tipo_bobinagem: str = "",
+    passo: str = "",
+    apply_camada_dupla_factor: bool = False,
+) -> float:
+    """
+    Ocupação relativa da ranhura 0–1 (mesma base de fator_ocupacao_ranhura na UI).
+    apply_camada_dupla_factor=True só no cap conservador de AWG (não nos alertas exibidos).
+    """
+    if espiras <= 0 or awg <= 0 or ranhuras <= 0:
+        return 0.0
+    limit = estimate_physical_slot_fill_limit(ranhuras, diametro_mm, pacote_mm)
+    if limit <= 0:
+        return 0.0
+    ratio = slot_fill_ratio(espiras, awg, limit)
+    if apply_camada_dupla_factor and is_camada_dupla_context(tipo_bobinagem, passo):
+        ratio = ratio * 1.85
+    if parallel_count > 1:
+        ratio = ratio * min(parallel_count, 3)
+    return round(min(1.0, ratio), 4)
 
 # 1 CV (Brasil/IEC) ≈ 735,5 W
 CV_TO_KW = 0.7355
@@ -155,6 +207,277 @@ def resolve_power_and_current(
     return p_kw, nominal_line_current_a(p_kw, voltage_v=voltage_v), False
 
 
+def _ff_for_awg_choice(
+    espiras: float,
+    awg: float,
+    *,
+    ranhuras: int,
+    diametro_mm: float,
+    pacote_mm: float,
+    parallel_count: int,
+    tipo_bobinagem: str,
+    passo: str,
+) -> float:
+    return compute_slot_occupation_ratio(
+        espiras,
+        awg,
+        ranhuras=ranhuras,
+        diametro_mm=diametro_mm,
+        pacote_mm=pacote_mm,
+        parallel_count=parallel_count,
+        tipo_bobinagem=tipo_bobinagem,
+        passo=passo,
+        apply_camada_dupla_factor=True,
+    )
+
+
+def select_awg_for_ff_cap(
+    espiras: float,
+    awg_start: float,
+    *,
+    ranhuras: int,
+    diametro_mm: float,
+    pacote_mm: float,
+    carcaca: str,
+    parallel_count: int = 1,
+    ff_max: float = FF_MAX,
+    tipo_bobinagem: str = "",
+    passo: str = "",
+    polos: Optional[int] = None,
+    voltage_v: float = FEM_DEFAULT_VOLTAGE_V,
+    potencia_cv: Optional[float] = None,
+    corrente_nominal_a: Optional[float] = None,
+) -> tuple[float, float, list[str]]:
+    """
+    Hard limit: itera AWG mais fino (15 → 16 → 17 → 18 …) até ff <= ff_max (45%).
+    Se esgotar a mesa comercial ou J > J_MAX, retorna ff acima do teto + MSG_FF_IMPOSSIVEL.
+    """
+    from engine.winding_sanity import (
+        CALIBRE_INVALIDO,
+        COMMERCIAL_BOBINAGEM_AWGS,
+        awg_table_index,
+        clamp_awg_to_safe_range,
+        nearest_awg_from_table,
+    )
+
+    msgs: list[str] = []
+    awg_safe, _, msg_lim = clamp_awg_to_safe_range(
+        float(nearest_awg_from_table(awg_start)), carcaca
+    )
+    if msg_lim == CALIBRE_INVALIDO:
+        return awg_safe, 1.0, [CALIBRE_INVALIDO]
+
+    awg = awg_safe
+    ff = 0.0
+    last_awg = awg
+    for _ in range(len(COMMERCIAL_BOBINAGEM_AWGS)):
+        awg, _, _ = clamp_awg_to_safe_range(awg, carcaca)
+        ff = _ff_for_awg_choice(
+            espiras,
+            awg,
+            ranhuras=ranhuras,
+            diametro_mm=diametro_mm,
+            pacote_mm=pacote_mm,
+            parallel_count=parallel_count,
+            tipo_bobinagem=tipo_bobinagem,
+            passo=passo,
+        )
+        if ff <= ff_max + 1e-6:
+            _, i_nom, _ = resolve_power_and_current(
+                diametro_mm=diametro_mm,
+                pacote_mm=pacote_mm,
+                polos=polos,
+                voltage_v=voltage_v,
+                potencia_cv=potencia_cv,
+                corrente_nominal_a=corrente_nominal_a,
+            )
+            j_val = current_density_a_per_mm2(
+                i_nom, awg, parallel_count=parallel_count
+            )
+            if j_val is not None and j_val > J_MAX_A_MM2 + 1e-6:
+                msgs.append(
+                    f"Densidade J≈{j_val:.1f} A/mm² acima de {J_MAX_A_MM2:.0f} "
+                    f"com AWG {int(awg)} (fio fino demais para a corrente estimada)."
+                )
+                return round(awg, 1), ff, msgs
+            return round(awg, 1), ff, msgs
+
+        idx = awg_table_index(awg)
+        if idx >= len(COMMERCIAL_BOBINAGEM_AWGS) - 1:
+            break
+        awg_next = float(COMMERCIAL_BOBINAGEM_AWGS[idx + 1])
+        if awg_next <= last_awg:
+            break
+        if awg_next != awg:
+            msgs.append(
+                f"Bitola afinada {int(awg)} → {int(awg_next)} AWG "
+                f"(ff {ff:.1%} > {ff_max:.0%} máx.)"
+            )
+        last_awg = awg
+        awg = awg_next
+
+    if ff > ff_max + 1e-6 and MSG_FF_IMPOSSIVEL not in msgs:
+        msgs.append(MSG_FF_IMPOSSIVEL)
+    return round(awg, 1), ff, msgs
+
+
+def scenario_effective_fill_factor_ff(cenario: dict[str, Any]) -> Optional[float]:
+    """ff efetivo do cenário (campo persistido ou recalculado a partir de espiras/bitola)."""
+    raw = cenario.get("fill_factor_ff")
+    if raw is not None and raw != "":
+        norm = normalize_fill_factor_ff(raw)
+        if norm is not None:
+            return norm
+    occ = cenario.get("fator_ocupacao_ranhura")
+    if occ is not None and str(occ).strip() != "":
+        occ_n = normalize_fill_factor_ff(occ)
+        if occ_n is not None:
+            return occ_n
+    esp = cenario.get("espiras")
+    wire = cenario.get("wire")
+    if esp is None or not wire:
+        return None
+    try:
+        esp_f = float(esp)
+    except (TypeError, ValueError):
+        return None
+    awg: Optional[float] = None
+    parallel = 1
+    if isinstance(wire, dict):
+        try:
+            awg = float(wire.get("awg"))
+            parallel = int(wire.get("parallel_count") or 1)
+        except (TypeError, ValueError):
+            awg = None
+    entrada = cenario.get("_entrada_ff") or {}
+    if awg is None or awg <= 0:
+        return None
+    return estimate_slot_fill_factor_ff(
+        esp_f,
+        awg,
+        ranhuras=int(entrada.get("ranhuras") or cenario.get("ranhuras") or 0),
+        diametro_mm=float(entrada.get("diametro_mm") or 0),
+        pacote_mm=float(entrada.get("pacote_mm") or 0),
+        parallel_count=parallel,
+        tipo_bobinagem=str(entrada.get("tipo_bobinagem") or ""),
+        passo=str(entrada.get("passo") or ""),
+    )
+
+
+_PHYSICS_BLOCKED_ALERT_TOKENS = (
+    MSG_B_ABORT,
+    MSG_FF_IMPOSSIVEL,
+    "Cálculo Abortado",
+    "1.8T",
+    "1.8 T",
+    "Risco Severo de Saturação",
+)
+
+
+def _scenario_payload_passes_hard_limits(
+    *,
+    desabilitado: bool,
+    fill_factor_ff: Any,
+    physics_confidence: Any,
+    confidence_score: Any,
+    alertas: Any,
+    cenario: Optional[dict[str, Any]] = None,
+) -> bool:
+    if desabilitado:
+        return False
+    ff_eff = scenario_effective_fill_factor_ff(cenario) if cenario else None
+    if ff_eff is None and fill_factor_ff is not None:
+        ff_eff = normalize_fill_factor_ff(fill_factor_ff)
+    if ff_eff is not None and ff_eff > FF_MAX + 1e-6:
+        return False
+    phys_conf = physics_confidence
+    if phys_conf is None:
+        phys_conf = confidence_score
+    if phys_conf is not None and int(phys_conf or 0) <= 0:
+        return False
+    for a in alertas or []:
+        sa = str(a)
+        if any(tok in sa for tok in _PHYSICS_BLOCKED_ALERT_TOKENS):
+            return False
+    return True
+
+
+def scenario_passes_hard_physics_limits(scenario: "WindingScenario | Any") -> bool:
+    """Cenário apto a ser exibido como recomendado (sem abort FEM/ff)."""
+    cen_dict = {
+        "fill_factor_ff": getattr(scenario, "fill_factor_ff", None),
+        "fator_ocupacao_ranhura": getattr(scenario, "fator_ocupacao_ranhura", None),
+    }
+    return _scenario_payload_passes_hard_limits(
+        desabilitado=bool(getattr(scenario, "desabilitado", False)),
+        fill_factor_ff=getattr(scenario, "fill_factor_ff", None),
+        physics_confidence=getattr(scenario, "physics_confidence", None),
+        confidence_score=getattr(scenario, "confidence_score", None),
+        alertas=getattr(scenario, "alertas", None) or [],
+        cenario=cen_dict,
+    )
+
+
+def scenario_dict_passes_hard_physics_limits(cenario: dict[str, Any]) -> bool:
+    """Mesma regra de `scenario_passes_hard_physics_limits` para payloads Streamlit."""
+    return _scenario_payload_passes_hard_limits(
+        desabilitado=bool(cenario.get("desabilitado")),
+        fill_factor_ff=cenario.get("fill_factor_ff"),
+        physics_confidence=cenario.get("physics_confidence"),
+        confidence_score=cenario.get("confidence_score"),
+        alertas=cenario.get("alertas") or [],
+        cenario=cenario,
+    )
+
+
+OCUPACAO_UI_MAX_PCT = 45.0
+
+
+def cenario_tem_alerta_saturacao(cenario: dict[str, Any]) -> bool:
+    for alerta in cenario.get("alertas") or []:
+        sa = str(alerta)
+        if (
+            MSG_B_ABORT in sa
+            or "1.8T" in sa
+            or "1.8 T" in sa
+            or "Saturação" in sa
+            or "Saturacao" in sa
+            or "Abortado" in sa
+        ):
+            return True
+    return False
+
+
+def cenario_valido_para_painel_recomendado(cenario: Optional[dict[str, Any]]) -> bool:
+    """
+    Gate visual estrito do painel ★ Streamlit.
+    Bloqueia: None, confiança 0, ff > 45%, ocupação ranhura > 45%, saturação 1.8T.
+    """
+    if not cenario:
+        return False
+    if cenario.get("reprovado_fisicamente"):
+        return False
+    if not scenario_dict_passes_hard_physics_limits(cenario):
+        return False
+    if cenario_tem_alerta_saturacao(cenario):
+        return False
+    phys = cenario.get("physics_confidence")
+    conf = int(phys if phys is not None else cenario.get("confidence_score") or 0)
+    if conf <= 0:
+        return False
+    ff = scenario_effective_fill_factor_ff(cenario)
+    if ff is not None and float(ff) > FF_MAX + 1e-6:
+        return False
+    occ = cenario.get("fator_ocupacao_ranhura")
+    if occ is not None and str(occ).strip() != "":
+        try:
+            if float(occ) > OCUPACAO_UI_MAX_PCT + 1e-6:
+                return False
+        except (TypeError, ValueError):
+            pass
+    return True
+
+
 def estimate_slot_fill_factor_ff(
     espiras: float,
     awg: float,
@@ -166,19 +489,18 @@ def estimate_slot_fill_factor_ff(
     tipo_bobinagem: str = "",
     passo: str = "",
 ) -> float:
-    """ff ≈ cobre na ranhura / área útil (calibrado via slot_fill_ratio do acervo)."""
-    if espiras <= 0 or awg <= 0 or ranhuras <= 0:
-        return 0.0
-    limit = estimate_physical_slot_fill_limit(ranhuras, diametro_mm, pacote_mm)
-    if limit <= 0:
-        return 0.0
-    eq_awg = awg
-    ratio = slot_fill_ratio(espiras, eq_awg, limit)
-    if is_camada_dupla_context(tipo_bobinagem, passo):
-        ratio = ratio * 1.85
-    if parallel_count > 1:
-        ratio = ratio * min(parallel_count, 3)
-    return round(min(1.0, ratio * _FF_FROM_FILL_RATIO), 4)
+    """ff calibrado (legado AWG cap) — para limites de alerta use compute_slot_occupation_ratio."""
+    occ = compute_slot_occupation_ratio(
+        espiras,
+        awg,
+        ranhuras=ranhuras,
+        diametro_mm=diametro_mm,
+        pacote_mm=pacote_mm,
+        parallel_count=parallel_count,
+        tipo_bobinagem=tipo_bobinagem,
+        passo=passo,
+    )
+    return round(min(1.0, occ * _FF_FROM_FILL_RATIO), 4)
 
 
 def estimate_power_from_iron_kw(
@@ -333,6 +655,8 @@ def audit_auditoria_user_winding(
     potencia_kw: Optional[float] = None,
     tipo_bobinagem: str = "",
     passo: str = "",
+    entrada_context: Optional[dict[str, Any]] = None,
+    usar_historico_oficina: Optional[bool] = None,
 ) -> PhysicsAuditResult:
     """
     Avalia o cálculo informado pelo usuário (espiras originais, sem guarda FEM).
@@ -359,6 +683,14 @@ def audit_auditoria_user_winding(
             flux_density_b_t=b_t,
             alerts=[msg],
         )
+    ctx = entrada_context or {
+        "diametro_mm": diametro_mm,
+        "pacote_mm": pacote_mm,
+        "ranhuras": ranhuras,
+        "fio_engenheiro": awg,
+        "espiras_engenheiro": esp_raw,
+        "potencia_cv": potencia_cv,
+    }
     return audit_winding_physics(
         espiras=esp_raw,
         awg=awg,
@@ -375,6 +707,8 @@ def audit_auditoria_user_winding(
         tipo_bobinagem=tipo_bobinagem,
         passo=passo,
         apply_fem_turns_guard=False,
+        entrada_context=ctx,
+        usar_historico_oficina=usar_historico_oficina,
     )
 
 
@@ -388,6 +722,27 @@ def _resolve_cv_for_kb(
     if power_kw is not None and float(power_kw) > 0:
         return round(float(power_kw) / CV_TO_KW, 3)
     return None
+
+
+def _resolve_uso_historico_oficina(
+    entrada_context: Optional[dict[str, Any]],
+    usar_historico_oficina: Optional[bool],
+) -> tuple[bool, list[str]]:
+    """Histórico da oficina só se dados geométricos estão certificados (view motores_certificados)."""
+    from services.motor_qualidade import (
+        MSG_CALCULO_SEM_HISTORICO_OFICINA,
+        entrada_pode_usar_historico_oficina,
+    )
+
+    if usar_historico_oficina is False:
+        return False, [MSG_CALCULO_SEM_HISTORICO_OFICINA]
+    if usar_historico_oficina is True:
+        return True, []
+    if entrada_context is None:
+        return True, []
+    if entrada_pode_usar_historico_oficina(entrada_context):
+        return True, []
+    return False, [MSG_CALCULO_SEM_HISTORICO_OFICINA]
 
 
 def _apply_oficina_knowledge_priority(
@@ -466,15 +821,16 @@ def physics_confidence_score(
     """
     if not survival_pass:
         return 0
+    ff_n = normalize_fill_factor_ff(ff) or 0.0
     score = 100
     if j_a_mm2 is not None:
         dev_j = abs(j_a_mm2 - J_IDEAL_A_MM2)
         score -= int(min(55, dev_j * 12))
         if j_a_mm2 < J_MIN_A_MM2 or j_a_mm2 > J_MAX_A_MM2:
             score -= 35
-    dev_ff = abs(ff - FF_IDEAL)
+    dev_ff = abs(ff_n - FF_IDEAL)
     score -= int(min(40, dev_ff * 120))
-    if ff > FF_MAX or (ff > 0 and ff < FF_MIN):
+    if ff_n > FF_MAX or (ff_n > 0 and ff_n < FF_MIN):
         score -= 30
     if not flux_ok:
         score -= 40
@@ -499,12 +855,35 @@ def audit_winding_physics(
     tipo_bobinagem: str = "",
     passo: str = "",
     apply_fem_turns_guard: bool = True,
+    entrada_context: Optional[dict[str, Any]] = None,
+    usar_historico_oficina: Optional[bool] = None,
 ) -> PhysicsAuditResult:
     """Filtros de sobrevivência + score para modo auditoria ou candidatos."""
     alerts: list[str] = []
     corrections: list[str] = []
     esp = round(float(espiras), 1)
     awg_f = float(awg)
+    esp_in = esp
+
+    fem_ref = espiras_from_fem_equation(diametro_mm, pacote_mm, polos)
+    if apply_fem_turns_guard:
+        esp_guard, _, fem_msgs = apply_fem_physics_guard(
+            esp,
+            diametro_mm=diametro_mm,
+            pacote_mm=pacote_mm,
+            polos=polos,
+            ranhuras=ranhuras,
+            carcaca=carcaca,
+            tensao_fase_v=voltage_v,
+        )
+        esp = max(esp, fem_ref) if fem_ref > 0 else esp
+        if esp_guard > esp:
+            corrections.extend(fem_msgs)
+            esp = esp_guard
+        elif esp > esp_in + 0.05 and fem_ref > 0:
+            from engine.winding_sanity import MSG_FEM_VETO_TURNS
+
+            corrections.append(MSG_FEM_VETO_TURNS)
 
     b_t = estimate_operating_flux_density_t(
         esp, diametro_mm, pacote_mm, polos, voltage_v=voltage_v
@@ -519,34 +898,11 @@ def audit_winding_physics(
             calculation_aborted=True,
             flux_density_b_t=b_t,
             flux_density_ok=False,
-            fem_reference_turns=round(
-                espiras_from_fem_equation(diametro_mm, pacote_mm, polos) or 0, 1
-            ),
+            fem_reference_turns=round(fem_ref or 0, 1),
             alerts=[MSG_B_ABORT],
         )
 
-    fem_ref = 0.0
-    if apply_fem_turns_guard:
-        esp_guard, fem_ref, fem_msgs = apply_fem_physics_guard(
-            esp,
-            diametro_mm=diametro_mm,
-            pacote_mm=pacote_mm,
-            polos=polos,
-            ranhuras=ranhuras,
-            carcaca=carcaca,
-            tensao_fase_v=voltage_v,
-        )
-        if esp_guard != esp:
-            corrections.extend(fem_msgs)
-            esp = esp_guard
-            b_t = estimate_operating_flux_density_t(
-                esp, diametro_mm, pacote_mm, polos, voltage_v=voltage_v
-            )
-    else:
-        fem_ref = espiras_from_fem_equation(diametro_mm, pacote_mm, polos)
-
-    fem_alt = espiras_from_fem_equation(diametro_mm, pacote_mm, polos)
-    flux_ok = fem_ref <= 0 or esp >= fem_ref * 0.82 if fem_ref else b_t <= B_MAX_TESLA * 1.05
+    flux_ok = fem_ref <= 0 or esp >= fem_ref * 0.98 if fem_ref > 0 else b_t <= B_MAX_TESLA * 1.02
     if not flux_ok:
         alerts.append(MSG_B_SATURACAO)
 
@@ -554,7 +910,7 @@ def audit_winding_physics(
     ff_max = 0.52 if camada_dupla else FF_MAX
     ff_min = 0.20 if camada_dupla else FF_MIN
 
-    ff = estimate_slot_fill_factor_ff(
+    ff_occ = compute_slot_occupation_ratio(
         esp,
         awg_f,
         ranhuras=ranhuras,
@@ -564,10 +920,11 @@ def audit_winding_physics(
         tipo_bobinagem=tipo_bobinagem,
         passo=passo,
     )
-    if ff > ff_max:
+    if ff_occ > ff_max:
         alerts.append(MSG_FF_IMPOSSIVEL)
-    elif 0 < ff < ff_min:
+    elif 0 < ff_occ < ff_min:
         alerts.append(MSG_FF_SUB)
+    ff = ff_occ
 
     p_kw, i_nom, user_i = resolve_power_and_current(
         diametro_mm=diametro_mm,
@@ -587,18 +944,24 @@ def audit_winding_physics(
         else:
             alerts.append(MSG_J_INVALIDO)
 
-    flux_ok, j_hist_ok, alerts = _apply_oficina_knowledge_priority(
-        alerts=alerts,
-        espiras=esp,
-        j_val=j_val,
-        flux_ok=flux_ok,
-        b_t=b_t,
-        potencia_cv=potencia_cv,
-        power_kw=p_kw,
-        carcaca=carcaca,
-        pacote_mm=pacote_mm,
-        user_i=user_i,
-    )
+    usar_kb, msgs_hist = _resolve_uso_historico_oficina(entrada_context, usar_historico_oficina)
+    j_hist_ok = False
+    for m in msgs_hist:
+        if m not in alerts:
+            alerts.append(m)
+    if usar_kb:
+        flux_ok, j_hist_ok, alerts = _apply_oficina_knowledge_priority(
+            alerts=alerts,
+            espiras=esp,
+            j_val=j_val,
+            flux_ok=flux_ok,
+            b_t=b_t,
+            potencia_cv=potencia_cv,
+            power_kw=p_kw,
+            carcaca=carcaca,
+            pacote_mm=pacote_mm,
+            user_i=user_i,
+        )
 
     survival = not any(
         a.startswith("Cálculo impossível")
@@ -616,7 +979,7 @@ def audit_winding_physics(
         fill_factor_ff=ff,
         current_density_j=j_val,
         flux_density_ok=flux_ok,
-        fem_reference_turns=round(fem_ref or fem_alt, 1),
+        fem_reference_turns=round(fem_ref or 0, 1),
         power_estimated_kw=p_kw,
         nominal_current_a=i_nom,
         confidence_score=score,

@@ -111,6 +111,7 @@ def _genetic_candidates(
     carcaca: str,
     voltage_v: float,
     n_options: int = 5,
+    entrada_context: Optional[dict[str, Any]] = None,
 ) -> list[WindingCandidate]:
     """3–5 opções cruzando AWG e arranjos (paralelo 1 ou 2)."""
     slot_lim = estimate_physical_slot_fill_limit(ranhuras, diametro_mm, pacote_mm)
@@ -140,6 +141,7 @@ def _genetic_candidates(
             polos=polos,
             carcaca=carcaca,
             voltage_v=voltage_v,
+            entrada_context=entrada_context,
         )
         par = 2 if awg >= 22 and pref == 22 else 1
         if par == 2 and awg >= 20:
@@ -154,6 +156,7 @@ def _genetic_candidates(
                 carcaca=carcaca,
                 parallel_count=2,
                 voltage_v=voltage_v,
+                entrada_context=entrada_context,
             )
             if audit2.confidence_score >= audit.confidence_score:
                 audit = audit2
@@ -245,6 +248,7 @@ def run_caixa_preta(
         carcaca=car,
         voltage_v=v,
         n_options=n_candidatos,
+        entrada_context=ent,
     )
 
     from services.executive_report import build_executive_markdown
@@ -352,8 +356,35 @@ def run_auditoria(
         potencia_cv=pot_cv_ent,
         tipo_bobinagem=tipo_bob,
         passo=passo_ent,
+        entrada_context=ent,
     )
     abort = bool(audit_user.calculation_aborted)
+
+    from engine.physics_validator import PhysicsValidatorEngine
+
+    fio_ref = ent.get("fio_referencia_awg") or ent.get("fio_original_awg")
+    try:
+        awg_ref_f = float(fio_ref) if fio_ref not in (None, "") else None
+    except (TypeError, ValueError):
+        awg_ref_f = None
+    verdict_user = PhysicsValidatorEngine.validate_scenario_render(
+        espiras=esp,
+        awg=awg_wire,
+        parallel_count=par_count,
+        fill_factor_ff=audit_user.fill_factor_ff,
+        current_density_j=audit_user.current_density_j,
+        b_tesla=audit_user.flux_density_b_t,
+        awg_referencia=awg_ref_f,
+        parallel_referencia=1,
+        espiras_referencia=esp,
+        strict_j=True,
+        validate_j=True,
+    )
+    if verdict_user.reprovado_fisicamente:
+        audit_user.confidence_score = 0
+        for msg in verdict_user.mensagens:
+            if msg not in audit_user.alerts:
+                audit_user.alerts.append(msg)
 
     candidatos: list[WindingCandidate] = [
         WindingCandidate(
@@ -389,6 +420,7 @@ def run_auditoria(
             potencia_cv=pot_cv_ent,
             tipo_bobinagem=tipo_bob,
             passo=passo_ent,
+            entrada_context=ent,
         )
         candidatos.append(
             WindingCandidate(
@@ -416,9 +448,29 @@ def run_auditoria(
         try:
             from services.gemini_engineering_validator import validate_audit_with_gemini
 
+            from engine.physics_audit import infer_wire_from_fio, normalize_fill_factor_ff
+
+            par_g, awg_g = infer_wire_from_fio(
+                ent.get("fio_engenheiro") or ent.get("fio_awg") or awg,
+                tipo_bobinagem=tipo_bob,
+            )
+            ff_user = normalize_fill_factor_ff(audit_user.fill_factor_ff) or 0.0
             gemini_aud = validate_audit_with_gemini(
                 {
                     "entrada": ent,
+                    "alvo_validacao": {
+                        "espiras_informadas": esp,
+                        "fio_awg": awg_g,
+                        "paralelos": par_g,
+                        "fio_texto": f"{par_g}×{int(round(awg_g))} AWG"
+                        if par_g > 1
+                        else f"1×{int(round(awg_g))} AWG",
+                        "fill_factor_ff": ff_user,
+                        "fill_factor_ff_pct": round(ff_user * 100, 1),
+                        "ocupacao_ranhura_pct": round(ff_user * 100, 1),
+                        "densidade_j_a_mm2": audit_user.current_density_j,
+                        "confianca_fisica_pct": audit_user.confidence_score,
+                    },
                     "auditoria_usuario": asdict(audit_user),
                     "auditoria_corrigida": asdict(audit_corr) if audit_corr else {},
                     "limites": {
