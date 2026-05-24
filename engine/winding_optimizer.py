@@ -156,6 +156,220 @@ class WindingOptimizationResult:
     volume_estator_mm3: float = 0.0
     n_removed_pollution: int = 0
     gemini_topologia_camada1: bool = False
+    candidate_pool: list[dict[str, Any]] = field(default_factory=list)
+    gemini_evaluation: dict[str, Any] = field(default_factory=dict)
+    neuro_symbolic_active: bool = False
+
+
+class InferenceInfeasibleError(RuntimeError):
+    """Nenhuma configuração candidata pôde ser gerada para o estator."""
+
+
+def _awg_area_mm2(awg: float) -> float:
+    from engine.physics_validator import PhysicsValidator
+
+    return PhysicsValidator.calculate_wire_area(awg)
+
+
+def _evaluate_inference_candidate(
+    stator: StatorInput,
+    *,
+    espiras: float,
+    awg: float,
+    parallel_count: int = 1,
+    apply_fem_turns_guard: bool = True,
+) -> dict[str, Any]:
+    """Calcula J, ff e B de um candidato via audit + PhysicsValidator (sem abortar)."""
+    from engine.physics_audit import audit_winding_physics, compute_slot_occupation_ratio
+    from engine.physics_validator import PhysicsValidatorEngine
+
+    wire = WireConfig(parallel_count=max(1, int(parallel_count)), awg=round(float(awg), 1))
+    eq_awg = equivalent_single_awg(wire)
+    phys = audit_winding_physics(
+        espiras=espiras,
+        awg=eq_awg,
+        diametro_mm=stator.diametro_mm,
+        pacote_mm=stator.pacote_mm,
+        ranhuras=stator.ranhuras,
+        polos=stator.polos,
+        carcaca=stator.carcaca,
+        parallel_count=wire.parallel_count,
+        tipo_bobinagem=stator.tipo_bobinagem,
+        passo=stator.passo,
+        apply_fem_turns_guard=apply_fem_turns_guard,
+    )
+    esp_final = round(float(phys.espiras), 1)
+    ff = compute_slot_occupation_ratio(
+        esp_final,
+        eq_awg,
+        ranhuras=stator.ranhuras,
+        diametro_mm=stator.diametro_mm,
+        pacote_mm=stator.pacote_mm,
+        parallel_count=wire.parallel_count,
+        tipo_bobinagem=stator.tipo_bobinagem,
+        passo=stator.passo,
+    )
+    verdict = PhysicsValidatorEngine.validate_scenario_render(
+        espiras=esp_final,
+        awg=eq_awg,
+        parallel_count=wire.parallel_count,
+        fill_factor_ff=ff,
+        current_density_j=phys.current_density_j,
+        b_tesla=phys.flux_density_b_t,
+        validate_j=True,
+    )
+    fio_txt = format_wire_suggestion(esp_final, wire)
+    return {
+        "espiras": esp_final,
+        "awg": round(float(eq_awg), 1),
+        "parallel_count": wire.parallel_count,
+        "wire": wire,
+        "fio_texto": fio_txt,
+        "j_a_mm2": phys.current_density_j,
+        "ff": ff,
+        "b_tesla": phys.flux_density_b_t,
+        "physics_confidence": int(phys.confidence_score),
+        "violations": list(verdict.mensagens),
+        "aprovado_fisica": bool(verdict.aprovado),
+        "reprovado_fisicamente": bool(verdict.reprovado_fisicamente),
+        "calculation_aborted": bool(phys.calculation_aborted),
+    }
+
+
+def generate_inference_candidate_pool(
+    stator: StatorInput,
+    *,
+    esp_ref: float,
+    awg_base: float,
+    apply_fem_turns_guard: bool = True,
+    min_candidates: int = 5,
+    max_candidates: int = 8,
+) -> list[dict[str, Any]]:
+    """
+    Etapa 1 — Gerador determinístico: 5–8 configurações adjacentes (AWG ±2, espiras proporcionais).
+    Retorna candidatos mesmo com violações leves; lista vazia só em caso extremo.
+    """
+    if esp_ref <= 0:
+        return []
+
+    awg0, _, _ = clamp_awg_to_safe_range(float(awg_base), stator.carcaca)
+    area0 = _awg_area_mm2(awg0)
+    seeds: list[tuple[float, float, int]] = []
+
+    for delta in (-2, -1, 0, 1, 2):
+        awg, _, _ = clamp_awg_to_safe_range(awg0 + delta, stator.carcaca)
+        area = _awg_area_mm2(awg)
+        if area0 > 0 and area > 0:
+            esp = round(float(esp_ref) * (area0 / area), 1)
+        else:
+            esp = round(float(esp_ref), 1)
+        seeds.append((max(esp, 1.0), awg, 1))
+
+    extras = [
+        (round(float(esp_ref) + 2.0, 1), clamp_awg_to_safe_range(awg0 + 1, stator.carcaca)[0], 1),
+        (round(float(esp_ref) - 2.0, 1), clamp_awg_to_safe_range(awg0 - 1, stator.carcaca)[0], 1),
+        (round(float(esp_ref), 1), clamp_awg_to_safe_range(awg0, stator.carcaca)[0], 2),
+    ]
+    for item in extras:
+        if len(seeds) >= max_candidates:
+            break
+        seeds.append(item)
+
+    seen: set[tuple[float, float, int]] = set()
+    pool: list[dict[str, Any]] = []
+    for esp, awg, par in seeds:
+        key = (round(esp, 1), round(awg, 1), int(par))
+        if key in seen:
+            continue
+        seen.add(key)
+        scored = _evaluate_inference_candidate(
+            stator,
+            espiras=esp,
+            awg=awg,
+            parallel_count=par,
+            apply_fem_turns_guard=apply_fem_turns_guard,
+        )
+        if scored.get("calculation_aborted"):
+            continue
+        scored["index"] = len(pool)
+        pool.append(scored)
+        if len(pool) >= max_candidates:
+            break
+
+    if len(pool) < min_candidates:
+        for delta in (-3, 3):
+            if len(pool) >= min_candidates:
+                break
+            awg, _, _ = clamp_awg_to_safe_range(awg0 + delta, stator.carcaca)
+            area = _awg_area_mm2(awg)
+            esp = (
+                round(float(esp_ref) * (area0 / area), 1)
+                if area0 > 0 and area > 0
+                else round(float(esp_ref), 1)
+            )
+            key = (round(esp, 1), round(awg, 1), 1)
+            if key in seen:
+                continue
+            seen.add(key)
+            scored = _evaluate_inference_candidate(
+                stator,
+                espiras=max(esp, 1.0),
+                awg=awg,
+                parallel_count=1,
+                apply_fem_turns_guard=apply_fem_turns_guard,
+            )
+            if scored.get("calculation_aborted"):
+                continue
+            scored["index"] = len(pool)
+            pool.append(scored)
+
+    return pool
+
+
+def run_neuro_symbolic_selection(
+    stator: StatorInput,
+    *,
+    entrada: dict[str, Any],
+    esp_ref: float,
+    awg_base: float,
+    apply_fem_turns_guard: bool = True,
+) -> tuple[list[dict[str, Any]], dict[str, Any], Optional[dict[str, Any]]]:
+    """
+    Pipeline completo: pool determinístico + juiz Gemini (fallback J/ff).
+    Retorna (pool, evaluation, best_candidate_or_none).
+    """
+    from services.gemini_evaluator import evaluate_candidate_pool_with_gemini
+
+    pool = generate_inference_candidate_pool(
+        stator,
+        esp_ref=esp_ref,
+        awg_base=awg_base,
+        apply_fem_turns_guard=apply_fem_turns_guard,
+    )
+    if not pool:
+        raise InferenceInfeasibleError(
+            "PROJETO INVIÁVEL: nenhuma configuração candidata pôde ser gerada para este estator."
+        )
+
+    stator_info = {
+        **entrada,
+        "espiras_referencia_fem": esp_ref,
+        "awg_base_acervo": awg_base,
+    }
+    evaluation = evaluate_candidate_pool_with_gemini(pool, stator_info)
+    status = str(evaluation.get("status") or "INVIÁVEL")
+    idx = int(evaluation.get("best_candidate_index", -1))
+    if status == "INVIÁVEL" or idx < 0 or idx >= len(pool):
+        return pool, evaluation, None
+    return pool, evaluation, pool[idx]
+
+
+def _candidate_pool_for_storage(pool: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    stored: list[dict[str, Any]] = []
+    for row in pool:
+        item = {k: v for k, v in row.items() if k != "wire"}
+        stored.append(item)
+    return stored
 
 
 def _flux_density_index(
@@ -595,6 +809,7 @@ class WindingOptimizer:
         *,
         use_gemini: bool = False,
         top_k: int = 5,
+        use_neuro_symbolic: bool = False,
     ) -> WindingOptimizationResult:
         ok, msg = validate_required_motor_inputs(
             diametro_mm=stator.diametro_mm,
@@ -770,6 +985,36 @@ class WindingOptimizer:
         else:
             awg_base_raw = float(base.sugestao_fio_awg or 23.0)
 
+        candidate_pool: list[dict[str, Any]] = []
+        gemini_evaluation: dict[str, Any] = {}
+        neuro_symbolic_active = False
+        ns_best: Optional[dict[str, Any]] = None
+
+        if use_neuro_symbolic and not usa_validacao:
+            candidate_pool, gemini_evaluation, ns_best = run_neuro_symbolic_selection(
+                stator,
+                entrada=entrada,
+                esp_ref=esp_ref,
+                awg_base=awg_base_raw,
+                apply_fem_turns_guard=apply_fem_guard,
+            )
+            neuro_symbolic_active = True
+            ns_status = str(gemini_evaluation.get("status") or "INVIÁVEL")
+            ns_just = str(gemini_evaluation.get("engineering_justification") or "").strip()
+            if ns_best:
+                esp_ref = float(ns_best["espiras"])
+                awg_base_raw = float(ns_best["awg"])
+                if ns_just:
+                    alertas_globais.insert(
+                        0,
+                        f"Neuro-simbólico ({ns_status}): {ns_just}",
+                    )
+            elif ns_status == "INVIÁVEL":
+                raise InferenceInfeasibleError(
+                    ns_just
+                    or "PROJETO INVIÁVEL: nenhuma configuração candidata viável para este estator."
+                )
+
         esp_b = round(esp_ref, 1)
         from engine.physics_audit import compute_slot_occupation_ratio
 
@@ -787,6 +1032,12 @@ class WindingOptimizer:
             ff_msgs_b = []
             if ff_b > FF_MAX + 1e-6:
                 alertas_globais.append(MSG_FF_IMPOSSIVEL)
+            awg_adj_b = False
+            msg_b_awg = ""
+        elif neuro_symbolic_active and ns_best:
+            awg_b = float(ns_best["awg"])
+            ff_b = float(ns_best["ff"])
+            ff_msgs_b = []
             awg_adj_b = False
             msg_b_awg = ""
         else:
@@ -824,7 +1075,10 @@ class WindingOptimizer:
                     tipo_bobinagem=stator.tipo_bobinagem,
                     passo=stator.passo,
                 )
-        wire_b = WireConfig(parallel_count=1, awg=awg_b)
+        if neuro_symbolic_active and ns_best and isinstance(ns_best.get("wire"), WireConfig):
+            wire_b = ns_best["wire"]
+        else:
+            wire_b = WireConfig(parallel_count=1, awg=awg_b)
         if ff_b > FF_MAX + 1e-6 and MSG_FF_IMPOSSIVEL not in alertas_globais:
             alertas_globais.append(MSG_FF_IMPOSSIVEL)
         flux_ref = _flux_density_index(
@@ -833,6 +1087,8 @@ class WindingOptimizer:
 
         # --- Cenário B: referência principal (usuário ou histórico limpo) ---
         txt_b, alt_b, _ = _wire_texts_for_awg(esp_b, awg_b)
+        if neuro_symbolic_active and ns_best and ns_best.get("fio_texto"):
+            txt_b = str(ns_best["fio_texto"])
         if usa_validacao:
             desc_b = (
                 f"Padrão validado pelo usuário: **{esp_ref}** espiras "
@@ -1095,6 +1351,31 @@ class WindingOptimizer:
             for cen in cenarios:
                 cen.cenario_principal = False
 
+        if (
+            neuro_symbolic_active
+            and ns_best
+            and not cenario_recomendado
+            and str(gemini_evaluation.get("status") or "")
+            in ("APROVADO", "APROVADO_COM_RESSALVAS")
+        ):
+            cen_b = next((c for c in cenarios if c.cenario_id == "B"), None)
+            if cen_b is not None:
+                cenario_recomendado = "B"
+                cen_b.cenario_principal = True
+                cen_b.desabilitado = False
+                cen_b.espiras = round(float(ns_best["espiras"]), 1)
+                cen_b.fill_factor_ff = ns_best.get("ff")
+                cen_b.current_density_j = ns_best.get("j_a_mm2")
+                pc = int(getattr(cen_b, "physics_confidence", 0) or 0)
+                ns_pc = int(ns_best.get("physics_confidence") or 0)
+                cen_b.confidence_score = max(int(cen_b.confidence_score or 0), ns_pc, 35)
+                cen_b.physics_confidence = max(pc, ns_pc, 35)
+                ns_just = str(gemini_evaluation.get("engineering_justification") or "").strip()
+                if ns_just:
+                    tag = f"IA engenharia ({gemini_evaluation.get('status')}): {ns_just}"
+                    if tag not in cen_b.alertas:
+                        cen_b.alertas.insert(0, tag)
+
         if magnetic_sanity_gate_active:
             for cen in cenarios:
                 cen.confidence_score = min(int(cen.confidence_score), 40)
@@ -1175,6 +1456,27 @@ class WindingOptimizer:
                     f"{base.calculo_baseado_em} (Gemini indisponivel: {exc})"
                 )
 
+        if neuro_symbolic_active:
+            base_out["neuro_symbolic_active"] = True
+            base_out["gemini_evaluation"] = dict(gemini_evaluation)
+            base_out["candidate_pool"] = _candidate_pool_for_storage(candidate_pool)
+            if cenario_recomendado:
+                cen_pick = next(
+                    (c for c in cenarios if c.cenario_id == cenario_recomendado),
+                    None,
+                )
+                if cen_pick is not None:
+                    base_out["calculo_abortado"] = False
+                    base_out["sugestao_espira"] = cen_pick.espiras
+                    base_out["sugestao_fio_awg"] = cen_pick.wire.awg
+                    base_out["sugestao_fio_texto"] = cen_pick.fio_texto
+                    ns_just = str(gemini_evaluation.get("engineering_justification") or "")
+                    if ns_just:
+                        base_out["justificativa_tecnica"] = (
+                            f"{base.calculo_baseado_em}. Neuro-simbólico ({gemini_evaluation.get('status')}): "
+                            f"{ns_just}"
+                        )
+
         return WindingOptimizationResult(
             entrada=entrada,
             cenarios=cenarios,
@@ -1203,5 +1505,8 @@ class WindingOptimizer:
             volume_estator_mm3=vol_mm3,
             n_removed_pollution=n_removed_pollution,
             gemini_topologia_camada1=gemini_topologia_camada1,
+            candidate_pool=_candidate_pool_for_storage(candidate_pool),
+            gemini_evaluation=dict(gemini_evaluation),
+            neuro_symbolic_active=neuro_symbolic_active,
             base_suggestion=base_out,
         )

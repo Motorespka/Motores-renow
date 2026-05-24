@@ -13,7 +13,11 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from app.oficial_engine import validate_required_motor_inputs
-from engine.winding_optimizer import StatorInput, WindingOptimizer
+from engine.winding_optimizer import (
+    InferenceInfeasibleError,
+    StatorInput,
+    WindingOptimizer,
+)
 from engine.winding_sanity import MSG_MAGNETIC_GATE_HIST_OVERRIDE
 from app.search_lib import (
     DEFAULT_DB,
@@ -30,7 +34,7 @@ from services.motor_qualidade import MSG_CALCULO_SEM_HISTORICO_OFICINA
 from core.navigation import Route
 from core.streamlit_perf import maybe_fragment, pop_page_ctx_pack, stash_page_ctx
 from core.ui_feedback import mrw_render_banner_zone
-from app.topologia_bobinagem import TIPOS_BOBINAGEM, TIPOS_UI_ORDER, label_tipo
+from app.topologia_bobinagem import TIPOS_BOBINAGEM, TIPOS_UI_ORDER, label_tipo, usuario_informou_tipo
 from services.acervo_oficial_stats import load_acervo_stats
 from services.demo_calculo_report import build_report_html
 from services.ordem_servico_report import (
@@ -197,6 +201,9 @@ def _optimizer_session_payload(opt_res) -> dict[str, Any]:
         "magnetic_sanity_gate_active": opt_res.magnetic_sanity_gate_active,
         "volume_estator_mm3": opt_res.volume_estator_mm3,
         "n_removed_pollution": opt_res.n_removed_pollution,
+        "neuro_symbolic_active": opt_res.neuro_symbolic_active,
+        "gemini_evaluation": opt_res.gemini_evaluation,
+        "candidate_pool": opt_res.candidate_pool,
     }
 
 
@@ -296,6 +303,7 @@ def _run_demo_optimizer(
     esp_user: float | None,
     fio_user: float | None,
     use_gemini: bool = True,
+    use_neuro_symbolic: bool = False,
 ):
     motors, _ = _catalog()
     opt = WindingOptimizer(motors)
@@ -314,6 +322,7 @@ def _run_demo_optimizer(
         ),
         use_gemini=use_gemini,
         top_k=5,
+        use_neuro_symbolic=use_neuro_symbolic,
     )
 
 
@@ -329,11 +338,23 @@ def _persist_demo_results(*, opt_res, entrada: dict[str, Any]) -> None:
             if scenario_passes_hard_physics_limits(c):
                 rec = c
                 break
-    if rec and scenario_passes_hard_physics_limits(rec):
+    ns_status = str((opt_res.gemini_evaluation or {}).get("status") or "")
+    ns_viable = opt_res.neuro_symbolic_active and ns_status in (
+        "APROVADO",
+        "APROVADO_COM_RESSALVAS",
+    )
+    if rec and (scenario_passes_hard_physics_limits(rec) or ns_viable):
         res["sugestao_espira"] = rec.espiras
         res["sugestao_fio_awg"] = rec.wire.awg
         res["sugestao_fio_texto"] = rec.fio_texto
         res["calculo_abortado"] = False
+        if ns_viable:
+            res["neuro_symbolic_active"] = True
+            res["gemini_evaluation"] = opt_res.gemini_evaluation
+            res["validacao_magnetica"] = ns_status
+            just = str((opt_res.gemini_evaluation or {}).get("engineering_justification") or "")
+            if just:
+                res["justificativa_tecnica"] = just
     else:
         res["sugestao_espira"] = None
         res["sugestao_fio_awg"] = None
@@ -978,8 +999,17 @@ def _render_form(ctx) -> None:
             st.rerun()
 
         st.session_state.pop("demo_digital_twin", None)
+        use_neuro_symbolic = (
+            not usuario_informou_tipo(tipo_bob)
+            and esp_user is None
+            and fio_user is None
+        )
         try:
-            with st.spinner("Otimizando A/B/C…"):
+            with st.spinner(
+                "Neuro-simbólico: candidatos + juiz IA…"
+                if use_neuro_symbolic
+                else "Otimizando A/B/C…"
+            ):
                 opt_res = _run_demo_optimizer(
                     d=parsed["d"],
                     p=parsed["p"],
@@ -991,7 +1021,11 @@ def _render_form(ctx) -> None:
                     ligacao=parsed["ligacao"],
                     esp_user=parsed["esp_user"],
                     fio_user=parsed["fio_user"],
+                    use_neuro_symbolic=use_neuro_symbolic,
                 )
+        except InferenceInfeasibleError as exc:
+            st.error(str(exc))
+            return
         except FileNotFoundError as exc:
             st.error(str(exc))
             return
