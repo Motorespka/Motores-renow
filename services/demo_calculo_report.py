@@ -40,7 +40,9 @@ def build_report_html(
     diam = entrada.get("diametro_mm") or entrada.get("diametro")
     pac = entrada.get("pacote_mm") or entrada.get("pacote")
     carcaca = entrada.get("carcaca") or ""
-    passo = entrada.get("passo") or result.get("passo_moda") or ""
+    passo_pp = entrada.get("passo_principal") or entrada.get("passo") or result.get("passo_moda") or ""
+    passo_pa = entrada.get("passo_auxiliar") or ""
+    passo = passo_pp
     ligacao = entrada.get("ligacao") or ""
     fio_eng = entrada.get("fio_engenheiro") or entrada.get("fio_eng") or ""
     esp_eng = entrada.get("espiras_engenheiro") or entrada.get("esp_eng") or ""
@@ -195,7 +197,8 @@ def build_report_html(
         f"<tr><th>Diâmetro estator</th><td>{_fmt_num(diam, suffix=' mm')}</td></tr>",
         f"<tr><th>Comprimento pacote</th><td>{_fmt_num(pac, suffix=' mm')}</td></tr>",
         f"<tr><th>Carcaça NEMA/IEC</th><td>{_esc(carcaca) or '—'}</td></tr>",
-        f"<tr><th>Passos bobinagem</th><td>{_esc(passo) or '—'}</td></tr>",
+        f"<tr><th>Passo principal</th><td>{_esc(passo_pp) or '—'}</td></tr>",
+        f"<tr><th>Passo auxiliar</th><td>{_esc(passo_pa) or '—'}</td></tr>",
         f"<tr><th>Tipo de ligação</th><td>{_esc(ligacao) or '—'}</td></tr>",
         f"<tr><th>Fio / espiras (referência)</th><td>{_esc(fio_eng) or '—'} AWG · {_esc(esp_eng) or '—'} esp.</td></tr>",
         "</table>",

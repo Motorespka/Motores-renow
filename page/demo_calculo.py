@@ -110,7 +110,8 @@ _DEMO_FORM_KEYS = (
     "demo_polos",
     "demo_lig",
     "demo_tensao",
-    "demo_passo",
+    "demo_passo_principal",
+    "demo_passo_auxiliar",
     "demo_fio",
     "demo_esp",
     "demo_modo_operacao",
@@ -228,7 +229,8 @@ def _entrada_from_form(
     d: float,
     p: float,
     carcaca: str,
-    passo: str,
+    passo_principal: str,
+    passo_auxiliar: str = "",
     tipo_bob: str,
     ligacao: str,
     n_ranh: int,
@@ -239,11 +241,15 @@ def _entrada_from_form(
     corrente_nominal_a: float | None = None,
     potencia_cv: float | None = None,
 ) -> dict[str, Any]:
+    pp = str(passo_principal or "").strip()
+    pa = str(passo_auxiliar or "").strip()
     out: dict[str, Any] = {
         "diametro_mm": d,
         "pacote_mm": p,
         "carcaca": carcaca,
-        "passo": passo,
+        "passo_principal": pp,
+        "passo_auxiliar": pa,
+        "passo": pp,
         "tipo_bobinagem": tipo_bob,
         "ligacao": ligacao,
         "ranhuras": int(n_ranh),
@@ -337,7 +343,8 @@ def _parse_form_inputs(
     ranhuras: Any,
     polos: Any,
     carcaca: str,
-    passo: str,
+    passo_principal: str,
+    passo_auxiliar: str,
     tipo_bob: str,
     ligacao: str,
     fio_eng: str,
@@ -364,13 +371,17 @@ def _parse_form_inputs(
         return None
     esp_user = parse_scalar(str(esp_eng).strip()) if str(esp_eng).strip() else None
     fio_user = parse_awg_number(str(fio_eng).strip()) if str(fio_eng).strip() else None
+    pp = str(passo_principal or "").strip()
+    pa = str(passo_auxiliar or "").strip()
     return {
         "d": d,
         "p": p,
         "n_ranh": n_ranh,
         "n_polos": n_polos,
         "carcaca": carcaca,
-        "passo": passo,
+        "passo_principal": pp,
+        "passo_auxiliar": pa,
+        "passo": pp,
         "tipo_bob": tipo_bob,
         "ligacao": ligacao,
         "fio_eng": fio_eng,
@@ -801,6 +812,21 @@ def _render_form(ctx) -> None:
             key="demo_tensao",
             help="Obrigatório para FEM, densidade J e execução do gêmeo digital.",
         )
+        p1, p2 = st.columns(2)
+        with p1:
+            passo_principal = st.text_input(
+                "Passo principal",
+                placeholder="—",
+                key="demo_passo_principal",
+                help="Ex.: 1-7, 10-12 ou 1:4:6:8",
+            )
+        with p2:
+            passo_auxiliar = st.text_input(
+                "Passo auxiliar",
+                placeholder="—",
+                key="demo_passo_auxiliar",
+                help="Bobina auxiliar (monofásico / capacitor). Deixe vazio se não houver.",
+            )
         render_form_block_close()
 
         imagens_upload: list = []
@@ -812,13 +838,6 @@ def _render_form(ctx) -> None:
                 accept_multiple_files=True,
                 key="demo_stator_images",
             )
-
-        passo = st.text_input(
-            "Passo (opcional)",
-            placeholder="—",
-            key="demo_passo",
-            help="Camada dupla: use 4-6-8 ou 1:4-6-8 conforme a bobina.",
-        )
 
         corrente_nominal_a: str | float | None = None
         potencia_cv: str | float | None = None
@@ -898,7 +917,8 @@ def _render_form(ctx) -> None:
             ranhuras=ranhuras,
             polos=polos,
             carcaca=carcaca,
-            passo=passo,
+            passo_principal=passo_principal,
+            passo_auxiliar=passo_auxiliar,
             tipo_bob=tipo_bob,
             ligacao=ligacao,
             fio_eng=fio_eng,
@@ -916,7 +936,8 @@ def _render_form(ctx) -> None:
             d=parsed["d"],
             p=parsed["p"],
             carcaca=parsed["carcaca"],
-            passo=parsed["passo"],
+            passo_principal=parsed["passo_principal"],
+            passo_auxiliar=parsed["passo_auxiliar"],
             tipo_bob=parsed["tipo_bob"],
             ligacao=ligacao,
             n_ranh=parsed["n_ranh"],
@@ -995,7 +1016,8 @@ def _render_form(ctx) -> None:
             d=parsed["d"],
             p=parsed["p"],
             carcaca=parsed["carcaca"],
-            passo=parsed["passo"],
+            passo_principal=parsed["passo_principal"],
+            passo_auxiliar=parsed["passo_auxiliar"],
             tipo_bob=parsed["tipo_bob"],
             ligacao=ligacao,
             n_ranh=parsed["n_ranh"],
@@ -1004,7 +1026,9 @@ def _render_form(ctx) -> None:
             esp_eng=parsed["esp_eng"],
         )
         _persist_demo_results(opt_res=opt_res, entrada=entrada)
-        entrada["tensao_v"] = float(tensao)
+        if tensao_v is not None:
+            entrada["tensao_v"] = float(tensao_v)
+            entrada["voltagem"] = float(tensao_v)
         st.session_state["demo_calculo_entrada"] = entrada
         st.session_state.pop("demo_digital_twin", None)
         st.session_state.pop("demo_ordem_servico_html", None)
@@ -1023,7 +1047,8 @@ def _render_form(ctx) -> None:
                     ranhuras=ranhuras,
                     polos=polos,
                     carcaca=carcaca,
-                    passo=passo,
+                    passo_principal=passo_principal,
+                    passo_auxiliar=passo_auxiliar,
                     tipo_bob=tipo_bob,
                     ligacao=ligacao,
                     fio_eng=fio_eng,
@@ -1034,7 +1059,8 @@ def _render_form(ctx) -> None:
                         d=parsed["d"],
                         p=parsed["p"],
                         carcaca=parsed["carcaca"],
-                        passo=parsed["passo"],
+                        passo_principal=parsed["passo_principal"],
+                        passo_auxiliar=parsed["passo_auxiliar"],
                         tipo_bob=parsed["tipo_bob"],
                         ligacao=ligacao,
                         n_ranh=parsed["n_ranh"],
@@ -1058,7 +1084,9 @@ def _render_form(ctx) -> None:
                             "diametro_mm": float(str(diametro).replace(",", ".")),
                             "pacote_mm": float(str(pacote).replace(",", ".")),
                             "carcaca": carcaca,
-                            "passo": passo,
+                            "passo": passo_principal,
+                            "passo_principal": passo_principal,
+                            "passo_auxiliar": passo_auxiliar,
                             "ligacao": ligacao,
                             "fio_principal": fio_eng,
                             "espiras_principal": esp_eng,

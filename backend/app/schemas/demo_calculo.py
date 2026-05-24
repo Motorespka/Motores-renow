@@ -17,6 +17,8 @@ class DemoCalculoSuggestRequest(BaseModel):
     pacote_mm: float = Field(..., gt=0)
     carcaca: str = ""
     passo: str = ""
+    passo_principal: str = ""
+    passo_auxiliar: str = ""
     tipo_bobinagem: str = ""
     ligacao: str = ""
     fio_engenheiro: str = ""
