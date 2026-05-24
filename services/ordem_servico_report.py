@@ -165,7 +165,7 @@ def build_ordem_servico_html(
     pac = entrada.get("pacote_mm") or entrada.get("pacote")
     ran = entrada.get("ranhuras")
     pol = entrada.get("polos")
-    tensao = entrada.get("tensao_v") or entrada.get("voltagem") or "220"
+    tensao = entrada.get("tensao_rede") or entrada.get("tensao_v") or entrada.get("voltagem") or "220"
     carcaca = entrada.get("carcaca") or ""
     passo = entrada.get("passo") or ""
     ligacao = entrada.get("ligacao") or "Estrela"

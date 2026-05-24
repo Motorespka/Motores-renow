@@ -84,9 +84,12 @@ def render_motor_winding_form() -> MotorWindingForm:
     render_form_block_open("DADOS ELÉTRICOS")
     tensao = st.text_input(
         "Tensão rede (V) *",
-        placeholder="—",
+        placeholder="110/220/380",
         key="demo_tensao",
-        help="Obrigatório para FEM, densidade J e execução do gêmeo digital.",
+        help=(
+            "Um valor (220) ou vários separados por / — ex.: 110/220/380, 220/380/440. "
+            "O gêmeo digital usa a tensão nominal mais alta da lista para FEM e densidade J."
+        ),
     )
     render_form_block_close()
 

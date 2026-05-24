@@ -79,7 +79,12 @@ from page.demo_calculo_ui import (
 )
 from engine.physics_audit import scenario_dict_passes_hard_physics_limits
 from page.demo_calculo_motor_form import MotorWindingForm, render_motor_winding_form
-from page.demo_calculo_validation import validate_demo_submit, vision_needs_manual_fallback
+from page.demo_calculo_validation import (
+    parse_tensao_rede,
+    primary_voltage_for_physics,
+    validate_demo_submit,
+    vision_needs_manual_fallback,
+)
 
 
 def _optional_float(raw: Any) -> float | None:
@@ -229,6 +234,26 @@ def _reset_demo_session() -> None:
         st.session_state.pop(key, None)
 
 
+def _apply_tensao_to_entrada(out: dict[str, Any], winding: MotorWindingForm) -> None:
+    raw = _read_tensao_raw(winding)
+    tensoes, display = parse_tensao_rede(raw)
+    if raw:
+        out["tensao_rede"] = display or raw
+    if tensoes:
+        calc_v = primary_voltage_for_physics(tensoes, tipo_motor=winding.tipo_motor)
+        out["tensoes_v"] = tensoes
+        out["tensao_v"] = float(calc_v)
+        out["voltagem"] = float(calc_v)
+        out["tensao_calculo_v"] = float(calc_v)
+
+
+def _read_tensao_raw(winding: MotorWindingForm) -> str:
+    """Lê tensão do session_state (fonte do widget) com fallback no dataclass."""
+    from_state = str(st.session_state.get("demo_tensao") or "").strip()
+    from_winding = str(winding.tensao or "").strip()
+    return from_state or from_winding
+
+
 def _entrada_from_form(
     *,
     d: float,
@@ -238,7 +263,6 @@ def _entrada_from_form(
     n_ranh: int,
     n_polos: int | None,
     winding: MotorWindingForm,
-    tensao_v: float | None = None,
     corrente_nominal_a: float | None = None,
     potencia_cv: float | None = None,
 ) -> dict[str, Any]:
@@ -251,9 +275,7 @@ def _entrada_from_form(
         "polos": n_polos,
     }
     out.update(winding.as_entrada_extra())
-    if tensao_v is not None:
-        out["tensao_v"] = float(tensao_v)
-        out["voltagem"] = float(tensao_v)
+    _apply_tensao_to_entrada(out, winding)
     if corrente_nominal_a is not None and corrente_nominal_a > 0:
         out["corrente_nominal_a"] = float(corrente_nominal_a)
     if potencia_cv is not None and potencia_cv > 0:
@@ -854,13 +876,20 @@ def _render_form(ctx) -> None:
         p_mm = _optional_float(pacote) or 0.0
         ranh_i = parse_ranhuras_for_calc(ranhuras, default=0) or 0
         polos_i = _optional_int(polos) or 0
-        tensao_v = _optional_float(winding.tensao)
+        tensao_raw = _read_tensao_raw(winding)
+        tensoes, _ = parse_tensao_rede(tensao_raw)
+        tensao_v = (
+            primary_voltage_for_physics(tensoes, tipo_motor=winding.tipo_motor)
+            if tensoes
+            else _optional_float(tensao_raw)
+        )
 
         val_errors = validate_demo_submit(
             modo_op=modo_op,
             diametro_mm=d_mm,
             pacote_mm=p_mm,
             ranhuras=int(ranh_i),
+            tensao_raw=tensao_raw,
             tensao_v=tensao_v,
             esp_eng=winding.espiras_engenheiro,
             fio_eng=winding.fio_engenheiro,
@@ -902,7 +931,6 @@ def _render_form(ctx) -> None:
             n_ranh=parsed["n_ranh"],
             n_polos=parsed["n_polos"],
             winding=parsed["winding"],
-            tensao_v=float(tensao_v) if tensao_v is not None else None,
             corrente_nominal_a=corrente_in,
             potencia_cv=pot_cv_in,
         )
@@ -980,9 +1008,6 @@ def _render_form(ctx) -> None:
             winding=parsed["winding"],
         )
         _persist_demo_results(opt_res=opt_res, entrada=entrada)
-        if tensao_v is not None:
-            entrada["tensao_v"] = float(tensao_v)
-            entrada["voltagem"] = float(tensao_v)
         st.session_state["demo_calculo_entrada"] = entrada
         st.session_state.pop("demo_digital_twin", None)
         st.session_state.pop("demo_ordem_servico_html", None)

@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from app.search_lib import parse_awg_number, parse_scalar
@@ -28,13 +29,70 @@ MSG_VISAO_UI = (
 )
 
 
+def parse_tensao_rede(raw: Any) -> tuple[list[float], str]:
+    """
+    Interpreta tensão simples ou múltipla: 220, 110/220/380, 220-380-440, etc.
+    Retorna (lista ordenada sem duplicatas, texto normalizado para exibição).
+    """
+    s = str(raw or "").strip()
+    if not s:
+        return [], ""
+    s = (
+        s.replace(",", ".")
+        .replace("\\", "/")
+        .replace("\u2215", "/")
+        .replace("\uff0f", "/")
+    )
+    parts = re.split(r"[/\s;\-,]+", s)
+    volts: list[float] = []
+    for part in parts:
+        token = part.strip().rstrip("Vv")
+        if not token:
+            continue
+        try:
+            v = float(token)
+        except ValueError:
+            continue
+        if 24 <= v <= 15000:
+            volts.append(v)
+    if not volts:
+        return [], s
+    dedup = sorted(set(volts))
+    display = "/".join(
+        str(int(v)) if abs(v - int(v)) < 1e-6 else f"{v:g}" for v in dedup
+    )
+    return dedup, display
+
+
+def primary_voltage_for_physics(
+    voltages: list[float],
+    *,
+    tipo_motor: str = "TRIFASICO",
+) -> float:
+    """Escolhe uma tensão nominal para FEM / J / B quando há dupla ou tripla tensão."""
+    if not voltages:
+        return 220.0
+    if len(voltages) == 1:
+        return float(voltages[0])
+    if tipo_motor == "MONOFASICO":
+        for pref in (220, 127, 110, 240):
+            if pref in voltages:
+                return float(pref)
+        return float(min(voltages))
+    for pref in (380, 440, 220, 110):
+        if pref in voltages:
+            return float(pref)
+    return float(max(voltages))
+
+
 def validate_demo_submit(
     *,
     modo_op: str,
     diametro_mm: float,
     pacote_mm: float,
     ranhuras: int,
-    tensao_v: float | None,
+    tensao_raw: str = "",
+    tensao_v: float | None = None,
     esp_eng: str,
     fio_eng: str,
     polos: int = 0,
@@ -67,10 +125,25 @@ def validate_demo_submit(
     if polos < 0 or polos > POLOS_MAX:
         errors.append(f"Polos inválidos (0 = auto, ou 2–{POLOS_MAX}).")
 
-    if tensao_v is None or tensao_v <= 0:
+    tensoes_parsed, _ = parse_tensao_rede(tensao_raw) if tensao_raw else ([], "")
+    if tensao_v is None and tensoes_parsed:
+        tensao_v = primary_voltage_for_physics(tensoes_parsed, tipo_motor=tipo_motor)
+
+    if tensao_raw and not tensoes_parsed:
+        errors.append(
+            "Tensão de rede inválida. Use um valor (220) ou vários separados por / "
+            "(ex.: 110/220/380 ou 220/380/440)."
+        )
+    elif tensao_v is None or tensao_v <= 0:
         errors.append("Informe a tensão de rede (V) antes de executar o gêmeo digital.")
-    elif tensao_v < TENSAO_V_MIN or tensao_v > TENSAO_V_MAX:
-        errors.append(f"Tensão deve estar entre {TENSAO_V_MIN} e {TENSAO_V_MAX} V.")
+    else:
+        tensoes = tensoes_parsed if tensoes_parsed else [float(tensao_v)]
+        for v in tensoes:
+            if v < TENSAO_V_MIN or v > TENSAO_V_MAX:
+                errors.append(
+                    f"Tensão {v:.0f} V fora da faixa operacional ({TENSAO_V_MIN:.0f}–{TENSAO_V_MAX:.0f} V)."
+                )
+                break
 
     is_caixa = "Caixa preta" in modo_op
     is_auditoria = "Auditoria" in modo_op

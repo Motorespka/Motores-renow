@@ -63,7 +63,7 @@ def build_executive_markdown(
         f"- Ranhuras: **{entrada.get('ranhuras', '—')}**",
         f"- Polos: **{entrada.get('polos', '—')}**",
         f"- Ligação: **{entrada.get('ligacao', 'Estrela')}**",
-        f"- Tensão: **{entrada.get('tensao_v') or entrada.get('voltagem') or 220}** V",
+        f"- Tensão: **{entrada.get('tensao_rede') or entrada.get('tensao_v') or entrada.get('voltagem') or 220}** V",
     ]
 
     if fem_refs:
