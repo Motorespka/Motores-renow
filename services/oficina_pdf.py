@@ -17,10 +17,29 @@ def _to_text(value: Any) -> str:
 
 
 def _flatten_latin_pdf(text: str) -> str:
-    """Helvetica WinAnsi: remove combining marks and cedilla where NFKD does not."""
+    """Helvetica WinAnsi: ASCII-safe fallback for PDF when no Unicode font loads."""
     if not text:
         return ""
-    t = unicodedata.normalize("NFKD", text)
+    replacements = {
+        "\u2014": "-",
+        "\u2013": "-",
+        "\u00b7": ".",
+        "\u00d7": "x",
+        "\u00f8": "O",
+        "\u00d8": "O",
+        "\u00b2": "2",
+        "\u00b3": "3",
+        "\u00ba": "o",
+        "\u00aa": "a",
+        "\u2264": "<=",
+        "\u2265": ">=",
+        "\u2248": "~",
+        "\u0394": "Delta",
+    }
+    t = text
+    for src, dst in replacements.items():
+        t = t.replace(src, dst)
+    t = unicodedata.normalize("NFKD", t)
     t = "".join(c for c in t if unicodedata.category(c) != "Mn")
     return t.replace("ç", "c").replace("Ç", "C")
 
@@ -48,6 +67,7 @@ def _font_candidates() -> List[Tuple[str, str]]:
     Arial/Calibri on Windows; optional drop-in next to this file.
     """
     here = Path(__file__).resolve().parent
+    fonts_dir = here / "fonts"
     env = os.environ.get("MOTORES_PDF_FONT_REGULAR")
     env_b = os.environ.get("MOTORES_PDF_FONT_BOLD")
     if env:
@@ -55,9 +75,11 @@ def _font_candidates() -> List[Tuple[str, str]]:
 
     out: List[Tuple[str, str]] = []
     for reg, bol in [
+        (fonts_dir / "DejaVuSans.ttf", fonts_dir / "DejaVuSans-Bold.ttf"),
         (here / "DejaVuSans.ttf", here / "DejaVuSans-Bold.ttf"),
         (Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"), Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")),
         (Path("/usr/share/fonts/TTF/DejaVuSans.ttf"), Path("/usr/share/fonts/TTF/DejaVuSans-Bold.ttf")),
+        (Path("/usr/share/fonts/dejavu/DejaVuSans.ttf"), Path("/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf")),
     ]:
         if reg.exists():
             out.append((str(reg), str(bol) if bol.exists() else ""))
@@ -111,19 +133,50 @@ class _DeliveryPDF:
         fl = footer_left
 
         class DeliveryPDF(FPDF):
+            _mr_family = "Helvetica"
+            _mr_unicode_ok = False
+
             def header(self) -> None:
+                uok = bool(getattr(self, "_mr_unicode_ok", False))
                 _set(self, self._mr_family, "B", 11)
-                self.cell(0, 6, h1, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+                self.cell(
+                    0,
+                    6,
+                    _txt(h1, uok),
+                    new_x=XPos.LMARGIN,
+                    new_y=YPos.NEXT,
+                )
                 _set(self, self._mr_family, "", 9)
-                self.cell(0, 5, h2, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+                self.cell(
+                    0,
+                    5,
+                    _txt(h2, uok),
+                    new_x=XPos.LMARGIN,
+                    new_y=YPos.NEXT,
+                )
                 self.ln(2)
 
             def footer(self) -> None:
+                uok = bool(getattr(self, "_mr_unicode_ok", False))
                 self.set_y(-12)
                 _set(self, self._mr_family, "", 8)
                 w = self.w - self.l_margin - self.r_margin
-                self.cell(w * 0.62, 5, fl, align="L", new_x=XPos.RIGHT, new_y=YPos.TOP)
-                self.cell(w * 0.38, 5, f"Pag. {self.page_no()}/{{nb}}", align="R", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+                self.cell(
+                    w * 0.62,
+                    5,
+                    _txt(fl, uok),
+                    align="L",
+                    new_x=XPos.RIGHT,
+                    new_y=YPos.TOP,
+                )
+                self.cell(
+                    w * 0.38,
+                    5,
+                    _txt(f"Pag. {self.page_no()}/{{nb}}", uok),
+                    align="R",
+                    new_x=XPos.LMARGIN,
+                    new_y=YPos.NEXT,
+                )
 
         return DeliveryPDF
 
@@ -168,6 +221,7 @@ def build_os_delivery_pdf_bytes(
     pdf = DeliveryPDF(orientation="P", unit="mm", format="A4")
     family, unicode_ok = _setup_body_font(pdf)
     pdf._mr_family = family
+    pdf._mr_unicode_ok = unicode_ok
     pdf.set_margins(14, 18, 14)
     pdf.set_auto_page_break(auto=True, margin=14)
     try:

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from engine.physics_validator import PhysicsValidatorEngine
+from unittest.mock import patch
+
 from page.demo_calculo_diagnostics import (
     WindingSnapshot,
     build_physics_verdict,
@@ -39,3 +40,36 @@ def test_build_laudo_pdf_bytes():
     assert pdf[:4] == b"%PDF"
     assert len(pdf) > 500
     assert verdict.status == "REPROVADO"
+
+
+def test_build_laudo_pdf_bytes_helvetica_fallback():
+    """Streamlit Cloud sem TTF: cabeçalho com acentos não pode derrubar o PDF."""
+    orig = WindingSnapshot(
+        titulo="Original",
+        espiras=45.0,
+        awg=19.0,
+        fio_texto="1×19 AWG",
+        j_a_mm2=4.2,
+        ff=0.33,
+        b_tesla=1.2,
+    )
+    prop = WindingSnapshot(
+        titulo="Proposta",
+        espiras=45.0,
+        awg=19.0,
+        fio_texto="1×19 AWG",
+        j_a_mm2=7.8,
+        ff=0.45,
+        b_tesla=1.5,
+    )
+    verdict = build_physics_verdict(orig, prop)
+    with patch("services.oficina_pdf._font_candidates", return_value=[]):
+        pdf = build_laudo_pdf_bytes(
+            motor_modelo="Ø80×70",
+            original=orig,
+            proposed=prop,
+            verdict=verdict,
+            entrada={"diametro_mm": 80, "pacote_mm": 70, "ranhuras": 36},
+        )
+    assert pdf[:4] == b"%PDF"
+    assert len(pdf) > 500

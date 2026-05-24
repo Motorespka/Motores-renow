@@ -57,6 +57,7 @@ def build_laudo_pdf_bytes(
     )
     pdf = DeliveryPDF(orientation="P", unit="mm", format="A4")
     pdf._mr_family, unicode_ok = _setup_body_font(pdf)
+    pdf._mr_unicode_ok = unicode_ok
     pdf.set_auto_page_break(auto=True, margin=18)
     pdf.add_page()
     family = pdf._mr_family

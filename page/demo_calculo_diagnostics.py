@@ -383,22 +383,34 @@ def render_diagnostic_suite(
             f"Ø{entrada.get('diametro_mm', '—')}×{entrada.get('pacote_mm', '—')} mm · "
             f"{entrada.get('carcaca', '—')} · {entrada.get('ranhuras', '—')} ranhuras"
         )
-        pdf_bytes = build_laudo_pdf_bytes(
-            motor_modelo=motor_label,
-            original=original,
-            proposed=proposed,
-            verdict=verdict,
-            entrada=entrada,
-        )
         c_pdf, _ = st.columns([2, 1])
         with c_pdf:
-            st.download_button(
+            if st.button(
                 "Gerar Laudo PDF",
-                data=pdf_bytes,
-                file_name="laudo-rebobinagem.pdf",
-                mime="application/pdf",
                 use_container_width=True,
                 type="primary",
-                key="demo_download_laudo_pdf",
-            )
+                key="demo_btn_build_laudo_pdf",
+            ):
+                try:
+                    st.session_state["demo_laudo_pdf_bytes"] = build_laudo_pdf_bytes(
+                        motor_modelo=motor_label,
+                        original=original,
+                        proposed=proposed,
+                        verdict=verdict,
+                        entrada=entrada,
+                    )
+                except Exception as exc:
+                    st.session_state.pop("demo_laudo_pdf_bytes", None)
+                    st.error(f"Não foi possível gerar o PDF: {exc}")
+
+            pdf_bytes = st.session_state.get("demo_laudo_pdf_bytes")
+            if pdf_bytes:
+                st.download_button(
+                    "Baixar Laudo PDF",
+                    data=pdf_bytes,
+                    file_name="laudo-rebobinagem.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                    key="demo_download_laudo_pdf",
+                )
     st.markdown("</div>", unsafe_allow_html=True)
