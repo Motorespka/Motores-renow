@@ -247,10 +247,9 @@ def generate_inference_candidate_pool(
 ) -> list[dict[str, Any]]:
     """
     Etapa 1 — Gerador determinístico: 5–8 configurações adjacentes (AWG ±2, espiras proporcionais).
-    Retorna candidatos mesmo com violações leves; lista vazia só em caso extremo.
+    Gera candidatos brutos; violações J/ff/B são registradas mas NUNCA descartadas aqui.
     """
-    if esp_ref <= 0:
-        return []
+    esp_base = max(float(esp_ref), 1.0)
 
     awg0, _, _ = clamp_awg_to_safe_range(float(awg_base), stator.carcaca)
     area0 = _awg_area_mm2(awg0)
@@ -260,24 +259,34 @@ def generate_inference_candidate_pool(
         awg, _, _ = clamp_awg_to_safe_range(awg0 + delta, stator.carcaca)
         area = _awg_area_mm2(awg)
         if area0 > 0 and area > 0:
-            esp = round(float(esp_ref) * (area0 / area), 1)
+            esp = round(esp_base * (area0 / area), 1)
         else:
-            esp = round(float(esp_ref), 1)
+            esp = round(esp_base, 1)
         seeds.append((max(esp, 1.0), awg, 1))
 
     extras = [
-        (round(float(esp_ref) + 2.0, 1), clamp_awg_to_safe_range(awg0 + 1, stator.carcaca)[0], 1),
-        (round(float(esp_ref) - 2.0, 1), clamp_awg_to_safe_range(awg0 - 1, stator.carcaca)[0], 1),
-        (round(float(esp_ref), 1), clamp_awg_to_safe_range(awg0, stator.carcaca)[0], 2),
+        (round(esp_base + 2.0, 1), clamp_awg_to_safe_range(awg0 + 1, stator.carcaca)[0], 1),
+        (round(esp_base - 2.0, 1), clamp_awg_to_safe_range(awg0 - 1, stator.carcaca)[0], 1),
+        (round(esp_base, 1), clamp_awg_to_safe_range(awg0, stator.carcaca)[0], 2),
     ]
     for item in extras:
-        if len(seeds) >= max_candidates:
-            break
         seeds.append(item)
+
+    for delta in (-3, 3, -4, 4):
+        awg, _, _ = clamp_awg_to_safe_range(awg0 + delta, stator.carcaca)
+        area = _awg_area_mm2(awg)
+        esp = (
+            round(esp_base * (area0 / area), 1)
+            if area0 > 0 and area > 0
+            else round(esp_base, 1)
+        )
+        seeds.append((max(esp, 1.0), awg, 1))
 
     seen: set[tuple[float, float, int]] = set()
     pool: list[dict[str, Any]] = []
     for esp, awg, par in seeds:
+        if len(pool) >= max_candidates:
+            break
         key = (round(esp, 1), round(awg, 1), int(par))
         if key in seen:
             continue
@@ -287,43 +296,34 @@ def generate_inference_candidate_pool(
             espiras=esp,
             awg=awg,
             parallel_count=par,
-            apply_fem_turns_guard=apply_fem_turns_guard,
+            apply_fem_turns_guard=False,
         )
-        if scored.get("calculation_aborted"):
-            continue
         scored["index"] = len(pool)
         pool.append(scored)
-        if len(pool) >= max_candidates:
+
+    while len(pool) < min_candidates:
+        idx = len(pool)
+        delta = idx - 2
+        awg, _, _ = clamp_awg_to_safe_range(awg0 + delta, stator.carcaca)
+        esp = round(esp_base + delta, 1)
+        key = (round(max(esp, 1.0), 1), round(awg, 1), 1)
+        if key in seen:
+            esp = round(esp_base + idx * 0.5, 1)
+            key = (round(max(esp, 1.0), 1), round(awg, 1), 1)
+        if key in seen:
             break
+        seen.add(key)
+        scored = _evaluate_inference_candidate(
+            stator,
+            espiras=max(esp, 1.0),
+            awg=awg,
+            parallel_count=1,
+            apply_fem_turns_guard=False,
+        )
+        scored["index"] = len(pool)
+        pool.append(scored)
 
-    if len(pool) < min_candidates:
-        for delta in (-3, 3):
-            if len(pool) >= min_candidates:
-                break
-            awg, _, _ = clamp_awg_to_safe_range(awg0 + delta, stator.carcaca)
-            area = _awg_area_mm2(awg)
-            esp = (
-                round(float(esp_ref) * (area0 / area), 1)
-                if area0 > 0 and area > 0
-                else round(float(esp_ref), 1)
-            )
-            key = (round(esp, 1), round(awg, 1), 1)
-            if key in seen:
-                continue
-            seen.add(key)
-            scored = _evaluate_inference_candidate(
-                stator,
-                espiras=max(esp, 1.0),
-                awg=awg,
-                parallel_count=1,
-                apply_fem_turns_guard=apply_fem_turns_guard,
-            )
-            if scored.get("calculation_aborted"):
-                continue
-            scored["index"] = len(pool)
-            pool.append(scored)
-
-    return pool
+    return pool[:max_candidates]
 
 
 def run_neuro_symbolic_selection(

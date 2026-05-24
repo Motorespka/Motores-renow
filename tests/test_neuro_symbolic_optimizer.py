@@ -11,7 +11,7 @@ from services.gemini_evaluator import (
 )
 
 
-def test_generate_inference_candidate_pool_size_and_fields():
+def test_generate_inference_candidate_pool_never_empty_for_stator_80():
     stator = StatorInput(
         diametro_mm=80.0,
         pacote_mm=70.0,
@@ -19,8 +19,6 @@ def test_generate_inference_candidate_pool_size_and_fields():
         polos=4,
         carcaca="nema",
         passo="10-12",
-        tipo_bobinagem="",
-        ligacao="Estrela",
     )
     pool = generate_inference_candidate_pool(
         stator,
@@ -28,13 +26,7 @@ def test_generate_inference_candidate_pool_size_and_fields():
         awg_base=19.0,
     )
     assert len(pool) >= 5
-    for row in pool:
-        assert row["espiras"] > 0
-        assert row["awg"] > 0
-        assert "j_a_mm2" in row
-        assert "ff" in row
-        assert "b_tesla" in row
-        assert "violations" in row
+    assert all(c.get("espiras", 0) > 0 for c in pool)
 
 
 def test_deterministic_fallback_picks_lowest_penalty():

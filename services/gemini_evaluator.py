@@ -37,6 +37,18 @@ _VALID_STATUSES = frozenset({"APROVADO", "APROVADO_COM_RESSALVAS", "INVIÁVEL"})
 
 
 def _api_key() -> str:
+    try:
+        import streamlit as st
+
+        for name in ("GOOGLE_API_KEY", "GEMINI_API_KEY"):
+            try:
+                val = st.secrets.get(name) if hasattr(st.secrets, "get") else st.secrets[name]
+            except (KeyError, TypeError, AttributeError):
+                val = None
+            if val:
+                return str(val).strip()
+    except Exception:
+        pass
     return (
         os.environ.get("GOOGLE_API_KEY")
         or os.environ.get("GEMINI_API_KEY")
