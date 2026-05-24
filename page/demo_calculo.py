@@ -48,7 +48,14 @@ from engine.physics_audit import (
     cenario_valido_para_painel_recomendado,
     scenario_passes_hard_physics_limits,
 )
-from page.demo_calculo_components import render_section_header, render_verdict_banner
+from page.demo_calculo_components import (
+    render_form_block_close,
+    render_form_block_open,
+    render_input_panel_close,
+    render_input_panel_open,
+    render_mode_hint,
+    render_verdict_banner,
+)
 from page.demo_calculo_ui import (
     MSG_PROJETO_INVIAVEL,
     close_dashboard_shell,
@@ -72,6 +79,45 @@ from page.demo_calculo_ui import (
 )
 from engine.physics_audit import scenario_dict_passes_hard_physics_limits
 from page.demo_calculo_validation import validate_demo_submit, vision_needs_manual_fallback
+
+
+def _optional_float(raw: Any) -> float | None:
+    s = str(raw or "").strip().replace(",", ".")
+    if not s:
+        return None
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def _optional_int(raw: Any) -> int | None:
+    s = str(raw or "").strip()
+    if not s:
+        return None
+    try:
+        return int(float(s.replace(",", ".")))
+    except ValueError:
+        return None
+
+
+_DEMO_FORM_KEYS = (
+    "demo_diam",
+    "demo_pac",
+    "demo_carc",
+    "demo_tipo_bob",
+    "demo_ranhuras",
+    "demo_polos",
+    "demo_lig",
+    "demo_tensao",
+    "demo_passo",
+    "demo_fio",
+    "demo_esp",
+    "demo_modo_operacao",
+    "demo_corrente_nom",
+    "demo_potencia_cv",
+    "demo_stator_images",
+)
 
 
 @st.dialog("Prévia do Relatório de Engenharia", width="large")
@@ -173,6 +219,8 @@ def _reset_demo_session() -> None:
     st.session_state.clear()
     for k, v in preserved.items():
         st.session_state[k] = v
+    for key in _DEMO_FORM_KEYS:
+        st.session_state.pop(key, None)
 
 
 def _entrada_from_form(
@@ -286,8 +334,8 @@ def _parse_form_inputs(
     *,
     diametro: str,
     pacote: str,
-    ranhuras: int,
-    polos: int,
+    ranhuras: Any,
+    polos: Any,
     carcaca: str,
     passo: str,
     tipo_bob: str,
@@ -295,17 +343,19 @@ def _parse_form_inputs(
     fio_eng: str,
     esp_eng: str,
 ) -> dict[str, Any] | None:
-    try:
-        d = float(str(diametro).replace(",", "."))
-        p = float(str(pacote).replace(",", "."))
-    except ValueError:
-        st.warning("Informe diâmetro e pacote numéricos.")
+    d = _optional_float(diametro)
+    p = _optional_float(pacote)
+    if d is None or p is None:
+        st.warning("Informe diâmetro e pacote (mm) com valores numéricos.")
         return None
     if d <= 0 or p <= 0:
         st.warning("Diâmetro e pacote devem ser maiores que zero.")
         return None
-    n_ranh = parse_ranhuras_for_calc(ranhuras, default=36)
-    n_polos = parse_polos_for_calc(polos)
+    n_ranh = parse_ranhuras_for_calc(ranhuras, default=None)
+    if n_ranh is None or n_ranh <= 0:
+        st.warning("Informe o número de ranhuras.")
+        return None
+    n_polos = parse_polos_for_calc(polos, default=None)
     ok_req, req_msg = validate_required_motor_inputs(
         diametro_mm=d, pacote_mm=p, ranhuras=n_ranh, polos=n_polos
     )
@@ -688,8 +738,10 @@ def _render_form(ctx) -> None:
     col_in, col_out = st.columns([2, 3], gap="large")
 
     with col_in:
-        st.markdown('<div class="dt-panel">', unsafe_allow_html=True)
-        render_section_header("Entrada de dados do motor", "Geometria · bobinagem · elétrico")
+        render_input_panel_open(
+            title="Entrada de dados do motor",
+            subtitle="Geometria · bobinagem · elétrico",
+        )
 
         if st.button(
             "Limpar dados / Novo cálculo",
@@ -700,6 +752,7 @@ def _render_form(ctx) -> None:
             _reset_demo_session()
             st.rerun()
 
+        st.markdown('<div class="dt-mode-wrap">', unsafe_allow_html=True)
         modo_op = st.radio(
             "Modo de operação",
             options=[
@@ -710,33 +763,18 @@ def _render_form(ctx) -> None:
             key="demo_modo_operacao",
             label_visibility="collapsed",
         )
-        st.caption(f"**{modo_op}**")
+        st.markdown("</div>", unsafe_allow_html=True)
+        render_mode_hint(modo_op)
 
-        st.session_state.setdefault("demo_ranhuras", 24)
-        st.session_state.setdefault("demo_polos", 2)
-
-        render_section_header("Estator", "Geometria")
+        render_form_block_open("ESTATOR · GEOMETRIA")
         g1, g2, g3 = st.columns(3)
         with g1:
-            diametro = st.number_input(
-                "Ø estator (mm)",
-                min_value=20.0,
-                max_value=500.0,
-                value=80.0,
-                step=1.0,
-                key="demo_diam",
-            )
+            diametro = st.text_input("Ø estator (mm)", placeholder="—", key="demo_diam")
         with g2:
-            pacote = st.number_input(
-                "Pacote (mm)",
-                min_value=5.0,
-                max_value=800.0,
-                value=70.0,
-                step=1.0,
-                key="demo_pac",
-            )
+            pacote = st.text_input("Pacote (mm)", placeholder="—", key="demo_pac")
         with g3:
-            carcaca = st.text_input("Carcaça", value="80A", key="demo_carc")
+            carcaca = st.text_input("Carcaça", placeholder="—", key="demo_carc")
+        render_form_block_close()
 
         topo_opts = {"(Inferir)": ""}
         topo_opts.update(
@@ -746,36 +784,24 @@ def _render_form(ctx) -> None:
             st.selectbox("Bobinagem", list(topo_opts.keys()), key="demo_tipo_bob")
         ]
 
-        render_section_header("Bobinagem", "Ranhuras · polos · ligação")
+        render_form_block_open("BOBINAGEM")
         g4, g5, g6 = st.columns(3)
         with g4:
-            ranhuras = st.number_input(
-                "Ranhuras *",
-                min_value=1,
-                max_value=120,
-                step=1,
-                key="demo_ranhuras",
-            )
+            ranhuras = st.text_input("Ranhuras *", placeholder="—", key="demo_ranhuras")
         with g5:
-            polos = st.number_input(
-                "Polos (0=auto)",
-                min_value=0,
-                max_value=12,
-                step=2,
-                key="demo_polos",
-            )
+            polos = st.text_input("Polos (vazio = auto)", placeholder="—", key="demo_polos")
         with g6:
-            ligacao = st.text_input("Ligação", value="Estrela", key="demo_lig")
+            ligacao = st.text_input("Ligação", placeholder="—", key="demo_lig")
+        render_form_block_close()
 
-        tensao = st.number_input(
+        render_form_block_open("DADOS ELÉTRICOS")
+        tensao = st.text_input(
             "Tensão rede (V) *",
-            min_value=110,
-            max_value=480,
-            value=220,
-            step=10,
+            placeholder="—",
             key="demo_tensao",
             help="Obrigatório para FEM, densidade J e execução do gêmeo digital.",
         )
+        render_form_block_close()
 
         imagens_upload: list = []
         if modo_op == "Caixa preta — estator vazio (FEM + visão)":
@@ -789,13 +815,13 @@ def _render_form(ctx) -> None:
 
         passo = st.text_input(
             "Passo (opcional)",
-            value="1:7",
+            placeholder="—",
             key="demo_passo",
             help="Camada dupla: use 4-6-8 ou 1:4-6-8 conforme a bobina.",
         )
 
-        corrente_nominal_a: float | None = None
-        potencia_cv: float | None = None
+        corrente_nominal_a: str | float | None = None
+        potencia_cv: str | float | None = None
         if modo_op == "Auditoria — cálculo suspeito":
             panel_title("Dados elétricos (auditoria)")
             st.caption(
@@ -804,32 +830,26 @@ def _render_form(ctx) -> None:
             )
             e1, e2 = st.columns(2)
             with e1:
-                corrente_nominal_a = st.number_input(
+                corrente_nominal_a = st.text_input(
                     "Corrente nominal (A)",
-                    min_value=0.0,
-                    max_value=200.0,
-                    value=0.0,
-                    step=0.1,
+                    placeholder="—",
                     key="demo_corrente_nom",
-                    help="0 = estimar pela potência ou pelo ferro.",
+                    help="Deixe vazio para estimar pela potência ou pelo ferro.",
                 )
             with e2:
-                potencia_cv = st.number_input(
+                potencia_cv = st.text_input(
                     "Potência (CV)",
-                    min_value=0.0,
-                    max_value=500.0,
-                    value=0.0,
-                    step=0.1,
+                    placeholder="—",
                     key="demo_potencia_cv",
-                    help="0 = usar 1,5 CV implícito só se corrente também estiver vazia.",
                 )
 
-        render_section_header("Validação / auditoria", "Fio e espiras informados")
+        render_form_block_open("VALIDAÇÃO / AUDITORIA")
         v1, v2 = st.columns(2)
         with v1:
-            fio_eng = st.text_input("Fio AWG", value="19", key="demo_fio")
+            fio_eng = st.text_input("Fio AWG", placeholder="—", key="demo_fio")
         with v2:
-            esp_eng = st.text_input("Espiras", value="45", key="demo_esp")
+            esp_eng = st.text_input("Espiras", placeholder="—", key="demo_esp")
+        render_form_block_close()
 
         btn_label = (
             "Gerar 3 cenários (A/B/C)"
@@ -837,7 +857,7 @@ def _render_form(ctx) -> None:
             else "Executar gêmeo digital"
         )
         run_calc = st.button(btn_label, type="primary", use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+        render_input_panel_close()
 
         with st.expander("System prompt IA (PINN)", expanded=False):
             st.code(get_agent_system_prompt(), language=None)
@@ -846,15 +866,21 @@ def _render_form(ctx) -> None:
         _render_report_panel(twin_data=twin_data, opt_data=opt_data, res=res)
 
     if run_calc:
+        d_mm = _optional_float(diametro) or 0.0
+        p_mm = _optional_float(pacote) or 0.0
+        ranh_i = parse_ranhuras_for_calc(ranhuras, default=0) or 0
+        polos_i = _optional_int(polos) or 0
+        tensao_v = _optional_float(tensao)
+
         val_errors = validate_demo_submit(
             modo_op=modo_op,
-            diametro_mm=float(diametro),
-            pacote_mm=float(pacote),
-            ranhuras=int(ranhuras),
-            tensao_v=float(tensao) if tensao else None,
+            diametro_mm=d_mm,
+            pacote_mm=p_mm,
+            ranhuras=int(ranh_i),
+            tensao_v=tensao_v,
             esp_eng=esp_eng,
             fio_eng=fio_eng,
-            polos=int(polos),
+            polos=int(polos_i),
             has_stator_images=bool(imagens_upload),
         )
         if val_errors:
@@ -881,8 +907,8 @@ def _render_form(ctx) -> None:
         if not parsed:
             return
 
-        corrente_in = float(corrente_nominal_a) if corrente_nominal_a and corrente_nominal_a > 0 else None
-        pot_cv_in = float(potencia_cv) if potencia_cv and potencia_cv > 0 else None
+        corrente_in = _optional_float(corrente_nominal_a)
+        pot_cv_in = _optional_float(potencia_cv)
         if modo_op == "Auditoria — cálculo suspeito" and not corrente_in and not pot_cv_in:
             pot_cv_in = 1.5
 
@@ -897,7 +923,7 @@ def _render_form(ctx) -> None:
             n_polos=parsed["n_polos"],
             fio_eng=parsed["fio_eng"],
             esp_eng=parsed["esp_eng"],
-            tensao_v=float(tensao),
+            tensao_v=float(tensao_v) if tensao_v is not None else None,
             corrente_nominal_a=corrente_in,
             potencia_cv=pot_cv_in,
         )

@@ -72,11 +72,79 @@
 
 .demo-twin-dashboard .dt-panel {
   border: 1px solid var(--dt-border);
-  border-radius: var(--dt-radius);
-  background: var(--dt-panel);
+  border-radius: var(--dt-radius-lg);
+  background: linear-gradient(165deg, var(--dt-panel) 0%, var(--dt-bg1) 100%);
   padding: 1rem 1.1rem;
   margin-bottom: 0.85rem;
-  box-shadow: var(--dt-shadow);
+  box-shadow: var(--dt-shadow), inset 0 1px 0 rgba(0, 229, 255, 0.06);
+}
+
+.demo-twin-dashboard .dt-input-panel {
+  border: 1px solid var(--dt-border-strong);
+  border-radius: var(--dt-radius-lg);
+  background: linear-gradient(165deg, rgba(0, 229, 255, 0.06) 0%, var(--dt-panel) 35%, var(--dt-bg1) 100%);
+  padding: 1.1rem 1.15rem;
+  margin-bottom: 0.85rem;
+  box-shadow: var(--dt-glow), var(--dt-shadow);
+}
+
+.demo-twin-dashboard .dt-form-block {
+  border: 1px solid rgba(0, 229, 255, 0.12);
+  border-radius: var(--dt-radius);
+  background: rgba(0, 0, 0, 0.22);
+  padding: 0.75rem 0.85rem 0.65rem;
+  margin: 0.65rem 0 0.75rem;
+}
+
+.demo-twin-dashboard .dt-form-block__label {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dt-cyan);
+  margin-bottom: 0.55rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid rgba(0, 229, 255, 0.1);
+}
+
+.demo-twin-dashboard .dt-mode-wrap {
+  margin: 0.5rem 0 0.35rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: var(--dt-radius);
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(0, 229, 255, 0.1);
+}
+
+.demo-twin-dashboard .dt-mode-wrap [data-testid="stRadio"] label {
+  font-size: 0.82rem !important;
+  color: var(--dt-ink-soft) !important;
+}
+
+.demo-twin-dashboard .dt-mode-wrap [data-testid="stRadio"] label[data-checked="true"] {
+  color: var(--dt-cyan) !important;
+  font-weight: 600 !important;
+}
+
+.demo-twin-dashboard .dt-mode-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.78rem;
+  color: var(--dt-ink-soft);
+  margin: 0 0 0.65rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  background: rgba(0, 229, 255, 0.05);
+}
+
+.demo-twin-dashboard .dt-mode-hint__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dt-cyan);
+  box-shadow: 0 0 8px var(--dt-cyan);
+  flex-shrink: 0;
 }
 
 .demo-twin-dashboard .dt-panel-title {
@@ -218,11 +286,34 @@
 
 .demo-twin-dashboard .stButton > button[kind="primary"] {
   border-radius: var(--dt-radius) !important;
-  background: linear-gradient(180deg, #c8f07a 0%, #9fd64d 100%) !important;
-  color: #0e1117 !important;
+  background: linear-gradient(180deg, #33eeff 0%, #00a8c4 100%) !important;
+  color: #041018 !important;
   font-weight: 700 !important;
-  border: none !important;
-  box-shadow: 0 4px 14px rgba(159, 214, 77, 0.35) !important;
+  border: 1px solid rgba(0, 229, 255, 0.45) !important;
+  box-shadow: 0 4px 18px rgba(0, 229, 255, 0.28) !important;
+  letter-spacing: 0.04em;
+}
+
+.demo-twin-dashboard .stTextInput input,
+.demo-twin-dashboard .stNumberInput input {
+  font-family: var(--dt-font-mono) !important;
+  font-size: 0.92rem !important;
+  color: var(--dt-ink) !important;
+  background: rgba(0, 0, 0, 0.35) !important;
+  border-radius: 10px !important;
+}
+
+.demo-twin-dashboard .stTextInput input::placeholder {
+  color: var(--dt-ink-muted) !important;
+  opacity: 0.85;
+}
+
+.demo-twin-dashboard [data-testid="stWidgetLabel"] p,
+.demo-twin-dashboard label[data-testid="stWidgetLabel"] {
+  font-size: 0.68rem !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  color: var(--dt-ink-muted) !important;
 }
 
 .demo-twin-dashboard .stButton > button[kind="secondary"] {

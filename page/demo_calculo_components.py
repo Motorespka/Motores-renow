@@ -110,6 +110,34 @@ def render_section_header(title: str, subtitle: str = "") -> None:
     )
 
 
+def render_input_panel_open(*, title: str, subtitle: str = "") -> None:
+    """Painel de entrada — visual PMTH."""
+    st.markdown('<div class="dt-input-panel">', unsafe_allow_html=True)
+    render_section_header(title, subtitle)
+
+
+def render_input_panel_close() -> None:
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def render_form_block_open(label: str) -> None:
+    st.markdown(
+        f'<div class="dt-form-block"><span class="dt-form-block__label">{_esc(label)}</span>',
+        unsafe_allow_html=True,
+    )
+
+
+def render_form_block_close() -> None:
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def render_mode_hint(modo: str) -> None:
+    st.markdown(
+        f'<div class="dt-mode-hint"><span class="dt-mode-hint__dot"></span>{_esc(modo)}</div>',
+        unsafe_allow_html=True,
+    )
+
+
 def _arc_gauge_svg(
     *,
     label: str,
