@@ -171,6 +171,85 @@ def _awg_area_mm2(awg: float) -> float:
     return PhysicsValidator.calculate_wire_area(awg)
 
 
+def _raw_adjacent_combinations(
+    stator: StatorInput,
+    *,
+    esp_ref: float,
+    awg_base: float,
+    min_candidates: int = 5,
+    max_candidates: int = 8,
+) -> list[tuple[float, float, int]]:
+    """Combinações brutas AWG ±2 e espiras proporcionais — sem filtros físicos."""
+    esp_base = max(float(esp_ref), 1.0)
+    awg0, _, _ = clamp_awg_to_safe_range(float(awg_base), stator.carcaca)
+    area0 = _awg_area_mm2(awg0)
+    combos: list[tuple[float, float, int]] = []
+    seen: set[tuple[float, float, int]] = set()
+
+    def _add(esp: float, awg: float, par: int = 1) -> None:
+        if len(combos) >= max_candidates:
+            return
+        awg_safe, _, _ = clamp_awg_to_safe_range(float(awg), stator.carcaca)
+        esp_safe = max(round(float(esp), 1), 1.0)
+        key = (esp_safe, round(awg_safe, 1), int(par))
+        if key in seen:
+            return
+        seen.add(key)
+        combos.append(key)
+
+    for delta in (-2, -1, 0, 1, 2):
+        awg, _, _ = clamp_awg_to_safe_range(awg0 + delta, stator.carcaca)
+        area = _awg_area_mm2(awg)
+        esp = round(esp_base * (area0 / area), 1) if area0 > 0 and area > 0 else esp_base
+        _add(esp, awg, 1)
+
+    _add(esp_base + 2.0, awg0 + 1, 1)
+    _add(esp_base - 2.0, awg0 - 1, 1)
+    _add(esp_base, awg0, 2)
+
+    pad_i = 0
+    while len(combos) < min_candidates and pad_i < 24:
+        delta_awg = (pad_i % 5) - 2
+        delta_esp = (pad_i % 7) - 3
+        _add(esp_base + delta_esp, awg0 + delta_awg, 1)
+        pad_i += 1
+
+    if not combos:
+        _add(esp_base, awg0, 1)
+
+    return combos[:max_candidates]
+
+
+def _minimal_scored_candidate(
+    stator: StatorInput,
+    *,
+    espiras: float,
+    awg: float,
+    parallel_count: int = 1,
+) -> dict[str, Any]:
+    """Stub bruto quando o motor de auditoria falha — mantém o pool vivo."""
+    wire = WireConfig(
+        parallel_count=max(1, int(parallel_count)),
+        awg=round(float(awg), 1),
+    )
+    esp = max(round(float(espiras), 1), 1.0)
+    return {
+        "espiras": esp,
+        "awg": round(float(awg), 1),
+        "parallel_count": wire.parallel_count,
+        "wire": wire,
+        "fio_texto": format_wire_suggestion(esp, wire),
+        "j_a_mm2": None,
+        "ff": None,
+        "b_tesla": None,
+        "physics_confidence": 0,
+        "violations": [],
+        "aprovado_fisica": False,
+        "reprovado_fisicamente": True,
+        "calculation_aborted": False,
+    }
+
+
 def _evaluate_inference_candidate(
     stator: StatorInput,
     *,
@@ -179,61 +258,71 @@ def _evaluate_inference_candidate(
     parallel_count: int = 1,
     apply_fem_turns_guard: bool = True,
 ) -> dict[str, Any]:
-    """Calcula J, ff e B de um candidato via audit + PhysicsValidator (sem abortar)."""
+    """Calcula J, ff e B via PhysicsValidator — registra violações, nunca descarta."""
     from engine.physics_audit import audit_winding_physics, compute_slot_occupation_ratio
     from engine.physics_validator import PhysicsValidatorEngine
 
-    wire = WireConfig(parallel_count=max(1, int(parallel_count)), awg=round(float(awg), 1))
-    eq_awg = equivalent_single_awg(wire)
-    phys = audit_winding_physics(
-        espiras=espiras,
-        awg=eq_awg,
-        diametro_mm=stator.diametro_mm,
-        pacote_mm=stator.pacote_mm,
-        ranhuras=stator.ranhuras,
-        polos=stator.polos,
-        carcaca=stator.carcaca,
-        parallel_count=wire.parallel_count,
-        tipo_bobinagem=stator.tipo_bobinagem,
-        passo=stator.passo,
-        apply_fem_turns_guard=apply_fem_turns_guard,
-    )
-    esp_final = round(float(phys.espiras), 1)
-    ff = compute_slot_occupation_ratio(
-        esp_final,
-        eq_awg,
-        ranhuras=stator.ranhuras,
-        diametro_mm=stator.diametro_mm,
-        pacote_mm=stator.pacote_mm,
-        parallel_count=wire.parallel_count,
-        tipo_bobinagem=stator.tipo_bobinagem,
-        passo=stator.passo,
-    )
-    verdict = PhysicsValidatorEngine.validate_scenario_render(
-        espiras=esp_final,
-        awg=eq_awg,
-        parallel_count=wire.parallel_count,
-        fill_factor_ff=ff,
-        current_density_j=phys.current_density_j,
-        b_tesla=phys.flux_density_b_t,
-        validate_j=True,
-    )
-    fio_txt = format_wire_suggestion(esp_final, wire)
-    return {
-        "espiras": esp_final,
-        "awg": round(float(eq_awg), 1),
-        "parallel_count": wire.parallel_count,
-        "wire": wire,
-        "fio_texto": fio_txt,
-        "j_a_mm2": phys.current_density_j,
-        "ff": ff,
-        "b_tesla": phys.flux_density_b_t,
-        "physics_confidence": int(phys.confidence_score),
-        "violations": list(verdict.mensagens),
-        "aprovado_fisica": bool(verdict.aprovado),
-        "reprovado_fisicamente": bool(verdict.reprovado_fisicamente),
-        "calculation_aborted": bool(phys.calculation_aborted),
-    }
+    try:
+        wire = WireConfig(
+            parallel_count=max(1, int(parallel_count)),
+            awg=round(float(awg), 1),
+        )
+        eq_awg = equivalent_single_awg(wire)
+        phys = audit_winding_physics(
+            espiras=espiras,
+            awg=eq_awg,
+            diametro_mm=stator.diametro_mm,
+            pacote_mm=stator.pacote_mm,
+            ranhuras=stator.ranhuras,
+            polos=stator.polos,
+            carcaca=stator.carcaca,
+            parallel_count=wire.parallel_count,
+            tipo_bobinagem=stator.tipo_bobinagem,
+            passo=stator.passo,
+            apply_fem_turns_guard=apply_fem_turns_guard,
+        )
+        esp_final = round(float(phys.espiras), 1)
+        ff = compute_slot_occupation_ratio(
+            esp_final,
+            eq_awg,
+            ranhuras=stator.ranhuras,
+            diametro_mm=stator.diametro_mm,
+            pacote_mm=stator.pacote_mm,
+            parallel_count=wire.parallel_count,
+            tipo_bobinagem=stator.tipo_bobinagem,
+            passo=stator.passo,
+        )
+        verdict = PhysicsValidatorEngine.validate_scenario_render(
+            espiras=esp_final,
+            awg=eq_awg,
+            parallel_count=wire.parallel_count,
+            fill_factor_ff=ff,
+            current_density_j=phys.current_density_j,
+            b_tesla=phys.flux_density_b_t,
+            validate_j=True,
+        )
+        return {
+            "espiras": esp_final,
+            "awg": round(float(eq_awg), 1),
+            "parallel_count": wire.parallel_count,
+            "wire": wire,
+            "fio_texto": format_wire_suggestion(esp_final, wire),
+            "j_a_mm2": phys.current_density_j,
+            "ff": ff,
+            "b_tesla": phys.flux_density_b_t,
+            "physics_confidence": int(phys.confidence_score),
+            "violations": list(verdict.mensagens),
+            "aprovado_fisica": bool(verdict.aprovado),
+            "reprovado_fisicamente": bool(verdict.reprovado_fisicamente),
+            "calculation_aborted": bool(phys.calculation_aborted),
+        }
+    except Exception:
+        return _minimal_scored_candidate(
+            stator,
+            espiras=espiras,
+            awg=awg,
+            parallel_count=parallel_count,
+        )
 
 
 def generate_inference_candidate_pool(
@@ -246,51 +335,19 @@ def generate_inference_candidate_pool(
     max_candidates: int = 8,
 ) -> list[dict[str, Any]]:
     """
-    Etapa 1 — Gerador determinístico: 5–8 configurações adjacentes (AWG ±2, espiras proporcionais).
-    Gera candidatos brutos; violações J/ff/B são registradas mas NUNCA descartadas aqui.
+    Etapa 1 — Gerador burro: 5–8 combinações adjacentes.
+    Métricas J/ff/B são anexadas; NENHUM candidato é descartado por limite físico.
     """
-    esp_base = max(float(esp_ref), 1.0)
-
-    awg0, _, _ = clamp_awg_to_safe_range(float(awg_base), stator.carcaca)
-    area0 = _awg_area_mm2(awg0)
-    seeds: list[tuple[float, float, int]] = []
-
-    for delta in (-2, -1, 0, 1, 2):
-        awg, _, _ = clamp_awg_to_safe_range(awg0 + delta, stator.carcaca)
-        area = _awg_area_mm2(awg)
-        if area0 > 0 and area > 0:
-            esp = round(esp_base * (area0 / area), 1)
-        else:
-            esp = round(esp_base, 1)
-        seeds.append((max(esp, 1.0), awg, 1))
-
-    extras = [
-        (round(esp_base + 2.0, 1), clamp_awg_to_safe_range(awg0 + 1, stator.carcaca)[0], 1),
-        (round(esp_base - 2.0, 1), clamp_awg_to_safe_range(awg0 - 1, stator.carcaca)[0], 1),
-        (round(esp_base, 1), clamp_awg_to_safe_range(awg0, stator.carcaca)[0], 2),
-    ]
-    for item in extras:
-        seeds.append(item)
-
-    for delta in (-3, 3, -4, 4):
-        awg, _, _ = clamp_awg_to_safe_range(awg0 + delta, stator.carcaca)
-        area = _awg_area_mm2(awg)
-        esp = (
-            round(esp_base * (area0 / area), 1)
-            if area0 > 0 and area > 0
-            else round(esp_base, 1)
-        )
-        seeds.append((max(esp, 1.0), awg, 1))
-
-    seen: set[tuple[float, float, int]] = set()
+    del apply_fem_turns_guard  # geração bruta sempre sem veto FEM interno
+    combos = _raw_adjacent_combinations(
+        stator,
+        esp_ref=esp_ref,
+        awg_base=awg_base,
+        min_candidates=min_candidates,
+        max_candidates=max_candidates,
+    )
     pool: list[dict[str, Any]] = []
-    for esp, awg, par in seeds:
-        if len(pool) >= max_candidates:
-            break
-        key = (round(esp, 1), round(awg, 1), int(par))
-        if key in seen:
-            continue
-        seen.add(key)
+    for idx, (esp, awg, par) in enumerate(combos):
         scored = _evaluate_inference_candidate(
             stator,
             espiras=esp,
@@ -298,32 +355,45 @@ def generate_inference_candidate_pool(
             parallel_count=par,
             apply_fem_turns_guard=False,
         )
-        scored["index"] = len(pool)
+        scored["index"] = idx
         pool.append(scored)
 
-    while len(pool) < min_candidates:
-        idx = len(pool)
-        delta = idx - 2
-        awg, _, _ = clamp_awg_to_safe_range(awg0 + delta, stator.carcaca)
-        esp = round(esp_base + delta, 1)
-        key = (round(max(esp, 1.0), 1), round(awg, 1), 1)
-        if key in seen:
-            esp = round(esp_base + idx * 0.5, 1)
-            key = (round(max(esp, 1.0), 1), round(awg, 1), 1)
-        if key in seen:
-            break
-        seen.add(key)
-        scored = _evaluate_inference_candidate(
+    if not pool:
+        stub = _minimal_scored_candidate(
             stator,
-            espiras=max(esp, 1.0),
-            awg=awg,
-            parallel_count=1,
-            apply_fem_turns_guard=False,
+            espiras=max(float(esp_ref), 1.0),
+            awg=float(awg_base),
         )
-        scored["index"] = len(pool)
-        pool.append(scored)
+        stub["index"] = 0
+        pool.append(stub)
 
     return pool[:max_candidates]
+
+
+def _resolve_best_from_pool(
+    pool: list[dict[str, Any]],
+    evaluation: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any], Optional[dict[str, Any]]]:
+    """Garante índice válido — fallback determinístico se juiz retornar inviável."""
+    from services.gemini_evaluator import deterministic_candidate_fallback
+
+    idx = int(evaluation.get("best_candidate_index", -1))
+    status = str(evaluation.get("status") or "")
+    if idx < 0 or idx >= len(pool):
+        evaluation = deterministic_candidate_fallback(
+            pool,
+            reason=str(evaluation.get("engineering_justification") or ""),
+        )
+        idx = int(evaluation.get("best_candidate_index", 0))
+    if idx < 0 or idx >= len(pool):
+        idx = 0
+    best = pool[idx]
+    if status == "INVIÁVEL" and evaluation.get("fallback"):
+        evaluation = {
+            **evaluation,
+            "status": "APROVADO_COM_RESSALVAS",
+        }
+    return pool, evaluation, best
 
 
 def run_neuro_symbolic_selection(
@@ -346,22 +416,23 @@ def run_neuro_symbolic_selection(
         awg_base=awg_base,
         apply_fem_turns_guard=apply_fem_turns_guard,
     )
-    if not pool:
-        raise InferenceInfeasibleError(
-            "PROJETO INVIÁVEL: nenhuma configuração candidata pôde ser gerada para este estator."
-        )
 
     stator_info = {
         **entrada,
         "espiras_referencia_fem": esp_ref,
         "awg_base_acervo": awg_base,
     }
-    evaluation = evaluate_candidate_pool_with_gemini(pool, stator_info)
-    status = str(evaluation.get("status") or "INVIÁVEL")
-    idx = int(evaluation.get("best_candidate_index", -1))
-    if status == "INVIÁVEL" or idx < 0 or idx >= len(pool):
-        return pool, evaluation, None
-    return pool, evaluation, pool[idx]
+    try:
+        evaluation = evaluate_candidate_pool_with_gemini(pool, stator_info)
+    except Exception as exc:
+        from services.gemini_evaluator import deterministic_candidate_fallback
+
+        evaluation = deterministic_candidate_fallback(
+            pool,
+            reason=f"Juiz IA indisponível ({type(exc).__name__}).",
+        )
+    pool, evaluation, best = _resolve_best_from_pool(pool, evaluation)
+    return pool, evaluation, best
 
 
 def _candidate_pool_for_storage(pool: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -1009,10 +1080,18 @@ class WindingOptimizer:
                         0,
                         f"Neuro-simbólico ({ns_status}): {ns_just}",
                     )
-            elif ns_status == "INVIÁVEL":
-                raise InferenceInfeasibleError(
-                    ns_just
-                    or "PROJETO INVIÁVEL: nenhuma configuração candidata viável para este estator."
+            elif candidate_pool:
+                from services.gemini_evaluator import deterministic_candidate_fallback
+
+                fb = deterministic_candidate_fallback(candidate_pool)
+                fb_idx = int(fb.get("best_candidate_index", 0))
+                ns_best = candidate_pool[max(0, min(fb_idx, len(candidate_pool) - 1))]
+                gemini_evaluation = fb
+                esp_ref = float(ns_best["espiras"])
+                awg_base_raw = float(ns_best["awg"])
+                alertas_globais.insert(
+                    0,
+                    f"Neuro-simbólico (fallback): {fb.get('engineering_justification', '')}",
                 )
 
         esp_b = round(esp_ref, 1)
@@ -1351,13 +1430,7 @@ class WindingOptimizer:
             for cen in cenarios:
                 cen.cenario_principal = False
 
-        if (
-            neuro_symbolic_active
-            and ns_best
-            and not cenario_recomendado
-            and str(gemini_evaluation.get("status") or "")
-            in ("APROVADO", "APROVADO_COM_RESSALVAS")
-        ):
+        if neuro_symbolic_active and ns_best and not cenario_recomendado:
             cen_b = next((c for c in cenarios if c.cenario_id == "B"), None)
             if cen_b is not None:
                 cenario_recomendado = "B"

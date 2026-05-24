@@ -1024,8 +1024,54 @@ def _render_form(ctx) -> None:
                     use_neuro_symbolic=use_neuro_symbolic,
                 )
         except InferenceInfeasibleError as exc:
-            st.error(str(exc))
-            return
+            if use_neuro_symbolic:
+                st.warning(f"{exc} Tentando A/B/C clássico…")
+                try:
+                    opt_res = _run_demo_optimizer(
+                        d=parsed["d"],
+                        p=parsed["p"],
+                        n_ranh=parsed["n_ranh"],
+                        n_polos=parsed["n_polos"],
+                        carcaca=parsed["carcaca"],
+                        passo=parsed["passo"],
+                        tipo_bob=parsed["tipo_bob"],
+                        ligacao=parsed["ligacao"],
+                        esp_user=parsed["esp_user"],
+                        fio_user=parsed["fio_user"],
+                        use_neuro_symbolic=False,
+                    )
+                except Exception as exc2:
+                    st.error(str(exc2))
+                    return
+            else:
+                st.error(str(exc))
+                return
+        except Exception as exc:
+            if use_neuro_symbolic:
+                st.warning(
+                    f"Neuro-simbólico indisponível ({type(exc).__name__}). "
+                    "Usando fallback proporcional A/B/C…"
+                )
+                try:
+                    opt_res = _run_demo_optimizer(
+                        d=parsed["d"],
+                        p=parsed["p"],
+                        n_ranh=parsed["n_ranh"],
+                        n_polos=parsed["n_polos"],
+                        carcaca=parsed["carcaca"],
+                        passo=parsed["passo"],
+                        tipo_bob=parsed["tipo_bob"],
+                        ligacao=parsed["ligacao"],
+                        esp_user=parsed["esp_user"],
+                        fio_user=parsed["fio_user"],
+                        use_neuro_symbolic=False,
+                    )
+                except Exception as exc2:
+                    st.error(str(exc2))
+                    return
+            else:
+                st.error(str(exc))
+                return
         except FileNotFoundError as exc:
             st.error(str(exc))
             return

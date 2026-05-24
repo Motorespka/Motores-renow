@@ -101,7 +101,7 @@ def deterministic_candidate_fallback(
     ff_pct = float(ff_raw) * 100 if ff_raw is not None and float(ff_raw) <= 1 else float(ff_raw or 0)
 
     if err > 8.0 or j > 8.0:
-        status = "INVIÁVEL"
+        status = "APROVADO_COM_RESSALVAS"
         just = (
             reason
             or f"Todas as configurações excedem limites críticos. "
