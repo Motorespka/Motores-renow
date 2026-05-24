@@ -42,6 +42,10 @@ def build_report_html(
     carcaca = entrada.get("carcaca") or ""
     passo_pp = entrada.get("passo_principal") or entrada.get("passo") or result.get("passo_moda") or ""
     passo_pa = entrada.get("passo_auxiliar") or ""
+    tipo_motor = entrada.get("tipo_motor") or "TRIFASICO"
+    fio_aux = entrada.get("fio_auxiliar") or ""
+    esp_aux = entrada.get("espiras_auxiliar") or ""
+    cap_uf = entrada.get("capacitor_uf") or ""
     passo = passo_pp
     ligacao = entrada.get("ligacao") or ""
     fio_eng = entrada.get("fio_engenheiro") or entrada.get("fio_eng") or ""
@@ -197,8 +201,15 @@ def build_report_html(
         f"<tr><th>Diâmetro estator</th><td>{_fmt_num(diam, suffix=' mm')}</td></tr>",
         f"<tr><th>Comprimento pacote</th><td>{_fmt_num(pac, suffix=' mm')}</td></tr>",
         f"<tr><th>Carcaça NEMA/IEC</th><td>{_esc(carcaca) or '—'}</td></tr>",
+        f"<tr><th>Tipo de motor</th><td>{_esc('Trifásico' if tipo_motor == 'TRIFASICO' else 'Monofásico')}</td></tr>",
         f"<tr><th>Passo principal</th><td>{_esc(passo_pp) or '—'}</td></tr>",
         f"<tr><th>Passo auxiliar</th><td>{_esc(passo_pa) or '—'}</td></tr>",
+        f"<tr><th>Fio / espiras aux.</th><td>{_esc(fio_aux) or '—'} AWG · {_esc(esp_aux) or '—'} esp.</td></tr>"
+        + (
+            f"<tr><th>Capacitor</th><td>{_esc(cap_uf) or '—'} µF</td></tr>"
+            if tipo_motor == "MONOFASICO"
+            else ""
+        ),
         f"<tr><th>Tipo de ligação</th><td>{_esc(ligacao) or '—'}</td></tr>",
         f"<tr><th>Fio / espiras (referência)</th><td>{_esc(fio_eng) or '—'} AWG · {_esc(esp_eng) or '—'} esp.</td></tr>",
         "</table>",

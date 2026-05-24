@@ -78,6 +78,7 @@ from page.demo_calculo_ui import (
     confidence_tier,
 )
 from engine.physics_audit import scenario_dict_passes_hard_physics_limits
+from page.demo_calculo_motor_form import MotorWindingForm, render_motor_winding_form
 from page.demo_calculo_validation import validate_demo_submit, vision_needs_manual_fallback
 
 
@@ -108,12 +109,16 @@ _DEMO_FORM_KEYS = (
     "demo_tipo_bob",
     "demo_ranhuras",
     "demo_polos",
-    "demo_lig",
+    "demo_tipo_motor",
     "demo_tensao",
+    "demo_ligacao_trif",
     "demo_passo_principal",
     "demo_passo_auxiliar",
     "demo_fio",
     "demo_esp",
+    "demo_fio_aux",
+    "demo_esp_aux",
+    "demo_capacitor_uf",
     "demo_modo_operacao",
     "demo_corrente_nom",
     "demo_potencia_cv",
@@ -229,34 +234,23 @@ def _entrada_from_form(
     d: float,
     p: float,
     carcaca: str,
-    passo_principal: str,
-    passo_auxiliar: str = "",
     tipo_bob: str,
-    ligacao: str,
     n_ranh: int,
     n_polos: int | None,
-    fio_eng: str,
-    esp_eng: str,
+    winding: MotorWindingForm,
     tensao_v: float | None = None,
     corrente_nominal_a: float | None = None,
     potencia_cv: float | None = None,
 ) -> dict[str, Any]:
-    pp = str(passo_principal or "").strip()
-    pa = str(passo_auxiliar or "").strip()
     out: dict[str, Any] = {
         "diametro_mm": d,
         "pacote_mm": p,
         "carcaca": carcaca,
-        "passo_principal": pp,
-        "passo_auxiliar": pa,
-        "passo": pp,
         "tipo_bobinagem": tipo_bob,
-        "ligacao": ligacao,
         "ranhuras": int(n_ranh),
         "polos": n_polos,
-        "fio_engenheiro": fio_eng,
-        "espiras_engenheiro": esp_eng,
     }
+    out.update(winding.as_entrada_extra())
     if tensao_v is not None:
         out["tensao_v"] = float(tensao_v)
         out["voltagem"] = float(tensao_v)
@@ -343,12 +337,8 @@ def _parse_form_inputs(
     ranhuras: Any,
     polos: Any,
     carcaca: str,
-    passo_principal: str,
-    passo_auxiliar: str,
     tipo_bob: str,
-    ligacao: str,
-    fio_eng: str,
-    esp_eng: str,
+    winding: MotorWindingForm,
 ) -> dict[str, Any] | None:
     d = _optional_float(diametro)
     p = _optional_float(pacote)
@@ -369,25 +359,32 @@ def _parse_form_inputs(
     if not ok_req:
         st.warning(req_msg)
         return None
-    esp_user = parse_scalar(str(esp_eng).strip()) if str(esp_eng).strip() else None
-    fio_user = parse_awg_number(str(fio_eng).strip()) if str(fio_eng).strip() else None
-    pp = str(passo_principal or "").strip()
-    pa = str(passo_auxiliar or "").strip()
+    esp_user = (
+        parse_scalar(winding.espiras_principal.strip())
+        if winding.espiras_principal.strip()
+        else None
+    )
+    fio_user = (
+        parse_awg_number(winding.fio_principal.strip())
+        if winding.fio_principal.strip()
+        else None
+    )
     return {
         "d": d,
         "p": p,
         "n_ranh": n_ranh,
         "n_polos": n_polos,
         "carcaca": carcaca,
-        "passo_principal": pp,
-        "passo_auxiliar": pa,
-        "passo": pp,
+        "passo": winding.passo_principal.strip(),
+        "passo_principal": winding.passo_principal.strip(),
+        "passo_auxiliar": winding.passo_auxiliar.strip(),
         "tipo_bob": tipo_bob,
-        "ligacao": ligacao,
-        "fio_eng": fio_eng,
-        "esp_eng": esp_eng,
+        "ligacao": winding.ligacao.strip(),
+        "fio_eng": winding.fio_principal.strip(),
+        "esp_eng": winding.espiras_principal.strip(),
         "esp_user": esp_user,
         "fio_user": fio_user,
+        "winding": winding,
     }
 
 
@@ -795,39 +792,15 @@ def _render_form(ctx) -> None:
             st.selectbox("Bobinagem", list(topo_opts.keys()), key="demo_tipo_bob")
         ]
 
-        render_form_block_open("BOBINAGEM")
-        g4, g5, g6 = st.columns(3)
+        render_form_block_open("BOBINAGEM · MECÂNICA")
+        g4, g5 = st.columns(2)
         with g4:
             ranhuras = st.text_input("Ranhuras *", placeholder="—", key="demo_ranhuras")
         with g5:
             polos = st.text_input("Polos (vazio = auto)", placeholder="—", key="demo_polos")
-        with g6:
-            ligacao = st.text_input("Ligação", placeholder="—", key="demo_lig")
         render_form_block_close()
 
-        render_form_block_open("DADOS ELÉTRICOS")
-        tensao = st.text_input(
-            "Tensão rede (V) *",
-            placeholder="—",
-            key="demo_tensao",
-            help="Obrigatório para FEM, densidade J e execução do gêmeo digital.",
-        )
-        p1, p2 = st.columns(2)
-        with p1:
-            passo_principal = st.text_input(
-                "Passo principal",
-                placeholder="—",
-                key="demo_passo_principal",
-                help="Ex.: 1-7, 10-12 ou 1:4:6:8",
-            )
-        with p2:
-            passo_auxiliar = st.text_input(
-                "Passo auxiliar",
-                placeholder="—",
-                key="demo_passo_auxiliar",
-                help="Bobina auxiliar (monofásico / capacitor). Deixe vazio se não houver.",
-            )
-        render_form_block_close()
+        winding = render_motor_winding_form()
 
         imagens_upload: list = []
         if modo_op == "Caixa preta — estator vazio (FEM + visão)":
@@ -862,14 +835,6 @@ def _render_form(ctx) -> None:
                     key="demo_potencia_cv",
                 )
 
-        render_form_block_open("VALIDAÇÃO / AUDITORIA")
-        v1, v2 = st.columns(2)
-        with v1:
-            fio_eng = st.text_input("Fio AWG", placeholder="—", key="demo_fio")
-        with v2:
-            esp_eng = st.text_input("Espiras", placeholder="—", key="demo_esp")
-        render_form_block_close()
-
         btn_label = (
             "Gerar 3 cenários (A/B/C)"
             if modo_op == "Acervo proporcional (3 cenários A/B/C)"
@@ -889,7 +854,7 @@ def _render_form(ctx) -> None:
         p_mm = _optional_float(pacote) or 0.0
         ranh_i = parse_ranhuras_for_calc(ranhuras, default=0) or 0
         polos_i = _optional_int(polos) or 0
-        tensao_v = _optional_float(tensao)
+        tensao_v = _optional_float(winding.tensao)
 
         val_errors = validate_demo_submit(
             modo_op=modo_op,
@@ -897,10 +862,11 @@ def _render_form(ctx) -> None:
             pacote_mm=p_mm,
             ranhuras=int(ranh_i),
             tensao_v=tensao_v,
-            esp_eng=esp_eng,
-            fio_eng=fio_eng,
+            esp_eng=winding.espiras_engenheiro,
+            fio_eng=winding.fio_engenheiro,
             polos=int(polos_i),
             has_stator_images=bool(imagens_upload),
+            tipo_motor=winding.tipo_motor,
         )
         if val_errors:
             for err in val_errors:
@@ -917,12 +883,8 @@ def _render_form(ctx) -> None:
             ranhuras=ranhuras,
             polos=polos,
             carcaca=carcaca,
-            passo_principal=passo_principal,
-            passo_auxiliar=passo_auxiliar,
             tipo_bob=tipo_bob,
-            ligacao=ligacao,
-            fio_eng=fio_eng,
-            esp_eng=esp_eng,
+            winding=winding,
         )
         if not parsed:
             return
@@ -936,14 +898,10 @@ def _render_form(ctx) -> None:
             d=parsed["d"],
             p=parsed["p"],
             carcaca=parsed["carcaca"],
-            passo_principal=parsed["passo_principal"],
-            passo_auxiliar=parsed["passo_auxiliar"],
             tipo_bob=parsed["tipo_bob"],
-            ligacao=ligacao,
             n_ranh=parsed["n_ranh"],
             n_polos=parsed["n_polos"],
-            fio_eng=parsed["fio_eng"],
-            esp_eng=parsed["esp_eng"],
+            winding=parsed["winding"],
             tensao_v=float(tensao_v) if tensao_v is not None else None,
             corrente_nominal_a=corrente_in,
             potencia_cv=pot_cv_in,
@@ -1016,14 +974,10 @@ def _render_form(ctx) -> None:
             d=parsed["d"],
             p=parsed["p"],
             carcaca=parsed["carcaca"],
-            passo_principal=parsed["passo_principal"],
-            passo_auxiliar=parsed["passo_auxiliar"],
             tipo_bob=parsed["tipo_bob"],
-            ligacao=ligacao,
             n_ranh=parsed["n_ranh"],
             n_polos=parsed["n_polos"],
-            fio_eng=parsed["fio_eng"],
-            esp_eng=parsed["esp_eng"],
+            winding=parsed["winding"],
         )
         _persist_demo_results(opt_res=opt_res, entrada=entrada)
         if tensao_v is not None:
@@ -1047,26 +1001,18 @@ def _render_form(ctx) -> None:
                     ranhuras=ranhuras,
                     polos=polos,
                     carcaca=carcaca,
-                    passo_principal=passo_principal,
-                    passo_auxiliar=passo_auxiliar,
                     tipo_bob=tipo_bob,
-                    ligacao=ligacao,
-                    fio_eng=fio_eng,
-                    esp_eng=esp_eng,
+                    winding=winding,
                 )
                 if parsed and opt_data and res:
                     entrada = _entrada_from_form(
                         d=parsed["d"],
                         p=parsed["p"],
                         carcaca=parsed["carcaca"],
-                        passo_principal=parsed["passo_principal"],
-                        passo_auxiliar=parsed["passo_auxiliar"],
                         tipo_bob=parsed["tipo_bob"],
-                        ligacao=ligacao,
                         n_ranh=parsed["n_ranh"],
                         n_polos=parsed["n_polos"],
-                        fio_eng=parsed["fio_eng"],
-                        esp_eng=parsed["esp_eng"],
+                        winding=parsed["winding"],
                     )
                     _refresh_demo_report(entrada=entrada, opt_data=opt_data, res=res)
                     st.session_state["demo_open_report_dialog"] = True
@@ -1084,12 +1030,16 @@ def _render_form(ctx) -> None:
                             "diametro_mm": float(str(diametro).replace(",", ".")),
                             "pacote_mm": float(str(pacote).replace(",", ".")),
                             "carcaca": carcaca,
-                            "passo": passo_principal,
-                            "passo_principal": passo_principal,
-                            "passo_auxiliar": passo_auxiliar,
-                            "ligacao": ligacao,
-                            "fio_principal": fio_eng,
-                            "espiras_principal": esp_eng,
+                            "tipo_motor": winding.tipo_motor,
+                            "passo": winding.passo_principal,
+                            "passo_principal": winding.passo_principal,
+                            "passo_auxiliar": winding.passo_auxiliar,
+                            "ligacao": winding.ligacao,
+                            "fio_principal": winding.fio_principal,
+                            "espiras_principal": winding.espiras_principal,
+                            "fio_auxiliar": winding.fio_auxiliar,
+                            "espiras_auxiliar": winding.espiras_auxiliar,
+                            "capacitor_uf": winding.capacitor_uf,
                             "observacoes": "Salvo via Gêmeo Digital",
                         }
                     )

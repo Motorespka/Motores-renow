@@ -39,6 +39,7 @@ def validate_demo_submit(
     fio_eng: str,
     polos: int = 0,
     has_stator_images: bool = False,
+    tipo_motor: str = "TRIFASICO",
 ) -> list[str]:
     """
     Sanity check antes de chamar motor / API.
