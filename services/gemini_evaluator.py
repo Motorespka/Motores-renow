@@ -132,6 +132,30 @@ def deterministic_candidate_fallback(
     }
 
 
+def resolve_best_candidate(
+    pool: list[dict[str, Any]],
+    evaluation: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """
+    Contingência determinística: garante índice válido e candidato `best` mesmo com juiz INVIÁVEL.
+    Retorna (evaluation_ajustado, best_row).
+    """
+    idx = int(evaluation.get("best_candidate_index", -1))
+    status = str(evaluation.get("status") or "")
+    if idx < 0 or idx >= len(pool):
+        evaluation = deterministic_candidate_fallback(
+            pool,
+            reason=str(evaluation.get("engineering_justification") or ""),
+        )
+        idx = int(evaluation.get("best_candidate_index", 0))
+    if idx < 0 or idx >= len(pool):
+        idx = 0
+    best = pool[idx]
+    if status == "INVIÁVEL" and evaluation.get("fallback"):
+        evaluation = {**evaluation, "status": "APROVADO_COM_RESSALVAS"}
+    return evaluation, best
+
+
 def _extract_json(text: str) -> dict[str, Any]:
     raw = (text or "").strip()
     if not raw:
@@ -217,6 +241,7 @@ def evaluate_candidate_pool_with_gemini(
                 "b_tesla": c.get("b_tesla"),
                 "physics_confidence": c.get("physics_confidence"),
                 "violations": c.get("violations") or [],
+                "audit_soft": c.get("audit_soft"),
             }
             for i, c in enumerate(candidates)
         ],
@@ -251,7 +276,10 @@ def evaluate_candidate_pool_with_gemini(
             parsed, n_candidates=len(candidates), source="gemini", fallback=False
         )
     except Exception as exc:
+        hint = ""
+        if "429" in str(exc) or "RESOURCE_EXHAUSTED" in str(exc).upper():
+            hint = " (possível limite de taxa HTTP 429 / quota)."
         return deterministic_candidate_fallback(
             candidates,
-            reason=f"Gemini indisponível ({type(exc).__name__}): fallback determinístico.",
+            reason=f"Gemini indisponível ({type(exc).__name__}){hint}",
         )

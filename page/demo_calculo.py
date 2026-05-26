@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,7 +15,6 @@ import streamlit.components.v1 as components
 
 from app.oficial_engine import validate_required_motor_inputs
 from engine.winding_optimizer import (
-    InferenceInfeasibleError,
     StatorInput,
     WindingOptimizer,
 )
@@ -89,6 +89,27 @@ from page.demo_calculo_validation import (
     validate_demo_submit,
     vision_needs_manual_fallback,
 )
+
+
+def _demo_neuro_symbolic_enabled() -> bool:
+    """
+    Kill-switch para o pipeline neuro-simbólico (Inferir sem fio/espiras).
+    `DEMO_NEURO_SYMBOLIC=false` em env ou em st.secrets desliga apenas essa parte.
+    """
+    val = (os.environ.get("DEMO_NEURO_SYMBOLIC") or "true").strip().lower()
+    if val in ("0", "false", "no", "off"):
+        return False
+    try:
+        for key in ("DEMO_NEURO_SYMBOLIC",):
+            try:
+                sv = st.secrets.get(key) if hasattr(st.secrets, "get") else st.secrets[key]
+            except (KeyError, TypeError, AttributeError):
+                sv = None
+            if sv is not None and str(sv).strip().lower() in ("0", "false", "no", "off"):
+                return False
+    except Exception:
+        pass
+    return True
 
 
 def _optional_float(raw: Any) -> float | None:
@@ -778,6 +799,9 @@ def _render_report_panel(
 def _render_form(ctx) -> None:
     open_dashboard_shell()
     render_hero()
+    _banner = st.session_state.pop("demo_neuro_resilience_banner", None)
+    if _banner:
+        st.warning(str(_banner))
 
     with st.expander("Status do acervo oficial", expanded=False):
         _render_stats_compact()
@@ -999,11 +1023,13 @@ def _render_form(ctx) -> None:
             st.rerun()
 
         st.session_state.pop("demo_digital_twin", None)
-        use_neuro_symbolic = (
-            not usuario_informou_tipo(tipo_bob)
+        use_neuro_requested = (
+            _demo_neuro_symbolic_enabled()
+            and not usuario_informou_tipo(tipo_bob)
             and parsed["esp_user"] is None
             and parsed["fio_user"] is None
         )
+        use_neuro_symbolic = use_neuro_requested
         try:
             with st.spinner(
                 "Neuro-simbólico: candidatos + juiz IA…"
@@ -1023,34 +1049,14 @@ def _render_form(ctx) -> None:
                     fio_user=parsed["fio_user"],
                     use_neuro_symbolic=use_neuro_symbolic,
                 )
-        except InferenceInfeasibleError as exc:
-            if use_neuro_symbolic:
-                st.warning(f"{exc} Tentando A/B/C clássico…")
-                try:
-                    opt_res = _run_demo_optimizer(
-                        d=parsed["d"],
-                        p=parsed["p"],
-                        n_ranh=parsed["n_ranh"],
-                        n_polos=parsed["n_polos"],
-                        carcaca=parsed["carcaca"],
-                        passo=parsed["passo"],
-                        tipo_bob=parsed["tipo_bob"],
-                        ligacao=parsed["ligacao"],
-                        esp_user=parsed["esp_user"],
-                        fio_user=parsed["fio_user"],
-                        use_neuro_symbolic=False,
-                    )
-                except Exception as exc2:
-                    st.error(str(exc2))
-                    return
-            else:
-                st.error(str(exc))
-                return
+        except FileNotFoundError as exc:
+            st.error(str(exc))
+            return
         except Exception as exc:
             if use_neuro_symbolic:
-                st.warning(
-                    f"Neuro-simbólico indisponível ({type(exc).__name__}). "
-                    "Usando fallback proporcional A/B/C…"
+                st.session_state["demo_neuro_resilience_banner"] = (
+                    f"Pipeline neuro-simbólico interrompido ({type(exc).__name__}). "
+                    "Tentando otimização proporcional A/B/C…"
                 )
                 try:
                     opt_res = _run_demo_optimizer(
@@ -1072,9 +1078,6 @@ def _render_form(ctx) -> None:
             else:
                 st.error(str(exc))
                 return
-        except FileNotFoundError as exc:
-            st.error(str(exc))
-            return
         if opt_res.validation_status == "INCOMPLETO" or not opt_res.cenarios:
             st.error(opt_res.validation_message or "Cálculo bloqueado.")
             return
@@ -1088,6 +1091,12 @@ def _render_form(ctx) -> None:
             winding=parsed["winding"],
         )
         _persist_demo_results(opt_res=opt_res, entrada=entrada)
+        if use_neuro_requested and isinstance(getattr(opt_res, "gemini_evaluation", None), dict):
+            if opt_res.gemini_evaluation.get("fallback"):
+                st.session_state["demo_neuro_resilience_banner"] = (
+                    "Modo resiliência: seleção pelo fallback determinístico ou API do juiz "
+                    "indisponível — resultados continuam exibidos."
+                )
         st.session_state["demo_calculo_entrada"] = entrada
         st.session_state.pop("demo_digital_twin", None)
         st.session_state.pop("demo_ordem_servico_html", None)

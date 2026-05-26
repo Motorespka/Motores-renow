@@ -11,6 +11,7 @@ Gera três cenários determinísticos com base em:
 
 from __future__ import annotations
 
+import math
 from dataclasses import asdict, dataclass, field
 from typing import Any, Optional
 
@@ -161,10 +162,6 @@ class WindingOptimizationResult:
     neuro_symbolic_active: bool = False
 
 
-class InferenceInfeasibleError(RuntimeError):
-    """Nenhuma configuração candidata pôde ser gerada para o estator."""
-
-
 def _awg_area_mm2(awg: float) -> float:
     from engine.physics_validator import PhysicsValidator
 
@@ -220,6 +217,45 @@ def _raw_adjacent_combinations(
     return combos[:max_candidates]
 
 
+def _audit_soft_nominal_wire_and_packaging(*, eq_awg: float, ff: Optional[float], j_a_mm2: Optional[float]) -> dict[str, Any]:
+    """
+    Restrições suaves / referências teóricas — apenas auditoria textual.
+    d_w_mm: progressão IEC-style d = 0,127 × 92^((36−AWG)/39) mm (inteiro mais próximo de eq_awg).
+    """
+    awg_round = int(round(max(1.0, min(40.0, float(eq_awg)))))
+    dw = 0.127 * (92 ** ((36 - awg_round) / 39))
+    ff_sq = math.pi / 4.0
+    ff_hex = math.pi / (2.0 * math.sqrt(3.0))
+    soft_audit_messages: list[str] = []
+    warn_ff = False
+    warn_j = False
+    if ff is not None:
+        fv = float(ff)
+        if fv > 1.0:
+            fv = fv / 100.0
+        if fv > 0.75:
+            warn_ff = True
+            soft_audit_messages.append(
+                f"Auditoria suave: ff operacional ≈ {fv:.3f} > 0,75 "
+                "(empacotamento prático severo segundo referência de engenharia)."
+            )
+    if j_a_mm2 is not None and float(j_a_mm2) > 8.0:
+        warn_j = True
+        soft_audit_messages.append(
+            f"Auditoria suave: J = {float(j_a_mm2):.2f} A/mm² > 8,0 "
+            "(risco térmico severo)."
+        )
+    return {
+        "d_w_mm_nominal_formula": round(dw, 4),
+        "awg_round_for_dw": awg_round,
+        "ff_packaging_square_theory": round(ff_sq, 6),
+        "ff_packaging_hex_theory": round(ff_hex, 6),
+        "warn_ff_above_075": warn_ff,
+        "warn_j_above_8": warn_j,
+        "soft_audit_messages": soft_audit_messages,
+    }
+
+
 def _minimal_scored_candidate(
     stator: StatorInput,
     *,
@@ -247,6 +283,11 @@ def _minimal_scored_candidate(
         "aprovado_fisica": False,
         "reprovado_fisicamente": True,
         "calculation_aborted": False,
+        "audit_soft": _audit_soft_nominal_wire_and_packaging(
+            eq_awg=float(awg),
+            ff=None,
+            j_a_mm2=None,
+        ),
     }
 
 
@@ -301,6 +342,11 @@ def _evaluate_inference_candidate(
             b_tesla=phys.flux_density_b_t,
             validate_j=True,
         )
+        audit_soft = _audit_soft_nominal_wire_and_packaging(
+            eq_awg=float(eq_awg),
+            ff=ff,
+            j_a_mm2=phys.current_density_j,
+        )
         return {
             "espiras": esp_final,
             "awg": round(float(eq_awg), 1),
@@ -315,6 +361,7 @@ def _evaluate_inference_candidate(
             "aprovado_fisica": bool(verdict.aprovado),
             "reprovado_fisicamente": bool(verdict.reprovado_fisicamente),
             "calculation_aborted": bool(phys.calculation_aborted),
+            "audit_soft": audit_soft,
         }
     except Exception:
         return _minimal_scored_candidate(
@@ -370,32 +417,6 @@ def generate_inference_candidate_pool(
     return pool[:max_candidates]
 
 
-def _resolve_best_from_pool(
-    pool: list[dict[str, Any]],
-    evaluation: dict[str, Any],
-) -> tuple[dict[str, Any], dict[str, Any], Optional[dict[str, Any]]]:
-    """Garante índice válido — fallback determinístico se juiz retornar inviável."""
-    from services.gemini_evaluator import deterministic_candidate_fallback
-
-    idx = int(evaluation.get("best_candidate_index", -1))
-    status = str(evaluation.get("status") or "")
-    if idx < 0 or idx >= len(pool):
-        evaluation = deterministic_candidate_fallback(
-            pool,
-            reason=str(evaluation.get("engineering_justification") or ""),
-        )
-        idx = int(evaluation.get("best_candidate_index", 0))
-    if idx < 0 or idx >= len(pool):
-        idx = 0
-    best = pool[idx]
-    if status == "INVIÁVEL" and evaluation.get("fallback"):
-        evaluation = {
-            **evaluation,
-            "status": "APROVADO_COM_RESSALVAS",
-        }
-    return pool, evaluation, best
-
-
 def run_neuro_symbolic_selection(
     stator: StatorInput,
     *,
@@ -408,7 +429,7 @@ def run_neuro_symbolic_selection(
     Pipeline completo: pool determinístico + juiz Gemini (fallback J/ff).
     Retorna (pool, evaluation, best_candidate_or_none).
     """
-    from services.gemini_evaluator import evaluate_candidate_pool_with_gemini
+    from services.gemini_evaluator import evaluate_candidate_pool_with_gemini, resolve_best_candidate
 
     pool = generate_inference_candidate_pool(
         stator,
@@ -431,7 +452,7 @@ def run_neuro_symbolic_selection(
             pool,
             reason=f"Juiz IA indisponível ({type(exc).__name__}).",
         )
-    pool, evaluation, best = _resolve_best_from_pool(pool, evaluation)
+    evaluation, best = resolve_best_candidate(pool, evaluation)
     return pool, evaluation, best
 
 
