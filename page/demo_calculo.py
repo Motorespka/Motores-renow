@@ -15,6 +15,7 @@ import streamlit.components.v1 as components
 
 from app.oficial_engine import validate_required_motor_inputs
 from engine.winding_optimizer import (
+    BenchCalibration,
     StatorInput,
     WindingOptimizer,
 )
@@ -110,6 +111,173 @@ def _demo_neuro_symbolic_enabled() -> bool:
     except Exception:
         pass
     return True
+
+
+DEMO_NEURO_CONTINGENCY_MSG = (
+    "⚠️ Sistema operando em modo de contingência local. Parâmetros físicos preservados."
+)
+
+
+def _scenario_awg_display(cen: dict[str, Any]) -> str:
+    wire = cen.get("wire")
+    if isinstance(wire, dict) and wire.get("awg") is not None:
+        awg = float(wire["awg"])
+        par = int(wire.get("parallel_count") or 1)
+        if par > 1:
+            return f"{par}× AWG {awg:.0f}"
+        return f"AWG {awg:.0f}"
+    txt = str(cen.get("fio_texto") or cen.get("calibre_display") or "").strip()
+    return txt or "—"
+
+
+def _metric_ff_display(cen: dict[str, Any]) -> str:
+    ff = cen.get("fill_factor_ff")
+    if ff is not None:
+        fv = float(ff)
+        return f"{fv:.1%}" if fv <= 1.0 else f"{fv:.1f}%"
+    occ = cen.get("fator_ocupacao_ranhura")
+    if occ is not None:
+        ov = float(occ)
+        return f"{ov:.1f}%" if ov > 1.0 else f"{ov:.0%}"
+    return "—"
+
+
+def _metric_j_display(cen: dict[str, Any]) -> str:
+    j = cen.get("current_density_j")
+    if j is None:
+        j = cen.get("j_a_mm2")
+    return f"{float(j):.2f}" if j is not None else "—"
+
+
+def _render_bench_sidebar() -> BenchCalibration:
+    from tests.fixtures_geometrias import (
+        GEOMETRIA_PERFIS,
+        bench_from_profile,
+        profile_form_values,
+        profile_select_labels,
+    )
+
+    with st.sidebar:
+        st.markdown("### Calibração de bancada")
+        labels = profile_select_labels()
+        profile_id = st.selectbox(
+            "Perfil geométrico",
+            options=list(labels.keys()),
+            format_func=lambda k: labels[k],
+            key="demo_geo_profile",
+        )
+        prof = GEOMETRIA_PERFIS[profile_id]
+        st.caption(prof.descricao)
+
+        if st.session_state.get("_demo_geo_applied") != profile_id:
+            st.session_state.update(profile_form_values(profile_id))
+            st.session_state["demo_j_max_slider"] = prof.j_max_default
+            st.session_state["demo_ff_max_slider"] = prof.ff_max_default
+            st.session_state["_demo_geo_applied"] = profile_id
+
+        j_max = st.slider(
+            "J máx (A/mm²)",
+            min_value=4.0,
+            max_value=10.0,
+            step=0.1,
+            key="demo_j_max_slider",
+        )
+        ff_max = st.slider(
+            "ff máx prático",
+            min_value=0.50,
+            max_value=0.80,
+            step=0.01,
+            key="demo_ff_max_slider",
+        )
+
+    bench = bench_from_profile(profile_id, j_max_override=j_max, ff_max_override=ff_max)
+    st.session_state["demo_bench_calibration"] = {
+        "j_max_a_mm2": bench.j_max_a_mm2,
+        "ff_max": bench.ff_max,
+        "profile_id": bench.profile_id,
+    }
+    return bench
+
+
+def _render_executive_kpi_metrics(cen: dict[str, Any]) -> None:
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        c1.metric("Bitola escolhida (AWG)", _scenario_awg_display(cen))
+    with c2:
+        c2.metric("Número de espiras (N)", cen.get("espiras", "—"))
+    with c3:
+        c3.metric("Fator de enchimento (ff)", _metric_ff_display(cen))
+    with c4:
+        c4.metric("Densidade de corrente (J)", _metric_j_display(cen))
+
+
+def _render_scenarios_comparison_table(
+    opt_data: dict[str, Any],
+    *,
+    rec_id_effective: str,
+) -> None:
+    import pandas as pd
+
+    rows: list[dict[str, Any]] = []
+    for cen in opt_data.get("cenarios") or []:
+        cid = str(cen.get("cenario_id", "?"))
+        score = int(cen.get("physics_confidence") or cen.get("confidence_score") or 0)
+        is_rec = (
+            bool(rec_id_effective)
+            and cid == rec_id_effective
+            and cenario_valido_para_painel_recomendado(cen)
+            and score > 0
+        )
+        rows.append(
+            {
+                "Cenário": f"{cid} ⭐ [RECOMENDADO]" if is_rec else cid,
+                "Espiras (N)": cen.get("espiras"),
+                "Bitola (AWG)": _scenario_awg_display(cen),
+                "ff": _metric_ff_display(cen),
+                "J (A/mm²)": _metric_j_display(cen),
+                "Confiança %": score,
+            }
+        )
+    if rows:
+        st.dataframe(
+            pd.DataFrame(rows),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+
+def _render_neuro_judge_expander(opt_data: dict[str, Any] | None) -> None:
+    if not opt_data:
+        return
+    pool = opt_data.get("candidate_pool") or []
+    gem = opt_data.get("gemini_evaluation") or {}
+    if not pool and not gem and not opt_data.get("neuro_symbolic_active"):
+        return
+    with st.expander("🔍 Ver Logs do Juiz Neuro-Simbólico e Auditoria", expanded=False):
+        bench = st.session_state.get("demo_bench_calibration")
+        if bench:
+            st.caption(
+                f"Limites de bancada: J ≤ {bench.get('j_max_a_mm2')} A/mm² · "
+                f"ff ≤ {bench.get('ff_max')} · perfil {bench.get('profile_id', '—')}"
+            )
+        if gem:
+            st.markdown("**Resposta do juiz (Gemini / fallback)**")
+            st.json(gem)
+        if pool:
+            st.markdown("**Pool de candidatos**")
+            serializable = []
+            for row in pool:
+                item = {k: v for k, v in row.items() if k != "wire"}
+                serializable.append(item)
+            st.json(serializable)
+            stubs = [
+                c
+                for c in pool
+                if c.get("reprovado_fisicamente") and c.get("j_a_mm2") is None
+            ]
+            if stubs:
+                st.markdown("**Stubs de emergência (auditoria indisponível)**")
+                st.json(stubs)
 
 
 def _optional_float(raw: Any) -> float | None:
@@ -325,6 +493,7 @@ def _run_demo_optimizer(
     fio_user: float | None,
     use_gemini: bool = True,
     use_neuro_symbolic: bool = False,
+    bench_calibration: BenchCalibration | None = None,
 ):
     motors, _ = _catalog()
     opt = WindingOptimizer(motors)
@@ -344,6 +513,7 @@ def _run_demo_optimizer(
         use_gemini=use_gemini,
         top_k=5,
         use_neuro_symbolic=use_neuro_symbolic,
+        bench_calibration=bench_calibration,
     )
 
 
@@ -645,23 +815,15 @@ def _render_report_panel(
         panel_title("Relatório executivo")
 
         if opt_abc and cenario_aprovado:
-            panel_title("Cenário recomendado (★)")
-            render_kpi_row(
-                espiras=cenario_aprovado.get("espiras", "—"),
-                bitola=cenario_aprovado.get("fio_texto")
-                or cenario_aprovado.get("calibre_display")
-                or "—",
-                confianca=int(
-                    cenario_aprovado.get("physics_confidence")
-                    or cenario_aprovado.get("confidence_score")
-                    or 0
-                ),
-                ocupacao=cenario_aprovado.get("fator_ocupacao_ranhura"),
-            )
+            panel_title("Cenário selecionado")
+            _render_executive_kpi_metrics(cenario_aprovado)
             st.caption(
                 f"Fonte: otimizador A/B/C — cenário **{cenario_aprovado.get('cenario_id')}** "
                 f"(veto FEM + bitola por ff)."
             )
+            _render_neuro_judge_expander(opt_data)
+            if opt_data and opt_data.get("gemini_evaluation", {}).get("fallback"):
+                st.warning(DEMO_NEURO_CONTINGENCY_MSG)
 
         if twin_data and not opt_abc and not optimizer_session:
             if twin_data.get("saturacao_abortada"):
@@ -701,40 +863,14 @@ def _render_report_panel(
                 render_mermaid_dark(ml, height=220, title="Esquema de ligação")
 
         if opt_abc:
-            panel_title("Cenários A / B / C")
-            tab_map = {
-                "A": "A — Eficiência",
-                "B": "B — Referência",
-                "C": "C — Execução",
-            }
+            panel_title("Comparativo A / B / C")
             rec_id_effective = (
                 str(cenario_aprovado.get("cenario_id")) if cenario_aprovado else ""
             )
-            labels = []
-            for cen in opt_data["cenarios"]:
-                cid = str(cen.get("cenario_id", "B"))
-                lbl = tab_map.get(cid, cid)
-                cen_score = int(
-                    cen.get("physics_confidence") or cen.get("confidence_score") or 0
-                )
-                if (
-                    rec_id_effective
-                    and cid == rec_id_effective
-                    and cenario_valido_para_painel_recomendado(cen)
-                    and cen_score > 0
-                ):
-                    lbl = f"{lbl} ★"
-                labels.append(lbl)
-            tabs = st.tabs(labels)
-            for tab, cen in zip(tabs, opt_data["cenarios"]):
-                with tab:
-                    _render_scenario_card_compact(
-                        cen,
-                        recomendado=bool(
-                            rec_id_effective
-                            and str(cen.get("cenario_id")) == rec_id_effective
-                        ),
-                    )
+            _render_scenarios_comparison_table(
+                opt_data,
+                rec_id_effective=rec_id_effective,
+            )
 
         if res and projeto_fisicamente_aprovado(opt_data):
             st.caption(f"Validação: **{res.get('validation_status', '—')}**")
@@ -799,9 +935,10 @@ def _render_report_panel(
 def _render_form(ctx) -> None:
     open_dashboard_shell()
     render_hero()
+    bench_calibration = _render_bench_sidebar()
     _banner = st.session_state.pop("demo_neuro_resilience_banner", None)
     if _banner:
-        st.warning(str(_banner))
+        st.warning(DEMO_NEURO_CONTINGENCY_MSG)
 
     with st.expander("Status do acervo oficial", expanded=False):
         _render_stats_compact()
@@ -1048,16 +1185,14 @@ def _render_form(ctx) -> None:
                     esp_user=parsed["esp_user"],
                     fio_user=parsed["fio_user"],
                     use_neuro_symbolic=use_neuro_symbolic,
+                    bench_calibration=bench_calibration,
                 )
         except FileNotFoundError as exc:
             st.error(str(exc))
             return
         except Exception as exc:
             if use_neuro_symbolic:
-                st.session_state["demo_neuro_resilience_banner"] = (
-                    f"Pipeline neuro-simbólico interrompido ({type(exc).__name__}). "
-                    "Tentando otimização proporcional A/B/C…"
-                )
+                st.session_state["demo_neuro_resilience_banner"] = DEMO_NEURO_CONTINGENCY_MSG
                 try:
                     opt_res = _run_demo_optimizer(
                         d=parsed["d"],
@@ -1071,6 +1206,7 @@ def _render_form(ctx) -> None:
                         esp_user=parsed["esp_user"],
                         fio_user=parsed["fio_user"],
                         use_neuro_symbolic=False,
+                        bench_calibration=bench_calibration,
                     )
                 except Exception as exc2:
                     st.error(str(exc2))
@@ -1093,10 +1229,7 @@ def _render_form(ctx) -> None:
         _persist_demo_results(opt_res=opt_res, entrada=entrada)
         if use_neuro_requested and isinstance(getattr(opt_res, "gemini_evaluation", None), dict):
             if opt_res.gemini_evaluation.get("fallback"):
-                st.session_state["demo_neuro_resilience_banner"] = (
-                    "Modo resiliência: seleção pelo fallback determinístico ou API do juiz "
-                    "indisponível — resultados continuam exibidos."
-                )
+                st.session_state["demo_neuro_resilience_banner"] = DEMO_NEURO_CONTINGENCY_MSG
         st.session_state["demo_calculo_entrada"] = entrada
         st.session_state.pop("demo_digital_twin", None)
         st.session_state.pop("demo_ordem_servico_html", None)

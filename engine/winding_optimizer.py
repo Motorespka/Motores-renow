@@ -162,6 +162,20 @@ class WindingOptimizationResult:
     neuro_symbolic_active: bool = False
 
 
+@dataclass(frozen=True)
+class BenchCalibration:
+    """Limites ajustáveis na bancada — auditoria suave neuro-simbólica (não filtra pool)."""
+
+    j_max_a_mm2: float = 8.0
+    ff_max: float = 0.75
+    profile_id: str = "custom"
+
+    def clamp(self) -> BenchCalibration:
+        j = max(4.0, min(10.0, float(self.j_max_a_mm2)))
+        ff = max(0.50, min(0.80, float(self.ff_max)))
+        return BenchCalibration(j_max_a_mm2=j, ff_max=ff, profile_id=self.profile_id)
+
+
 def _awg_area_mm2(awg: float) -> float:
     from engine.physics_validator import PhysicsValidator
 
@@ -217,11 +231,21 @@ def _raw_adjacent_combinations(
     return combos[:max_candidates]
 
 
-def _audit_soft_nominal_wire_and_packaging(*, eq_awg: float, ff: Optional[float], j_a_mm2: Optional[float]) -> dict[str, Any]:
+def _audit_soft_nominal_wire_and_packaging(
+    *,
+    eq_awg: float,
+    ff: Optional[float],
+    j_a_mm2: Optional[float],
+    j_max: float = 8.0,
+    ff_max: float = 0.75,
+) -> dict[str, Any]:
     """
     Restrições suaves / referências teóricas — apenas auditoria textual.
     d_w_mm: progressão IEC-style d = 0,127 × 92^((36−AWG)/39) mm (inteiro mais próximo de eq_awg).
+    j_max / ff_max: limites de bancada (sliders UI ou perfil de geometria).
     """
+    j_lim = max(4.0, min(10.0, float(j_max)))
+    ff_lim = max(0.50, min(0.80, float(ff_max)))
     awg_round = int(round(max(1.0, min(40.0, float(eq_awg)))))
     dw = 0.127 * (92 ** ((36 - awg_round) / 39))
     ff_sq = math.pi / 4.0
@@ -233,25 +257,29 @@ def _audit_soft_nominal_wire_and_packaging(*, eq_awg: float, ff: Optional[float]
         fv = float(ff)
         if fv > 1.0:
             fv = fv / 100.0
-        if fv > 0.75:
+        if fv > ff_lim:
             warn_ff = True
             soft_audit_messages.append(
-                f"Auditoria suave: ff operacional ≈ {fv:.3f} > 0,75 "
-                "(empacotamento prático severo segundo referência de engenharia)."
+                f"Auditoria suave: ff operacional ≈ {fv:.3f} > {ff_lim:.2f} "
+                f"(empacotamento prático severo; ref. quadrado ≈ {ff_sq:.3f}, hex ≈ {ff_hex:.3f})."
             )
-    if j_a_mm2 is not None and float(j_a_mm2) > 8.0:
+    if j_a_mm2 is not None and float(j_a_mm2) > j_lim:
         warn_j = True
         soft_audit_messages.append(
-            f"Auditoria suave: J = {float(j_a_mm2):.2f} A/mm² > 8,0 "
-            "(risco térmico severo)."
+            f"Auditoria suave: J = {float(j_a_mm2):.2f} A/mm² > {j_lim:.1f} "
+            "(risco térmico severo para o limite de bancada)."
         )
     return {
         "d_w_mm_nominal_formula": round(dw, 4),
         "awg_round_for_dw": awg_round,
         "ff_packaging_square_theory": round(ff_sq, 6),
         "ff_packaging_hex_theory": round(ff_hex, 6),
+        "j_max_limit": j_lim,
+        "ff_max_limit": ff_lim,
         "warn_ff_above_075": warn_ff,
         "warn_j_above_8": warn_j,
+        "warn_ff_above_max": warn_ff,
+        "warn_j_above_max": warn_j,
         "soft_audit_messages": soft_audit_messages,
     }
 
@@ -262,8 +290,10 @@ def _minimal_scored_candidate(
     espiras: float,
     awg: float,
     parallel_count: int = 1,
+    bench: Optional[BenchCalibration] = None,
 ) -> dict[str, Any]:
     """Stub bruto quando o motor de auditoria falha — mantém o pool vivo."""
+    cal = (bench or BenchCalibration()).clamp()
     wire = WireConfig(
         parallel_count=max(1, int(parallel_count)),
         awg=round(float(awg), 1),
@@ -287,6 +317,8 @@ def _minimal_scored_candidate(
             eq_awg=float(awg),
             ff=None,
             j_a_mm2=None,
+            j_max=cal.j_max_a_mm2,
+            ff_max=cal.ff_max,
         ),
     }
 
@@ -298,11 +330,13 @@ def _evaluate_inference_candidate(
     awg: float,
     parallel_count: int = 1,
     apply_fem_turns_guard: bool = True,
+    bench: Optional[BenchCalibration] = None,
 ) -> dict[str, Any]:
     """Calcula J, ff e B via PhysicsValidator — registra violações, nunca descarta."""
     from engine.physics_audit import audit_winding_physics, compute_slot_occupation_ratio
     from engine.physics_validator import PhysicsValidatorEngine
 
+    cal = (bench or BenchCalibration()).clamp()
     try:
         wire = WireConfig(
             parallel_count=max(1, int(parallel_count)),
@@ -346,6 +380,8 @@ def _evaluate_inference_candidate(
             eq_awg=float(eq_awg),
             ff=ff,
             j_a_mm2=phys.current_density_j,
+            j_max=cal.j_max_a_mm2,
+            ff_max=cal.ff_max,
         )
         return {
             "espiras": esp_final,
@@ -369,6 +405,7 @@ def _evaluate_inference_candidate(
             espiras=espiras,
             awg=awg,
             parallel_count=parallel_count,
+            bench=bench,
         )
 
 
@@ -380,6 +417,7 @@ def generate_inference_candidate_pool(
     apply_fem_turns_guard: bool = True,
     min_candidates: int = 5,
     max_candidates: int = 8,
+    bench: Optional[BenchCalibration] = None,
 ) -> list[dict[str, Any]]:
     """
     Etapa 1 — Gerador burro: 5–8 combinações adjacentes.
@@ -401,6 +439,7 @@ def generate_inference_candidate_pool(
             awg=awg,
             parallel_count=par,
             apply_fem_turns_guard=False,
+            bench=bench,
         )
         scored["index"] = idx
         pool.append(scored)
@@ -410,6 +449,7 @@ def generate_inference_candidate_pool(
             stator,
             espiras=max(float(esp_ref), 1.0),
             awg=float(awg_base),
+            bench=bench,
         )
         stub["index"] = 0
         pool.append(stub)
@@ -424,6 +464,7 @@ def run_neuro_symbolic_selection(
     esp_ref: float,
     awg_base: float,
     apply_fem_turns_guard: bool = True,
+    bench: Optional[BenchCalibration] = None,
 ) -> tuple[list[dict[str, Any]], dict[str, Any], Optional[dict[str, Any]]]:
     """
     Pipeline completo: pool determinístico + juiz Gemini (fallback J/ff).
@@ -436,6 +477,7 @@ def run_neuro_symbolic_selection(
         esp_ref=esp_ref,
         awg_base=awg_base,
         apply_fem_turns_guard=apply_fem_turns_guard,
+        bench=bench,
     )
 
     stator_info = {
@@ -902,6 +944,7 @@ class WindingOptimizer:
         use_gemini: bool = False,
         top_k: int = 5,
         use_neuro_symbolic: bool = False,
+        bench_calibration: Optional[BenchCalibration] = None,
     ) -> WindingOptimizationResult:
         ok, msg = validate_required_motor_inputs(
             diametro_mm=stator.diametro_mm,
@@ -1089,6 +1132,7 @@ class WindingOptimizer:
                 esp_ref=esp_ref,
                 awg_base=awg_base_raw,
                 apply_fem_turns_guard=apply_fem_guard,
+                bench=bench_calibration,
             )
             neuro_symbolic_active = True
             ns_status = str(gemini_evaluation.get("status") or "INVIÁVEL")

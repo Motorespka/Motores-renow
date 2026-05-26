@@ -15,6 +15,26 @@ from services.gemini_evaluator import (
 )
 
 
+def test_audit_soft_respects_custom_bench_limits():
+    stator = StatorInput(
+        diametro_mm=80.0,
+        pacote_mm=70.0,
+        ranhuras=36,
+        polos=4,
+        carcaca="nema",
+        passo="10-12",
+    )
+    from engine.winding_optimizer import BenchCalibration
+
+    bench = BenchCalibration(j_max_a_mm2=6.0, ff_max=0.60)
+    pool = generate_inference_candidate_pool(
+        stator, esp_ref=45.0, awg_base=19.0, bench=bench
+    )
+    aud = pool[0].get("audit_soft") or {}
+    assert aud.get("j_max_limit") == 6.0
+    assert aud.get("ff_max_limit") == 0.60
+
+
 def test_inference_candidate_has_audit_soft_structure():
     stator = StatorInput(
         diametro_mm=80.0,
