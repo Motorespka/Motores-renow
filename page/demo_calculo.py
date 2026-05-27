@@ -149,7 +149,12 @@ def _metric_j_display(cen: dict[str, Any]) -> str:
     return f"{float(j):.2f}" if j is not None else "—"
 
 
-def _render_bench_sidebar() -> BenchCalibration:
+def _render_bench_calibration_panel() -> BenchCalibration:
+    """
+    Calibração de bancada no corpo da página (não usa st.sidebar).
+
+    st.sidebar dentro de @st.fragment levanta StreamlitAPIException no Cloud.
+    """
     from tests.fixtures_geometrias import (
         GEOMETRIA_PERFIS,
         bench_from_profile,
@@ -157,8 +162,7 @@ def _render_bench_sidebar() -> BenchCalibration:
         profile_select_labels,
     )
 
-    with st.sidebar:
-        st.markdown("### Calibração de bancada")
+    with st.expander("⚙️ Calibração de bancada", expanded=False):
         labels = profile_select_labels()
         profile_id = st.selectbox(
             "Perfil geométrico",
@@ -935,7 +939,6 @@ def _render_report_panel(
 def _render_form(ctx) -> None:
     open_dashboard_shell()
     render_hero()
-    bench_calibration = _render_bench_sidebar()
     _banner = st.session_state.pop("demo_neuro_resilience_banner", None)
     if _banner:
         st.warning(DEMO_NEURO_CONTINGENCY_MSG)
@@ -948,12 +951,14 @@ def _render_form(ctx) -> None:
     res = st.session_state.get("demo_calculo_result")
 
     col_in, col_out = st.columns([2, 3], gap="large")
+    bench_calibration = BenchCalibration()
 
     with col_in:
         render_input_panel_open(
             title="Entrada de dados do motor",
             subtitle="Geometria · bobinagem · elétrico",
         )
+        bench_calibration = _render_bench_calibration_panel()
 
         if st.button(
             "Limpar dados / Novo cálculo",
