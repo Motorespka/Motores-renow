@@ -1,4 +1,4 @@
-import releaseBundle from "@repo/releases.json";
+import releaseBundle from "./releases.json";
 
 export type ChangelogEntry = {
   versao: string;
