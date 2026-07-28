@@ -101,32 +101,8 @@ export function MotorHologramPanel({ raw, item }: Props) {
       <div className="premium-card p-4 border border-border/50">
         <div className="font-display text-sm tracking-wider text-foreground">Holograma 3D</div>
         <p className="text-[11px] text-muted-foreground font-tech mt-2 leading-relaxed">
-          Sem malha GLB resolvida para este registo. No Streamlit, use <code className="text-primary/90">holograma_glb_url</code>{" "}
-          em <code className="text-primary/90">dados_tecnicos_json.motor</code>, ou configure{" "}
-          <code className="text-primary/90">NEXT_PUBLIC_HOLOGRAM_GLB_NEMA56</code>,{" "}
-          <code className="text-primary/90">NEXT_PUBLIC_HOLOGRAM_GLB_NEMA42</code>,{" "}
-          <code className="text-primary/90">NEXT_PUBLIC_HOLOGRAM_GLB_IEC132</code> /{" "}
-          <code className="text-primary/90">NEXT_PUBLIC_HOLOGRAM_GLB_DEFAULT</code> no Vercel.
-          {n56 ? (
-            <>
-              {" "}
-              Ficha indica família <span className="text-primary/90">NEMA 56</span>; confirme URL NEMA56 ou JSON.
-            </>
-          ) : null}
-          {n42 && !n56 ? (
-            <>
-              {" "}
-              Ficha indica <span className="text-primary/90">NEMA 42</span> (ex.: NEMA42); confirme{" "}
-              <code className="text-primary/90">NEXT_PUBLIC_HOLOGRAM_BAKED_NEMA42_GLB</code> e URL Supabase.
-            </>
-          ) : null}
-          {iec132SomenteFichaMecanica(raw) && !n56 && !n42 ? (
-            <>
-              {" "}
-              Ficha indica <span className="text-primary/90">IEC 132</span>; confirme{" "}
-              <code className="text-primary/90">NEXT_PUBLIC_HOLOGRAM_BAKED_IEC132_GLB</code> e URL GLB.
-            </>
-          ) : null}
+          Sem malha GLB para este registo. Defina <code className="text-primary/90">holograma_glb_url</code> no JSON
+          técnico do motor, ou use os ficheiros em <code className="text-primary/90">/holograms/</code> via env no Vercel.
         </p>
         <div className="mt-2 text-[10px] text-muted-foreground/80 font-tech">Preset: {presetLabel}</div>
       </div>

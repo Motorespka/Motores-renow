@@ -2,16 +2,26 @@
  * Resolução de URL GLB para holograma 3D — subconjunto alinhado a
  * `utils/motor_hologram_glb.py` / `resolve_model_glb_url` (Streamlit).
  * Variáveis: use `NEXT_PUBLIC_*` no Vercel; nomes sem prefixo aceites só em dev (Next carrega .env.local).
+ *
+ * Defaults servidos do próprio frontend (`/holograms/*`) — os URLs antigos do Supabase
+ * `rpdboth…` deixaram de resolver (projeto removido).
  */
 
-export const DEFAULT_NEMA56_GLB_URL =
-  "https://rpdbothdubddwltsdwlj.supabase.co/storage/v1/object/public/holograms/Nema56.glb";
+export const DEFAULT_NEMA56_GLB_URL = "/holograms/nema_56.glb";
 
-export const DEFAULT_NEMA42_GLB_URL =
-  "https://rpdbothdubddwltsdwlj.supabase.co/storage/v1/object/public/holograms/nema%2042%20closed%20(1).glb";
+export const DEFAULT_NEMA42_GLB_URL = "/holograms/monofasico_48.glb";
 
-export const DEFAULT_IEC132_GLB_URL =
-  "https://rpdbothdubddwltsdwlj.supabase.co/storage/v1/object/public/holograms/269c0156-2633-44cf-9d80-98c14483011c.glb";
+export const DEFAULT_IEC132_GLB_URL = "/holograms/motor_freio_iec.glb";
+
+export const DEFAULT_IEC_TEFC_GLB_URL = "/holograms/iec_63_b3.glb";
+
+export const DEFAULT_PUMP_GLB_URL = "/holograms/bomba_jp.glb";
+
+function isUsableGlbUrl(u: string): boolean {
+  const s = u.trim();
+  if (!pathLooksGlb(s)) return false;
+  return /^https?:\/\//i.test(s) || s.startsWith("/");
+}
 
 function motorBlock(row: Record<string, unknown>): Record<string, unknown> {
   const dt = row.dados_tecnicos_json;
@@ -162,10 +172,10 @@ function motorIdStr(row: Record<string, unknown>): string {
 
 function nema56GlbEfectivo(): string {
   const fromEnv = readEnv("NEXT_PUBLIC_HOLOGRAM_GLB_NEMA56", "HOLOGRAM_GLB_NEMA56");
-  if (fromEnv && /^https?:\/\//i.test(fromEnv) && pathLooksGlb(fromEnv)) return fromEnv;
+  if (fromEnv && isUsableGlbUrl(fromEnv)) return fromEnv.trim();
   if (!bakedNema56Activo()) return "";
   const override = readEnv("NEXT_PUBLIC_HOLOGRAM_DEFAULT_NEMA56_GLB_URL", "HOLOGRAM_DEFAULT_NEMA56_GLB_URL");
-  if (override && /^https?:\/\//i.test(override) && pathLooksGlb(override)) return override;
+  if (override && isUsableGlbUrl(override)) return override.trim();
   return DEFAULT_NEMA56_GLB_URL;
 }
 
@@ -177,10 +187,10 @@ function bakedNema42Activo(): boolean {
 
 function nema42GlbEfectivo(): string {
   const fromEnv = readEnv("NEXT_PUBLIC_HOLOGRAM_GLB_NEMA42", "HOLOGRAM_GLB_NEMA42");
-  if (fromEnv && /^https?:\/\//i.test(fromEnv) && pathLooksGlb(fromEnv)) return fromEnv;
+  if (fromEnv && isUsableGlbUrl(fromEnv)) return fromEnv.trim();
   if (!bakedNema42Activo()) return "";
   const override = readEnv("NEXT_PUBLIC_HOLOGRAM_DEFAULT_NEMA42_GLB_URL", "HOLOGRAM_DEFAULT_NEMA42_GLB_URL");
-  if (override && /^https?:\/\//i.test(override) && pathLooksGlb(override)) return override;
+  if (override && isUsableGlbUrl(override)) return override.trim();
   return DEFAULT_NEMA42_GLB_URL;
 }
 
@@ -192,10 +202,10 @@ function bakedIec132Activo(): boolean {
 
 function iec132GlbEfectivo(): string {
   const fromEnv = readEnv("NEXT_PUBLIC_HOLOGRAM_GLB_IEC132", "HOLOGRAM_GLB_IEC132");
-  if (fromEnv && /^https?:\/\//i.test(fromEnv) && pathLooksGlb(fromEnv)) return fromEnv;
+  if (fromEnv && isUsableGlbUrl(fromEnv)) return fromEnv.trim();
   if (!bakedIec132Activo()) return "";
   const override = readEnv("NEXT_PUBLIC_HOLOGRAM_DEFAULT_IEC132_GLB_URL", "HOLOGRAM_DEFAULT_IEC132_GLB_URL");
-  if (override && /^https?:\/\//i.test(override) && pathLooksGlb(override)) return override;
+  if (override && isUsableGlbUrl(override)) return override.trim();
   return DEFAULT_IEC132_GLB_URL;
 }
 
@@ -240,14 +250,14 @@ export function resolveHologramGlbUrl(row: Record<string, unknown>): string | nu
     const raw = motor[key];
     if (raw) {
       const u = String(raw).trim();
-      if (/^https?:\/\//i.test(u) && pathLooksGlb(u)) return u;
+      if (isUsableGlbUrl(u)) return u;
     }
   }
 
   const mid = motorIdStr(row);
   if (mid) {
     const perMotor = readEnv(`NEXT_PUBLIC_HOLOGRAM_GLB_MOTOR_${mid}`, `HOLOGRAM_GLB_MOTOR_${mid}`);
-    if (perMotor && /^https?:\/\//i.test(perMotor) && pathLooksGlb(perMotor)) return perMotor;
+    if (perMotor && isUsableGlbUrl(perMotor)) return perMotor.trim();
   }
 
   const strict = strictNema56Mode();
@@ -279,6 +289,12 @@ export function resolveHologramGlbUrl(row: Record<string, unknown>): string | nu
     if (u132) return u132;
   }
 
+  // WEG W22 / IEC ferro — comum no acervo
+  const modelo = `${String(row.modelo ?? row.Modelo ?? "")} ${modeloIdentificacaoUpper(row)}`.toUpperCase();
+  if (/\bW22\b|\bIEC\b|\b112M\b|\b132\b/.test(modelo)) {
+    return DEFAULT_IEC_TEFC_GLB_URL;
+  }
+
   for (const name of [
     "NEXT_PUBLIC_HOLOGRAM_GLB_DEFAULT",
     "HOLOGRAM_GLB_DEFAULT",
@@ -286,10 +302,11 @@ export function resolveHologramGlbUrl(row: Record<string, unknown>): string | nu
     "HOLOGRAM_GLB_WEG_STYLE_HOUSING",
   ] as const) {
     const u = readEnv(name);
-    if (u && /^https?:\/\//i.test(u) && pathLooksGlb(u)) return u;
+    if (u && isUsableGlbUrl(u)) return u.trim();
   }
 
-  return null;
+  // Como no Streamlit sem STRICT: mostra sempre uma silhueta padrão (oficina).
+  return nema56Url || DEFAULT_NEMA56_GLB_URL;
 }
 
 /** Ordem alinhada a `utils/motor_hologram.py` → HOLOGRAM_CHOICES. */
