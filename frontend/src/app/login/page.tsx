@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 
 import {
   getCurrentSession,
-  isDevDemoLoginAllowed,
   setDevDemoSession,
   tryDevDemoCredentials,
 } from "@/lib/auth";
@@ -81,9 +80,7 @@ export default function LoginPage() {
           password: passwordRaw,
         });
         if (loginError) {
-          throw new Error(
-            `${loginError.message} — use o e-mail completo (ex.: seu@gmail.com) e a senha Admin123! se acabámos de repor.`
-          );
+          throw new Error(`${loginError.message} — confira e-mail e senha.`);
         }
         if (!data.session) {
           throw new Error("Login sem sessão. Confirme o e-mail no Supabase ou tente de novo.");
@@ -141,26 +138,8 @@ export default function LoginPage() {
           {mode === "login" ? "ENTRAR" : "CRIAR CONTA"}
         </h1>
         <p className="text-[11px] text-muted-foreground font-tech mt-1">
-          Painel web (Vercel + Supabase). O login do Streamlit antigo era por utilizador/tabela — aqui é e-mail + senha.
+          Acesso à plataforma técnica da oficina. Use o e-mail e a senha da sua conta.
         </p>
-
-        <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[11px] leading-relaxed text-foreground/90 font-tech space-y-1">
-          <p className="font-semibold text-emerald-200/95">Acesso rápido (reposto agora)</p>
-          <p>
-            E-mail: <code className="font-mono-tech">k45430494@gmail.com</code>
-          </p>
-          <p>
-            ou: <code className="font-mono-tech">admin@gmail.com</code>
-          </p>
-          <p>
-            Senha: <code className="font-mono-tech">Admin123!</code>
-          </p>
-          {isDevDemoLoginAllowed() ? (
-            <p className="text-muted-foreground">
-              Demo: <code className="font-mono-tech">admin</code> / <code className="font-mono-tech">admin</code>
-            </p>
-          ) : null}
-        </div>
 
         {error ? (
           <div className="mt-4 p-3 rounded-lg border border-destructive/30 bg-destructive/10 text-[12px] text-destructive">
@@ -199,7 +178,7 @@ export default function LoginPage() {
               type="text"
               inputMode="email"
               autoComplete="username"
-              placeholder="k45430494@gmail.com"
+              placeholder="seu@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -211,7 +190,7 @@ export default function LoginPage() {
               className="w-full h-10 px-3 rounded-xl bg-muted/40 border border-border/50 text-sm font-tech outline-none focus:border-primary/50"
               type="password"
               autoComplete="current-password"
-              placeholder="Admin123!"
+              placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
