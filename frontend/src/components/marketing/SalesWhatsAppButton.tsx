@@ -12,9 +12,13 @@ type Props = {
   size?: Size;
 };
 
-/** Número E.164 sem + (ex.: 5531999999999). Definir em NEXT_PUBLIC_WHATSAPP_NUMBER. */
+/** Número E.164 sem +. Aceita NEXT_PUBLIC_SALES_WHATSAPP_E164 ou NEXT_PUBLIC_WHATSAPP_NUMBER. */
 function resolveWhatsAppNumber(): string {
-  const raw = (process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || "").replace(/\D/g, "");
+  const raw = (
+    process.env.NEXT_PUBLIC_SALES_WHATSAPP_E164 ||
+    process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ||
+    ""
+  ).replace(/\D/g, "");
   return raw.length >= 10 ? raw : "";
 }
 

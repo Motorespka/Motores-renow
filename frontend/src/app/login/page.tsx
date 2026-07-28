@@ -103,7 +103,10 @@ export default function LoginPage() {
           {mode === "login" ? "ENTRAR" : "CRIAR CONTA"}
         </h1>
         <p className="text-[11px] text-muted-foreground font-tech mt-1">
-          Acesso web (Next.js) integrado ao Supabase Auth.
+          Acesso web (Next.js) com Supabase Auth — crie conta uma vez e use o mesmo e-mail/senha no painel.
+        </p>
+        <p className="mt-2 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground font-tech">
+          Se usava o Streamlit com utilizador/senha antigos, crie conta aqui com o mesmo e-mail (ou peça-nos para migrar a lista de utilizadores).
         </p>
         {isDevDemoLoginAllowed() ? (
           <p className="mt-2 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground font-tech">

@@ -19,7 +19,7 @@ import {
   rowStage,
 } from "@/lib/dashboard-stats";
 import { apiFetch } from "@/lib/api";
-import { requireSession } from "@/lib/auth";
+import { profileFromSession, requireSession } from "@/lib/auth";
 import {
   DashboardMotorRow,
   fetchDiagnosticsCountSupabase,
@@ -71,8 +71,16 @@ export default function DashboardPage() {
       const session = await requireSession(router);
       if (!session) return;
       try {
-        const mePayload = await apiFetch<MeResponse>("/auth/me", session.access_token);
-        setMe(mePayload);
+        if (shouldFetchMotorsFromSupabase()) {
+          setMe(profileFromSession(session) as MeResponse);
+        } else {
+          try {
+            const mePayload = await apiFetch<MeResponse>("/auth/me", session.access_token);
+            setMe(mePayload);
+          } catch {
+            setMe(profileFromSession(session) as MeResponse);
+          }
+        }
 
         if (shouldFetchMotorsFromSupabase()) {
           const [bundle, dCount] = await Promise.all([

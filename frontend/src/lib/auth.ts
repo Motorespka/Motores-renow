@@ -81,3 +81,33 @@ export async function requireSession(router: AppRouterInstance): Promise<Session
   return session;
 }
 
+/** Perfil local quando não há FastAPI (Vercel + só Supabase) — equivalente ao acesso Streamlit. */
+export function profileFromSession(session: Session) {
+  const email = String(session.user?.email || "dev@localhost");
+  const meta = (session.user?.user_metadata || {}) as Record<string, unknown>;
+  const username = String(meta.username || email.split("@")[0] || "user");
+  const nome = String(meta.nome || meta.full_name || username);
+  const isAdmin =
+    String(meta.role || "").toLowerCase() === "admin" ||
+    email.toLowerCase().startsWith("admin@") ||
+    session.access_token === "dev";
+
+  return {
+    authenticated: true,
+    profile: {
+      user_id: String(session.user?.id || "local"),
+      email,
+      username,
+      display_name: nome,
+      nome,
+      role: isAdmin ? "admin" : "user",
+      plan: isAdmin ? "pro" : "oficina",
+      source: SUPABASE_CONFIGURED ? "supabase" : "local",
+      tier: isAdmin ? "admin" : "oficina",
+      ativo: true,
+      is_admin: isAdmin,
+      cadastro_allowed: true,
+    },
+  };
+}
+

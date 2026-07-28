@@ -7,7 +7,7 @@ import { Search } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { apiFetch } from "@/lib/api";
-import { requireSession } from "@/lib/auth";
+import { profileFromSession, requireSession } from "@/lib/auth";
 import { fetchMotorListFromSupabase, shouldFetchMotorsFromSupabase } from "@/lib/motors-supabase";
 import { MeResponse, MotorListResponse } from "@/lib/types";
 
@@ -47,12 +47,16 @@ export default function MotorsPage() {
       const session = await requireSession(router);
       if (!session) return;
       setToken(session.access_token);
-      try {
-        const mePayload = await apiFetch<MeResponse>("/auth/me", session.access_token);
-        setMe(mePayload);
-      } catch {
-        router.replace("/login");
-        return;
+      // Em Vercel sem FastAPI, o perfil vem da sessão Supabase (como o Streamlit usava o login local).
+      if (shouldFetchMotorsFromSupabase()) {
+        setMe(profileFromSession(session) as MeResponse);
+      } else {
+        try {
+          const mePayload = await apiFetch<MeResponse>("/auth/me", session.access_token);
+          setMe(mePayload);
+        } catch {
+          setMe(profileFromSession(session) as MeResponse);
+        }
       }
       await loadData("", session.access_token);
     })();
