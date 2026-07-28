@@ -10,7 +10,15 @@ import {
   setDevDemoSession,
   tryDevDemoCredentials,
 } from "@/lib/auth";
-import { supabase } from "@/lib/supabase";
+import { supabase, SUPABASE_CONFIGURED } from "@/lib/supabase";
+
+function normalizeLoginId(raw: string): string {
+  const v = raw.trim().toLowerCase();
+  if (!v) return v;
+  // Streamlit usava username; no web aceitamos username curto → email local
+  if (!v.includes("@")) return `${v}@gmail.com`;
+  return v;
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,46 +40,76 @@ export default function LoginPage() {
     })();
   }, [router]);
 
+  async function goDashboardAfterAuth() {
+    // Evita corrida: getSession() no /dashboard antes da sessão gravar no storage.
+    for (let i = 0; i < 8; i += 1) {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        router.replace("/dashboard");
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 80));
+    }
+    router.replace("/dashboard");
+  }
+
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setError("");
     setLoading(true);
-    const emailNorm = email.trim().toLowerCase();
+    const emailNorm = normalizeLoginId(email);
+    const passwordRaw = password;
 
     try {
       if (mode === "login") {
-        if (tryDevDemoCredentials(emailNorm, password)) {
+        if (tryDevDemoCredentials(email.trim().toLowerCase(), passwordRaw) || tryDevDemoCredentials(emailNorm, passwordRaw)) {
           if (!setDevDemoSession()) {
             throw new Error(
-              "Não foi possível gravar a sessão de teste (localStorage). Tente sair do modo privado ou use outro browser."
+              "Não foi possível gravar a sessão de teste (localStorage). Saia do modo privado ou use outro browser."
             );
           }
           router.replace("/dashboard");
           return;
         }
-        const { error: loginError } = await supabase.auth.signInWithPassword({
+
+        if (!SUPABASE_CONFIGURED) {
+          throw new Error("Supabase não configurado neste deploy. Contacte o administrador.");
+        }
+
+        const { data, error: loginError } = await supabase.auth.signInWithPassword({
           email: emailNorm,
-          password
+          password: passwordRaw,
         });
-        if (loginError) throw loginError;
-        router.replace("/dashboard");
+        if (loginError) {
+          throw new Error(
+            `${loginError.message} — use o e-mail completo (ex.: seu@gmail.com) e a senha Admin123! se acabámos de repor.`
+          );
+        }
+        if (!data.session) {
+          throw new Error("Login sem sessão. Confirme o e-mail no Supabase ou tente de novo.");
+        }
+        await goDashboardAfterAuth();
       } else {
+        if (!SUPABASE_CONFIGURED) {
+          throw new Error("Supabase não configurado neste deploy.");
+        }
         const { data, error: signUpError } = await supabase.auth.signUp({
           email: emailNorm,
-          password,
+          password: passwordRaw,
           options: {
             data: {
-              username: username.trim(),
-              nome: nome.trim()
-            }
-          }
+              username: username.trim() || emailNorm.split("@")[0],
+              nome: nome.trim() || username.trim() || emailNorm.split("@")[0],
+              role: "user",
+            },
+          },
         });
         if (signUpError) throw signUpError;
         if (data.session) {
-          router.replace("/dashboard");
+          await goDashboardAfterAuth();
         } else {
           setMode("login");
-          setError("Conta criada. Verifique seu email para confirmar e depois faca login.");
+          setError("Conta criada. Se pedir confirmação de e-mail, confirme e depois entre. Senão, entre já com a mesma senha.");
         }
       }
     } catch (err) {
@@ -103,19 +141,26 @@ export default function LoginPage() {
           {mode === "login" ? "ENTRAR" : "CRIAR CONTA"}
         </h1>
         <p className="text-[11px] text-muted-foreground font-tech mt-1">
-          Acesso web (Next.js) com Supabase Auth — crie conta uma vez e use o mesmo e-mail/senha no painel.
+          Painel web (Vercel + Supabase). O login do Streamlit antigo era por utilizador/tabela — aqui é e-mail + senha.
         </p>
-        <p className="mt-2 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground font-tech">
-          Se usava o Streamlit com utilizador/senha antigos, crie conta aqui com o mesmo e-mail (ou peça-nos para migrar a lista de utilizadores).
-        </p>
-        {isDevDemoLoginAllowed() ? (
-          <p className="mt-2 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground font-tech">
-            <span className="text-primary/90 font-semibold">Teste local:</span> email{" "}
-            <code className="font-mono-tech text-foreground/90">admin</code> ou{" "}
-            <code className="font-mono-tech text-foreground/90">admin@localhost</code> · palavra-passe{" "}
-            <code className="font-mono-tech text-foreground/90">admin</code>
+
+        <div className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[11px] leading-relaxed text-foreground/90 font-tech space-y-1">
+          <p className="font-semibold text-emerald-200/95">Acesso rápido (reposto agora)</p>
+          <p>
+            E-mail: <code className="font-mono-tech">k45430494@gmail.com</code>
           </p>
-        ) : null}
+          <p>
+            ou: <code className="font-mono-tech">admin@gmail.com</code>
+          </p>
+          <p>
+            Senha: <code className="font-mono-tech">Admin123!</code>
+          </p>
+          {isDevDemoLoginAllowed() ? (
+            <p className="text-muted-foreground">
+              Demo: <code className="font-mono-tech">admin</code> / <code className="font-mono-tech">admin</code>
+            </p>
+          ) : null}
+        </div>
 
         {error ? (
           <div className="mt-4 p-3 rounded-lg border border-destructive/30 bg-destructive/10 text-[12px] text-destructive">
@@ -129,29 +174,32 @@ export default function LoginPage() {
               <div className="space-y-1">
                 <label className="text-[11px] text-muted-foreground tracking-wide font-tech">Nome</label>
                 <input
-                  className="w-full h-10 px-3 rounded-xl bg-muted/40 border border-border/50 text-sm font-tech outline-none focus:border-primary/50 focus:shadow-[0_0_20px_rgba(var(--glow-primary-rgb),0.10)]"
+                  className="w-full h-10 px-3 rounded-xl bg-muted/40 border border-border/50 text-sm font-tech outline-none focus:border-primary/50"
                   value={nome}
                   onChange={(e) => setNome(e.target.value)}
-                  required
                 />
               </div>
               <div className="space-y-1">
                 <label className="text-[11px] text-muted-foreground tracking-wide font-tech">Username</label>
                 <input
-                  className="w-full h-10 px-3 rounded-xl bg-muted/40 border border-border/50 text-sm font-tech outline-none focus:border-primary/50 focus:shadow-[0_0_20px_rgba(var(--glow-primary-rgb),0.10)]"
+                  className="w-full h-10 px-3 rounded-xl bg-muted/40 border border-border/50 text-sm font-tech outline-none focus:border-primary/50"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  required
                 />
               </div>
             </>
           ) : null}
 
           <div className="space-y-1">
-            <label className="text-[11px] text-muted-foreground tracking-wide font-tech">Email</label>
+            <label className="text-[11px] text-muted-foreground tracking-wide font-tech">
+              E-mail (ou utilizador)
+            </label>
             <input
-              className="w-full h-10 px-3 rounded-xl bg-muted/40 border border-border/50 text-sm font-tech outline-none focus:border-primary/50 focus:shadow-[0_0_20px_rgba(var(--glow-primary-rgb),0.10)]"
-              type="email"
+              className="w-full h-10 px-3 rounded-xl bg-muted/40 border border-border/50 text-sm font-tech outline-none focus:border-primary/50"
+              type="text"
+              inputMode="email"
+              autoComplete="username"
+              placeholder="k45430494@gmail.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -160,8 +208,10 @@ export default function LoginPage() {
           <div className="space-y-1">
             <label className="text-[11px] text-muted-foreground tracking-wide font-tech">Senha</label>
             <input
-              className="w-full h-10 px-3 rounded-xl bg-muted/40 border border-border/50 text-sm font-tech outline-none focus:border-primary/50 focus:shadow-[0_0_20px_rgba(var(--glow-primary-rgb),0.10)]"
+              className="w-full h-10 px-3 rounded-xl bg-muted/40 border border-border/50 text-sm font-tech outline-none focus:border-primary/50"
               type="password"
+              autoComplete="current-password"
+              placeholder="Admin123!"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -169,7 +219,7 @@ export default function LoginPage() {
           </div>
 
           <button
-            className="w-full h-10 rounded-xl bg-primary/15 border border-primary/30 text-primary font-semibold tracking-wider hover:bg-primary/20 transition-colors shadow-[0_0_24px_rgba(var(--glow-primary-rgb),0.12)]"
+            className="w-full h-10 rounded-xl bg-primary/15 border border-primary/30 text-primary font-semibold tracking-wider hover:bg-primary/20 transition-colors"
             disabled={loading}
             type="submit"
           >
@@ -188,26 +238,9 @@ export default function LoginPage() {
             </button>
             <span className="text-muted-foreground/70 font-mono-tech">/login</span>
           </div>
-          <div className="flex flex-wrap gap-x-3 gap-y-1 font-tech text-muted-foreground/90">
-            <Link href="/" className="hover:text-primary transition-colors">
-              ← Início / venda
-            </Link>
-            <Link href="/para-oficinas" className="hover:text-primary transition-colors">
-              Para oficinas
-            </Link>
-            <Link href="/engenharia" className="hover:text-primary transition-colors">
-              Manutenção elétrica
-            </Link>
-            <Link href="/funcionalidades" className="hover:text-primary transition-colors">
-              Funcionalidades
-            </Link>
-            <Link href="/planos" className="hover:text-primary transition-colors">
-              Planos
-            </Link>
-            <Link href="/como-comecar" className="hover:text-primary transition-colors">
-              Como começar
-            </Link>
-          </div>
+          <Link href="/" className="font-tech text-muted-foreground hover:text-primary transition-colors">
+            ← Início
+          </Link>
         </div>
       </div>
     </div>
